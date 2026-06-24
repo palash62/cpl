@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest";
+import { validateLead } from "@/lib/lead-validation";
+import { isValidEmail, isValidPhone } from "@/lib/validations";
+
+describe("Lead Validation", () => {
+  const baseFields = [
+    { fieldName: "first_name", required: true, fieldType: "text" },
+    { fieldName: "email", required: true, fieldType: "email" },
+    { fieldName: "phone", required: true, fieldType: "phone" },
+  ];
+
+  it("passes valid lead", () => {
+    const result = validateLead({
+      data: { first_name: "Jane", email: "jane@example.com", phone: "+15551234567" },
+      campaignFields: baseFields,
+      existingEmails: [],
+      existingPhones: [],
+    });
+    expect(result.passed).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(50);
+  });
+
+  it("rejects duplicate email", () => {
+    const result = validateLead({
+      data: { first_name: "Jane", email: "jane@example.com", phone: "+15551234567" },
+      campaignFields: baseFields,
+      existingEmails: ["jane@example.com"],
+      existingPhones: [],
+    });
+    expect(result.passed).toBe(false);
+    expect(result.results.some((r) => r.rule === "duplicate_email" && !r.passed)).toBe(true);
+  });
+
+  it("rejects honeypot", () => {
+    const result = validateLead({
+      data: { email: "test@example.com" },
+      campaignFields: baseFields,
+      existingEmails: [],
+      existingPhones: [],
+      honeypot: "bot",
+    });
+    expect(result.passed).toBe(false);
+    expect(result.score).toBe(0);
+  });
+
+  it("rejects invalid email format", () => {
+    const result = validateLead({
+      data: { first_name: "Jane", email: "not-an-email", phone: "+15551234567" },
+      campaignFields: baseFields,
+      existingEmails: [],
+      existingPhones: [],
+    });
+    expect(result.results.some((r) => r.rule === "email_format" && !r.passed)).toBe(true);
+  });
+});
+
+describe("Validation utilities", () => {
+  it("validates email", () => {
+    expect(isValidEmail("user@example.com")).toBe(true);
+    expect(isValidEmail("invalid")).toBe(false);
+  });
+
+  it("validates phone", () => {
+    expect(isValidPhone("+1 555 123 4567")).toBe(true);
+    expect(isValidPhone("123")).toBe(false);
+  });
+});
