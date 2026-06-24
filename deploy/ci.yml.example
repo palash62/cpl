@@ -1,10 +1,11 @@
+# Copy to .github/workflows/ci.yml after enabling "workflow" scope on your GitHub PAT
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   test:
