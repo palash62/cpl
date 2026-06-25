@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, subDays, format } from "date-fns";
+import {
+  calcTrend,
+  getAdvertiserPeriodRange,
+  type AdvertiserPeriod,
+} from "@/lib/advertiser-periods";
+import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay } from "date-fns";
 
 export async function getAdminDashboardStats() {
   const [
@@ -88,6 +93,126 @@ export async function getAdvertiserDashboardStats(advertiserId: string) {
     pendingLeads,
     leadsTrend: await getLeadsTrend(30, campaignIds),
   };
+}
+
+async function getAdvertiserCampaignIds(advertiserId: string) {
+  const campaigns = await prisma.campaign.findMany({
+    where: { advertiserId },
+    select: { id: true },
+  });
+  return campaigns.map((c) => c.id);
+}
+
+export async function getAdvertiserMetricsForRange(
+  advertiserId: string,
+  from: Date,
+  to: Date,
+) {
+  const campaignIds = await getAdvertiserCampaignIds(advertiserId);
+  if (campaignIds.length === 0) {
+    return { leads: 0, spent: 0, cpl: 0, clicks: 0 };
+  }
+
+  const [leads, approvedLeads, clicks] = await Promise.all([
+    prisma.lead.count({
+      where: { campaignId: { in: campaignIds }, createdAt: { gte: from, lte: to } },
+    }),
+    prisma.lead.findMany({
+      where: {
+        campaignId: { in: campaignIds },
+        status: { in: ["APPROVED", "PAID"] },
+        createdAt: { gte: from, lte: to },
+      },
+      include: { campaign: { select: { cpl: true } } },
+    }),
+    prisma.trackingLink.aggregate({
+      where: { campaignId: { in: campaignIds } },
+      _sum: { clickCount: true },
+    }),
+  ]);
+
+  const spent = approvedLeads.reduce((sum, lead) => sum + Number(lead.campaign.cpl), 0);
+  const cpl = leads > 0 ? spent / leads : 0;
+
+  return {
+    leads,
+    spent,
+    cpl,
+    clicks: clicks._sum.clickCount ?? 0,
+  };
+}
+
+export async function getAdvertiserDashboardData(
+  advertiserId: string,
+  period: AdvertiserPeriod = "last30",
+) {
+  const { from, to, prevFrom, prevTo } = getAdvertiserPeriodRange(period);
+  const campaignIds = await getAdvertiserCampaignIds(advertiserId);
+
+  const [
+    activeCampaigns,
+    current,
+    previous,
+    pendingLeads,
+    wallet,
+    summaryRows,
+  ] = await Promise.all([
+    prisma.campaign.count({
+      where: { advertiserId, status: "ACTIVE" },
+    }),
+    getAdvertiserMetricsForRange(advertiserId, from, to),
+    getAdvertiserMetricsForRange(advertiserId, prevFrom, prevTo),
+    prisma.lead.findMany({
+      where: { campaign: { advertiserId }, status: "PENDING" },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: { campaign: { select: { name: true } } },
+    }),
+    prisma.wallet.findUnique({ where: { userId: advertiserId } }),
+    getAdvertiserSummaryRows(advertiserId),
+  ]);
+
+  return {
+    period,
+    activeCampaigns,
+    walletBalance: Number(wallet?.balance ?? 0),
+    stats: {
+      leads: current.leads,
+      clicks: current.clicks,
+      cpl: current.cpl,
+      spent: current.spent,
+      leadsTrend: calcTrend(current.leads, previous.leads),
+      clicksTrend: calcTrend(current.clicks, previous.clicks),
+      cplTrend: calcTrend(current.cpl, previous.cpl),
+      spentTrend: calcTrend(current.spent, previous.spent),
+    },
+    pendingLeads,
+    summaryRows,
+    leadsTrend: campaignIds.length ? await getLeadsTrend(30, campaignIds) : [],
+  };
+}
+
+async function getAdvertiserSummaryRows(advertiserId: string) {
+  const now = new Date();
+  const periods = [
+    { label: "Today", from: startOfDay(now), to: endOfDay(now) },
+    { label: "Yesterday", from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) },
+    { label: "Last 7 Days", from: startOfDay(subDays(now, 6)), to: endOfDay(now) },
+    { label: "Last 30 Days", from: startOfDay(subDays(now, 29)), to: endOfDay(now) },
+    { label: "This Month", from: startOfMonth(now), to: endOfDay(now) },
+    {
+      label: "Last Month",
+      from: startOfMonth(subMonths(now, 1)),
+      to: endOfMonth(subMonths(now, 1)),
+    },
+  ];
+
+  return Promise.all(
+    periods.map(async (p) => {
+      const metrics = await getAdvertiserMetricsForRange(advertiserId, p.from, p.to);
+      return { label: p.label, ...metrics };
+    }),
+  );
 }
 
 export async function getPublisherDashboardStats(publisherId: string) {

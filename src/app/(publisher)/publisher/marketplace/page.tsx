@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 
 interface Campaign {
   id: string;
@@ -48,39 +49,52 @@ export default function MarketplacePage() {
     if (d.data?.url) navigator.clipboard.writeText(d.data.url);
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading marketplace...</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Campaign Marketplace" description="Browse and join available campaigns" />
+        <p className="text-slate-500">Loading marketplace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Campaign Marketplace</h2>
+      <PageHeader title="Campaign Marketplace" description="Browse and join available campaigns" />
       <div className="grid gap-4 md:grid-cols-2">
         {campaigns.map((c) => {
           const joined = c.publisherCampaigns?.[0]?.status === "APPROVED";
           return (
-            <Card key={c.id}>
+            <div key={c.id} className="premium-card">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">{c.name}</CardTitle>
                 <Badge variant="secondary">{c.category}</Badge>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-2xl font-bold text-primary">${Number(c.cpl).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">per lead</span></p>
+                <p className="text-2xl font-bold text-[var(--theme-primary)]">
+                  ${Number(c.cpl).toFixed(2)} <span className="text-sm font-normal text-slate-500">per lead</span>
+                </p>
                 <div className="flex gap-2">
                   {!joined ? (
-                    <Button size="sm" onClick={() => join(c.id)}>Request Access</Button>
+                    <Button size="sm" className="bg-[var(--theme-primary)] hover:opacity-90" onClick={() => join(c.id)}>
+                      Request Access
+                    </Button>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => getLink(c.id)}>Copy Tracking Link</Button>
+                    <Button size="sm" variant="outline" onClick={() => getLink(c.id)}>
+                      Copy Tracking Link
+                    </Button>
                   )}
                 </div>
               </CardContent>
-            </Card>
+            </div>
           );
         })}
         {campaigns.length === 0 && (
-          <Card className="col-span-2">
-            <CardContent className="py-12 text-center text-muted-foreground">
+          <div className="premium-card col-span-2">
+            <CardContent className="py-12 text-center text-slate-500">
               No active campaigns available
             </CardContent>
-          </Card>
+          </div>
         )}
       </div>
     </div>

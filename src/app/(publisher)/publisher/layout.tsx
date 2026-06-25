@@ -1,16 +1,9 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { AppShell } from "@/components/layout/app-shell";
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
 
-export default async function PublisherLayout({
+export default function PublisherLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "PUBLISHER") {
-    redirect("/login");
-  }
-
-  return <AppShell role="PUBLISHER">{children}</AppShell>;
+  return <AuthenticatedShell role="PUBLISHER">{children}</AuthenticatedShell>;
 }

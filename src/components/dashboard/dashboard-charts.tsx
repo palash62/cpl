@@ -14,34 +14,41 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const COLORS = ["#2563EB", "#14B8A6", "#22C55E", "#F59E0B", "#EF4444"];
+const cardClass =
+  "premium-card p-6";
+
+const PIE_COLORS = ["#22C55E", "#F97316", "#EF4444", "var(--theme-chart-1)", "var(--theme-chart-2)"];
 
 interface TrendChartProps {
   title: string;
   data: Array<{ date: string; count: number }>;
+  embedded?: boolean;
 }
 
-export function LeadsTrendChart({ title, data }: TrendChartProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#2563EB" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+export function LeadsTrendChart({ title, data, embedded }: TrendChartProps) {
+  const chart = (
+    <>
+      {!embedded && (
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94A3B8" }} tickFormatter={(v) => v.slice(5)} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }} />
+          <Line type="monotone" dataKey="count" stroke="var(--theme-chart-1)" strokeWidth={2.5} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </>
   );
+
+  if (embedded) return chart;
+
+  return <div className={cardClass}>{chart}</div>;
 }
 
 interface BarChartProps {
@@ -51,22 +58,20 @@ interface BarChartProps {
 
 export function PerformanceBarChart({ title, data }: BarChartProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <div className={cardClass}>
+      <div className="mb-4">
+        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }} />
+          <Bar dataKey="value" fill="var(--theme-chart-1)" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -77,30 +82,28 @@ interface DonutChartProps {
 
 export function DonutChart({ title, data }: DonutChartProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={90}
-              dataKey="value"
-              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <div className={cardClass}>
+      <div className="mb-4">
+        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={90}
+            dataKey="value"
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+          >
+            {data.map((_, i) => (
+              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

@@ -1,65 +1,118 @@
 export const dynamic = "force-dynamic";
 
-import { Megaphone, FileText, CheckCircle, XCircle, DollarSign, Wallet } from "lucide-react";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { LeadsTrendChart, DonutChart } from "@/components/dashboard/dashboard-charts";
-import { getAdvertiserDashboardStats } from "@/services/report.service";
+import { Suspense } from "react";
+import { DollarSign, FileText, LineChart, Megaphone, Wallet } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ADVERTISER_PERIODS, parseAdvertiserPeriod } from "@/lib/advertiser-periods";
+import { getAdvertiserDashboardData } from "@/services/report.service";
+import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
+import { PageSection } from "@/components/admin/page-section";
+import { formatCurrency } from "@/components/admin/admin-ui";
+import { RoleHero } from "@/components/layout/role-hero";
+import { AdvertiserPeriodFilter } from "@/components/advertiser/advertiser-period-filter";
+import { AdvertiserReferralCard } from "@/components/advertiser/advertiser-referral-card";
+import {
+  AdvertiserPendingQueue,
+  AdvertiserSummaryTable,
+} from "@/components/advertiser/advertiser-dashboard-panels";
+import { LeadsTrendChart } from "@/components/dashboard/dashboard-charts";
 import { ButtonLink } from "@/components/ui/button-link";
 
-export default async function AdvertiserDashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ period?: string }>;
+}
+
+export default async function AdvertiserDashboardPage({ searchParams }: PageProps) {
   const session = await auth();
-  const stats = await getAdvertiserDashboardStats(session!.user.id);
+  const params = await searchParams;
+  const period = parseAdvertiserPeriod(params.period);
+  const periodLabel = ADVERTISER_PERIODS.find((p) => p.value === period)?.label ?? "Last 30 Days";
+  const data = await getAdvertiserDashboardData(session!.user.id, period);
+  const firstName = session?.user?.name?.split(" ")[0] ?? "Advertiser";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Advertiser Dashboard</h2>
-          <p className="text-muted-foreground">Campaign performance and lead overview</p>
+    <div className="space-y-7">
+      <RoleHero
+        eyebrow="Advertiser Portal"
+        title={`Hello, ${session?.user?.name ?? firstName}!`}
+        description={`Campaign performance for ${periodLabel.toLowerCase()}.`}
+        action={{ label: "Create Campaign", href: "/advertiser/campaigns/new", icon: Megaphone }}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Suspense fallback={<div className="h-9 w-36 animate-pulse rounded-lg bg-slate-100" />}>
+          <AdvertiserPeriodFilter current={period} />
+        </Suspense>
+        <div className="flex items-center gap-3">
+          <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-emerald-500 bg-white px-5 py-3 shadow-sm">
+            <p className="text-xs font-medium text-slate-500">Wallet Balance</p>
+            <p className="text-xl font-bold tracking-tight text-[var(--theme-primary)]">
+              {formatCurrency(data.walletBalance)}
+            </p>
+          </div>
+          <ButtonLink
+            href="/advertiser/wallet"
+            className="h-9 rounded-lg bg-[var(--theme-primary)] px-4 text-sm hover:opacity-90"
+          >
+            <Wallet className="mr-1.5 h-4 w-4" />
+            Add Funds
+          </ButtonLink>
         </div>
-        <ButtonLink href="/advertiser/campaigns/new">Create Campaign</ButtonLink>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Active Campaigns" value={stats.activeCampaigns} icon={Megaphone} />
-        <StatCard label="Total Leads" value={stats.totalLeads} icon={FileText} trend={12} />
-        <StatCard label="Approved Leads" value={stats.approvedLeads} icon={CheckCircle} trend={8} />
-        <StatCard label="Rejected Leads" value={stats.rejectedLeads} icon={XCircle} />
-        <StatCard label="Avg Cost Per Lead" value={`$${stats.avgCpl.toFixed(2)}`} icon={DollarSign} />
-        <StatCard label="Total Spend" value={`$${stats.totalSpend.toFixed(2)}`} icon={Wallet} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <LeadsTrendChart title="Leads Over Time" data={stats.leadsTrend} />
-        <DonutChart
-          title="Lead Quality"
-          data={[
-            { name: "Approved", value: stats.approvedLeads },
-            { name: "Rejected", value: stats.rejectedLeads },
-          ]}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <NeutralStatCard
+          label="Active Campaigns"
+          value={data.activeCampaigns}
+          icon={Megaphone}
+          accent="green"
+        />
+        <GradientStatCard
+          variant="leads"
+          label="Leads"
+          value={data.stats.leads}
+          icon={FileText}
+          trend={data.stats.leadsTrend}
+        />
+        <GradientStatCard
+          variant="revenue"
+          label="CPL"
+          value={formatCurrency(data.stats.cpl)}
+          icon={DollarSign}
+          trend={data.stats.cplTrend}
+        />
+        <NeutralStatCard
+          label="Spent"
+          value={formatCurrency(data.stats.spent)}
+          icon={Wallet}
+          accent="orange"
+          trend={data.stats.spentTrend}
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pending Review Queue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stats.pendingLeads.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No leads pending review</p>
-          ) : (
-            stats.pendingLeads.map((lead) => (
-              <div key={lead.id} className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="text-sm">{lead.campaign.name}</span>
-                <Badge variant="secondary">{lead.status}</Badge>
-              </div>
-            ))
+      <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
+        <div className="space-y-6">
+          <AdvertiserSummaryTable rows={data.summaryRows} />
+
+          {data.leadsTrend.length > 0 && (
+            <PageSection
+              title="Leads Over Time"
+              description="Daily lead volume for the last 30 days"
+              icon={LineChart}
+              gradient="leads"
+              contentClassName="px-6 py-5"
+            >
+              <LeadsTrendChart title="Leads Over Time" data={data.leadsTrend} embedded />
+            </PageSection>
           )}
-        </CardContent>
-      </Card>
+
+          <AdvertiserPendingQueue leads={data.pendingLeads} />
+        </div>
+
+        <aside className="space-y-4">
+          <AdvertiserReferralCard userId={session!.user.id} />
+        </aside>
+      </div>
     </div>
   );
 }

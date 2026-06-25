@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -29,31 +30,31 @@ export default async function PublisherCampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">My Campaigns</h2>
+      <PageHeader title="My Campaigns" description="Campaigns you've joined and your tracking links" />
       <div className="grid gap-4 md:grid-cols-2">
         {joins.map((j) => (
-          <Card key={j.id}>
+          <div key={j.id} className="premium-card">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">{j.campaign.name}</CardTitle>
-              <Badge>{j.status}</Badge>
+              <Badge variant="outline">{j.status}</Badge>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p className="text-lg font-bold text-primary">${Number(j.campaign.cpl).toFixed(2)} per lead</p>
-              <p className="text-sm text-muted-foreground">{j.campaign.category}</p>
+              <p className="text-lg font-bold text-[var(--theme-primary)]">${Number(j.campaign.cpl).toFixed(2)} per lead</p>
+              <p className="text-sm text-slate-500">{j.campaign.category}</p>
               {j.campaign.trackingLinks[0] && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500">
                   Link: /t/{j.campaign.trackingLinks[0].slug} · {j.campaign.trackingLinks[0].clickCount} clicks
                 </p>
               )}
             </CardContent>
-          </Card>
+          </div>
         ))}
         {joins.length === 0 && (
-          <Card className="col-span-2">
-            <CardContent className="py-12 text-center text-muted-foreground">
+          <div className="premium-card col-span-2">
+            <CardContent className="py-12 text-center text-slate-500">
               No campaigns joined yet. Browse the Marketplace to get started.
             </CardContent>
-          </Card>
+          </div>
         )}
       </div>
     </div>

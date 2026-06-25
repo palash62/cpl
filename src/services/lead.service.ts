@@ -159,41 +159,99 @@ export async function updateLeadStatus(
   return prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
 }
 
+export type AdvertiserLeadSort =
+  | "created_desc"
+  | "created_asc"
+  | "campaign_asc"
+  | "campaign_desc"
+  | "campaignId_asc"
+  | "campaignId_desc"
+  | "logData_asc"
+  | "logData_desc"
+  | "status_asc"
+  | "status_desc"
+  | "message_asc"
+  | "message_desc";
+
 export async function listLeads(filters: {
   campaignId?: string;
+  campaignSearch?: string;
   publisherId?: string;
   advertiserId?: string;
   status?: LeadStatus;
+  sort?: AdvertiserLeadSort;
   page?: number;
   limit?: number;
 }) {
   const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const limit = filters.limit ?? 10;
+  const sort = filters.sort ?? "created_desc";
+
+  const campaignWhere =
+    filters.advertiserId || filters.campaignSearch?.trim()
+      ? {
+          ...(filters.advertiserId && { advertiserId: filters.advertiserId }),
+          ...(filters.campaignSearch?.trim() && {
+            OR: [
+              { id: { contains: filters.campaignSearch.trim() } },
+              { name: { contains: filters.campaignSearch.trim() } },
+            ],
+          }),
+        }
+      : undefined;
 
   const where = {
     ...(filters.campaignId && { campaignId: filters.campaignId }),
     ...(filters.publisherId && { publisherId: filters.publisherId }),
     ...(filters.status && { status: filters.status }),
-    ...(filters.advertiserId && {
-      campaign: { advertiserId: filters.advertiserId },
-    }),
+    ...(campaignWhere && { campaign: campaignWhere }),
   };
+
+  const orderBy =
+    sort === "created_asc"
+      ? { createdAt: "asc" as const }
+      : sort === "campaign_asc"
+        ? { campaign: { name: "asc" as const } }
+        : sort === "campaign_desc"
+          ? { campaign: { name: "desc" as const } }
+          : sort === "campaignId_asc"
+            ? { campaignId: "asc" as const }
+            : sort === "campaignId_desc"
+              ? { campaignId: "desc" as const }
+              : sort === "logData_asc"
+                ? { id: "asc" as const }
+                : sort === "logData_desc"
+                  ? { id: "desc" as const }
+                  : sort === "status_asc"
+                    ? { status: "asc" as const }
+                    : sort === "status_desc"
+                      ? { status: "desc" as const }
+                      : sort === "message_asc"
+                        ? { updatedAt: "asc" as const }
+                        : sort === "message_desc"
+                          ? { updatedAt: "desc" as const }
+                          : { createdAt: "desc" as const };
 
   const [data, total] = await Promise.all([
     prisma.lead.findMany({
       where,
       include: {
-        campaign: { select: { name: true, cpl: true } },
+        campaign: { select: { id: true, name: true, cpl: true } },
         publisher: { select: { name: true, email: true } },
+        validationResults: { orderBy: { rule: "asc" } },
+        statusHistory: { orderBy: { createdAt: "desc" }, take: 3 },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     }),
     prisma.lead.count({ where }),
   ]);
 
-  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return {
+    data,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+  };
 }
 
 export async function logClick(slug: string, meta: {

@@ -11,6 +11,7 @@ export default async function AdvertiserReportsPage() {
   return (
     <ReportsSummary
       title="Campaign Reports"
+      description="Performance metrics across your campaigns"
       metrics={[
         { label: "Active Campaigns", value: stats.activeCampaigns },
         { label: "Total Leads", value: stats.totalLeads },

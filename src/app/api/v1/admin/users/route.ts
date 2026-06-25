@@ -10,6 +10,9 @@ export async function GET(request: Request) {
     const result = await listUsers({
       role: (searchParams.get("role") as UserRole) ?? undefined,
       status: (searchParams.get("status") as UserStatus) ?? undefined,
+      search: searchParams.get("q") ?? undefined,
+      dateFrom: searchParams.get("from") ? new Date(searchParams.get("from")!) : undefined,
+      dateTo: searchParams.get("to") ? new Date(searchParams.get("to")!) : undefined,
       page,
       limit,
     });

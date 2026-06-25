@@ -2,23 +2,12 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { UserRole } from "@prisma/client";
+import { authConfig } from "@/lib/auth.config";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      role: UserRole;
-    };
-  }
-  interface User {
-    role: UserRole;
-  }
-}
+export { ROLE_ROUTES, getDashboardPath } from "@/lib/auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -51,32 +40,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id!;
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-      }
-      return session;
-    },
-  },
 });
-
-export const ROLE_ROUTES: Record<UserRole, string> = {
-  ADMIN: "/admin",
-  ADVERTISER: "/advertiser",
-  PUBLISHER: "/publisher",
-};
-
-export function getDashboardPath(role: UserRole): string {
-  return ROLE_ROUTES[role];
-}

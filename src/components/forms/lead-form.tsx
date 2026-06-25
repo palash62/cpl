@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
 
@@ -51,20 +51,21 @@ export function LeadForm({
 
   if (status === "success") {
     return (
-      <Card className="w-full max-w-md text-center shadow-md">
+      <div className="premium-card w-full max-w-md text-center shadow-lg">
         <CardContent className="py-12">
-          <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-          <h2 className="mt-4 text-xl font-bold">Thank you!</h2>
-          <p className="text-muted-foreground">Your information has been submitted.</p>
+          <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" />
+          <h2 className="mt-4 text-xl font-bold text-slate-900">Thank you!</h2>
+          <p className="text-slate-500">Your information has been submitted.</p>
         </CardContent>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md shadow-md">
+    <div className="premium-card w-full max-w-md shadow-lg">
+      <div className="h-1.5 rounded-t-[18px] bg-gradient-to-r from-[var(--theme-gradient-from)] to-[var(--theme-gradient-to)]" />
       <CardHeader>
-        <CardTitle>{campaignName}</CardTitle>
+        <CardTitle className="text-slate-900">{campaignName}</CardTitle>
         <CardDescription>Fill out the form below to get started</CardDescription>
       </CardHeader>
       <CardContent>
@@ -95,11 +96,15 @@ export function LeadForm({
               />
             </div>
           ))}
-          <Button type="submit" className="w-full" disabled={status === "loading"}>
+          <Button
+            type="submit"
+            className="w-full bg-[var(--theme-primary)] hover:opacity-90"
+            disabled={status === "loading"}
+          >
             {status === "loading" ? "Submitting..." : "Submit"}
           </Button>
         </form>
       </CardContent>
-    </Card>
+    </div>
   );
 }

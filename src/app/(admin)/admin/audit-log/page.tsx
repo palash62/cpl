@@ -1,37 +1,83 @@
-import { listAuditLogs } from "@/services/admin.service";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import { ClipboardList, History, Shield, User } from "lucide-react";
+import { listAuditLogs } from "@/services/admin.service";
+import { PageHero } from "@/components/admin/page-hero";
+import { PageSection } from "@/components/admin/page-section";
+import { NeutralStatCard } from "@/components/admin/gradient-stat-card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAuditLogPage() {
   const { data: logs } = await listAuditLogs({ limit: 100 });
 
+  const uniqueActions = new Set(logs.map((l) => l.action)).size;
+  const uniqueActors = new Set(logs.filter((l) => l.actor).map((l) => l.actor!.email)).size;
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Audit Log</h2>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {logs.map((log) => (
-            <div key={log.id} className="flex justify-between border-b py-2 text-sm last:border-0">
-              <div>
-                <span className="font-medium">{log.action}</span>
-                <span className="text-muted-foreground"> · {log.entityType}</span>
-                {log.actor && (
-                  <p className="text-xs text-muted-foreground">{log.actor.name} ({log.actor.email})</p>
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {format(log.createdAt, "MMM d, yyyy HH:mm")}
-              </span>
-            </div>
-          ))}
-          {logs.length === 0 && <p className="text-muted-foreground">No audit entries</p>}
-        </CardContent>
-      </Card>
+    <div className="space-y-7">
+      <PageHero
+        eyebrow="Security"
+        title="Audit Log"
+        description="Track all platform actions and changes"
+        badge={`${logs.length} entries`}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <NeutralStatCard label="Total Entries" value={logs.length} icon={ClipboardList} accent="purple" />
+        <NeutralStatCard label="Unique Actions" value={uniqueActions} icon={History} accent="orange" />
+        <NeutralStatCard label="Active Actors" value={uniqueActors} icon={User} accent="green" />
+      </div>
+
+      <PageSection title="Recent Actions" description="Chronological log of platform events" icon={Shield} gradient="leads">
+        {logs.length === 0 ? (
+          <div className="px-6 py-16 text-center text-slate-500">No audit entries</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
+                <TableHead className="h-11 px-6 text-slate-600">Action</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Entity</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Actor</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <TableRow key={log.id} className="border-slate-100 transition-colors hover:bg-slate-50/80">
+                  <TableCell className="px-6 py-3">
+                    <Badge variant="outline" className="border-blue-200 bg-blue-50 font-medium text-blue-700">
+                      {log.action}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-slate-600">{log.entityType}</TableCell>
+                  <TableCell className="px-4 py-3">
+                    {log.actor ? (
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{log.actor.name}</p>
+                        <p className="text-xs text-slate-500">{log.actor.email}</p>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-400">System</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-xs text-slate-400">
+                    {format(log.createdAt, "MMM d, yyyy HH:mm")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </PageSection>
     </div>
   );
 }

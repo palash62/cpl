@@ -16,6 +16,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return withAuth(async (session) => {
+    if (session.user.role === "ADMIN") {
+      return Response.json(
+        { error: { code: "FORBIDDEN", message: "Admins cannot create support tickets", status: 403 } },
+        { status: 403 },
+      );
+    }
+
     try {
       const body = await request.json();
       const parsed = ticketSchema.safeParse(body);

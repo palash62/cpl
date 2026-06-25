@@ -1,10 +1,15 @@
-import { SupportTicketsPanel } from "@/components/support/support-tickets-panel";
+import { AdminSupportTicketsPanel } from "@/components/support/admin-support-tickets-panel";
+import { PageHero } from "@/components/admin/page-hero";
 
 export default function AdminSupportPage() {
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Support Tickets</h2>
-      <SupportTicketsPanel isAdmin />
+    <div className="space-y-7">
+      <PageHero
+        eyebrow="Help Center"
+        title="Support Tickets"
+        description="Review and respond to user support requests"
+      />
+      <AdminSupportTicketsPanel />
     </div>
   );
 }

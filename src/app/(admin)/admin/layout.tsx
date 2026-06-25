@@ -1,16 +1,9 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { AppShell } from "@/components/layout/app-shell";
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
 
-export default async function AdminLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    redirect("/login");
-  }
-
-  return <AppShell role="ADMIN">{children}</AppShell>;
+  return <AuthenticatedShell role="ADMIN">{children}</AuthenticatedShell>;
 }

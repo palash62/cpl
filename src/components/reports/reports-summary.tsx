@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/page-header";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ReportMetric {
   label: string;
@@ -7,24 +8,22 @@ interface ReportMetric {
 
 export function ReportsSummary({
   title,
+  description,
   metrics,
 }: {
   title: string;
+  description?: string;
   metrics: ReportMetric[];
 }) {
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">{title}</h2>
+      <PageHeader title={title} description={description} />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {metrics.map((m) => (
-          <Card key={m.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{m.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{m.value}</p>
-            </CardContent>
-          </Card>
+          <div key={m.label} className="premium-card p-5">
+            <p className="text-sm font-medium text-slate-500">{m.label}</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{m.value}</p>
+          </div>
         ))}
       </div>
     </div>

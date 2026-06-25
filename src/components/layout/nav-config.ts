@@ -15,6 +15,7 @@ import {
   ScrollText,
   Store,
   TrendingUp,
+  Palette,
 } from "lucide-react";
 
 export interface NavItem {
@@ -35,6 +36,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },
+  { label: "Themes", href: "/admin/themes", icon: Palette },
 ];
 
 export const ADVERTISER_NAV: NavItem[] = [

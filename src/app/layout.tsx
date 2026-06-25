@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,14 +21,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} h-full`} data-theme="slate-pro" suppressHydrationWarning>
       <body className="min-h-full bg-background font-sans antialiased">
-        <AuthProvider>
-          <TooltipProvider>
-            {children}
-            <Toaster />
-          </TooltipProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              {children}
+              <Toaster />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

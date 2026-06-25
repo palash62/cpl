@@ -18,11 +18,12 @@ export const campaignSchema = z.object({
   description: z.string().optional(),
   category: z.enum(["FINANCE", "INSURANCE", "EDUCATION", "REAL_ESTATE", "GENERIC"]),
   cpl: z.number().positive(),
-  budget: z.number().positive(),
+  budget: z.number().positive().optional(),
   dailyCap: z.number().int().positive().optional(),
   monthlyCap: z.number().int().positive().optional(),
   publisherAccess: z.enum(["OPEN", "APPROVAL_REQUIRED", "INVITE_ONLY"]).optional(),
   autoApprove: z.boolean().optional(),
+  status: z.enum(["DRAFT", "ACTIVE", "PAUSED"]).optional(),
   targeting: z.record(z.string(), z.unknown()).optional(),
   fields: z
     .array(

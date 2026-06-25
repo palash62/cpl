@@ -1,5 +1,4 @@
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -14,33 +13,32 @@ export function StatCard({ label, value, icon: Icon, trend, className }: StatCar
   const trendUp = trend !== undefined && trend >= 0;
 
   return (
-    <Card className={cn("shadow-sm", className)}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
-          {trend !== undefined && (
-            <span
-              className={cn(
-                "flex items-center gap-1 text-xs font-medium",
-                trendUp ? "text-green-600" : "text-red-600",
-              )}
-            >
-              {trendUp ? (
-                <TrendingUp className="h-3 w-3" />
-              ) : (
-                <TrendingDown className="h-3 w-3" />
-              )}
-              {Math.abs(trend)}%
-            </span>
-          )}
+    <div
+      className={cn(
+        "group premium-card border-t-[3px] border-t-[var(--theme-primary)] p-5 transition-all duration-300 hover:-translate-y-0.5",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--theme-primary-soft)]">
+          <Icon className="h-5 w-5 text-[var(--theme-primary)]" />
         </div>
-        <div className="mt-4">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
+        {trend !== undefined && (
+          <span
+            className={cn(
+              "flex items-center gap-1 text-xs font-medium",
+              trendUp ? "text-emerald-600" : "text-red-500",
+            )}
+          >
+            {trendUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {Math.abs(trend)}%
+          </span>
+        )}
+      </div>
+      <div className="mt-4">
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{value}</p>
+      </div>
+    </div>
   );
 }

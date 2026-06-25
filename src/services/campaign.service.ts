@@ -8,11 +8,12 @@ export interface CreateCampaignInput {
   description?: string;
   category: CampaignCategory;
   cpl: number;
-  budget: number;
+  budget?: number;
   dailyCap?: number;
   monthlyCap?: number;
   publisherAccess?: PublisherAccess;
   autoApprove?: boolean;
+  status?: CampaignStatus;
   targeting?: Record<string, unknown>;
   fields?: Array<{
     fieldName: string;
@@ -32,11 +33,12 @@ export async function createCampaign(input: CreateCampaignInput) {
       description: input.description,
       category: input.category,
       cpl: input.cpl,
-      budget: input.budget,
+      budget: input.budget ?? 999999999,
       dailyCap: input.dailyCap,
       monthlyCap: input.monthlyCap,
       publisherAccess: input.publisherAccess ?? "APPROVAL_REQUIRED",
       autoApprove: input.autoApprove ?? false,
+      status: input.status ?? "DRAFT",
       targeting: (input.targeting ?? {}) as Prisma.InputJsonValue,
       fields: input.fields
         ? {
@@ -80,6 +82,89 @@ export async function listCampaigns(filters: {
   ]);
 
   return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+}
+
+export type AdvertiserCampaignSort =
+  | "created_desc"
+  | "name_asc"
+  | "name_desc"
+  | "leads_asc"
+  | "leads_desc"
+  | "cpl_asc"
+  | "cpl_desc"
+  | "spent_asc"
+  | "spent_desc";
+
+export async function listAdvertiserCampaigns(filters: {
+  advertiserId: string;
+  search?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  sort?: AdvertiserCampaignSort;
+  page?: number;
+  limit?: number;
+}) {
+  const page = filters.page ?? 1;
+  const limit = filters.limit ?? 10;
+
+  const where: Prisma.CampaignWhereInput = {
+    advertiserId: filters.advertiserId,
+  };
+
+  if (filters.search?.trim()) {
+    where.name = { contains: filters.search.trim() };
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {};
+    if (filters.dateFrom) {
+      const from = new Date(filters.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      where.createdAt.gte = from;
+    }
+    if (filters.dateTo) {
+      const to = new Date(filters.dateTo);
+      to.setHours(23, 59, 59, 999);
+      where.createdAt.lte = to;
+    }
+  }
+
+  const sort = filters.sort ?? "created_desc";
+  const orderBy: Prisma.CampaignOrderByWithRelationInput =
+    sort === "name_asc"
+      ? { name: "asc" }
+      : sort === "name_desc"
+        ? { name: "desc" }
+        : sort === "leads_asc"
+          ? { leads: { _count: "asc" } }
+          : sort === "leads_desc"
+            ? { leads: { _count: "desc" } }
+            : sort === "cpl_asc"
+              ? { cpl: "asc" }
+              : sort === "cpl_desc"
+                ? { cpl: "desc" }
+                : sort === "spent_asc"
+                  ? { spent: "asc" }
+                  : sort === "spent_desc"
+                    ? { spent: "desc" }
+                    : { createdAt: "desc" };
+
+  const [raw, total] = await Promise.all([
+    prisma.campaign.findMany({
+      where,
+      include: {
+        _count: { select: { leads: true } },
+      },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.campaign.count({ where }),
+  ]);
+
+  const data = raw;
+
+  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 } };
 }
 
 export async function getCampaignById(id: string) {

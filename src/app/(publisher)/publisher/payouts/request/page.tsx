@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function RequestPayoutPage() {
   const router = useRouter();
@@ -44,8 +45,8 @@ export default function RequestPayoutPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-6">
-      <h2 className="text-2xl font-bold">Request Payout</h2>
-      <Card>
+      <PageHeader title="Request Payout" description="Withdraw your available earnings" />
+      <div className="premium-card">
         <CardHeader>
           <CardTitle>Payout Details</CardTitle>
         </CardHeader>
@@ -69,12 +70,12 @@ export default function RequestPayoutPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-[var(--theme-primary)] hover:opacity-90" disabled={loading}>
               {loading ? "Submitting..." : "Request Payout"}
             </Button>
           </form>
         </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }

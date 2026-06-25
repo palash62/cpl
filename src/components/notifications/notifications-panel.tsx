@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bell } from "lucide-react";
+import { PageSection } from "@/components/admin/page-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
@@ -48,39 +49,41 @@ export function NotificationsPanel() {
     load();
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading notifications...</p>;
+  if (loading) return <p className="text-slate-500">Loading notifications...</p>;
 
   const unread = notifications.filter((n) => !n.readAt).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{unread} unread</p>
+        <p className="text-sm text-slate-500">
+          <span className="font-semibold text-[var(--theme-primary)]">{unread}</span> unread
+        </p>
         {unread > 0 && (
           <Button size="sm" variant="outline" onClick={markAllRead}>
             Mark all read
           </Button>
         )}
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Notifications</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+
+      <PageSection title="All Notifications" description="Recent platform alerts" icon={Bell} gradient="leads">
+        <div className="divide-y divide-slate-100">
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`flex items-start justify-between border-b py-3 last:border-0 ${!n.readAt ? "bg-primary/5 -mx-2 px-2 rounded" : ""}`}
+              className={`flex items-start justify-between px-6 py-4 transition-colors hover:bg-violet-50/30 ${!n.readAt ? "bg-[var(--theme-primary-soft)]/50" : ""}`}
             >
               <div>
-                <p className="font-medium">{n.title}</p>
-                <p className="text-sm text-muted-foreground">{n.body}</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="font-medium text-slate-900">{n.title}</p>
+                <p className="text-sm text-slate-500">{n.body}</p>
+                <p className="mt-1 text-xs text-slate-400">
                   {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">{n.type}</Badge>
+                <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                  {n.type}
+                </Badge>
                 {!n.readAt && (
                   <Button size="sm" variant="ghost" onClick={() => markRead(n.id)}>
                     Mark read
@@ -89,9 +92,11 @@ export function NotificationsPanel() {
               </div>
             </div>
           ))}
-          {notifications.length === 0 && <p className="text-muted-foreground">No notifications</p>}
-        </CardContent>
-      </Card>
+          {notifications.length === 0 && (
+            <p className="px-6 py-12 text-center text-slate-500">No notifications</p>
+          )}
+        </div>
+      </PageSection>
     </div>
   );
 }
