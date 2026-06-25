@@ -152,3 +152,63 @@ export async function getWalletBalance(userId: string) {
     currency: wallet.currency,
   };
 }
+
+export async function listUserDeposits(
+  userId: string,
+  options: { page?: number; limit?: number } = {},
+) {
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.min(50, Math.max(1, options.limit ?? 10));
+  const skip = (page - 1) * limit;
+
+  const where = { userId };
+
+  const [deposits, total, totalRecharged] = await Promise.all([
+    prisma.deposit.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.deposit.count({ where }),
+    prisma.deposit.aggregate({
+      where: { ...where, status: "COMPLETED" },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const depositIds = deposits.map((deposit) => deposit.id);
+  const ledgerEntries =
+    depositIds.length > 0
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            referenceType: "deposit",
+            referenceId: { in: depositIds },
+            type: "CREDIT",
+          },
+          select: { referenceId: true, balanceAfter: true },
+        })
+      : [];
+
+  const balanceAfterByDeposit = new Map(
+    ledgerEntries.map((entry) => [entry.referenceId, Number(entry.balanceAfter)]),
+  );
+
+  return {
+    data: deposits.map((deposit) => ({
+      id: deposit.id,
+      amount: Number(deposit.amount),
+      status: deposit.status,
+      paymentId: deposit.stripePaymentId,
+      createdAt: deposit.createdAt,
+      balanceAfter: balanceAfterByDeposit.get(deposit.id) ?? null,
+    })),
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    totalRecharged: Number(totalRecharged._sum.amount ?? 0),
+  };
+}

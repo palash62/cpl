@@ -1,13 +1,19 @@
 import { withAuth } from "@/lib/api-handler";
-import { errorResponse } from "@/lib/errors";
+import { errorResponse, Errors } from "@/lib/errors";
 import { ticketSchema } from "@/lib/validations";
-import { createTicket, listTickets, addTicketMessage } from "@/services/notification.service";
+import {
+  createTicket,
+  listTickets,
+  addTicketMessage,
+  getTicketForUser,
+} from "@/services/notification.service";
 
 export async function GET(request: Request) {
   return withAuth(async (session) => {
     const page = parseInt(new URL(request.url).searchParams.get("page") ?? "1", 10);
     const tickets = await listTickets({
       userId: session.user.role === "ADMIN" ? undefined : session.user.id,
+      hideInternal: session.user.role !== "ADMIN",
       page,
     });
     return Response.json({ data: tickets });
@@ -28,7 +34,12 @@ export async function POST(request: Request) {
       const parsed = ticketSchema.safeParse(body);
 
       if (!parsed.success) {
-        return Response.json({ error: { code: "VALIDATION_ERROR", message: parsed.error.message, status: 422 } }, { status: 422 });
+        const message =
+          parsed.error.issues[0]?.message ?? "Please check the form and try again";
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message, status: 422 } },
+          { status: 422 },
+        );
       }
 
       const ticket = await createTicket(
@@ -47,8 +58,38 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   return withAuth(async (session) => {
-    const body = await request.json();
-    const ticket = await addTicketMessage(body.ticketId, session.user.id, body.body, body.isInternal);
-    return Response.json({ data: ticket });
+    try {
+      const body = await request.json();
+      const ticketId = body.ticketId as string | undefined;
+      const messageBody = typeof body.body === "string" ? body.body.trim() : "";
+
+      if (!ticketId || messageBody.length < 1) {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "Reply message is required", status: 422 } },
+          { status: 422 },
+        );
+      }
+
+      const ticket = await getTicketForUser(
+        ticketId,
+        session.user.id,
+        session.user.role === "ADMIN",
+      );
+
+      if (!ticket) {
+        return errorResponse(Errors.notFound("Ticket"));
+      }
+
+      const updated = await addTicketMessage(
+        ticketId,
+        session.user.id,
+        messageBody,
+        session.user.role === "ADMIN" ? Boolean(body.isInternal) : false,
+      );
+
+      return Response.json({ data: updated });
+    } catch (error) {
+      return errorResponse(error);
+    }
   });
 }

@@ -1,12 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LifeBuoy, Send } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  LifeBuoy,
+  MessageSquare,
+  Ticket,
+  Users,
+} from "lucide-react";
+import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
+import { avatarColors, getInitials } from "@/components/admin/admin-ui";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { TicketConversation } from "@/components/support/ticket-conversation";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  formatTicketStatus,
+  SUPPORT_CATEGORY_LABELS,
+  SUPPORT_STATUS_STYLES,
+  truncateTicketMessage,
+} from "@/lib/support-tickets";
+import { cn } from "@/lib/utils";
 
 interface TicketMessage {
   id: string;
@@ -15,7 +40,7 @@ interface TicketMessage {
   sender?: { name: string; role: string };
 }
 
-interface Ticket {
+interface SupportTicket {
   id: string;
   subject: string;
   category: string;
@@ -25,19 +50,20 @@ interface Ticket {
   messages?: TicketMessage[];
 }
 
-const statusColors: Record<string, string> = {
-  OPEN: "border-blue-200 bg-blue-50 text-blue-700",
-  IN_PROGRESS: "border-amber-200 bg-amber-50 text-amber-700",
-  RESOLVED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  CLOSED: "border-slate-200 bg-slate-50 text-slate-600",
-};
-
 export function AdminSupportTicketsPanel() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  const [replyingId, setReplyingId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
+  const stats = useMemo(() => {
+    const open = tickets.filter((t) => t.status === "OPEN").length;
+    const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
+    return { total: tickets.length, open, inProgress };
+  }, [tickets]);
 
   async function load() {
     const res = await fetch("/api/v1/support/tickets");
@@ -53,115 +79,182 @@ export function AdminSupportTicketsPanel() {
   async function sendReply(ticketId: string) {
     if (!replyBody.trim()) return;
     setSending(true);
+    setReplyError(null);
 
     const res = await fetch("/api/v1/support/tickets", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ticketId, body: replyBody.trim() }),
     });
+    const data = await res.json();
 
     setSending(false);
 
-    if (res.ok) {
-      setReplyBody("");
-      setReplyingId(null);
-      load();
+    if (!res.ok) {
+      setReplyError(data?.error?.message ?? "Unable to send reply");
+      return;
     }
+
+    setReplyBody("");
+    setReplyingId(null);
+    setExpandedId(ticketId);
+    load();
   }
 
-  if (loading) return <p className="text-slate-500">Loading tickets...</p>;
+  function toggleExpand(ticketId: string) {
+    setExpandedId((current) => (current === ticketId ? null : ticketId));
+    setReplyingId(null);
+    setReplyBody("");
+    setReplyError(null);
+  }
+
+  if (loading) {
+    return <p className="text-slate-500">Loading tickets...</p>;
+  }
 
   return (
-    <PageSection
-      title="All Tickets"
-      description="Review user requests and send replies"
-      icon={LifeBuoy}
-      gradient="approved"
-    >
-      <div className="divide-y divide-slate-100">
-        {tickets.map((t) => (
-          <div key={t.id} className="px-6 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-slate-900">{t.subject}</p>
-                {t.user && (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {t.user.name} · {t.user.email} · {t.user.role}
-                  </p>
-                )}
-                {t.messages?.[0] && (
-                  <p className="mt-2 text-sm text-slate-600">
-                    <span className="font-medium">{t.messages[0].sender?.name ?? "User"}:</span>{" "}
-                    {t.messages[0].body}
-                  </p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
-                  {t.category}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={statusColors[t.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}
-                >
-                  {t.status}
-                </Badge>
-              </div>
-            </div>
-
-            {replyingId === t.id ? (
-              <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                <Label htmlFor={`reply-${t.id}`} className="text-xs text-slate-500">
-                  Admin reply
-                </Label>
-                <Input
-                  id={`reply-${t.id}`}
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  placeholder="Type your reply..."
-                  onKeyDown={(e) => e.key === "Enter" && sendReply(t.id)}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => sendReply(t.id)}
-                    disabled={sending || !replyBody.trim()}
-                    className="gap-1 bg-[var(--theme-primary)] hover:opacity-90"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    {sending ? "Sending..." : "Send Reply"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setReplyingId(null);
-                      setReplyBody("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3"
-                onClick={() => {
-                  setReplyingId(t.id);
-                  setReplyBody("");
-                }}
-              >
-                Reply
-              </Button>
-            )}
-          </div>
-        ))}
-        {tickets.length === 0 && (
-          <p className="px-6 py-12 text-center text-slate-500">No tickets yet</p>
-        )}
+    <div className="space-y-7">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <GradientStatCard variant="leads" label="All Tickets" value={stats.total} icon={Ticket} />
+        <NeutralStatCard label="Open" value={stats.open} icon={MessageSquare} accent="orange" />
+        <NeutralStatCard label="In Progress" value={stats.inProgress} icon={Clock} accent="purple" />
       </div>
-    </PageSection>
+
+      <PageSection
+        title="All Tickets"
+        description="Review conversations and send admin replies to users"
+        icon={LifeBuoy}
+        gradient="approved"
+      >
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow
+                className="border-none hover:bg-transparent"
+                style={{ background: "var(--theme-primary-soft)" }}
+              >
+                <TableHead className="h-11 w-10 px-4" />
+                <TableHead className="h-11 px-4 text-slate-600">User</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Subject</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Category</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Last Message</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tickets.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="px-6 py-16 text-center text-slate-500">
+                    No support tickets yet
+                  </TableCell>
+                </TableRow>
+              ) : (
+                tickets.map((ticket, index) => {
+                  const lastMessage = ticket.messages?.[ticket.messages.length - 1];
+                  const isExpanded = expandedId === ticket.id;
+
+                  return (
+                    <Fragment key={ticket.id}>
+                      <TableRow
+                        className="cursor-pointer border-slate-100 transition-colors hover:bg-blue-50/40"
+                        onClick={() => toggleExpand(ticket.id)}
+                      >
+                        <TableCell className="px-4 py-4">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-slate-500" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-slate-500" />
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
+                          {ticket.user && (
+                            <div className="flex items-center gap-3">
+                              <Avatar size="sm">
+                                <AvatarFallback
+                                  className={cn(
+                                    "text-xs font-semibold",
+                                    avatarColors[index % avatarColors.length],
+                                  )}
+                                >
+                                  {getInitials(ticket.user.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{ticket.user.name}</p>
+                                <p className="text-xs text-slate-500">{ticket.user.email}</p>
+                              </div>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-4 font-medium text-slate-900">
+                          {ticket.subject}
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
+                          <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
+                            {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-4">
+                          <Badge
+                            variant="outline"
+                            className={SUPPORT_STATUS_STYLES[ticket.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}
+                          >
+                            {formatTicketStatus(ticket.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs px-4 py-4 text-sm text-slate-600">
+                          {lastMessage
+                            ? truncateTicketMessage(lastMessage.body, 60)
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={6} className="bg-slate-50/60 px-6 py-5">
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <Users className="h-3.5 w-3.5" />
+                                <span>
+                                  {ticket.user?.name} · {ticket.user?.role} ·{" "}
+                                  {format(new Date(ticket.createdAt), "MMM d, yyyy")}
+                                </span>
+                              </div>
+                              {replyError && (
+                                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                  {replyError}
+                                </p>
+                              )}
+                              <TicketConversation
+                                messages={ticket.messages ?? []}
+                                replyBody={replyBody}
+                                onReplyBodyChange={setReplyBody}
+                                onSendReply={() => sendReply(ticket.id)}
+                                onCancelReply={() => {
+                                  setReplyingId(null);
+                                  setReplyBody("");
+                                  setReplyError(null);
+                                }}
+                                showReplyForm={replyingId === ticket.id}
+                                onStartReply={() => {
+                                  setReplyingId(ticket.id);
+                                  setReplyBody("");
+                                  setReplyError(null);
+                                }}
+                                sendingReply={sending}
+                                replyLabel="Admin reply to user"
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </PageSection>
+    </div>
   );
 }

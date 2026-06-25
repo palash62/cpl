@@ -6,6 +6,7 @@ export const registerSchema = z.object({
   name: z.string().min(2),
   role: z.enum(["ADVERTISER", "PUBLISHER"]),
   company: z.string().optional(),
+  referralRef: z.string().optional(),
 });
 
 export const loginSchema = z.object({
@@ -52,9 +53,28 @@ export const payoutRequestSchema = z.object({
 });
 
 export const ticketSchema = z.object({
-  subject: z.string().min(3),
-  category: z.enum(["BILLING", "TECHNICAL", "CAMPAIGN", "PAYOUT", "OTHER"]),
-  body: z.string().min(10),
+  subject: z.string().trim().min(3, "Subject must be at least 3 characters"),
+  category: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
+    z.enum(["GENERAL", "BILLING", "TECHNICAL", "CAMPAIGN", "PAYOUT", "OTHER"]),
+  ),
+  body: z.string().trim().min(10, "Message must be at least 10 characters"),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Please confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const updateAdvertiserProfileSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  company: z.string().trim().min(2, "Company name must be at least 2 characters").optional(),
 });
 
 export function isValidEmail(email: string): boolean {

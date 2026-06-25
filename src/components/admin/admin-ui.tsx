@@ -58,6 +58,20 @@ export function LeadStatusBadge({ status }: { status: string }) {
   );
 }
 
+export function DepositStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    COMPLETED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+    FAILED: "border-red-200 bg-red-50 text-red-700",
+  };
+
+  return (
+    <Badge variant="outline" className={cn("font-medium capitalize", styles[status] ?? "border-slate-200 bg-slate-50 text-slate-600")}>
+      {status.toLowerCase()}
+    </Badge>
+  );
+}
+
 export function CampaignStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",

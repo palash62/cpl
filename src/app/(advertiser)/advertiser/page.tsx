@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { DollarSign, FileText, LineChart, Megaphone, Wallet } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { ADVERTISER_PERIODS, parseAdvertiserPeriod } from "@/lib/advertiser-periods";
+import { ensureReferralCode } from "@/services/referral.service";
 import { getAdvertiserDashboardData } from "@/services/report.service";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
@@ -28,6 +29,7 @@ export default async function AdvertiserDashboardPage({ searchParams }: PageProp
   const period = parseAdvertiserPeriod(params.period);
   const periodLabel = ADVERTISER_PERIODS.find((p) => p.value === period)?.label ?? "Last 30 Days";
   const data = await getAdvertiserDashboardData(session!.user.id, period);
+  const referralCode = await ensureReferralCode(session!.user.id);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Advertiser";
 
   return (
@@ -110,7 +112,7 @@ export default async function AdvertiserDashboardPage({ searchParams }: PageProp
         </div>
 
         <aside className="space-y-4">
-          <AdvertiserReferralCard userId={session!.user.id} />
+          <AdvertiserReferralCard referralCode={referralCode} />
         </aside>
       </div>
     </div>

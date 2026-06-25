@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/errors";
+import { resolveReferrerId } from "@/services/referral.service";
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const referredById = await resolveReferrerId(parsed.data.referralRef);
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
     const user = await prisma.$transaction(async (tx) => {
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
           name: parsed.data.name,
           role: parsed.data.role,
           status: "PENDING",
+          referredById: referredById ?? undefined,
           wallet: { create: {} },
           ...(parsed.data.role === "ADVERTISER" && {
             advertiserProfile: {

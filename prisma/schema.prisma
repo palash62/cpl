@@ -97,6 +97,7 @@ enum TicketPriority {
 }
 
 enum TicketCategory {
+  GENERAL
   BILLING
   TECHNICAL
   CAMPAIGN
@@ -119,9 +120,13 @@ model User {
   role          UserRole
   status        UserStatus @default(PENDING)
   emailVerified DateTime?  @map("email_verified")
+  referralCode  String?    @unique @map("referral_code")
+  referredById  String?    @map("referred_by_id")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
 
+  referredBy        User?  @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals         User[] @relation("UserReferrals")
   advertiserProfile AdvertiserProfile?
   publisherProfile  PublisherProfile?
   wallet            Wallet?
@@ -140,6 +145,7 @@ model User {
 
   @@index([role])
   @@index([status])
+  @@index([referredById])
   @@map("users")
 }
 

@@ -15,6 +15,7 @@ import {
   ScrollText,
   Store,
   TrendingUp,
+  Gift,
   Palette,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
   { label: "Leads", href: "/advertiser/leads", icon: FileText },
   { label: "Wallet", href: "/advertiser/wallet", icon: Wallet },
+  { label: "Referral Link", href: "/advertiser/referal_link", icon: Gift },
   { label: "Reports", href: "/advertiser/reports", icon: BarChart3 },
   { label: "Support", href: "/advertiser/support", icon: LifeBuoy },
   { label: "Settings", href: "/advertiser/settings", icon: Settings },

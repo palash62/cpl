@@ -1,22 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Copy, Check, Gift, Info } from "lucide-react";
+import { ArrowRight, Check, Copy, Gift, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { buildReferralUrl } from "@/lib/referral";
 
-export function AdvertiserReferralCard({ userId }: { userId: string }) {
+export function AdvertiserReferralCard({ referralCode }: { referralCode: string }) {
   const [copied, setCopied] = useState(false);
   const referralUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/register?ref=${userId}`
-      : `/register?ref=${userId}`;
+      ? buildReferralUrl(window.location.origin, referralCode)
+      : `/register?referral_by=${referralCode}`;
 
   async function copyLink() {
-    await navigator.clipboard.writeText(
+    const url =
       typeof window !== "undefined"
-        ? `${window.location.origin}/register?ref=${userId}`
-        : referralUrl,
-    );
+        ? buildReferralUrl(window.location.origin, referralCode)
+        : referralUrl;
+
+    await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -34,7 +37,7 @@ export function AdvertiserReferralCard({ userId }: { userId: string }) {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Your Referral Link</h3>
-            <p className="text-xs text-slate-500">Invite publishers to the platform</p>
+            <p className="text-xs text-slate-500">Earn 20% + 10% on 2 levels</p>
           </div>
         </div>
 
@@ -45,10 +48,9 @@ export function AdvertiserReferralCard({ userId }: { userId: string }) {
             background: "var(--theme-primary-soft)",
           }}
         >
-          <p className="text-xs font-medium text-slate-800">Earn when referrals join</p>
+          <p className="text-xs font-medium text-slate-800">Refer &amp; earn passive income</p>
           <p className="mt-1 text-xs text-slate-600">
-            Share your link with publishers. When they sign up and generate leads, you grow your
-            network.
+            Share your link. When referrals sign up and spend on ads, you earn recurring commissions.
           </p>
         </div>
 
@@ -68,6 +70,14 @@ export function AdvertiserReferralCard({ userId }: { userId: string }) {
           </Button>
         </div>
 
+        <Link
+          href="/advertiser/referal_link"
+          className="mt-4 flex items-center justify-center gap-1 text-sm font-medium text-[var(--theme-primary)] hover:underline"
+        >
+          View referral program
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+
         <div
           className="mt-4 flex gap-2 rounded-lg border p-3"
           style={{
@@ -77,8 +87,7 @@ export function AdvertiserReferralCard({ userId }: { userId: string }) {
         >
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
           <p className="text-xs leading-relaxed text-slate-600">
-            Copy and share your referral link on social media, email, or your website to invite new
-            publishers.
+            Copy and share on social media, email, or your website to invite new users.
           </p>
         </div>
       </div>
