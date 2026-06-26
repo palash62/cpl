@@ -94,6 +94,21 @@ export function CampaignStatusBadge({ status }: { status: string }) {
   );
 }
 
+export function PayoutStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    COMPLETED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    REQUESTED: "border-amber-200 bg-amber-50 text-amber-700",
+    REJECTED: "border-red-200 bg-red-50 text-red-700",
+    PROCESSING: "border-blue-200 bg-blue-50 text-blue-700",
+  };
+
+  return (
+    <Badge variant="outline" className={cn("font-medium capitalize", styles[status] ?? "border-slate-200 bg-slate-50 text-slate-600")}>
+      {status.toLowerCase()}
+    </Badge>
+  );
+}
+
 export function KycStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     APPROVED: "border-emerald-200 bg-emerald-50 text-emerald-700",

@@ -77,6 +77,18 @@ export const updateAdvertiserProfileSchema = z.object({
   company: z.string().trim().min(2, "Company name must be at least 2 characters").optional(),
 });
 
+export const updatePublisherProfileSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  website: z
+    .string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val === "" || z.string().url().safeParse(val).success, {
+      message: "Enter a valid website URL",
+    }),
+  trafficSource: z.string().trim().max(120).optional(),
+});
+
 export function isValidEmail(email: string): boolean {
   return z.string().email().safeParse(email).success;
 }

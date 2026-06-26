@@ -35,6 +35,7 @@ const publicPaths = [
 ];
 
 export const authConfig = {
+  trustHost: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   callbacks: {

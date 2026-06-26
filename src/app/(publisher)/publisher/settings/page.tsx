@@ -1,24 +1,116 @@
+export const dynamic = "force-dynamic";
+
+import { format } from "date-fns";
+import { CheckCircle, DollarSign, FileText, KeyRound } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPublisherSettings } from "@/services/user.service";
+import { prisma } from "@/lib/prisma";
+import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
+import {
+  avatarColors,
+  formatCurrency,
+  getInitials,
+  KycStatusBadge,
+  UserStatusBadge,
+} from "@/components/admin/admin-ui";
+import { RoleHero } from "@/components/layout/role-hero";
+import { PublisherInfoBanner } from "@/components/publisher/publisher-info-banner";
+import {
+  PublisherChangePasswordSection,
+  PublisherProfileForm,
+} from "@/components/publisher/publisher-settings-panels";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/layout/page-header";
+import { cn } from "@/lib/utils";
 
 export default async function PublisherSettingsPage() {
   const session = await auth();
+  const user = await getPublisherSettings(session!.user.id);
+
+  if (!user) {
+    return null;
+  }
+
+  const approvedLeads = await prisma.lead.count({
+    where: { publisherId: user.id, status: { in: ["APPROVED", "PAID"] } },
+  });
+
+  const website = user.publisherProfile?.website ?? "";
+  const trafficSource = user.publisherProfile?.trafficSource ?? "";
+  const memberSince = format(user.createdAt, "MMM d, yyyy");
+  const availableBalance = user.wallet
+    ? Number(user.wallet.balance)
+    : 0;
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Settings" description="Manage your account profile" />
-      <div className="premium-card">
-        <CardHeader>
-          <CardTitle className="text-base">Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p><span className="text-slate-500">Name:</span> <span className="text-slate-900">{session?.user?.name}</span></p>
-          <p><span className="text-slate-500">Email:</span> <span className="text-slate-900">{session?.user?.email}</span></p>
-          <Badge variant="outline">{session?.user?.role}</Badge>
-        </CardContent>
+    <div className="space-y-7">
+      <RoleHero
+        eyebrow="Publisher Portal"
+        title="Account Settings"
+        description="Manage your profile, traffic details, and account security."
+        action={{ label: "Change Password", href: "#change-password", icon: KeyRound }}
+      />
+
+      <PublisherInfoBanner>
+        Keep your profile up to date so advertisers can verify your traffic sources. Email changes
+        require support assistance.
+      </PublisherInfoBanner>
+
+      <div className="premium-card overflow-hidden">
+        <div className="h-1" style={{ background: "var(--theme-gradient-leads)" }} />
+        <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar size="lg">
+              <AvatarFallback className={cn("text-lg font-semibold", avatarColors[1])}>
+                {getInitials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{user.name}</h2>
+              <p className="text-sm text-slate-500">{user.email}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <UserStatusBadge status={user.status} />
+                <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 capitalize">
+                  {user.role.toLowerCase()}
+                </Badge>
+                {user.publisherProfile && (
+                  <KycStatusBadge status={user.publisherProfile.kycStatus} />
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Traffic source</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{trafficSource || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Member since</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{memberSince}</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <NeutralStatCard label="Total Leads" value={user._count.leads} icon={FileText} accent="purple" />
+        <GradientStatCard variant="approved" label="Approved Leads" value={approvedLeads} icon={CheckCircle} />
+        <GradientStatCard
+          variant="revenue"
+          label="Available Balance"
+          value={formatCurrency(availableBalance)}
+          icon={DollarSign}
+        />
+      </div>
+
+      <PublisherProfileForm
+        initialName={user.name}
+        initialWebsite={website}
+        initialTrafficSource={trafficSource}
+        email={user.email}
+      />
+
+      <PublisherChangePasswordSection />
     </div>
   );
 }

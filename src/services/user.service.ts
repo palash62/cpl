@@ -20,6 +20,52 @@ export async function getAdvertiserSettings(userId: string) {
   });
 }
 
+export async function getPublisherSettings(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      publisherProfile: {
+        select: { website: true, trafficSource: true, kycStatus: true },
+      },
+      wallet: { select: { balance: true } },
+      _count: { select: { leads: true } },
+    },
+  });
+}
+
+export async function updatePublisherProfile(
+  userId: string,
+  data: { name: string; website?: string; trafficSource?: string },
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { name: data.name },
+    });
+
+    await tx.publisherProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        website: data.website || null,
+        trafficSource: data.trafficSource || null,
+      },
+      update: {
+        website: data.website || null,
+        trafficSource: data.trafficSource || null,
+      },
+    });
+
+    return getPublisherSettings(userId);
+  });
+}
+
 export async function updateAdvertiserProfile(
   userId: string,
   data: { name: string; company?: string },

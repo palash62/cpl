@@ -226,3 +226,93 @@ export async function getMarketplaceCampaigns(publisherId: string) {
     orderBy: { cpl: "desc" },
   });
 }
+
+export type PublisherCampaignSort =
+  | "approved_desc"
+  | "name_asc"
+  | "name_desc"
+  | "cpl_asc"
+  | "cpl_desc"
+  | "clicks_asc"
+  | "clicks_desc"
+  | "status_asc"
+  | "status_desc";
+
+export async function listPublisherCampaigns(filters: {
+  publisherId: string;
+  search?: string;
+  status?: string;
+  sort?: PublisherCampaignSort;
+  page?: number;
+  limit?: number;
+}) {
+  const page = filters.page ?? 1;
+  const limit = filters.limit ?? 10;
+
+  const where: Prisma.PublisherCampaignWhereInput = {
+    publisherId: filters.publisherId,
+  };
+
+  if (filters.status && filters.status !== "all") {
+    where.status = filters.status as never;
+  }
+
+  if (filters.search?.trim()) {
+    where.campaign = { name: { contains: filters.search.trim() } };
+  }
+
+  const sort = filters.sort ?? "approved_desc";
+  const orderBy: Prisma.PublisherCampaignOrderByWithRelationInput =
+    sort === "name_asc"
+      ? { campaign: { name: "asc" } }
+      : sort === "name_desc"
+        ? { campaign: { name: "desc" } }
+        : sort === "cpl_asc"
+          ? { campaign: { cpl: "asc" } }
+          : sort === "cpl_desc"
+            ? { campaign: { cpl: "desc" } }
+            : sort === "status_asc"
+              ? { status: "asc" }
+              : sort === "status_desc"
+                ? { status: "desc" }
+                : { approvedAt: "desc" };
+
+  const [raw, total] = await Promise.all([
+    prisma.publisherCampaign.findMany({
+      where,
+      include: {
+        campaign: {
+          select: {
+            id: true,
+            name: true,
+            cpl: true,
+            status: true,
+            category: true,
+            trackingLinks: {
+              where: { publisherId: filters.publisherId },
+              select: { slug: true, clickCount: true },
+            },
+          },
+        },
+      },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.publisherCampaign.count({ where }),
+  ]);
+
+  const data = raw
+    .map((join) => ({
+      ...join,
+      clickCount: join.campaign.trackingLinks.reduce((sum, link) => sum + link.clickCount, 0),
+      trackingSlug: join.campaign.trackingLinks[0]?.slug ?? null,
+    }))
+    .sort((a, b) => {
+      if (sort === "clicks_asc") return a.clickCount - b.clickCount;
+      if (sort === "clicks_desc") return b.clickCount - a.clickCount;
+      return 0;
+    });
+
+  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 } };
+}

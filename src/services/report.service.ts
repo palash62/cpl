@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
-  calcTrend,
   getAdvertiserPeriodRange,
   type AdvertiserPeriod,
 } from "@/lib/advertiser-periods";
+import {
+  calcTrend,
+  getPublisherPeriodRange,
+  type PublisherPeriod,
+} from "@/lib/publisher-periods";
 import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay } from "date-fns";
 
 export async function getAdminDashboardStats() {
@@ -215,6 +219,111 @@ async function getAdvertiserSummaryRows(advertiserId: string) {
   );
 }
 
+async function getPublisherMetricsForRange(publisherId: string, from: Date, to: Date) {
+  const links = await prisma.trackingLink.findMany({
+    where: { publisherId },
+  });
+  const clicks = links.reduce((sum, l) => sum + l.clickCount, 0);
+
+  const [totalLeads, approvedLeads, earningsAgg] = await Promise.all([
+    prisma.lead.count({
+      where: { publisherId, createdAt: { gte: from, lte: to } },
+    }),
+    prisma.lead.count({
+      where: {
+        publisherId,
+        status: { in: ["APPROVED", "PAID"] },
+        createdAt: { gte: from, lte: to },
+      },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "CREDIT",
+        createdAt: { gte: from, lte: to },
+        wallet: { userId: publisherId },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const conversionRate = clicks > 0 ? (totalLeads / clicks) * 100 : 0;
+  const earnings = Number(earningsAgg._sum.amount ?? 0);
+
+  return { clicks, totalLeads, approvedLeads, conversionRate, earnings };
+}
+
+export async function getPublisherDashboardData(
+  publisherId: string,
+  period: PublisherPeriod = "last30",
+) {
+  const { from, to, prevFrom, prevTo } = getPublisherPeriodRange(period);
+  const [current, previous, wallet, recentLeads, topCampaignGroups, leadsTrend] =
+    await Promise.all([
+      getPublisherMetricsForRange(publisherId, from, to),
+      getPublisherMetricsForRange(publisherId, prevFrom, prevTo),
+      prisma.wallet.findUnique({ where: { userId: publisherId } }),
+      prisma.lead.findMany({
+        where: { publisherId },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { campaign: { select: { name: true, cpl: true } } },
+      }),
+      prisma.lead.groupBy({
+        by: ["campaignId"],
+        where: { publisherId, status: { in: ["APPROVED", "PAID"] } },
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+        take: 5,
+      }),
+      getPublisherLeadsTrend(30, publisherId),
+    ]);
+
+  const campaignIds = topCampaignGroups.map((g) => g.campaignId);
+  const campaigns = campaignIds.length
+    ? await prisma.campaign.findMany({
+        where: { id: { in: campaignIds } },
+        select: { id: true, name: true, cpl: true },
+      })
+    : [];
+  const campaignMap = new Map(campaigns.map((c) => [c.id, c]));
+
+  const topCampaigns = topCampaignGroups.map((group) => {
+    const campaign = campaignMap.get(group.campaignId);
+    const cpl = Number(campaign?.cpl ?? 0);
+    return {
+      campaignId: group.campaignId,
+      name: campaign?.name ?? "Unknown",
+      approvedLeads: group._count.id,
+      earnings: group._count.id * cpl * 0.9,
+    };
+  });
+
+  const availableBalance = wallet
+    ? Number(wallet.balance) - Number(wallet.holdBalance)
+    : 0;
+
+  return {
+    period,
+    availableBalance,
+    walletBalance: Number(wallet?.balance ?? 0),
+    stats: {
+      clicks: current.clicks,
+      totalLeads: current.totalLeads,
+      approvedLeads: current.approvedLeads,
+      conversionRate: current.conversionRate,
+      earnings: current.earnings,
+      clicksTrend: calcTrend(current.clicks, previous.clicks),
+      leadsTrend: calcTrend(current.totalLeads, previous.totalLeads),
+      approvedTrend: calcTrend(current.approvedLeads, previous.approvedLeads),
+      conversionTrend: calcTrend(current.conversionRate, previous.conversionRate),
+      earningsTrend: calcTrend(current.earnings, previous.earnings),
+    },
+    recentLeads,
+    topCampaigns,
+    leadsTrend,
+  };
+}
+
 export async function getPublisherDashboardStats(publisherId: string) {
   const links = await prisma.trackingLink.findMany({
     where: { publisherId },
@@ -257,6 +366,29 @@ export async function getPublisherDashboardStats(publisherId: string) {
     recentLeads,
     topCampaigns,
   };
+}
+
+async function getPublisherLeadsTrend(days: number, publisherId: string) {
+  const since = startOfDay(subDays(new Date(), days));
+  const leads = await prisma.lead.findMany({
+    where: {
+      publisherId,
+      createdAt: { gte: since },
+    },
+    select: { createdAt: true },
+  });
+
+  const map = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    map.set(format(subDays(new Date(), days - 1 - i), "yyyy-MM-dd"), 0);
+  }
+
+  for (const lead of leads) {
+    const key = format(lead.createdAt, "yyyy-MM-dd");
+    if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
 }
 
 async function getLeadsTrend(days: number, campaignIds?: string[]) {

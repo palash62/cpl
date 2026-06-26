@@ -153,6 +153,59 @@ export async function getWalletBalance(userId: string) {
   };
 }
 
+export async function listPublisherLedger(
+  userId: string,
+  options: { page?: number; limit?: number } = {},
+) {
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.min(50, Math.max(1, options.limit ?? 10));
+  const skip = (page - 1) * limit;
+
+  const wallet = await prisma.wallet.findUnique({ where: { userId } });
+  if (!wallet) {
+    return {
+      data: [],
+      meta: { total: 0, page, limit, totalPages: 1 },
+      totalEarned: 0,
+    };
+  }
+
+  const where = { walletId: wallet.id, type: "CREDIT" as const };
+
+  const [entries, total, totalEarned] = await Promise.all([
+    prisma.ledgerEntry.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.ledgerEntry.count({ where }),
+    prisma.ledgerEntry.aggregate({
+      where,
+      _sum: { amount: true },
+    }),
+  ]);
+
+  return {
+    data: entries.map((entry) => ({
+      id: entry.id,
+      amount: Number(entry.amount),
+      balanceAfter: Number(entry.balanceAfter),
+      referenceType: entry.referenceType,
+      referenceId: entry.referenceId,
+      description: entry.description,
+      createdAt: entry.createdAt,
+    })),
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    totalEarned: Number(totalEarned._sum.amount ?? 0),
+  };
+}
+
 export async function listUserDeposits(
   userId: string,
   options: { page?: number; limit?: number } = {},
