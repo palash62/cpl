@@ -73,6 +73,56 @@ export function AdminLeadsTrendChart({ data }: LeadsTrendChartProps) {
   );
 }
 
+interface RevenueTrendChartProps {
+  data: Array<{ date: string; amount: number }>;
+}
+
+export function AdminRevenueTrendChart({ data }: RevenueTrendChartProps) {
+  return (
+    <div className={cardClass}>
+      <div className="mb-5">
+        <h3 className="text-base font-semibold text-slate-900">Revenue Trend</h3>
+        <p className="mt-0.5 text-sm text-slate-500">Platform commission — last 30 days</p>
+      </div>
+      <ResponsiveContainer width="100%" height={260}>
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.25} />
+              <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 11, fill: "#94A3B8" }}
+            tickFormatter={(v) => v.slice(5)}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+          <Tooltip
+            formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}`, "Revenue"]}
+            contentStyle={{
+              borderRadius: "12px",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="amount"
+            stroke="#8B5CF6"
+            strokeWidth={2.5}
+            fill="url(#revenueGradient)"
+            dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 interface LeadStatusChartProps {
   data: Array<{ name: string; value: number; color: string }>;
 }

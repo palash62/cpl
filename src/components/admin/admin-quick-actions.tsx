@@ -6,6 +6,8 @@ import {
   BarChart3,
   Users,
   Download,
+  Wallet,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,18 +34,39 @@ const actions = [
     iconBg: "bg-emerald-50 text-emerald-600",
   },
   {
-    label: "Export Report",
+    label: "Review Leads",
+    description: "Approve or reject submissions",
+    href: "/admin/leads",
+    icon: FileText,
+    iconBg: "bg-violet-50 text-violet-600",
+  },
+  {
+    label: "Review Withdrawals",
+    description: "Process publisher payout requests",
+    href: "/admin/payouts",
+    icon: Wallet,
+    iconBg: "bg-cyan-50 text-cyan-600",
+  },
+  {
+    label: "Export Reports",
     description: "Download platform analytics",
     href: "/admin/reports",
     icon: Download,
     iconBg: "bg-[var(--theme-primary-soft)] text-[var(--theme-primary)]",
   },
   {
-    label: "Review Leads",
-    description: "Approve or reject submissions",
-    href: "/admin/leads",
-    icon: FileText,
-    iconBg: "bg-violet-50 text-violet-600",
+    label: "Support Tickets",
+    description: "Respond to customer issues",
+    href: "/admin/support",
+    icon: LifeBuoy,
+    iconBg: "bg-rose-50 text-rose-600",
+  },
+  {
+    label: "Platform Reports",
+    description: "View detailed analytics",
+    href: "/admin/reports",
+    icon: BarChart3,
+    iconBg: "bg-indigo-50 text-indigo-600",
   },
 ];
 
@@ -51,7 +74,7 @@ export function AdminQuickActions() {
   return (
     <div>
       <h2 className="mb-3 text-sm font-semibold text-slate-700">Quick Actions</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
