@@ -1,13 +1,13 @@
+import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { Errors } from "@/lib/errors";
 import type { UserRole } from "@prisma/client";
 
-export async function getSession() {
-  return auth();
-}
+/** Deduplicates auth() within a single server request (layout + page). */
+export const getSession = cache(auth);
 
 export async function requireAuth(allowedRoles?: UserRole[]) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     throw Errors.invalidCredentials();
   }
@@ -18,7 +18,7 @@ export async function requireAuth(allowedRoles?: UserRole[]) {
 }
 
 export async function requireApiAuth(allowedRoles?: UserRole[]) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return { error: Errors.invalidCredentials(), session: null };
   }

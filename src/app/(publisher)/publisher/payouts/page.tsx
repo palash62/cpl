@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { Banknote, Plus } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { listPayouts } from "@/services/payout.service";
 import { PageSection } from "@/components/admin/page-section";
 import { formatCurrency, PayoutStatusBadge } from "@/components/admin/admin-ui";
@@ -26,7 +26,7 @@ interface PageProps {
 }
 
 export default async function PayoutsPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;

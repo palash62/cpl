@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { format } from "date-fns";
 import { Info, KeyRound, Shield } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getAdvertiserSettings } from "@/services/user.service";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { UserStatusBadge, avatarColors, getInitials } from "@/components/admin/admin-ui";
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default async function AdvertiserSettingsPage() {
-  const session = await auth();
+  const session = await getSession();
   const user = await getAdvertiserSettings(session!.user.id);
 
   if (!user) {

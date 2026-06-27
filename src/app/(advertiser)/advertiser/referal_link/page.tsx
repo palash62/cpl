@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { format } from "date-fns";
 import { Gift, Info, Share2, TrendingUp, Users, Wallet } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import {
   REFERRAL_LEVELS,
   REFERRAL_MIN_PAYOUT,
@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default async function AdvertiserReferralLinkPage() {
-  const session = await auth();
+  const session = await getSession();
   const data = await getAdvertiserReferralData(session!.user.id);
 
   return (

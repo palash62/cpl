@@ -1,9 +1,9 @@
-import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthenticatedShell role="ADMIN">{children}</AuthenticatedShell>;
+  return <AppShell role="ADMIN">{children}</AppShell>;
 }

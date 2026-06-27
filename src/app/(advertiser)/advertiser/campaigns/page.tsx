@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { Info, Megaphone, Plus } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import {
   listAdvertiserCampaigns,
   type AdvertiserCampaignSort,
@@ -15,6 +15,7 @@ import { AdvertiserCampaignsFilters } from "@/components/advertiser/advertiser-c
 import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
 import { AdvertiserCampaignsSortHeader } from "@/components/advertiser/advertiser-campaigns-sort-header";
 import { ButtonLink } from "@/components/ui/button-link";
+import { CampaignPixelButton } from "@/components/advertiser/campaign-pixel-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -57,8 +58,7 @@ function shortId(id: string) {
 }
 
 export default async function AdvertiserCampaignsPage({ searchParams }: PageProps) {
-  const session = await auth();
-  const params = await searchParams;
+  const [session, params] = await Promise.all([getSession(), searchParams]);
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
   const dateFrom = params.from ?? defaultCampaignDateFrom();
@@ -207,14 +207,21 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                       </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
-                      <ButtonLink
-                        href="/advertiser/leads"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 rounded-md border-slate-200 text-xs"
-                      >
-                        View Leads
-                      </ButtonLink>
+                      <div className="flex items-center justify-end gap-2">
+                        <CampaignPixelButton
+                          campaignId={c.id}
+                          campaignName={c.name}
+                          pixelToken={c.pixelToken}
+                        />
+                        <ButtonLink
+                          href="/advertiser/leads"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-md border-slate-200 text-xs"
+                        >
+                          View Leads
+                        </ButtonLink>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

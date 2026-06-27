@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import {
   Building2,
   Users,
@@ -24,7 +24,7 @@ import { AdminActivityTimeline } from "@/components/admin/admin-activity-timelin
 import { AdminRecentLeadsTable } from "@/components/admin/admin-recent-leads-table";
 
 export default async function AdminDashboardPage() {
-  const [stats, session] = await Promise.all([getAdminDashboardStats(), auth()]);
+  const [stats, session] = await Promise.all([getAdminDashboardStats(), getSession()]);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Admin";
 
   const todayKey = format(new Date(), "yyyy-MM-dd");

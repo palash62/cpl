@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import {
   CalendarClock,
   Check,
+  Crosshair,
   Settings2,
   Target,
   Wallet,
@@ -17,9 +18,8 @@ import {
   countriesFromTiers,
   DEFAULT_LEAD_FIELDS,
   DEVICE_TYPES,
-  formatTierCountryList,
-  getCountryName,
   OPERATING_SYSTEMS,
+  TIER_COUNTRIES,
   TIER_META,
   URL_TOKENS,
   VERTICALS,
@@ -29,6 +29,7 @@ import {
   BidRecommendationPanel,
   CampaignSummaryPanel,
 } from "@/components/advertiser/create-campaign-sidebar";
+import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,7 @@ export function CreateCampaignForm() {
   const [dailyBudget, setDailyBudget] = useState("");
   const [budgetDistribution, setBudgetDistribution] = useState<BudgetDistribution | null>(null);
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice | null>(null);
+  const [createdPixelToken, setCreatedPixelToken] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/v1/wallet")
@@ -300,6 +302,15 @@ export function CreateCampaignForm() {
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       setError(body?.error?.message ?? "Failed to create campaign. Please try again.");
+      return;
+    }
+
+    const body = await res.json();
+    const pixelToken = body?.data?.pixelToken as string | undefined;
+
+    if (pixelToken) {
+      setCreatedPixelToken(pixelToken);
+      document.getElementById("campaign-tracking-pixel")?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
@@ -486,7 +497,6 @@ export function CreateCampaignForm() {
                     {(Object.keys(TIER_META) as CountryTier[]).map((tier) => {
                       const meta = TIER_META[tier];
                       const active = selectedTiers.includes(tier);
-                      const tierCountries = formatTierCountryList(tier);
                       return (
                         <button
                           key={tier}
@@ -503,23 +513,8 @@ export function CreateCampaignForm() {
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                              {tierCountries.length} countries
+                              {TIER_COUNTRIES[tier].length} countries
                             </span>
-                          </div>
-                          <div className="mt-3 flex max-h-28 flex-wrap gap-1 overflow-y-auto">
-                            {tierCountries.map((label) => (
-                              <span
-                                key={label}
-                                className={cn(
-                                  "rounded-md border px-1.5 py-0.5 text-[10px] leading-tight",
-                                  active
-                                    ? "border-[var(--theme-primary)]/20 bg-white text-slate-700"
-                                    : "border-slate-200 bg-slate-50 text-slate-600",
-                                )}
-                              >
-                                {label}
-                              </span>
-                            ))}
                           </div>
                         </button>
                       );
@@ -527,23 +522,23 @@ export function CreateCampaignForm() {
                   </div>
 
                   {selectedTiers.length > 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Selected countries ({countries.length})
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {countries.map((code) => (
-                          <Badge key={code} variant="outline" className="text-xs font-normal">
-                            {getCountryName(code)} ({code})
+                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Selected:
+                        </span>
+                        {selectedTiers.map((tier) => (
+                          <Badge key={tier} variant="outline" className="text-xs font-normal">
+                            {TIER_META[tier].label}
                           </Badge>
                         ))}
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedTiers([])}
-                        className="mt-3 text-xs text-slate-500 hover:text-slate-700 hover:underline"
+                        className="shrink-0 text-xs text-slate-500 hover:text-slate-700 hover:underline"
                       >
-                        Clear selection (target all countries)
+                        Clear (all countries)
                       </button>
                     </div>
                   )}
@@ -711,6 +706,33 @@ export function CreateCampaignForm() {
               </div>
             </div>
           </SectionCard>
+
+          <SectionCard
+            step={5}
+            title="Tracking Pixel"
+            icon={Crosshair}
+            accentIndex={3}
+          >
+            <div id="campaign-tracking-pixel">
+              {createdPixelToken ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    Campaign created. Copy your tracking pixel below and place it on your conversion
+                    page.
+                  </div>
+                  <CampaignTrackingPixelPanel pixelToken={createdPixelToken} />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-sm text-slate-600">
+                  <p className="font-medium text-slate-800">Auto-generated on save</p>
+                  <p className="mt-1">
+                    A unique tracking pixel will be created when you save this campaign. Use it on
+                    your thank-you or conversion page to track confirmed sales.
+                  </p>
+                </div>
+              )}
+            </div>
+          </SectionCard>
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
@@ -749,14 +771,23 @@ export function CreateCampaignForm() {
 
             <Button
               type="submit"
-              disabled={loading || !canSubmit}
+              disabled={loading || !canSubmit || !!createdPixelToken}
               className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Saving..." : "Save Campaign"}
+              {loading ? "Saving..." : createdPixelToken ? "Campaign saved" : "Save Campaign"}
             </Button>
-            <ButtonLink href="/advertiser/campaigns" variant="outline" className="mt-2 h-10 w-full">
-              Cancel
-            </ButtonLink>
+            {createdPixelToken ? (
+              <ButtonLink
+                href="/advertiser/campaigns"
+                className="mt-2 h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold text-white hover:opacity-90"
+              >
+                Go to campaigns
+              </ButtonLink>
+            ) : (
+              <ButtonLink href="/advertiser/campaigns" variant="outline" className="mt-2 h-10 w-full">
+                Cancel
+              </ButtonLink>
+            )}
             {!canSubmit && !error && (
               <p className="mt-3 text-center text-xs text-slate-500">
                 Fill required fields and choose a status to continue

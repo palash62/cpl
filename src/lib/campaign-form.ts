@@ -110,11 +110,7 @@ export function countriesFromTiers(tiers: CountryTier[]) {
 
 export function formatSelectedCountriesSummary(tiers: CountryTier[]) {
   if (tiers.length === 0) return "All countries";
-  const codes = countriesFromTiers(tiers);
-  if (codes.length <= 4) {
-    return codes.map((code) => getCountryName(code)).join(", ");
-  }
-  return `${codes.length} countries · ${tiers.map((t) => TIER_META[t].label).join(", ")}`;
+  return tiers.map((t) => TIER_META[t].label).join(", ");
 }
 
 export const DEVICE_TYPES = ["Desktop", "Mobile", "Tablet"] as const;

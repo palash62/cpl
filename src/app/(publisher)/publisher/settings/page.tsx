@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { format } from "date-fns";
 import { CheckCircle, DollarSign, FileText, KeyRound } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getPublisherSettings } from "@/services/user.service";
 import { prisma } from "@/lib/prisma";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default async function PublisherSettingsPage() {
-  const session = await auth();
+  const session = await getSession();
   const user = await getPublisherSettings(session!.user.id);
 
   if (!user) {

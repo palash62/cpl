@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { ArrowDownLeft, History, Info, Lock, Plus, Wallet } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getWalletBalance, listUserDeposits } from "@/services/wallet.service";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
@@ -35,7 +35,7 @@ function paymentMethodLabel(paymentId: string | null) {
 }
 
 export default async function WalletPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;

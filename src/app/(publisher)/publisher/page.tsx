@@ -10,7 +10,7 @@ import {
   Store,
   TrendingUp,
 } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { PUBLISHER_PERIODS, parsePublisherPeriod } from "@/lib/publisher-periods";
 import { getPublisherDashboardData } from "@/services/report.service";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -31,7 +31,7 @@ interface PageProps {
 }
 
 export default async function PublisherDashboardPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const period = parsePublisherPeriod(params.period);
   const periodLabel = PUBLISHER_PERIODS.find((p) => p.value === period)?.label ?? "Last 30 Days";

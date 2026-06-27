@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 import { getNavForRole } from "./nav-config";
+import { SidebarNavLink } from "./sidebar-nav-link";
+import { useNavigationPending } from "./navigation-pending";
 
 interface SidebarProps {
   role: UserRole;
@@ -14,6 +16,7 @@ interface SidebarProps {
 export function Sidebar({ role, collapsed }: SidebarProps) {
   const pathname = usePathname();
   const items = getNavForRole(role);
+  const { startNavigation } = useNavigationPending();
 
   return (
     <aside
@@ -23,7 +26,12 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
       }}
     >
       <div className="flex h-16 items-center border-b border-white/10 px-4">
-        <Link href="/" className="flex items-center gap-2.5 font-bold text-white">
+        <Link
+          href="/"
+          prefetch={true}
+          onClick={() => startNavigation()}
+          className="flex items-center gap-2.5 font-bold text-white"
+        >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-sm font-bold text-white">
             CP
           </span>
@@ -38,22 +46,16 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
               item.href !== "/advertiser" &&
               item.href !== "/publisher" &&
               pathname.startsWith(item.href));
-          const Icon = item.icon;
+
           return (
-            <Link
+            <SidebarNavLink
               key={item.href}
               href={item.href}
-              prefetch={true}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                active
-                  ? "bg-white shadow-sm text-[var(--theme-sidebar-active-text)]"
-                  : "text-blue-100/90 hover:bg-white/10 hover:text-white",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && item.label}
-            </Link>
+              label={item.label}
+              icon={item.icon}
+              active={active}
+              collapsed={collapsed}
+            />
           );
         })}
       </nav>

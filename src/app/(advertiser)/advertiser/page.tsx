@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { DollarSign, FileText, LineChart, Megaphone, Wallet } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { ADVERTISER_PERIODS, parseAdvertiserPeriod } from "@/lib/advertiser-periods";
 import { ensureReferralCode } from "@/services/referral.service";
 import { getAdvertiserDashboardData } from "@/services/report.service";
@@ -24,12 +24,15 @@ interface PageProps {
 }
 
 export default async function AdvertiserDashboardPage({ searchParams }: PageProps) {
-  const session = await auth();
-  const params = await searchParams;
+  const [session, params] = await Promise.all([getSession(), searchParams]);
   const period = parseAdvertiserPeriod(params.period);
   const periodLabel = ADVERTISER_PERIODS.find((p) => p.value === period)?.label ?? "Last 30 Days";
-  const data = await getAdvertiserDashboardData(session!.user.id, period);
-  const referralCode = await ensureReferralCode(session!.user.id);
+  const userId = session!.user.id;
+
+  const [data, referralCode] = await Promise.all([
+    getAdvertiserDashboardData(userId, period),
+    ensureReferralCode(userId),
+  ]);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Advertiser";
 
   return (

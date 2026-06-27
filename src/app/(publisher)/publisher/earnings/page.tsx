@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { ArrowDownLeft, CheckCircle, Clock, History, Plus, TrendingUp, Wallet } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getWalletBalance, listPublisherLedger } from "@/services/wallet.service";
 import { prisma } from "@/lib/prisma";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -31,7 +31,7 @@ function shortLedgerId(id: string) {
 }
 
 export default async function EarningsPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;

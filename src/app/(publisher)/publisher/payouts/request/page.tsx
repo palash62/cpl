@@ -1,13 +1,13 @@
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getWalletBalance, getPlatformSettings } from "@/services/wallet.service";
 import { RoleHero } from "@/components/layout/role-hero";
 import { PublisherInfoBanner } from "@/components/publisher/publisher-info-banner";
 import { PublisherPayoutRequestForm } from "@/components/publisher/publisher-payout-request-form";
 
 export default async function RequestPayoutPage() {
-  const session = await auth();
+  const session = await getSession();
   const [balance, settings] = await Promise.all([
     getWalletBalance(session!.user.id),
     getPlatformSettings(),

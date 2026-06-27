@@ -186,6 +186,7 @@ model Campaign {
   publisherAccess PublisherAccess  @default(APPROVAL_REQUIRED) @map("publisher_access")
   autoApprove     Boolean          @default(false) @map("auto_approve")
   targeting       Json             @default("{}")
+  pixelToken      String?          @unique @map("pixel_token")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
@@ -194,6 +195,7 @@ model Campaign {
   publisherCampaigns PublisherCampaign[]
   trackingLinks      TrackingLink[]
   leads              Lead[]
+  pixelEvents        PixelEvent[]
 
   @@index([advertiserId])
   @@index([status])
@@ -245,6 +247,24 @@ model TrackingLink {
   @@map("tracking_links")
 }
 
+model PixelEvent {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  leadId     String?  @map("lead_id")
+  txnId      String?  @map("txn_id")
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([createdAt])
+  @@map("pixel_events")
+}
+
 model Click {
   id             String   @id @default(cuid())
   trackingLinkId String   @map("tracking_link_id")
@@ -279,6 +299,7 @@ model Lead {
   statusHistory     LeadStatusHistory[]
   validationResults LeadValidationResult[]
   platformFee       PlatformFee?
+  pixelEvents       PixelEvent[]
 
   @@index([campaignId])
   @@index([publisherId])

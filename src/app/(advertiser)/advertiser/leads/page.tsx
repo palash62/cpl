@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 import { FileText, Info } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import {
   formatLeadLogData,
   formatLeadMessage,
@@ -55,7 +55,7 @@ function parseSort(sort?: string): AdvertiserLeadSort {
 }
 
 export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;

@@ -1,9 +1,9 @@
-import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdvertiserLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthenticatedShell role="ADVERTISER">{children}</AuthenticatedShell>;
+  return <AppShell role="ADVERTISER">{children}</AppShell>;
 }

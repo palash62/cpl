@@ -1,9 +1,9 @@
-import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function PublisherLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthenticatedShell role="PUBLISHER">{children}</AuthenticatedShell>;
+  return <AppShell role="PUBLISHER">{children}</AppShell>;
 }

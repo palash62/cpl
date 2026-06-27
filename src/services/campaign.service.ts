@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { createPixelToken } from "@/lib/campaign-pixel.server";
 import type { CampaignCategory, CampaignStatus, PublisherAccess } from "@prisma/client";
 
 export interface CreateCampaignInput {
@@ -40,6 +41,7 @@ export async function createCampaign(input: CreateCampaignInput) {
       autoApprove: input.autoApprove ?? false,
       status: input.status ?? "DRAFT",
       targeting: (input.targeting ?? {}) as Prisma.InputJsonValue,
+      pixelToken: createPixelToken(),
       fields: input.fields
         ? {
             create: input.fields.map((f, i) => ({
@@ -165,6 +167,25 @@ export async function listAdvertiserCampaigns(filters: {
   const data = raw;
 
   return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 } };
+}
+
+export async function ensureCampaignPixelToken(campaignId: string) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { id: true, pixelToken: true },
+  });
+
+  if (!campaign) return null;
+  if (campaign.pixelToken) return campaign.pixelToken;
+
+  const pixelToken = createPixelToken();
+  const updated = await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { pixelToken },
+    select: { pixelToken: true },
+  });
+
+  return updated.pixelToken;
 }
 
 export async function getCampaignById(id: string) {

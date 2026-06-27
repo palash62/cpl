@@ -1,11 +1,11 @@
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getAdvertiserDashboardStats } from "@/services/report.service";
 import { ReportsSummary } from "@/components/reports/reports-summary";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdvertiserReportsPage() {
-  const session = await auth();
+  const session = await getSession();
   const stats = await getAdvertiserDashboardStats(session!.user!.id);
 
   return (

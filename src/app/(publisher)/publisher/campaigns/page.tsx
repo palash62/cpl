@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { Megaphone, Plus, Store } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { shortPublisherCampaignId } from "@/lib/publisher-campaigns";
 import {
   listPublisherCampaigns,
@@ -54,7 +54,7 @@ function parseSort(sort?: string): PublisherCampaignSort {
 }
 
 export default async function PublisherCampaignsPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;

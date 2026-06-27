@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { FileText } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { shortPublisherCampaignId } from "@/lib/publisher-campaigns";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
 import { PageSection } from "@/components/admin/page-section";
@@ -45,7 +45,7 @@ function parseSort(sort?: string): AdvertiserLeadSort {
 }
 
 export default async function PublisherLeadsPage({ searchParams }: PageProps) {
-  const session = await auth();
+  const session = await getSession();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
