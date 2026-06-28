@@ -5,9 +5,9 @@ import {
   CheckCircle,
   DollarSign,
   FileText,
+  Link2,
   MousePointer,
   Percent,
-  Store,
   TrendingUp,
 } from "lucide-react";
 import { getSession } from "@/lib/session";
@@ -44,12 +44,12 @@ export default async function PublisherDashboardPage({ searchParams }: PageProps
         eyebrow="Publisher Portal"
         title={`Welcome back, ${firstName}`}
         description={`Performance overview for ${periodLabel.toLowerCase()}.`}
-        action={{ label: "Browse Campaigns", href: "/publisher/marketplace", icon: Store }}
+        action={{ label: "Copy Smart Link", href: "/publisher/smart-link", icon: Link2 }}
       />
 
       <PublisherInfoBanner>
-        Track clicks, leads, and earnings across your joined campaigns. Browse the marketplace to
-        find new offers and copy your tracking links to start promoting.
+        Track clicks, leads, and earnings from your Smart Link. Share it on social platforms with
+        tagged links to see which channels perform best.
       </PublisherInfoBanner>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

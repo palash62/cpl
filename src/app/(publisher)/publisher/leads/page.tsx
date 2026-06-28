@@ -25,6 +25,7 @@ import {
 interface PageProps {
   searchParams: Promise<{
     campaign?: string;
+    source?: string;
     sort?: string;
     page?: string;
   }>;
@@ -53,6 +54,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
   const { data: leads, meta } = await listLeads({
     publisherId: session!.user.id,
     campaignSearch: params.campaign,
+    source: params.source,
     sort: parseSort(params.sort),
     page,
     limit,
@@ -63,11 +65,11 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
       <RoleHero
         eyebrow="Publisher Portal"
         title="My Leads"
-        description="Track leads you've generated across all joined campaigns."
+        description="Track leads you've generated through your Smart Link."
       />
 
       <PublisherInfoBanner>
-        Monitor lead status and earnings potential for each submission. Approved and paid leads
+        Monitor lead status and earnings by campaign and traffic source. Approved and paid leads
         contribute to your wallet balance automatically.
       </PublisherInfoBanner>
 
@@ -99,6 +101,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
                     <PublisherLeadsSortHeader field="campaign" label="Campaign" />
                   </Suspense>
                 </TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Source</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">CPL</TableHead>
                 <TableHead className="h-11 px-6 text-slate-600">
                   <Suspense fallback={<span>Status</span>}>
@@ -110,10 +113,10 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={6} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
-                      Start promoting campaigns to generate leads.
+                      Share your Smart Link to start generating leads.
                     </p>
                   </TableCell>
                 </TableRow>
@@ -131,6 +134,9 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
                     </TableCell>
                     <TableCell className="px-4 py-4 text-sm font-medium text-slate-800">
                       {lead.campaign.name}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-sm capitalize text-slate-600">
+                      {lead.source ?? "—"}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-right font-semibold text-[var(--theme-primary)]">
                       {formatCurrency(Number(lead.campaign.cpl))}

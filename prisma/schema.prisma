@@ -134,6 +134,9 @@ model User {
   leads             Lead[]               @relation("PublisherLeads")
   publisherCampaigns PublisherCampaign[]
   trackingLinks     TrackingLink[]
+  publisherSmartLink PublisherSmartLink?
+  advertiserPublisherBlocks AdvertiserPublisherBlock[] @relation("AdvertiserBlocks")
+  blockedByAdvertisers    AdvertiserPublisherBlock[] @relation("PublisherBlocks")
   payouts           Payout[]
   deposits          Deposit[]
   notifications     Notification[]
@@ -265,12 +268,42 @@ model PixelEvent {
   @@map("pixel_events")
 }
 
+model PublisherSmartLink {
+  id             String   @id @default(cuid())
+  publisherId    String   @unique @map("publisher_id")
+  slug           String   @unique
+  rotationCursor Int      @default(0) @map("rotation_cursor")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  publisher User @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@map("publisher_smart_links")
+}
+
+model AdvertiserPublisherBlock {
+  id           String   @id @default(cuid())
+  advertiserId String   @map("advertiser_id")
+  publisherId  String   @map("publisher_id")
+  reason       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  advertiser User @relation("AdvertiserBlocks", fields: [advertiserId], references: [id], onDelete: Cascade)
+  publisher  User @relation("PublisherBlocks", fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@unique([advertiserId, publisherId])
+  @@index([publisherId])
+  @@map("advertiser_publisher_blocks")
+}
+
 model Click {
   id             String   @id @default(cuid())
   trackingLinkId String   @map("tracking_link_id")
   ip             String
   userAgent      String?  @map("user_agent")
   referrer       String?
+  source         String?
+  subId          String?  @map("sub_id")
   geo            Json?
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -290,6 +323,8 @@ model Lead {
   data           Json
   score          Int?
   ip             String?
+  source         String?
+  subId          String?    @map("sub_id")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 

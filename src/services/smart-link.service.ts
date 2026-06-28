@@ -1,0 +1,182 @@
+import { prisma } from "@/lib/prisma";
+import { createTrackingLink } from "@/services/campaign.service";
+import type { Campaign, PublisherSmartLink, User } from "@prisma/client";
+
+export type EligibleCampaign = Campaign & {
+  advertiser: Pick<User, "id" | "name" | "email">;
+};
+
+export async function getOrCreatePublisherSmartLink(publisherId: string): Promise<PublisherSmartLink> {
+  const existing = await prisma.publisherSmartLink.findUnique({
+    where: { publisherId },
+  });
+  if (existing) return existing;
+
+  const slug = `pub-${publisherId.slice(-10)}-${Date.now().toString(36)}`;
+  return prisma.publisherSmartLink.create({
+    data: { publisherId, slug },
+  });
+}
+
+export async function getEligibleCampaigns(publisherId: string): Promise<EligibleCampaign[]> {
+  const campaigns = await prisma.campaign.findMany({
+    where: {
+      status: "ACTIVE",
+      advertiser: {
+        advertiserPublisherBlocks: {
+          none: { publisherId },
+        },
+      },
+    },
+    include: {
+      advertiser: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return campaigns.filter((c) => Number(c.spent) < Number(c.budget));
+}
+
+export async function ensureTrackingLink(publisherId: string, campaignId: string) {
+  const existing = await prisma.trackingLink.findFirst({
+    where: { publisherId, campaignId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) return existing;
+  return createTrackingLink(publisherId, campaignId);
+}
+
+export async function pickNextCampaign(publisherId: string) {
+  const smartLink = await getOrCreatePublisherSmartLink(publisherId);
+  const eligible = await getEligibleCampaigns(publisherId);
+
+  if (eligible.length === 0) {
+    return { smartLink, eligible: [], campaign: null, trackingSlug: null };
+  }
+
+  const index = smartLink.rotationCursor % eligible.length;
+  const campaign = eligible[index]!;
+
+  const [updatedSmartLink, trackingLink] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.publisherSmartLink.update({
+      where: { id: smartLink.id },
+      data: { rotationCursor: { increment: 1 } },
+    });
+
+    const existing = await tx.trackingLink.findFirst({
+      where: { publisherId, campaignId: campaign.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const link =
+      existing ??
+      (await tx.trackingLink.create({
+        data: {
+          publisherId,
+          campaignId: campaign.id,
+          slug: `${publisherId.slice(-6)}-${campaign.id.slice(-6)}-${Date.now().toString(36)}`,
+        },
+      }));
+
+    return [updated, link] as const;
+  });
+
+  return {
+    smartLink: updatedSmartLink,
+    eligible,
+    campaign,
+    trackingSlug: trackingLink.slug,
+  };
+}
+
+export async function resolveSmartLinkBySlug(slug: string) {
+  return prisma.publisherSmartLink.findUnique({
+    where: { slug },
+    include: {
+      publisher: {
+        select: { id: true, name: true, status: true, role: true },
+      },
+    },
+  });
+}
+
+export async function getPublisherSmartLinkDashboard(publisherId: string) {
+  const smartLink = await getOrCreatePublisherSmartLink(publisherId);
+  const eligible = await getEligibleCampaigns(publisherId);
+
+  const [leadStats, clickStats] = await Promise.all([
+    prisma.lead.groupBy({
+      by: ["source"],
+      where: { publisherId, source: { not: null } },
+      _count: { id: true },
+    }),
+    prisma.click.groupBy({
+      by: ["source"],
+      where: {
+        source: { not: null },
+        trackingLink: { publisherId },
+      },
+      _count: { id: true },
+    }),
+  ]);
+
+  const sourceMap = new Map<string, { leads: number; clicks: number }>();
+
+  for (const row of leadStats) {
+    const key = row.source ?? "unknown";
+    sourceMap.set(key, { leads: row._count.id, clicks: 0 });
+  }
+  for (const row of clickStats) {
+    const key = row.source ?? "unknown";
+    const existing = sourceMap.get(key) ?? { leads: 0, clicks: 0 };
+    existing.clicks = row._count.id;
+    sourceMap.set(key, existing);
+  }
+
+  const sourceBreakdown = Array.from(sourceMap.entries())
+    .map(([source, stats]) => ({ source, ...stats }))
+    .sort((a, b) => b.leads - a.leads);
+
+  return { smartLink, eligible, sourceBreakdown };
+}
+
+export async function blockPublisher(
+  advertiserId: string,
+  publisherId: string,
+  reason?: string,
+) {
+  return prisma.advertiserPublisherBlock.upsert({
+    where: {
+      advertiserId_publisherId: { advertiserId, publisherId },
+    },
+    create: { advertiserId, publisherId, reason },
+    update: { reason },
+  });
+}
+
+export async function unblockPublisher(advertiserId: string, publisherId: string) {
+  return prisma.advertiserPublisherBlock.deleteMany({
+    where: { advertiserId, publisherId },
+  });
+}
+
+export async function listBlockedPublishers(advertiserId: string) {
+  return prisma.advertiserPublisherBlock.findMany({
+    where: { advertiserId },
+    include: {
+      publisher: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function isPublisherBlocked(advertiserId: string, publisherId: string) {
+  const block = await prisma.advertiserPublisherBlock.findUnique({
+    where: {
+      advertiserId_publisherId: { advertiserId, publisherId },
+    },
+  });
+  return Boolean(block);
+}

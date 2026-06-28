@@ -20,6 +20,8 @@ export async function POST(request: Request) {
       data: parsed.data.data,
       honeypot: parsed.data.honeypot,
       ip,
+      source: parsed.data.source,
+      subId: parsed.data.subId,
     });
 
     return Response.json({ lead: { id: lead.id, status: lead.status } }, { status: 201 });

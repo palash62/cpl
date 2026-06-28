@@ -19,10 +19,14 @@ export function LeadForm({
   slug,
   campaignName,
   fields,
+  source,
+  subId,
 }: {
   slug: string;
   campaignName: string;
   fields: Field[];
+  source?: string;
+  subId?: string;
 }) {
   const [data, setData] = useState<Record<string, string>>({});
   const [honeypot, setHoneypot] = useState("");
@@ -37,7 +41,7 @@ export function LeadForm({
     const res = await fetch("/api/v1/leads/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, data, honeypot }),
+      body: JSON.stringify({ slug, data, honeypot, source, subId }),
     });
 
     const result = await res.json();

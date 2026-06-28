@@ -1,13 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { sanitizeTrackingParam } from "@/lib/smart-link";
 import { LeadForm } from "@/components/forms/lead-form";
 
 export default async function PublicLeadFormPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ src?: string; sub_id?: string }>;
 }) {
   const { slug } = await params;
+  const query = await searchParams;
+  const source = sanitizeTrackingParam(query.src);
+  const subId = sanitizeTrackingParam(query.sub_id);
 
   const link = await prisma.trackingLink.findUnique({
     where: { slug },
@@ -32,6 +38,8 @@ export default async function PublicLeadFormPage({
         slug={slug}
         campaignName={link.campaign.name}
         fields={link.campaign.fields}
+        source={source}
+        subId={subId}
       />
     </div>
   );

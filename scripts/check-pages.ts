@@ -27,7 +27,7 @@ async function login(email: string, password: string) {
 const routes = [
   { email: "admin@cpl.local", paths: ["/admin", "/admin/advertisers", "/admin/reports", "/admin/settings"] },
   { email: "advertiser@cpl.local", paths: ["/advertiser", "/advertiser/campaigns", "/advertiser/reports"] },
-  { email: "publisher@cpl.local", paths: ["/publisher", "/publisher/marketplace", "/publisher/campaigns"] },
+  { email: "publisher@cpl.local", paths: ["/publisher", "/publisher/smart-link", "/publisher/leads"] },
 ];
 
 async function main() {

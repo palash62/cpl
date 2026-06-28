@@ -11,9 +11,11 @@ import {
   shortCampaignId,
 } from "@/lib/advertiser-leads";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
+import { listBlockedPublishers } from "@/services/smart-link.service";
 import { PageSection } from "@/components/admin/page-section";
 import { LeadStatusBadge } from "@/components/admin/admin-ui";
 import { RoleHero } from "@/components/layout/role-hero";
+import { AdvertiserBlockPublisherButton } from "@/components/advertiser/advertiser-block-publisher-button";
 import { AdvertiserLeadsFilters } from "@/components/advertiser/advertiser-leads-filters";
 import { AdvertiserLeadsSortHeader } from "@/components/advertiser/advertiser-leads-sort-header";
 import { AdvertiserLeadsTableFooter } from "@/components/advertiser/advertiser-leads-table-footer";
@@ -67,6 +69,9 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
     page,
     limit,
   });
+
+  const blockedPublishers = await listBlockedPublishers(session!.user.id);
+  const blockedIds = new Set(blockedPublishers.map((b) => b.publisherId));
 
   return (
     <div className="space-y-6">
@@ -127,6 +132,7 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
                     <AdvertiserLeadsSortHeader field="campaign" label="Campaign" />
                   </Suspense>
                 </TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">
                   <Suspense fallback={<span>LOG DATA</span>}>
                     <AdvertiserLeadsSortHeader field="logData" label="Log Data" />
@@ -147,7 +153,7 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={7} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No Data Found</p>
                   </TableCell>
                 </TableRow>
@@ -165,6 +171,18 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
                     </TableCell>
                     <TableCell className="px-4 py-4 text-sm text-slate-800">
                       {lead.campaign.name}
+                    </TableCell>
+                    <TableCell className="px-4 py-4">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-sm font-medium text-slate-800">
+                          {lead.publisher.name}
+                        </span>
+                        <AdvertiserBlockPublisherButton
+                          publisherId={lead.publisherId}
+                          publisherName={lead.publisher.name}
+                          blocked={blockedIds.has(lead.publisherId)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[280px] px-4 py-4 font-mono text-xs text-slate-600">
                       <p className="truncate" title={formatLeadLogData(lead.data)}>

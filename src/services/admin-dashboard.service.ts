@@ -109,7 +109,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
     urgentTickets,
     recentClosedTickets,
     draftCampaigns,
-    pendingPublisherCampaigns,
     pendingAdvertisers,
     pendingPublisherKyc,
     duplicateLeadFlags,
@@ -172,7 +171,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
       select: { id: true, subject: true, status: true, updatedAt: true },
     }),
     prisma.campaign.count({ where: { status: "DRAFT" } }),
-    prisma.publisherCampaign.count({ where: { status: "PENDING" } }),
     prisma.user.count({ where: { role: "ADVERTISER", status: "PENDING" } }),
     prisma.publisherProfile.count({ where: { kycStatus: "PENDING" } }),
     prisma.leadValidationResult.count({
@@ -326,14 +324,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
       critical: draftCampaigns > 0,
     },
     {
-      id: "publisher-access",
-      label: "Publisher campaign requests",
-      count: pendingPublisherCampaigns,
-      href: "/admin/campaigns",
-      action: "Review Access",
-      critical: pendingPublisherCampaigns > 0,
-    },
-    {
       id: "advertisers",
       label: "Advertiser verification",
       count: pendingAdvertisers,
@@ -377,9 +367,8 @@ export async function getAdminControlCenterData(adminUserId: string) {
     {
       id: "publishers",
       title: "Publisher Approval",
-      count: pendingPublisherKyc + pendingPublisherCampaigns,
-      status:
-        pendingPublisherKyc + pendingPublisherCampaigns > 0 ? "Pending" : "Clear",
+      count: pendingPublisherKyc,
+      status: pendingPublisherKyc > 0 ? "Pending" : "Clear",
       href: "/admin/publishers",
     },
     {

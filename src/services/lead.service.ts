@@ -11,6 +11,8 @@ export async function submitLead(input: {
   data: Record<string, string>;
   honeypot?: string;
   ip?: string;
+  source?: string;
+  subId?: string;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -66,6 +68,8 @@ export async function submitLead(input: {
       data: input.data,
       score: validation.score,
       ip: input.ip,
+      source: input.source,
+      subId: input.subId,
       validationResults: {
         create: validation.results.map((r) => ({
           rule: r.rule,
@@ -179,6 +183,7 @@ export async function listLeads(filters: {
   publisherId?: string;
   advertiserId?: string;
   status?: LeadStatus;
+  source?: string;
   sort?: AdvertiserLeadSort;
   page?: number;
   limit?: number;
@@ -204,6 +209,7 @@ export async function listLeads(filters: {
     ...(filters.campaignId && { campaignId: filters.campaignId }),
     ...(filters.publisherId && { publisherId: filters.publisherId }),
     ...(filters.status && { status: filters.status }),
+    ...(filters.source?.trim() && { source: filters.source.trim() }),
     ...(campaignWhere && { campaign: campaignWhere }),
   };
 
@@ -259,6 +265,8 @@ export async function logClick(slug: string, meta: {
   userAgent?: string;
   referrer?: string;
   geo?: Record<string, string>;
+  source?: string;
+  subId?: string;
 }) {
   const link = await prisma.trackingLink.findUnique({ where: { slug } });
   if (!link) return null;
@@ -271,6 +279,8 @@ export async function logClick(slug: string, meta: {
         userAgent: meta.userAgent,
         referrer: meta.referrer,
         geo: meta.geo,
+        source: meta.source,
+        subId: meta.subId,
       },
     }),
     prisma.trackingLink.update({

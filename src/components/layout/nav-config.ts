@@ -13,7 +13,7 @@ import {
   LifeBuoy,
   Settings,
   ScrollText,
-  Store,
+  Link2,
   TrendingUp,
   Gift,
   Palette,
@@ -53,8 +53,7 @@ export const ADVERTISER_NAV: NavItem[] = [
 
 export const PUBLISHER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/publisher", icon: LayoutDashboard },
-  { label: "Marketplace", href: "/publisher/marketplace", icon: Store },
-  { label: "My Campaigns", href: "/publisher/campaigns", icon: Megaphone },
+  { label: "Smart Link", href: "/publisher/smart-link", icon: Link2 },
   { label: "Leads", href: "/publisher/leads", icon: FileText },
   { label: "Earnings", href: "/publisher/earnings", icon: TrendingUp },
   { label: "Payouts", href: "/publisher/payouts", icon: Banknote },

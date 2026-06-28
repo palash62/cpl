@@ -1,0 +1,251 @@
+"use client";
+
+import { useState } from "react";
+import { Check, Copy, Link2, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import {
+  SMART_LINK_PLATFORMS,
+  buildSmartLinkUrl,
+  sanitizeTrackingParam,
+} from "@/lib/smart-link";
+import { formatCurrency } from "@/components/admin/admin-ui";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type EligibleCampaign = {
+  id: string;
+  name: string;
+  cpl: { toString(): string };
+  advertiser: { name: string };
+};
+
+type SourceStat = {
+  source: string;
+  leads: number;
+  clicks: number;
+};
+
+export function PublisherSmartLinkPanel({
+  slug,
+  eligible,
+  sourceBreakdown,
+}: {
+  slug: string;
+  eligible: EligibleCampaign[];
+  sourceBreakdown: SourceStat[];
+}) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [customSrc, setCustomSrc] = useState("");
+  const [customSubId, setCustomSubId] = useState("");
+
+  const baseUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/s/${slug}`
+      : `/s/${slug}`;
+
+  async function copyUrl(key: string, url: string) {
+    await navigator.clipboard.writeText(url);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  }
+
+  const customSrcSafe = sanitizeTrackingParam(customSrc);
+  const customSubIdSafe = sanitizeTrackingParam(customSubId);
+  const customUrl = buildSmartLinkUrl(baseUrl, {
+    src: customSrcSafe,
+    subId: customSubIdSafe,
+  });
+
+  return (
+    <div className="space-y-6">
+      <div
+        className="rounded-xl border px-5 py-5"
+        style={{
+          borderColor: "color-mix(in srgb, var(--theme-primary) 20%, transparent)",
+          background: "var(--theme-primary-soft)",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+            <Sparkles className="h-5 w-5 text-[var(--theme-primary)]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">One link, all campaigns</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Share your Smart Link anywhere. Traffic rotates automatically across active campaigns.
+              Add a platform tag to track where your leads come from.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-violet-500 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-violet-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Your Smart Link</h3>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            readOnly
+            value={baseUrl}
+            className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 font-mono text-sm text-slate-700"
+          />
+          <Button
+            onClick={() => copyUrl("base", baseUrl)}
+            className="h-11 shrink-0 gap-2 rounded-xl bg-[var(--theme-primary)] px-5 hover:opacity-90"
+          >
+            {copiedKey === "base" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copiedKey === "base" ? "Copied!" : "Copy Link"}
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {eligible.length} active campaign{eligible.length === 1 ? "" : "s"} in rotation
+        </p>
+      </div>
+
+      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-sky-500 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-sm font-semibold text-slate-900">Platform links</h3>
+        <p className="mb-4 text-sm text-slate-600">
+          Copy a tagged link for each channel you promote on.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {SMART_LINK_PLATFORMS.map((platform) => {
+            const url = buildSmartLinkUrl(baseUrl, { src: platform.id });
+            const key = `platform-${platform.id}`;
+            return (
+              <button
+                key={platform.id}
+                type="button"
+                onClick={() => copyUrl(key, url)}
+                className={cn(
+                  "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all hover:shadow-sm",
+                  platform.color,
+                )}
+              >
+                <span className="text-sm font-medium">{platform.label}</span>
+                {copiedKey === key ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Copy className="h-4 w-4 shrink-0 opacity-60" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-amber-500 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-sm font-semibold text-slate-900">Custom tracking</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="custom-src">Source tag (?src=)</Label>
+            <Input
+              id="custom-src"
+              placeholder="my-blog"
+              value={customSrc}
+              onChange={(e) => setCustomSrc(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="custom-sub">Sub ID (?sub_id=)</Label>
+            <Input
+              id="custom-sub"
+              placeholder="story-01"
+              value={customSubId}
+              onChange={(e) => setCustomSubId(e.target.value)}
+              className="h-10"
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input
+            readOnly
+            value={customUrl}
+            className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-xs text-slate-600"
+          />
+          <Button
+            variant="outline"
+            onClick={() => copyUrl("custom", customUrl)}
+            className="h-10 shrink-0 gap-2"
+            disabled={!customSrcSafe && !customSubIdSafe}
+          >
+            {copiedKey === "custom" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            Copy custom link
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">Letters, numbers, underscores, and hyphens only (max 32 chars).</p>
+      </div>
+
+      {sourceBreakdown.length > 0 && (
+        <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-emerald-500 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold text-slate-900">Performance by source</h3>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Clicks</TableHead>
+                  <TableHead className="text-right">Leads</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sourceBreakdown.map((row) => (
+                  <TableRow key={row.source}>
+                    <TableCell className="font-medium capitalize">{row.source}</TableCell>
+                    <TableCell className="text-right">{row.clicks}</TableCell>
+                    <TableCell className="text-right">{row.leads}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-indigo-500 bg-white p-6 shadow-sm">
+        <h3 className="mb-1 text-sm font-semibold text-slate-900">Rotation pool</h3>
+        <p className="mb-4 text-sm text-slate-600">
+          Active campaigns currently eligible for your Smart Link.
+        </p>
+        {eligible.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+            No active campaigns available right now. Check back soon.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Advertiser</TableHead>
+                  <TableHead className="text-right">CPL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {eligible.map((campaign) => (
+                  <TableRow key={campaign.id}>
+                    <TableCell className="font-medium text-slate-800">{campaign.name}</TableCell>
+                    <TableCell className="text-slate-600">{campaign.advertiser.name}</TableCell>
+                    <TableCell className="text-right font-semibold text-[var(--theme-primary)]">
+                      {formatCurrency(Number(campaign.cpl))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

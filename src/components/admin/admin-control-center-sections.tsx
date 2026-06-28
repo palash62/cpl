@@ -175,7 +175,6 @@ export function AdminActionCenter({
   const approvalIds = new Set([
     "leads",
     "campaigns",
-    "publisher-access",
     "advertisers",
     "publishers",
   ]);

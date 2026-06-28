@@ -5,6 +5,14 @@ import { useCallback, useState, useTransition } from "react";
 import { FilterX, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SMART_LINK_PLATFORMS } from "@/lib/smart-link";
 
 export function PublisherLeadsFilters() {
   const router = useRouter();
@@ -13,14 +21,19 @@ export function PublisherLeadsFilters() {
   const [isPending, startTransition] = useTransition();
 
   const [campaignId, setCampaignId] = useState(searchParams.get("campaign") ?? "");
+  const [source, setSource] = useState(searchParams.get("source") ?? "all");
 
   const applyFilters = useCallback(
-    (overrides?: Partial<{ campaign: string }>) => {
+    (overrides?: Partial<{ campaign: string; source: string }>) => {
       const params = new URLSearchParams(searchParams.toString());
-      const value = (overrides?.campaign ?? campaignId).trim();
+      const campaignValue = (overrides?.campaign ?? campaignId).trim();
+      const sourceValue = overrides?.source ?? source;
 
-      if (value) params.set("campaign", value);
+      if (campaignValue) params.set("campaign", campaignValue);
       else params.delete("campaign");
+
+      if (sourceValue && sourceValue !== "all") params.set("source", sourceValue);
+      else params.delete("source");
 
       params.delete("page");
 
@@ -28,11 +41,12 @@ export function PublisherLeadsFilters() {
         router.push(`${pathname}?${params.toString()}`);
       });
     },
-    [campaignId, pathname, router, searchParams],
+    [campaignId, source, pathname, router, searchParams],
   );
 
   function clearFilters() {
     setCampaignId("");
+    setSource("all");
     startTransition(() => {
       router.push(pathname);
     });
@@ -40,6 +54,7 @@ export function PublisherLeadsFilters() {
 
   const hasFilters =
     searchParams.has("campaign") ||
+    searchParams.has("source") ||
     searchParams.has("sort") ||
     (searchParams.has("page") && searchParams.get("page") !== "1");
 
@@ -56,6 +71,27 @@ export function PublisherLeadsFilters() {
             className="h-8 w-full rounded-md border-slate-200 bg-white pl-8 text-xs"
           />
         </div>
+
+        <Select
+          value={source}
+          onValueChange={(v) => {
+            const next = v ?? "all";
+            setSource(next);
+            applyFilters({ source: next });
+          }}
+        >
+          <SelectTrigger className="h-8 w-[140px] rounded-md border-slate-200 bg-white text-xs">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sources</SelectItem>
+            {SMART_LINK_PLATFORMS.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="flex shrink-0 items-center gap-1.5">
           <Button

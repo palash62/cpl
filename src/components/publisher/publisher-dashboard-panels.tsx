@@ -35,7 +35,7 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
     >
       {leads.length === 0 ? (
         <div className="px-6 py-12 text-center text-sm text-slate-500">
-          No leads yet. Start promoting campaigns from the marketplace.
+          No leads yet. Share your Smart Link to start generating leads.
         </div>
       ) : (
         <Table>

@@ -44,6 +44,14 @@ export const leadSubmitSchema = z.object({
   slug: z.string(),
   data: z.record(z.string(), z.string()),
   honeypot: z.string().optional(),
+  source: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,32}$/)
+    .optional(),
+  subId: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,32}$/)
+    .optional(),
 });
 
 export const payoutRequestSchema = z.object({
