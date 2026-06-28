@@ -14,12 +14,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
     const lead = await submitLead({
       slug: parsed.data.slug,
       data: parsed.data.data,
       honeypot: parsed.data.honeypot,
       ip,
+      userAgent: request.headers.get("user-agent") ?? undefined,
       source: parsed.data.source,
       subId: parsed.data.subId,
     });

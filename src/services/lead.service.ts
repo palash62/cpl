@@ -11,6 +11,7 @@ export async function submitLead(input: {
   data: Record<string, string>;
   honeypot?: string;
   ip?: string;
+  userAgent?: string;
   source?: string;
   subId?: string;
 }) {
@@ -31,6 +32,10 @@ export async function submitLead(input: {
 
   const settings = await getPlatformSettings();
   const since = subDays(new Date(), settings.duplicateWindowDays);
+
+  const countryKeys = ["country", "country_code", "countryCode", "nationality"] as const;
+  const country =
+    countryKeys.map((key) => input.data[key]?.trim()).find(Boolean) ?? undefined;
 
   const existingLeads = await prisma.lead.findMany({
     where: {
@@ -68,6 +73,8 @@ export async function submitLead(input: {
       data: input.data,
       score: validation.score,
       ip: input.ip,
+      userAgent: input.userAgent,
+      country,
       source: input.source,
       subId: input.subId,
       validationResults: {

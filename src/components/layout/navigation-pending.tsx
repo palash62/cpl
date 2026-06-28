@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -17,14 +18,23 @@ interface NavigationPendingContextValue {
 
 const NavigationPendingContext = createContext<NavigationPendingContextValue | null>(null);
 
-export function NavigationPendingProvider({ children }: { children: ReactNode }) {
+function NavigationRouteWatcher({ onRouteChange }: { onRouteChange: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [pending, setPending] = useState(false);
 
   useEffect(() => {
+    onRouteChange();
+  }, [pathname, searchParams, onRouteChange]);
+
+  return null;
+}
+
+export function NavigationPendingProvider({ children }: { children: ReactNode }) {
+  const [pending, setPending] = useState(false);
+
+  const clearPending = useCallback(() => {
     setPending(false);
-  }, [pathname, searchParams]);
+  }, []);
 
   const startNavigation = useCallback(() => {
     setPending(true);
@@ -32,6 +42,9 @@ export function NavigationPendingProvider({ children }: { children: ReactNode })
 
   return (
     <NavigationPendingContext.Provider value={{ pending, startNavigation }}>
+      <Suspense fallback={null}>
+        <NavigationRouteWatcher onRouteChange={clearPending} />
+      </Suspense>
       {children}
     </NavigationPendingContext.Provider>
   );
@@ -39,10 +52,12 @@ export function NavigationPendingProvider({ children }: { children: ReactNode })
 
 export function useNavigationPending() {
   const context = useContext(NavigationPendingContext);
-  if (!context) {
-    throw new Error("useNavigationPending must be used within NavigationPendingProvider");
-  }
-  return context;
+  return (
+    context ?? {
+      pending: false,
+      startNavigation: () => {},
+    }
+  );
 }
 
 export function NavigationProgressBar() {

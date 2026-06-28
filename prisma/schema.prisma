@@ -323,6 +323,8 @@ model Lead {
   data           Json
   score          Int?
   ip             String?
+  userAgent      String?    @map("user_agent")
+  country        String?
   source         String?
   subId          String?    @map("sub_id")
   createdAt      DateTime   @default(now()) @map("created_at")

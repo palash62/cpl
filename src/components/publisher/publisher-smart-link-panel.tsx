@@ -24,7 +24,7 @@ import {
 type EligibleCampaign = {
   id: string;
   name: string;
-  cpl: { toString(): string };
+  cpl: number;
   advertiser: { name: string };
 };
 
@@ -237,7 +237,7 @@ export function PublisherSmartLinkPanel({
                     <TableCell className="font-medium text-slate-800">{campaign.name}</TableCell>
                     <TableCell className="text-slate-600">{campaign.advertiser.name}</TableCell>
                     <TableCell className="text-right font-semibold text-[var(--theme-primary)]">
-                      {formatCurrency(Number(campaign.cpl))}
+                      {formatCurrency(campaign.cpl)}
                     </TableCell>
                   </TableRow>
                 ))}

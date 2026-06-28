@@ -184,42 +184,6 @@ export function AdminActionCenter({
   const approvalTotal = approvalItems.reduce((sum, item) => sum + item.count, 0);
   const opsTotal = opsItems.reduce((sum, item) => sum + item.count, 0);
 
-  function ActionList({ list }: { list: typeof items }) {
-    if (list.length === 0) {
-      return (
-        <p className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/80 px-4 py-8 text-center text-sm text-emerald-800">
-          All clear in this queue.
-        </p>
-      );
-    }
-
-    return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {list.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            className={cn(
-              "group flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-sm",
-              item.critical
-                ? "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 hover:border-amber-300"
-                : "border-slate-200 bg-slate-50/60 hover:border-[var(--theme-primary)]/25 hover:bg-[var(--theme-primary-soft)]/40",
-            )}
-          >
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{item.count}</p>
-              <p className="mt-1 text-sm font-medium text-slate-700">{item.label}</p>
-              <p className="mt-2 text-xs font-semibold text-[var(--theme-primary)] group-hover:underline">
-                {item.action}
-              </p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--theme-primary)]" />
-          </Link>
-        ))}
-      </div>
-    );
-  }
-
   return (
     <AccentCard accent="rose">
       <SectionHeader
@@ -247,14 +211,50 @@ export function AdminActionCenter({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="approvals">
-            <ActionList list={approvalItems} />
+            <AdminActionList list={approvalItems} />
           </TabsContent>
           <TabsContent value="operations">
-            <ActionList list={opsItems} />
+            <AdminActionList list={opsItems} />
           </TabsContent>
         </Tabs>
       )}
     </AccentCard>
+  );
+}
+
+function AdminActionList({ list }: { list: AdminControlCenterData["actionItems"] }) {
+  if (list.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/80 px-4 py-8 text-center text-sm text-emerald-800">
+        All clear in this queue.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {list.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          className={cn(
+            "group flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-sm",
+            item.critical
+              ? "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 hover:border-amber-300"
+              : "border-slate-200 bg-slate-50/60 hover:border-[var(--theme-primary)]/25 hover:bg-[var(--theme-primary-soft)]/40",
+          )}
+        >
+          <div>
+            <p className="text-2xl font-bold text-slate-900">{item.count}</p>
+            <p className="mt-1 text-sm font-medium text-slate-700">{item.label}</p>
+            <p className="mt-2 text-xs font-semibold text-[var(--theme-primary)] group-hover:underline">
+              {item.action}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--theme-primary)]" />
+        </Link>
+      ))}
+    </div>
   );
 }
 

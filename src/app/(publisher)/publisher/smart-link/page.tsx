@@ -12,6 +12,13 @@ export default async function PublisherSmartLinkPage() {
     session!.user.id,
   );
 
+  const eligibleCampaigns = eligible.map((campaign) => ({
+    id: campaign.id,
+    name: campaign.name,
+    cpl: Number(campaign.cpl),
+    advertiser: { name: campaign.advertiser.name },
+  }));
+
   return (
     <div className="space-y-6">
       <RoleHero
@@ -27,7 +34,7 @@ export default async function PublisherSmartLinkPage() {
 
       <PublisherSmartLinkPanel
         slug={smartLink.slug}
-        eligible={eligible}
+        eligible={eligibleCampaigns}
         sourceBreakdown={sourceBreakdown}
       />
     </div>
