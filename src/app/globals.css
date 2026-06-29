@@ -247,6 +247,57 @@
   }
 }
 
+@keyframes optin-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(24px, -32px) scale(1.08);
+  }
+}
+
+@keyframes optin-float-reverse {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-20px, 28px) scale(1.06);
+  }
+}
+
+@keyframes optin-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes optin-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes optin-badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--optin-accent, #a855f7) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--optin-accent, #a855f7) 0%, transparent);
+  }
+}
+
 @layer utilities {
   .premium-card {
     @apply rounded-[18px] border border-slate-200/80 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md;
@@ -258,5 +309,26 @@
 
   .premium-page-subtitle {
     @apply mt-1 text-sm text-slate-500;
+  }
+
+  .optin-float {
+    animation: optin-float 9s ease-in-out infinite;
+  }
+
+  .optin-float-reverse {
+    animation: optin-float-reverse 11s ease-in-out infinite;
+  }
+
+  .optin-shimmer-text {
+    background-size: 200% auto;
+    animation: optin-shimmer 4s linear infinite;
+  }
+
+  .optin-badge-pulse {
+    animation: optin-badge-pulse 2.5s ease-in-out infinite;
+  }
+
+  .optin-cta-glow {
+    animation: optin-pulse-glow 2.5s ease-in-out infinite;
   }
 }

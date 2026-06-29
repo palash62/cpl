@@ -30,7 +30,9 @@ const publicPaths = [
   "/register",
   "/forgot-password",
   "/t/",
+  "/o/",
   "/api/v1/leads/submit",
+  "/api/v1/leads/submit-optin",
   "/api/auth",
 ];
 

@@ -3,6 +3,52 @@ import { errorResponse } from "@/lib/errors";
 import { adminCreateCampaignSchema, campaignSchema } from "@/lib/validations";
 import { prisma } from "@/lib/prisma";
 import { createCampaign, listCampaigns } from "@/services/campaign.service";
+import {
+  linkOptinPageToCampaign,
+  resolveOptinPageDestination,
+} from "@/services/optin-page.service";
+
+function resolveRequestBaseUrl(request: Request) {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? "http";
+  if (host) return `${proto}://${host}`;
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+}
+
+async function createCampaignWithOptinPage(input: {
+  request: Request;
+  advertiserId: string;
+  optinPageId: string;
+  vertical?: string;
+  campaignData: Omit<Parameters<typeof createCampaign>[0], "advertiserId" | "targeting" | "description"> & {
+    description?: string;
+    targeting?: Record<string, unknown>;
+  };
+}) {
+  const baseUrl = resolveRequestBaseUrl(input.request);
+  const { page, destinationUrl } = await resolveOptinPageDestination(
+    input.optinPageId,
+    input.advertiserId,
+    baseUrl,
+  );
+
+  const campaign = await createCampaign({
+    ...input.campaignData,
+    advertiserId: input.advertiserId,
+    description: input.campaignData.description ?? `Optin page: ${page.title}`,
+    targeting: {
+      ...(input.campaignData.targeting ?? {}),
+      destinationUrl,
+      optinPageId: page.id,
+      optinSlug: page.slug,
+      ...(input.vertical ? { vertical: input.vertical } : {}),
+    },
+  });
+
+  await linkOptinPageToCampaign(page.id, campaign.id, input.advertiserId);
+
+  return campaign;
+}
 
 export async function GET(request: Request) {
   return withAuth(async (session) => {
@@ -40,7 +86,7 @@ export async function POST(request: Request) {
           );
         }
 
-        const { advertiserId, destinationUrl, vertical, ...campaignData } = parsed.data;
+        const { advertiserId, optinPageId, vertical, ...campaignData } = parsed.data;
         const advertiser = await prisma.user.findFirst({
           where: { id: advertiserId, role: "ADVERTISER" },
           select: { id: true },
@@ -52,17 +98,16 @@ export async function POST(request: Request) {
           );
         }
 
-        const campaign = await createCampaign({
-          ...campaignData,
+        const campaign = await createCampaignWithOptinPage({
+          request,
           advertiserId,
-          description: campaignData.description ?? `Destination: ${destinationUrl}`,
-          targeting: {
-            ...(campaignData.targeting ?? {}),
-            destinationUrl,
-            vertical,
+          optinPageId,
+          vertical,
+          campaignData: {
+            ...campaignData,
+            status: campaignData.status ?? "ACTIVE",
+            fields: campaignData.fields,
           },
-          status: campaignData.status ?? "ACTIVE",
-          fields: campaignData.fields,
         });
 
         return Response.json({ data: campaign }, { status: 201 });
@@ -76,10 +121,22 @@ export async function POST(request: Request) {
         );
       }
 
-      const campaign = await createCampaign({
+      const optinPageId = typeof body.optinPageId === "string" ? body.optinPageId : "";
+      if (!optinPageId) {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "Select an optin page", status: 422 } },
+          { status: 422 },
+        );
+      }
+
+      const campaign = await createCampaignWithOptinPage({
+        request,
         advertiserId: session.user.id,
-        ...parsed.data,
-        status: "PENDING",
+        optinPageId,
+        campaignData: {
+          ...parsed.data,
+          status: "PENDING",
+        },
       });
 
       return Response.json({ data: campaign }, { status: 201 });

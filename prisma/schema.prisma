@@ -152,6 +152,7 @@ model User {
   ticketMessages    TicketMessage[]
   auditLogs         AuditLog[]
   leadStatusChanges LeadStatusHistory[]
+  optinPage         AdvertiserOptinPage?
 
   @@index([role])
   @@index([status])
@@ -216,6 +217,7 @@ model Campaign {
   trackingLinks      TrackingLink[]
   leads              Lead[]
   pixelEvents        PixelEvent[]
+  optinPages         AdvertiserOptinPage[]
 
   @@index([advertiserId])
   @@index([status])
@@ -530,6 +532,35 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model AdvertiserOptinPage {
+  id             String   @id @default(cuid())
+  advertiserId   String   @unique @map("advertiser_id")
+  slug           String   @unique
+  title          String   @default("My Optin Page")
+  destinationUrl String?  @map("destination_url")
+  campaignId     String?  @map("campaign_id")
+  headline       String   @default("Unlock Your Free Guide")
+  subheadline    String   @default("Join thousands getting results every week")
+  description    String?  @db.Text
+  ctaText        String   @default("Get Instant Access") @map("cta_text")
+  successTitle   String   @default("You're in!") @map("success_title")
+  successMessage String   @default("Check your inbox for next steps.") @map("success_message")
+  badgeText      String?  @map("badge_text")
+  bulletPoints   Json     @default("[]") @map("bullet_points")
+  primaryColor   String   @default("#6366f1") @map("primary_color")
+  accentColor    String   @default("#a855f7") @map("accent_color")
+  templateId     String   @default("aurora") @map("template_id")
+  isPublished    Boolean  @default(false) @map("is_published")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  advertiser User      @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@map("advertiser_optin_pages")
 }
 
 model PlatformSetting {

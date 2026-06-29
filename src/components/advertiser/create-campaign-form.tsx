@@ -17,7 +17,6 @@ import {
   DEFAULT_LEAD_FIELDS,
   DEVICE_TYPES,
   OPERATING_SYSTEMS,
-  URL_TOKENS,
   VERTICALS,
   DEFAULT_VERTICAL,
   isValidTierCountrySelection,
@@ -55,6 +54,17 @@ type AdvertiserOption = {
   email: string;
   wallet?: { balance: unknown } | null;
 };
+
+type OptinPageOption = {
+  id: string;
+  title: string;
+  slug: string;
+  isPublished: boolean;
+};
+
+function formatOptinPageLabel(page: OptinPageOption) {
+  return `${page.title} (/o/${page.slug})`;
+}
 
 type CreateCampaignFormProps = {
   mode?: "advertiser" | "admin";
@@ -199,7 +209,9 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
   const [autoApprove, setAutoApprove] = useState(false);
 
   const [name, setName] = useState("");
-  const [destinationUrl, setDestinationUrl] = useState("");
+  const [optinPageId, setOptinPageId] = useState("");
+  const [optinPages, setOptinPages] = useState<OptinPageOption[]>([]);
+  const [loadingOptinPages, setLoadingOptinPages] = useState(!isAdmin);
   const [startMode, setStartMode] = useState<StartMode>("now");
   const [startDate, setStartDate] = useState(todayInputValue());
   const [endMode, setEndMode] = useState<EndMode>("forever");
@@ -217,6 +229,11 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
   const [totalBudget, setTotalBudget] = useState("");
   const [dailyBudget, setDailyBudget] = useState("");
   const [createdPixelToken, setCreatedPixelToken] = useState<string | null>(null);
+  const [siteOrigin, setSiteOrigin] = useState("");
+
+  useEffect(() => {
+    setSiteOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (isAdmin) {
@@ -232,7 +249,44 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       .then((res) => res.json())
       .then((data) => setWalletBalance(Number(data.availableBalance ?? data.balance ?? 0)))
       .catch(() => setWalletBalance(0));
+
+    setLoadingOptinPages(true);
+    fetch("/api/v1/optin-page-options")
+      .then((res) => res.json())
+      .then((data) => {
+        const pages = (data.pages ?? []) as OptinPageOption[];
+        setOptinPages(pages);
+        if (pages.length === 1) {
+          setOptinPageId(pages[0].id);
+        }
+      })
+      .catch(() => setOptinPages([]))
+      .finally(() => setLoadingOptinPages(false));
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || !advertiserId) {
+      if (isAdmin) {
+        setOptinPages([]);
+        setOptinPageId("");
+      }
+      return;
+    }
+
+    setLoadingOptinPages(true);
+    fetch(`/api/v1/optin-page-options?advertiserId=${encodeURIComponent(advertiserId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const pages = (data.pages ?? []) as OptinPageOption[];
+        setOptinPages(pages);
+        setOptinPageId(pages.length === 1 ? pages[0].id : "");
+      })
+      .catch(() => {
+        setOptinPages([]);
+        setOptinPageId("");
+      })
+      .finally(() => setLoadingOptinPages(false));
+  }, [isAdmin, advertiserId]);
 
   const selectedAdvertiser = advertisers.find((item) => item.id === advertiserId);
   const effectiveWalletBalance = isAdmin
@@ -252,9 +306,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
     (effectiveWalletBalance < cplValue ||
       (totalBudgetValue !== null && effectiveWalletBalance < totalBudgetValue));
 
-  function appendToken(token: string) {
-    setDestinationUrl((current) => `${current}${token}`);
-  }
+  const selectedOptinPage = optinPages.find((page) => page.id === optinPageId);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -264,8 +316,8 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       setError("Campaign name is required.");
       return;
     }
-    if (!destinationUrl.trim()) {
-      setError("Destination URL is required.");
+    if (!optinPageId) {
+      setError("Select an optin page for this campaign.");
       return;
     }
     if (!vertical || !selectedVertical) {
@@ -298,7 +350,6 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
     setLoading(true);
 
     const targeting = {
-      destinationUrl: destinationUrl.trim(),
       scheduling: {
         startMode,
         startDate: startMode === "scheduled" ? startDate : null,
@@ -320,7 +371,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       ? {
           advertiserId,
           name: name.trim(),
-          destinationUrl: destinationUrl.trim(),
+          optinPageId,
           vertical,
           category: selectedVertical.category,
           cpl: cplValue,
@@ -328,13 +379,18 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           status: campaignStatus,
           autoApprove,
-          description: `Destination: ${destinationUrl.trim()}`,
+          description: selectedOptinPage
+            ? `Optin page: ${selectedOptinPage.title}`
+            : undefined,
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
         }
       : {
           name: name.trim(),
-          description: `Destination: ${destinationUrl.trim()}`,
+          optinPageId,
+          description: selectedOptinPage
+            ? `Optin page: ${selectedOptinPage.title}`
+            : undefined,
           category: selectedVertical.category,
           cpl: cplValue,
           budget: totalBudgetValue ?? undefined,
@@ -373,11 +429,12 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
 
   const canSubmit =
     name.trim() &&
-    destinationUrl.trim() &&
+    optinPageId &&
     vertical &&
     cplValue >= minCpl &&
     !insufficientBalance &&
     !cplInvalid &&
+    !loadingOptinPages &&
     (!isAdmin || (advertiserId && !loadingAdvertisers));
 
   return (
@@ -455,35 +512,61 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="destinationUrl">Destination URL*</Label>
-              <Input
-                id="destinationUrl"
-                value={destinationUrl}
-                onChange={(e) => setDestinationUrl(e.target.value)}
-                placeholder="https://example.com/landing"
-                required
-              />
-              <FieldHint>This is the URL that users will be redirected to after clicking your ad</FieldHint>
-              <div className="space-y-2 pt-1">
-                <p className="text-xs text-slate-500">Click on a badge to append it to the URL:</p>
-                <div className="flex flex-wrap gap-2">
-                  {URL_TOKENS.map(({ token, highlight }) => (
-                    <button
-                      key={token}
-                      type="button"
-                      onClick={() => appendToken(token)}
-                      className={cn(
-                        "rounded-md border px-2.5 py-1 font-mono text-xs transition-colors",
-                        highlight
-                          ? "border-[var(--theme-primary)]/30 bg-[var(--theme-primary-soft)] text-[var(--theme-primary)] hover:opacity-80"
-                          : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100",
-                      )}
-                    >
-                      {token}
-                    </button>
-                  ))}
+              <Label htmlFor="optinPageId">Optin page*</Label>
+              {loadingOptinPages ? (
+                <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                  Loading optin pages...
                 </div>
-              </div>
+              ) : optinPages.length === 0 ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {isAdmin ? (
+                    "This advertiser has no optin page yet. They need to create one before you can launch a campaign."
+                  ) : (
+                    <>
+                      No optin page found.{" "}
+                      <Link href="/advertiser/optin-pages" className="font-semibold underline">
+                        Create one first
+                      </Link>
+                      , then return here to launch your campaign.
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Select value={optinPageId} onValueChange={(value) => setOptinPageId(value ?? "")}>
+                    <SelectTrigger id="optinPageId" className="h-11 w-full bg-white">
+                      {selectedOptinPage ? (
+                        <span className="truncate text-left text-sm text-slate-900">
+                          {formatOptinPageLabel(selectedOptinPage)}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Select optin page</span>
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {optinPages.map((page) => (
+                        <SelectItem key={page.id} value={page.id}>
+                          {formatOptinPageLabel(page)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedOptinPage && (
+                    <FieldHint>
+                      Optin landing URL:{" "}
+                      <span className="font-mono text-slate-700">
+                        {siteOrigin
+                          ? `${siteOrigin}/o/${selectedOptinPage.slug}`
+                          : `/o/${selectedOptinPage.slug}`}
+                      </span>
+                      {selectedOptinPage.isPublished ? "" : " · Page is still a draft"}
+                    </FieldHint>
+                  )}
+                </>
+              )}
+              <FieldHint>
+                Publishers will send traffic to your selected optin page instead of an external URL.
+              </FieldHint>
             </div>
           </SectionCard>
 

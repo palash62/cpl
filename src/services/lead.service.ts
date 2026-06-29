@@ -136,6 +136,135 @@ export async function submitLead(input: {
   });
 }
 
+export async function submitOptinLead(input: {
+  optinSlug: string;
+  data: Record<string, string>;
+  honeypot?: string;
+  ip?: string;
+  userAgent?: string;
+}) {
+  if (input.honeypot) {
+    throw Errors.duplicateLead();
+  }
+
+  const optinPage = await prisma.advertiserOptinPage.findUnique({
+    where: { slug: input.optinSlug },
+    include: {
+      campaign: { include: { fields: true } },
+    },
+  });
+
+  if (
+    !optinPage?.isPublished ||
+    !optinPage.campaign ||
+    optinPage.campaign.status !== "ACTIVE"
+  ) {
+    throw Errors.notFound("Optin page");
+  }
+
+  const campaign = optinPage.campaign;
+  const settings = await getPlatformSettings();
+  const since = subDays(new Date(), settings.duplicateWindowDays);
+
+  const countryKeys = ["country", "country_code", "countryCode", "nationality"] as const;
+  const country =
+    countryKeys.map((key) => input.data[key]?.trim()).find(Boolean) ?? undefined;
+
+  const existingLeads = await prisma.lead.findMany({
+    where: {
+      campaignId: campaign.id,
+      createdAt: { gte: since },
+      status: { notIn: ["REJECTED"] },
+    },
+    select: { data: true },
+  });
+
+  const existingEmails = existingLeads
+    .map((l) => (l.data as Record<string, string>).email?.toLowerCase())
+    .filter(Boolean) as string[];
+
+  const existingPhones = existingLeads
+    .map((l) => (l.data as Record<string, string>).phone?.replace(/\D/g, ""))
+    .filter(Boolean) as string[];
+
+  const validation = validateLead({
+    data: input.data,
+    campaignFields: campaign.fields,
+    existingEmails,
+    existingPhones,
+    honeypot: input.honeypot,
+  });
+
+  const lead = await prisma.lead.create({
+    data: {
+      campaignId: campaign.id,
+      publisherId: optinPage.advertiserId,
+      status: "VALIDATING",
+      data: input.data,
+      score: validation.score,
+      ip: input.ip,
+      userAgent: input.userAgent,
+      country,
+      source: "optin",
+      validationResults: {
+        create: validation.results.map((r) => ({
+          rule: r.rule,
+          passed: r.passed,
+          details: r.details,
+        })),
+      },
+      statusHistory: {
+        create: { toStatus: "VALIDATING" },
+      },
+    },
+  });
+
+  let nextStatus: LeadStatus;
+
+  if (!validation.passed) {
+    nextStatus = "REJECTED";
+  } else if (campaign.autoApprove && validation.score >= 80) {
+    nextStatus = "APPROVED";
+  } else {
+    nextStatus = "PENDING";
+  }
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      status: nextStatus,
+      statusHistory: {
+        create: { fromStatus: "VALIDATING", toStatus: nextStatus },
+      },
+    },
+  });
+
+  if (nextStatus === "APPROVED") {
+    try {
+      await processLeadPayment(lead.id);
+    } catch {
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          status: "PENDING",
+          statusHistory: {
+            create: {
+              fromStatus: "APPROVED",
+              toStatus: "PENDING",
+              reason: "Insufficient advertiser funds",
+            },
+          },
+        },
+      });
+    }
+  }
+
+  return prisma.lead.findUniqueOrThrow({
+    where: { id: lead.id },
+    include: { validationResults: true },
+  });
+}
+
 export async function updateLeadStatus(
   leadId: string,
   status: "APPROVED" | "REJECTED",

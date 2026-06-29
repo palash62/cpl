@@ -1,5 +1,7 @@
 export type CampaignTargeting = {
   destinationUrl?: string;
+  optinPageId?: string;
+  optinSlug?: string;
   excludeBlockedPublishers?: boolean;
   [key: string]: unknown;
 };

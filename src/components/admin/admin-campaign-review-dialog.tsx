@@ -145,7 +145,7 @@ export function AdminCampaignReviewDialog({ campaign }: { campaign: CampaignRow 
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Destination URL</p>
+                <p className="text-xs text-slate-500">Optin page destination</p>
                 <p className="break-all text-sm font-medium text-slate-900">{destinationUrl || "—"}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">

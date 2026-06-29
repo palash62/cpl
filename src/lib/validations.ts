@@ -59,6 +59,45 @@ export const leadSubmitSchema = z.object({
     .optional(),
 });
 
+export const optinSubmitSchema = z.object({
+  optinSlug: z.string().min(1),
+  data: z.record(z.string(), z.string()),
+  honeypot: z.string().optional(),
+});
+
+export const optinPageUpdateSchema = z.object({
+  title: z.string().trim().min(2).max(80),
+  slug: z.string().trim().min(2).max(40),
+  destinationUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: "Enter a valid destination URL",
+    }),
+  templateId: z
+    .enum(["aurora", "sunrise", "ocean", "minimal", "bold", "neon"])
+    .optional(),
+  headline: z.string().trim().min(3).max(120),
+  subheadline: z.string().trim().min(3).max(200),
+  description: z.string().trim().max(1000).nullable().optional(),
+  ctaText: z.string().trim().min(2).max(60),
+  successTitle: z.string().trim().min(2).max(80),
+  successMessage: z.string().trim().min(2).max(200),
+  badgeText: z.string().trim().max(80).nullable().optional(),
+  bulletPoints: z.array(z.string().trim().min(1).max(120)).max(6),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  isPublished: z.boolean(),
+});
+
+export const optinPageColorsSchema = z.object({
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
 export const payoutRequestSchema = z.object({
   amount: z.number().positive(),
   method: z.enum(["PAYPAL", "BANK_TRANSFER", "STRIPE_CONNECT"]),
@@ -104,7 +143,7 @@ export const updatePublisherProfileSchema = z.object({
 
 export const adminCreateCampaignSchema = campaignSchema.extend({
   advertiserId: z.string().min(1, "Select an advertiser"),
-  destinationUrl: z.string().trim().url("Enter a valid destination URL"),
+  optinPageId: z.string().min(1, "Select an optin page"),
   vertical: z.string().trim().min(1, "Select a vertical"),
 });
 

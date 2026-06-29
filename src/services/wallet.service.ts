@@ -107,14 +107,16 @@ export async function processLeadPayment(leadId: string) {
       `Lead payment for campaign ${lead.campaign.name}`,
     );
 
-    await creditWallet(
-      tx,
-      lead.publisherId,
-      publisherAmount,
-      "lead",
-      leadId,
-      `Earnings from lead`,
-    );
+    if (lead.source !== "optin") {
+      await creditWallet(
+        tx,
+        lead.publisherId,
+        publisherAmount,
+        "lead",
+        leadId,
+        `Earnings from lead`,
+      );
+    }
 
     await tx.platformFee.create({
       data: {
