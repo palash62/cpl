@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Copy, Gift, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buildReferralUrl } from "@/lib/referral";
+import { REFERRAL_RATES_SUMMARY, buildReferralUrl } from "@/lib/referral";
 
 export function AdvertiserReferralCard({ referralCode }: { referralCode: string }) {
   const [copied, setCopied] = useState(false);
@@ -37,7 +37,7 @@ export function AdvertiserReferralCard({ referralCode }: { referralCode: string 
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Your Referral Link</h3>
-            <p className="text-xs text-slate-500">Earn 20% + 10% on 2 levels</p>
+            <p className="text-xs text-slate-500">{REFERRAL_RATES_SUMMARY}</p>
           </div>
         </div>
 

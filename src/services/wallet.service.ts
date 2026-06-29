@@ -255,7 +255,10 @@ export async function listUserDeposits(
       id: deposit.id,
       amount: Number(deposit.amount),
       status: deposit.status,
+      method: deposit.method,
       paymentId: deposit.stripePaymentId,
+      wiseReference: deposit.wiseReference,
+      rejectionReason: deposit.rejectionReason,
       createdAt: deposit.createdAt,
       balanceAfter: balanceAfterByDeposit.get(deposit.id) ?? null,
     })),
@@ -267,4 +270,221 @@ export async function listUserDeposits(
     },
     totalRecharged: Number(totalRecharged._sum.amount ?? 0),
   };
+}
+
+export async function createCreditCardDeposit(userId: string, amount: number) {
+  return prisma.$transaction(async (tx) => {
+    const deposit = await tx.deposit.create({
+      data: {
+        userId,
+        amount,
+        method: "CREDIT_CARD",
+        status: "COMPLETED",
+        stripePaymentId: `cc_${Date.now()}`,
+        processedAt: new Date(),
+      },
+    });
+
+    await creditWallet(tx, userId, amount, "deposit", deposit.id, "Credit card deposit");
+
+    return deposit;
+  });
+}
+
+export async function createWiseDeposit(
+  userId: string,
+  amount: number,
+  wiseReference: string,
+  paymentDetails?: { payerName?: string; note?: string },
+) {
+  const details =
+    paymentDetails?.payerName || paymentDetails?.note
+      ? {
+          ...(paymentDetails.payerName ? { payerName: paymentDetails.payerName } : {}),
+          ...(paymentDetails.note ? { note: paymentDetails.note } : {}),
+        }
+      : undefined;
+
+  return prisma.deposit.create({
+    data: {
+      userId,
+      amount,
+      method: "WISE",
+      status: "PENDING",
+      wiseReference,
+      paymentDetails: details,
+    },
+  });
+}
+
+export async function listPendingDeposits() {
+  return prisma.deposit.findMany({
+    where: { status: "PENDING", method: "WISE" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          advertiserProfile: {
+            select: {
+              company: true,
+              industry: true,
+              billingInfo: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+const depositUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  advertiserProfile: {
+    select: {
+      company: true,
+      industry: true,
+      billingInfo: true,
+    },
+  },
+} as const;
+
+export async function listAdminDeposits(options: {
+  advertiserId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  page?: number;
+  limit?: number;
+}) {
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.min(50, Math.max(1, options.limit ?? 20));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.DepositWhereInput = {};
+
+  if (options.advertiserId) {
+    where.userId = options.advertiserId;
+  }
+
+  if (options.dateFrom || options.dateTo) {
+    where.createdAt = {};
+    if (options.dateFrom) {
+      const from = new Date(options.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      where.createdAt.gte = from;
+    }
+    if (options.dateTo) {
+      const to = new Date(options.dateTo);
+      to.setHours(23, 59, 59, 999);
+      where.createdAt.lte = to;
+    }
+  }
+
+  const [deposits, total] = await Promise.all([
+    prisma.deposit.findMany({
+      where,
+      include: { user: { select: depositUserSelect } },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.deposit.count({ where }),
+  ]);
+
+  return {
+    data: deposits,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
+}
+
+export async function listDepositAdvertiserOptions() {
+  return prisma.user.findMany({
+    where: { role: "ADVERTISER" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      advertiserProfile: { select: { company: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function approveDeposit(depositId: string, adminId: string) {
+  const deposit = await prisma.deposit.findUniqueOrThrow({
+    where: { id: depositId },
+  });
+
+  if (deposit.status !== "PENDING" || deposit.method !== "WISE") {
+    throw new Error("Deposit is not pending Wise approval");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await creditWallet(
+      tx,
+      deposit.userId,
+      Number(deposit.amount),
+      "deposit",
+      depositId,
+      "Wise deposit approved",
+    );
+
+    await tx.deposit.update({
+      where: { id: depositId },
+      data: { status: "COMPLETED", processedAt: new Date() },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: "deposit.approved",
+        entityType: "deposit",
+        entityId: depositId,
+      },
+    });
+  });
+
+  return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
+}
+
+export async function rejectDeposit(depositId: string, adminId: string, reason: string) {
+  const deposit = await prisma.deposit.findUniqueOrThrow({
+    where: { id: depositId },
+  });
+
+  if (deposit.status !== "PENDING" || deposit.method !== "WISE") {
+    throw new Error("Deposit is not pending Wise approval");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.deposit.update({
+      where: { id: depositId },
+      data: {
+        status: "FAILED",
+        rejectionReason: reason,
+        processedAt: new Date(),
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: "deposit.rejected",
+        entityType: "deposit",
+        entityId: depositId,
+        metadata: { reason },
+      },
+    });
+  });
+
+  return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
 }

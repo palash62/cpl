@@ -66,9 +66,15 @@ export function DepositStatusBadge({ status }: { status: string }) {
     FAILED: "border-red-200 bg-red-50 text-red-700",
   };
 
+  const labels: Record<string, string> = {
+    COMPLETED: "approved",
+    PENDING: "pending",
+    FAILED: "rejected",
+  };
+
   return (
     <Badge variant="outline" className={cn("font-medium capitalize", styles[status] ?? "border-slate-200 bg-slate-50 text-slate-600")}>
-      {status.toLowerCase()}
+      {labels[status] ?? status.toLowerCase()}
     </Badge>
   );
 }

@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     }
 
     const referredById = await resolveReferrerId(parsed.data.referralRef);
+    const role = parsed.data.referralRef?.trim() ? "ADVERTISER" : parsed.data.role;
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
     const user = await prisma.$transaction(async (tx) => {
@@ -36,16 +37,16 @@ export async function POST(request: Request) {
           email: parsed.data.email,
           passwordHash,
           name: parsed.data.name,
-          role: parsed.data.role,
+          role,
           status: "PENDING",
           referredById: referredById ?? undefined,
           wallet: { create: {} },
-          ...(parsed.data.role === "ADVERTISER" && {
+          ...(role === "ADVERTISER" && {
             advertiserProfile: {
               create: { company: parsed.data.company ?? parsed.data.name },
             },
           }),
-          ...(parsed.data.role === "PUBLISHER" && {
+          ...(role === "PUBLISHER" && {
             publisherProfile: { create: {} },
           }),
         },

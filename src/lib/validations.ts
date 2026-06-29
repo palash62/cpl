@@ -1,13 +1,18 @@
 import { z } from "zod";
 
-export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(2),
-  role: z.enum(["ADVERTISER", "PUBLISHER"]),
-  company: z.string().optional(),
-  referralRef: z.string().optional(),
-});
+export const registerSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    name: z.string().min(2),
+    role: z.enum(["ADVERTISER", "PUBLISHER"]),
+    company: z.string().optional(),
+    referralRef: z.string().optional(),
+  })
+  .refine((data) => !data.referralRef?.trim() || data.role === "ADVERTISER", {
+    message: "Referral sign-up is for advertisers only.",
+    path: ["role"],
+  });
 
 export const loginSchema = z.object({
   email: z.string().email(),

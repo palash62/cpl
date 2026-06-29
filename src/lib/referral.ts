@@ -2,6 +2,8 @@ export const REFERRAL_LEVEL_1_RATE = 0.1;
 export const REFERRAL_LEVEL_2_RATE = 0.05;
 export const REFERRAL_MIN_PAYOUT = 30;
 
+export const REFERRAL_RATES_SUMMARY = "Earn 10% + 5% on 2 levels";
+
 export const REFERRAL_LEVELS = [
   {
     level: 1,

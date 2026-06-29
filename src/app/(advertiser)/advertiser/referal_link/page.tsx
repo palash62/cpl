@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import {
   REFERRAL_LEVELS,
   REFERRAL_MIN_PAYOUT,
+  REFERRAL_RATES_SUMMARY,
   REFERRAL_STEPS,
 } from "@/lib/referral";
 import { getAdvertiserReferralData } from "@/services/referral.service";
@@ -34,7 +35,7 @@ export default async function AdvertiserReferralLinkPage() {
       <RoleHero
         eyebrow="Advertiser Portal"
         title="Referral Link"
-        description="Refer & earn passive income. Our 2-level referral program pays you when users you invite spend on ads."
+        description={`Refer & earn passive income. ${REFERRAL_RATES_SUMMARY}.`}
         action={{ label: "Copy Link", href: "#referral-link", icon: Share2 }}
       />
 
@@ -48,8 +49,9 @@ export default async function AdvertiserReferralLinkPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
           Earn commissions by referring others to the platform. Level 1 pays{" "}
-          <strong>10%</strong> of direct referral ad spend. Level 2 pays <strong>5%</strong> from
-          users your referrals refer. Minimum payout threshold is {formatCurrency(REFERRAL_MIN_PAYOUT)}.
+          <strong>{REFERRAL_LEVELS[0].rate}</strong> of direct referral ad spend. Level 2 pays{" "}
+          <strong>{REFERRAL_LEVELS[1].rate}</strong> from users your referrals refer. Minimum payout
+          threshold is {formatCurrency(REFERRAL_MIN_PAYOUT)}.
         </p>
       </div>
 
@@ -149,14 +151,18 @@ export default async function AdvertiserReferralLinkPage() {
           <p className="mt-2 text-2xl font-bold text-emerald-600">
             {formatCurrency(data.stats.level1Commission)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">10% of direct referral ad spend</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {REFERRAL_LEVELS[0].rate} of direct referral ad spend
+          </p>
         </div>
         <div className="premium-card p-5">
           <p className="text-sm font-semibold text-slate-900">Level 2 earnings</p>
           <p className="mt-2 text-2xl font-bold text-violet-600">
             {formatCurrency(data.stats.level2Commission)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">5% of indirect referral ad spend</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {REFERRAL_LEVELS[1].rate} of indirect referral ad spend
+          </p>
         </div>
       </div>
 

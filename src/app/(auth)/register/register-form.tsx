@@ -25,7 +25,12 @@ export function RegisterForm() {
   useEffect(() => {
     const ref = searchParams.get("referral_by") ?? searchParams.get("ref") ?? "";
     setReferralRef(ref);
+    if (ref) {
+      setRole("ADVERTISER");
+    }
   }, [searchParams]);
+
+  const isReferralSignup = Boolean(referralRef.trim());
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +40,14 @@ export function RegisterForm() {
     const res = await fetch("/api/v1/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role, company, referralRef }),
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        role: isReferralSignup ? "ADVERTISER" : role,
+        company,
+        referralRef,
+      }),
     });
 
     const data = await res.json();
@@ -50,8 +62,15 @@ export function RegisterForm() {
   }
 
   return (
-    <AuthLayout title="Create account" description="Join the CPL Platform marketplace">
-      {referralRef && (
+    <AuthLayout
+      title={isReferralSignup ? "Create advertiser account" : "Create account"}
+      description={
+        isReferralSignup
+          ? "You were referred to join as an advertiser on the CPL Platform"
+          : "Join the CPL Platform marketplace"
+      }
+    >
+      {isReferralSignup && (
         <div
           className="mb-4 rounded-xl border px-4 py-3 text-sm text-slate-700"
           style={{
@@ -59,15 +78,18 @@ export function RegisterForm() {
             background: "var(--theme-primary-soft)",
           }}
         >
-          You were invited with referral code <strong>{referralRef.toUpperCase()}</strong>.
+          You were invited with referral code <strong>{referralRef.toUpperCase()}</strong>. Referral
+          sign-up is for <strong>advertisers only</strong>.
         </div>
       )}
-      <Tabs value={role} onValueChange={(v) => setRole(v as typeof role)} className="mb-4">
-        <TabsList className="grid w-full grid-cols-2 rounded-xl">
-          <TabsTrigger value="ADVERTISER">Advertiser</TabsTrigger>
-          <TabsTrigger value="PUBLISHER">Publisher</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {!isReferralSignup && (
+        <Tabs value={role} onValueChange={(v) => setRole(v as typeof role)} className="mb-4">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl">
+            <TabsTrigger value="ADVERTISER">Advertiser</TabsTrigger>
+            <TabsTrigger value="PUBLISHER">Publisher</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <Alert variant="destructive">
@@ -78,7 +100,7 @@ export function RegisterForm() {
           <Label htmlFor="name">Full Name</Label>
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-slate-200" required />
         </div>
-        {role === "ADVERTISER" && (
+        {(isReferralSignup || role === "ADVERTISER") && (
           <div className="space-y-2">
             <Label htmlFor="company">Company</Label>
             <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-xl border-slate-200" />

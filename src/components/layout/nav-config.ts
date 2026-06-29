@@ -3,6 +3,7 @@
 import type { UserRole } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowDownToLine,
   LayoutDashboard,
   Users,
   Megaphone,
@@ -32,6 +33,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
   { label: "Leads", href: "/admin/leads", icon: FileText },
   { label: "Wallets", href: "/admin/wallets", icon: Wallet },
+  { label: "Deposits", href: "/admin/deposits", icon: ArrowDownToLine },
   { label: "Payouts", href: "/admin/payouts", icon: Banknote },
   { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },

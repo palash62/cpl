@@ -1,3 +1,4 @@
+import { campaignExcludesBlockedPublishers } from "@/lib/campaign-targeting";
 import { prisma } from "@/lib/prisma";
 import { createTrackingLink } from "@/services/campaign.service";
 import type { Campaign, PublisherSmartLink, User } from "@prisma/client";
@@ -19,14 +20,15 @@ export async function getOrCreatePublisherSmartLink(publisherId: string): Promis
 }
 
 export async function getEligibleCampaigns(publisherId: string): Promise<EligibleCampaign[]> {
+  const blockedAdvertisers = await prisma.advertiserPublisherBlock.findMany({
+    where: { publisherId },
+    select: { advertiserId: true },
+  });
+  const blockedAdvertiserIds = new Set(blockedAdvertisers.map((row) => row.advertiserId));
+
   const campaigns = await prisma.campaign.findMany({
     where: {
       status: "ACTIVE",
-      advertiser: {
-        advertiserPublisherBlocks: {
-          none: { publisherId },
-        },
-      },
     },
     include: {
       advertiser: {
@@ -36,7 +38,18 @@ export async function getEligibleCampaigns(publisherId: string): Promise<Eligibl
     orderBy: { createdAt: "asc" },
   });
 
-  return campaigns.filter((c) => Number(c.spent) < Number(c.budget));
+  return campaigns.filter((campaign) => {
+    if (Number(campaign.spent) >= Number(campaign.budget)) return false;
+
+    if (
+      campaignExcludesBlockedPublishers(campaign.targeting) &&
+      blockedAdvertiserIds.has(campaign.advertiserId)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export async function ensureTrackingLink(publisherId: string, campaignId: string) {

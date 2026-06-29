@@ -212,6 +212,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
   const [operatingSystems, setOperatingSystems] = useState<string[]>([]);
   const [blacklistedDevices, setBlacklistedDevices] = useState<string[]>([]);
   const [blacklistedOperatingSystems, setBlacklistedOperatingSystems] = useState<string[]>([]);
+  const [excludeBlockedPublishers, setExcludeBlockedPublishers] = useState(false);
   const [cpl, setCpl] = useState("");
   const [totalBudget, setTotalBudget] = useState("");
   const [dailyBudget, setDailyBudget] = useState("");
@@ -312,6 +313,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       operatingSystems: trafficMode === "allow" ? operatingSystems : [],
       blacklistedDevices: trafficMode === "block" ? blacklistedDevices : [],
       blacklistedOperatingSystems: trafficMode === "block" ? blacklistedOperatingSystems : [],
+      excludeBlockedPublishers,
     };
 
     const payload = isAdmin
@@ -617,6 +619,32 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                 />
               </TabsContent>
             </Tabs>
+
+            <div className="space-y-2">
+              <Label htmlFor="excludeBlockedPublishers">Blacklisted publishers</Label>
+              <Select
+                value={excludeBlockedPublishers ? "exclude" : "allow"}
+                onValueChange={(value) => setExcludeBlockedPublishers(value === "exclude")}
+              >
+                <SelectTrigger
+                  id="excludeBlockedPublishers"
+                  className="h-9 w-full bg-white *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:whitespace-normal"
+                >
+                  <SelectValue placeholder="Select option" />
+                </SelectTrigger>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  className="min-w-[min(100%,22rem)]"
+                >
+                  <SelectItem value="allow">Allow all publishers</SelectItem>
+                  <SelectItem value="exclude">Don&apos;t allow blacklisted publishers</SelectItem>
+                </SelectContent>
+              </Select>
+              <FieldHint>
+                When enabled, publishers you blocked on the Leads page will not receive this
+                campaign in their Smart Link rotation.
+              </FieldHint>
+            </div>
           </SectionCard>
 
           <SectionCard step={4} title="Budget" icon={Wallet} accentIndex={3}>

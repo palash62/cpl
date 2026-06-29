@@ -2,15 +2,16 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { format } from "date-fns";
-import { ArrowDownLeft, History, Info, Lock, Plus, Wallet } from "lucide-react";
+import { History, Plus, Wallet } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getWalletBalance, listUserDeposits } from "@/services/wallet.service";
-import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
+import { GradientStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
 import { DepositStatusBadge, formatCurrency } from "@/components/admin/admin-ui";
 import { WalletRechargePanel } from "@/components/advertiser/wallet-recharge-panel";
 import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserLeadsTableFooter } from "@/components/advertiser/advertiser-leads-table-footer";
+import { formatDepositMethod } from "@/lib/deposit";
 import {
   Table,
   TableBody,
@@ -26,12 +27,6 @@ interface PageProps {
 
 function shortDepositId(id: string) {
   return id.slice(-8).toUpperCase();
-}
-
-function paymentMethodLabel(paymentId: string | null) {
-  if (!paymentId) return "—";
-  if (paymentId.startsWith("mock_")) return "Demo";
-  return "Card";
 }
 
 export default async function WalletPage({ searchParams }: PageProps) {
@@ -57,48 +52,20 @@ export default async function WalletPage({ searchParams }: PageProps) {
       <RoleHero
         eyebrow="Advertiser Portal"
         title="Wallet"
-        description="Manage your balance, add funds, and review deposit history for campaign spend."
+        description="Add funds via credit card or Wise, then review your deposit history."
         action={{ label: "Add Funds", href: "#add-funds", icon: Plus }}
       />
 
-      <div
-        className="flex gap-3 rounded-xl border px-4 py-3 text-sm text-slate-700"
-        style={{
-          borderColor: "color-mix(in srgb, var(--theme-primary) 20%, transparent)",
-          background: "var(--theme-primary-soft)",
-        }}
-      >
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
-        <p>
-          Wallet funds are used automatically when leads are approved on your campaigns. Keep enough
-          balance available to avoid campaigns being paused for insufficient funds.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <GradientStatCard
-          variant="revenue"
-          label="Wallet Balance"
-          value={formatCurrency(wallet.balance)}
-          icon={Wallet}
-        />
-        <NeutralStatCard
-          label="Available Balance"
-          value={formatCurrency(wallet.availableBalance)}
-          icon={ArrowDownLeft}
-          accent="green"
-        />
-        <NeutralStatCard
-          label="Total Deposited"
-          value={formatCurrency(deposits.totalRecharged)}
-          icon={History}
-          accent="purple"
-        />
-      </div>
+      <GradientStatCard
+        variant="revenue"
+        label="Available Balance"
+        value={formatCurrency(wallet.availableBalance)}
+        icon={Wallet}
+      />
 
       <PageSection
         title="Add Funds"
-        description="Deposit money into your wallet to fund campaigns"
+        description="Credit card is approved instantly. Wise deposits need admin approval."
         icon={Plus}
         gradient="revenue"
         contentClassName="p-6"
@@ -112,48 +79,9 @@ export default async function WalletPage({ searchParams }: PageProps) {
         />
       </PageSection>
 
-      <div className="premium-card overflow-hidden">
-        <div className="h-1" style={{ background: "var(--theme-gradient-approved)" }} />
-        <div className="border-b border-slate-100 bg-[var(--theme-primary-soft)] px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
-              <Lock className="h-5 w-5 text-[var(--theme-primary)]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Balance details</h2>
-              <p className="text-sm text-slate-500">How your wallet balance is calculated</p>
-            </div>
-          </div>
-        </div>
-        <div className="grid gap-0 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-          <div className="flex items-center justify-between px-6 py-4 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-sm text-slate-500">Total balance</span>
-            <span className="text-sm font-semibold text-slate-900">
-              {formatCurrency(wallet.balance)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-6 py-4 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-sm text-slate-500">On hold</span>
-            <span className="text-sm font-semibold text-amber-600">
-              {formatCurrency(wallet.holdBalance)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-6 py-4 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-sm text-slate-500">Available to spend</span>
-            <span className="text-sm font-semibold text-emerald-600">
-              {formatCurrency(wallet.availableBalance)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-6 py-4 sm:flex-col sm:items-start sm:gap-1">
-            <span className="text-sm text-slate-500">Currency</span>
-            <span className="text-sm font-semibold text-slate-900">{wallet.currency}</span>
-          </div>
-        </div>
-      </div>
-
       <PageSection
         title="Deposit History"
-        description="Wallet top-ups and deposit transactions"
+        description="Your wallet top-ups and approval status"
         icon={History}
         gradient="revenue"
       >
@@ -165,7 +93,7 @@ export default async function WalletPage({ searchParams }: PageProps) {
                 style={{ background: "var(--theme-primary-soft)" }}
               >
                 <TableHead className="h-11 px-6 text-slate-600">Date</TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">Transaction ID</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">ID</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Balance After</TableHead>
@@ -194,7 +122,7 @@ export default async function WalletPage({ searchParams }: PageProps) {
                       </span>
                     </TableCell>
                     <TableCell className="px-4 py-4 text-sm text-slate-600">
-                      {paymentMethodLabel(deposit.paymentId)}
+                      {formatDepositMethod(deposit.method)}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-right text-sm font-semibold tabular-nums text-emerald-600">
                       +{formatCurrency(deposit.amount)}

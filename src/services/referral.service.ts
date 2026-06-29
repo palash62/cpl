@@ -54,16 +54,18 @@ export async function resolveReferrerId(referralRef?: string | null) {
   const ref = referralRef.trim();
   const byCode = await prisma.user.findUnique({
     where: { referralCode: ref.toUpperCase() },
-    select: { id: true },
+    select: { id: true, role: true },
   });
-  if (byCode) return byCode.id;
+  if (byCode) {
+    return byCode.role === "ADVERTISER" ? byCode.id : null;
+  }
 
   const byId = await prisma.user.findUnique({
     where: { id: ref },
-    select: { id: true },
+    select: { id: true, role: true },
   });
 
-  return byId?.id ?? null;
+  return byId?.role === "ADVERTISER" ? byId.id : null;
 }
 
 function sumAdSpend(
