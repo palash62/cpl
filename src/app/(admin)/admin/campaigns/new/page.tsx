@@ -2,6 +2,6 @@ import { CreateCampaignPageContent } from "@/components/advertiser/create-campai
 
 export const dynamic = "force-dynamic";
 
-export default function CreateCampaignPage() {
-  return <CreateCampaignPageContent />;
+export default function AdminCreateCampaignPage() {
+  return <CreateCampaignPageContent mode="admin" />;
 }

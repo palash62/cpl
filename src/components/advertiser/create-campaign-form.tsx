@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   CalendarClock,
-  Check,
   Crosshair,
   Settings2,
   Target,
@@ -15,33 +14,50 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  countriesFromTiers,
   DEFAULT_LEAD_FIELDS,
   DEVICE_TYPES,
   OPERATING_SYSTEMS,
-  TIER_COUNTRIES,
-  TIER_META,
   URL_TOKENS,
   VERTICALS,
-  type CountryTier,
 } from "@/lib/campaign-form";
+import { CampaignCountryField } from "@/components/advertiser/campaign-country-field";
+import { CampaignSearchMultiSelect } from "@/components/advertiser/campaign-search-multi-select";
 import {
   BidRecommendationPanel,
   CampaignSummaryPanel,
+  TierPayoutInfoPanel,
 } from "@/components/advertiser/create-campaign-sidebar";
+import type { PayoutTiersDisplay } from "@/lib/platform-settings";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type StartMode = "now" | "scheduled";
 type EndMode = "forever" | "scheduled";
-type BudgetDistribution = "smooth" | "accelerated";
 type TrafficMode = "allow" | "block";
-type CampaignStatusChoice = "ACTIVE" | "PAUSED";
+type CampaignStatusChoice = "ACTIVE" | "PENDING" | "PAUSED" | "DRAFT";
+
+type AdvertiserOption = {
+  id: string;
+  name: string;
+  email: string;
+  wallet?: { balance: unknown } | null;
+};
+
+type CreateCampaignFormProps = {
+  mode?: "advertiser" | "admin";
+  payoutTiers: PayoutTiersDisplay;
+};
 
 const SECTION_ACCENTS = [
   "var(--theme-gradient-approved)",
@@ -166,11 +182,19 @@ function RadioOption({
   );
 }
 
-export function CreateCampaignForm() {
+export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateCampaignFormProps) {
+  const isAdmin = mode === "admin";
+  const backHref = isAdmin ? "/admin/campaigns" : "/advertiser/campaigns";
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [error, setError] = useState("");
+
+  const [advertisers, setAdvertisers] = useState<AdvertiserOption[]>([]);
+  const [loadingAdvertisers, setLoadingAdvertisers] = useState(isAdmin);
+  const [advertiserId, setAdvertiserId] = useState("");
+  const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice>("ACTIVE");
+  const [autoApprove, setAutoApprove] = useState(false);
 
   const [name, setName] = useState("");
   const [destinationUrl, setDestinationUrl] = useState("");
@@ -180,57 +204,53 @@ export function CreateCampaignForm() {
   const [endDate, setEndDate] = useState(todayInputValue());
   const [trafficMode, setTrafficMode] = useState<TrafficMode>("allow");
   const [vertical, setVertical] = useState("");
-  const [selectedTiers, setSelectedTiers] = useState<CountryTier[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [blacklistedCountries, setBlacklistedCountries] = useState<string[]>([]);
   const [devices, setDevices] = useState<string[]>([]);
   const [operatingSystems, setOperatingSystems] = useState<string[]>([]);
-  const [premiumTraffic, setPremiumTraffic] = useState(false);
+  const [blacklistedDevices, setBlacklistedDevices] = useState<string[]>([]);
+  const [blacklistedOperatingSystems, setBlacklistedOperatingSystems] = useState<string[]>([]);
   const [cpl, setCpl] = useState("");
   const [totalBudget, setTotalBudget] = useState("");
   const [dailyBudget, setDailyBudget] = useState("");
-  const [budgetDistribution, setBudgetDistribution] = useState<BudgetDistribution | null>(null);
-  const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice | null>(null);
   const [createdPixelToken, setCreatedPixelToken] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isAdmin) {
+      fetch("/api/v1/admin/users?role=ADVERTISER&limit=500")
+        .then((res) => res.json())
+        .then((data) => setAdvertisers(data.data ?? []))
+        .catch(() => setAdvertisers([]))
+        .finally(() => setLoadingAdvertisers(false));
+      return;
+    }
+
     fetch("/api/v1/wallet")
       .then((res) => res.json())
       .then((data) => setWalletBalance(Number(data.availableBalance ?? data.balance ?? 0)))
       .catch(() => setWalletBalance(0));
-  }, []);
+  }, [isAdmin]);
 
-  const countries = useMemo(() => countriesFromTiers(selectedTiers), [selectedTiers]);
+  const selectedAdvertiser = advertisers.find((item) => item.id === advertiserId);
+  const effectiveWalletBalance = isAdmin
+    ? Number(selectedAdvertiser?.wallet?.balance ?? 0)
+    : walletBalance;
+
   const cplValue = parseFloat(cpl) || 0;
   const totalBudgetValue = totalBudget.trim() ? parseFloat(totalBudget) : null;
   const dailyBudgetValue = dailyBudget.trim() ? parseFloat(dailyBudget) : null;
   const selectedVertical = VERTICALS.find((item) => item.label === vertical);
 
-  const minCpl = premiumTraffic ? 0.4 : 0.1;
+  const minCpl = 0.1;
   const cplInvalid = cplValue > 0 && (cplValue < minCpl || cplValue > 100);
   const insufficientBalance =
+    !isAdmin &&
     cplValue > 0 &&
-    (walletBalance < cplValue ||
-      (totalBudgetValue !== null && walletBalance < totalBudgetValue));
+    (effectiveWalletBalance < cplValue ||
+      (totalBudgetValue !== null && effectiveWalletBalance < totalBudgetValue));
 
   function appendToken(token: string) {
     setDestinationUrl((current) => `${current}${token}`);
-  }
-
-  function toggleTier(tier: CountryTier) {
-    setSelectedTiers((current) =>
-      current.includes(tier) ? current.filter((item) => item !== tier) : [...current, tier],
-    );
-  }
-
-  function toggleDevice(device: string) {
-    setDevices((current) =>
-      current.includes(device) ? current.filter((item) => item !== device) : [...current, device],
-    );
-  }
-
-  function toggleOs(os: string) {
-    setOperatingSystems((current) =>
-      current.includes(os) ? current.filter((item) => item !== os) : [...current, os],
-    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -249,12 +269,12 @@ export function CreateCampaignForm() {
       setError("Please select a vertical.");
       return;
     }
-    if (!cplValue || cplValue < minCpl || cplValue > 100) {
-      setError(`CPL bid is required (min $${minCpl.toFixed(2)}).`);
+    if (isAdmin && !advertiserId) {
+      setError("Please select an advertiser.");
       return;
     }
-    if (!campaignStatus) {
-      setError("Please choose a campaign status.");
+    if (!cplValue || cplValue < minCpl || cplValue > 100) {
+      setError(`CPL bid is required (min $${minCpl.toFixed(2)}).`);
       return;
     }
     if (insufficientBalance) {
@@ -264,37 +284,56 @@ export function CreateCampaignForm() {
 
     setLoading(true);
 
+    const targeting = {
+      destinationUrl: destinationUrl.trim(),
+      scheduling: {
+        startMode,
+        startDate: startMode === "scheduled" ? startDate : null,
+        endMode,
+        endDate: endMode === "scheduled" ? endDate : null,
+      },
+      trafficMode,
+      vertical,
+      countries: trafficMode === "allow" ? selectedCountries : [],
+      blacklistedCountries: trafficMode === "block" ? blacklistedCountries : [],
+      devices: trafficMode === "allow" ? devices : [],
+      operatingSystems: trafficMode === "allow" ? operatingSystems : [],
+      blacklistedDevices: trafficMode === "block" ? blacklistedDevices : [],
+      blacklistedOperatingSystems: trafficMode === "block" ? blacklistedOperatingSystems : [],
+    };
+
+    const payload = isAdmin
+      ? {
+          advertiserId,
+          name: name.trim(),
+          destinationUrl: destinationUrl.trim(),
+          vertical,
+          category: selectedVertical.category,
+          cpl: cplValue,
+          budget: totalBudgetValue ?? undefined,
+          dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
+          status: campaignStatus,
+          autoApprove,
+          description: `Destination: ${destinationUrl.trim()}`,
+          targeting,
+          fields: DEFAULT_LEAD_FIELDS,
+        }
+      : {
+          name: name.trim(),
+          description: `Destination: ${destinationUrl.trim()}`,
+          category: selectedVertical.category,
+          cpl: cplValue,
+          budget: totalBudgetValue ?? undefined,
+          dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
+          autoApprove: autoApprove,
+          targeting,
+          fields: DEFAULT_LEAD_FIELDS,
+        };
+
     const res = await fetch("/api/v1/campaigns", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        description: `Destination: ${destinationUrl.trim()}`,
-        category: selectedVertical.category,
-        cpl: cplValue,
-        budget: totalBudgetValue ?? undefined,
-        dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
-        status: campaignStatus,
-        autoApprove: false,
-        targeting: {
-          destinationUrl: destinationUrl.trim(),
-          scheduling: {
-            startMode,
-            startDate: startMode === "scheduled" ? startDate : null,
-            endMode,
-            endDate: endMode === "scheduled" ? endDate : null,
-          },
-          trafficMode,
-          vertical,
-          countryTiers: selectedTiers,
-          countries,
-          devices,
-          operatingSystems,
-          premiumTraffic,
-          budgetDistribution: budgetDistribution ?? "smooth",
-        },
-        fields: DEFAULT_LEAD_FIELDS,
-      }),
+      body: JSON.stringify(payload),
     });
 
     setLoading(false);
@@ -314,7 +353,7 @@ export function CreateCampaignForm() {
       return;
     }
 
-    router.push("/advertiser/campaigns");
+    router.push(backHref);
     router.refresh();
   }
 
@@ -323,9 +362,9 @@ export function CreateCampaignForm() {
     destinationUrl.trim() &&
     vertical &&
     cplValue >= minCpl &&
-    campaignStatus &&
     !insufficientBalance &&
-    !cplInvalid;
+    !cplInvalid &&
+    (!isAdmin || (advertiserId && !loadingAdvertisers));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -341,15 +380,17 @@ export function CreateCampaignForm() {
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-white/70">
-              Advertiser Portal
+              {isAdmin ? "Admin Portal" : "Advertiser Portal"}
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Create Campaign</h1>
             <p className="mt-1.5 max-w-lg text-sm text-white/80">
-              Set up targeting, budget, and launch settings for your next lead campaign.
+              {isAdmin
+                ? "Create a full campaign on behalf of an advertiser with the same targeting and budget options."
+                : "Set up targeting, tier payouts, budget, scheduling, and tracking for your next lead campaign. Submissions are reviewed by admin before going live."}
             </p>
           </div>
           <Link
-            href="/advertiser/campaigns"
+            href={backHref}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-xl bg-white/15 text-white hover:bg-white/25 sm:self-center"
           >
             <X className="h-4 w-4" />
@@ -360,6 +401,33 @@ export function CreateCampaignForm() {
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="space-y-5">
           <SectionCard step={1} title="Basic Campaign Settings" icon={Settings2} accentIndex={0}>
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="advertiser">Advertiser*</Label>
+                <Select
+                  value={advertiserId}
+                  onValueChange={(value) => value && setAdvertiserId(value)}
+                  disabled={loadingAdvertisers}
+                >
+                  <SelectTrigger id="advertiser" className="h-10 w-full">
+                    <SelectValue
+                      placeholder={
+                        loadingAdvertisers ? "Loading advertisers..." : "Select advertiser"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {advertisers.map((advertiser) => (
+                      <SelectItem key={advertiser.id} value={advertiser.id}>
+                        {advertiser.name} ({advertiser.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldHint>Campaign will be created under this advertiser account.</FieldHint>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="name">Campaign Name*</Label>
               <Input
@@ -462,6 +530,25 @@ export function CreateCampaignForm() {
           </SectionCard>
 
           <SectionCard step={3} title="Targeting" icon={Target} accentIndex={2}>
+            <div className="space-y-2">
+              <Label htmlFor="vertical">Select a Vertical*</Label>
+              <select
+                id="vertical"
+                value={vertical}
+                onChange={(e) => setVertical(e.target.value)}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                required
+              >
+                <option value="">Search Verticals...</option>
+                {VERTICALS.map((item) => (
+                  <option key={item.label} value={item.label}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <FieldHint>You can select only one vertical.</FieldHint>
+            </div>
+
             <Tabs value={trafficMode} onValueChange={(v) => v && setTrafficMode(v as TrafficMode)}>
               <TabsList className="w-full justify-start bg-slate-100">
                 <TabsTrigger value="allow" className="flex-1">
@@ -471,151 +558,61 @@ export function CreateCampaignForm() {
                   Block Traffic (Blacklisted)
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value={trafficMode} className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="vertical">Select a Vertical*</Label>
-                  <select
-                    id="vertical"
-                    value={vertical}
-                    onChange={(e) => setVertical(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                    required
-                  >
-                    <option value="">Choose a vertical...</option>
-                    {VERTICALS.map((item) => (
-                      <option key={item.label} value={item.label}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldHint>You can select only one vertical.</FieldHint>
-                </div>
 
-                <div className="space-y-3">
-                  <Label>Country (Keep empty for all countries)</Label>
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    {(Object.keys(TIER_META) as CountryTier[]).map((tier) => {
-                      const meta = TIER_META[tier];
-                      const active = selectedTiers.includes(tier);
-                      return (
-                        <button
-                          key={tier}
-                          type="button"
-                          onClick={() => toggleTier(tier)}
-                          className={cn(
-                            "rounded-xl border border-t-[3px] bg-white p-4 text-left transition-all hover:shadow-sm",
-                            meta.accent,
-                            active
-                              ? "border-[var(--theme-primary)]/40 bg-[var(--theme-primary-soft)] ring-1 ring-[var(--theme-primary)]/20"
-                              : "border-slate-200",
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                              {TIER_COUNTRIES[tier].length} countries
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+              <TabsContent value="allow" className="mt-4 space-y-4">
+                <CampaignCountryField
+                  label="Country (Keep empty for all countries)"
+                  selected={selectedCountries}
+                  onChange={setSelectedCountries}
+                />
 
-                  {selectedTiers.length > 0 && (
-                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Selected:
-                        </span>
-                        {selectedTiers.map((tier) => (
-                          <Badge key={tier} variant="outline" className="text-xs font-normal">
-                            {TIER_META[tier].label}
-                          </Badge>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTiers([])}
-                        className="shrink-0 text-xs text-slate-500 hover:text-slate-700 hover:underline"
-                      >
-                        Clear (all countries)
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <TierPayoutInfoPanel payoutTiers={payoutTiers} cplValue={cplValue} />
 
-                <div className="space-y-2">
-                  <Label>Device Types (Keep empty to target all device types)</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {DEVICE_TYPES.map((device) => (
-                      <button
-                        key={device}
-                        type="button"
-                        onClick={() => toggleDevice(device)}
-                        className={cn(
-                          "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                          devices.includes(device)
-                            ? "border-[var(--theme-primary)] bg-[var(--theme-primary-soft)] text-[var(--theme-primary)]"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50",
-                        )}
-                      >
-                        {device}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <CampaignSearchMultiSelect
+                  label="Device Types (Keep empty to target all device types)"
+                  options={DEVICE_TYPES}
+                  selected={devices}
+                  onChange={setDevices}
+                  searchPlaceholder="Search Devices..."
+                />
 
-                <div className="space-y-2">
-                  <Label>Device Operating Systems (keep empty for all OS)</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {OPERATING_SYSTEMS.map((os) => (
-                      <button
-                        key={os}
-                        type="button"
-                        onClick={() => toggleOs(os)}
-                        className={cn(
-                          "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                          operatingSystems.includes(os)
-                            ? "border-[var(--theme-primary)] bg-[var(--theme-primary-soft)] text-[var(--theme-primary)]"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50",
-                        )}
-                      >
-                        {os}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <CampaignSearchMultiSelect
+                  label="Device Operating Systems (keep empty for all OS)"
+                  options={OPERATING_SYSTEMS}
+                  selected={operatingSystems}
+                  onChange={setOperatingSystems}
+                  searchPlaceholder="Search Operating Systems..."
+                />
+              </TabsContent>
+
+              <TabsContent value="block" className="mt-4 space-y-4">
+                <CampaignCountryField
+                  label="Blacklisted Countries"
+                  selected={blacklistedCountries}
+                  onChange={setBlacklistedCountries}
+                  searchPlaceholder="Search Countries..."
+                />
+
+                <CampaignSearchMultiSelect
+                  label="Blacklisted Device Types"
+                  options={DEVICE_TYPES}
+                  selected={blacklistedDevices}
+                  onChange={setBlacklistedDevices}
+                  searchPlaceholder="Search Devices..."
+                />
+
+                <CampaignSearchMultiSelect
+                  label="Blacklisted Device Operating Systems"
+                  options={OPERATING_SYSTEMS}
+                  selected={blacklistedOperatingSystems}
+                  onChange={setBlacklistedOperatingSystems}
+                  searchPlaceholder="Search Operating Systems..."
+                />
               </TabsContent>
             </Tabs>
           </SectionCard>
 
           <SectionCard step={4} title="Budget" icon={Wallet} accentIndex={3}>
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/40 p-4">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Premium Pre warmed Converting Traffic</p>
-                <p className="text-xs text-slate-500">
-                  Enable to receive high-quality premium traffic. Minimum CPL bid must be at least $0.40
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={premiumTraffic}
-                onClick={() => setPremiumTraffic((v) => !v)}
-                className={cn(
-                  "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                  premiumTraffic ? "bg-[var(--theme-primary)]" : "bg-slate-200",
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                    premiumTraffic && "translate-x-5",
-                  )}
-                />
-              </button>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="cpl">CPL Bid (your maximum cost per lead) *</Label>
               <CurrencyInput
@@ -665,46 +662,6 @@ export function CreateCampaignForm() {
                 </div>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label>
-                Daily Budget Distribution (Please setup Daily Budget to adjust Daily Budget Distribution.)
-              </Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    {
-                      value: "smooth" as const,
-                      title: "Smoothly Distributed",
-                      description: "Spend the daily budget evenly over the campaign duration",
-                    },
-                    {
-                      value: "accelerated" as const,
-                      title: "Accelerated Delivery",
-                      description: "Spend the daily budget as fast as possible",
-                    },
-                  ] as const
-                ).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setBudgetDistribution(option.value)}
-                    className={cn(
-                      "relative rounded-xl border p-4 text-left transition-all",
-                      budgetDistribution === option.value
-                        ? "border-[var(--theme-primary)] bg-[var(--theme-primary-soft)] shadow-sm"
-                        : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
-                    )}
-                  >
-                    {budgetDistribution === option.value && (
-                      <Check className="absolute top-3 right-3 h-4 w-4 text-[var(--theme-primary)]" />
-                    )}
-                    <p className="text-sm font-medium text-slate-900">{option.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
           </SectionCard>
 
           <SectionCard
@@ -717,8 +674,9 @@ export function CreateCampaignForm() {
               {createdPixelToken ? (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    Campaign created. Copy your tracking pixel below and place it on your conversion
-                    page.
+                    {isAdmin
+                      ? "Campaign created. Copy the tracking pixel below and share it with the advertiser."
+                      : "Campaign submitted for admin review. Copy your tracking pixel below and place it on your conversion page once approved."}
                   </div>
                   <CampaignTrackingPixelPanel pixelToken={createdPixelToken} />
                 </div>
@@ -743,24 +701,37 @@ export function CreateCampaignForm() {
             endMode={endMode}
             endDate={endDate}
             vertical={vertical}
-            selectedTiers={selectedTiers}
+            selectedCountries={selectedCountries}
             totalBudgetValue={totalBudgetValue}
             dailyBudgetValue={dailyBudgetValue}
             cplValue={cplValue}
-            campaignStatus={campaignStatus}
-            onStatusChange={setCampaignStatus}
             todayLabel={todayLabel()}
+            mode={mode}
+            status={campaignStatus}
+            onStatusChange={setCampaignStatus}
+            autoApprove={autoApprove}
+            onAutoApproveChange={setAutoApprove}
           />
 
           <BidRecommendationPanel cplValue={cplValue} />
 
+          <TierPayoutInfoPanel payoutTiers={payoutTiers} cplValue={cplValue} />
+
           <div className="rounded-[18px] border border-slate-200/80 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <span className="text-xs text-slate-500">Wallet balance</span>
+              <span className="text-xs text-slate-500">
+                {isAdmin ? "Advertiser wallet" : "Wallet balance"}
+              </span>
               <span className="text-sm font-bold text-[var(--theme-primary)]">
-                ${walletBalance.toFixed(2)}
+                ${effectiveWalletBalance.toFixed(2)}
               </span>
             </div>
+
+            {isAdmin && advertiserId && effectiveWalletBalance < cplValue && cplValue > 0 && (
+              <p className="mb-3 text-sm text-amber-700">
+                This advertiser has a low wallet balance. You can still create the campaign as admin.
+              </p>
+            )}
 
             {insufficientBalance && (
               <p className="mb-3 text-sm text-red-600">
@@ -774,23 +745,35 @@ export function CreateCampaignForm() {
               disabled={loading || !canSubmit || !!createdPixelToken}
               className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Saving..." : createdPixelToken ? "Campaign saved" : "Save Campaign"}
+              {loading
+                ? isAdmin
+                  ? "Creating..."
+                  : "Submitting..."
+                : createdPixelToken
+                  ? isAdmin
+                    ? "Campaign created"
+                    : "Campaign submitted"
+                  : isAdmin
+                    ? "Create Campaign"
+                    : "Submit for Review"}
             </Button>
             {createdPixelToken ? (
               <ButtonLink
-                href="/advertiser/campaigns"
+                href={backHref}
                 className="mt-2 h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold text-white hover:opacity-90"
               >
                 Go to campaigns
               </ButtonLink>
             ) : (
-              <ButtonLink href="/advertiser/campaigns" variant="outline" className="mt-2 h-10 w-full">
+              <ButtonLink href={backHref} variant="outline" className="mt-2 h-10 w-full">
                 Cancel
               </ButtonLink>
             )}
             {!canSubmit && !error && (
               <p className="mt-3 text-center text-xs text-slate-500">
-                Fill required fields and choose a status to continue
+                {isAdmin
+                  ? "Select an advertiser and fill required fields to continue"
+                  : "Fill required fields to submit for review"}
               </p>
             )}
           </div>

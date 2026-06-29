@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { AppError } from "@/lib/errors";
 import type { CampaignStatus, UserRole, UserStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import {
+  parsePlatformSettings,
+  platformSettingsToUpdates,
+  settingsConfigToApi,
+} from "@/lib/platform-settings";
 
 export async function listUsers(filters: {
   role?: UserRole;
@@ -55,7 +63,21 @@ export async function listUsers(filters: {
         status: true,
         createdAt: true,
         advertiserProfile: { select: { company: true } },
-        publisherProfile: { select: { kycStatus: true } },
+        publisherProfile: {
+          select: {
+            kycStatus: true,
+            website: true,
+            trafficSource: true,
+            country: true,
+            addressLine1: true,
+            addressLine2: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            rejectionReason: true,
+            rejectedAt: true,
+          },
+        },
         wallet: { select: { balance: true } },
         _count: { select: { campaigns: true, leads: true } },
       },
@@ -88,40 +110,199 @@ export async function updateUserStatus(userId: string, status: UserStatus, admin
   return user;
 }
 
+function generateTempPassword() {
+  return crypto
+    .randomBytes(10)
+    .toString("base64")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 12);
+}
+
+export async function createPublisherAccount(data: {
+  name: string;
+  email: string;
+  website?: string;
+  trafficSource?: string;
+  country?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  status?: UserStatus;
+}) {
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+    select: { id: true },
+  });
+
+  if (existing) {
+    throw new AppError("AUTH_EMAIL_EXISTS", "Email already registered", 422);
+  }
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
+  const status = data.status ?? "ACTIVE";
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      passwordHash,
+      role: "PUBLISHER",
+      status,
+      wallet: { create: {} },
+      publisherProfile: {
+        create: {
+          website: data.website || undefined,
+          trafficSource: data.trafficSource || undefined,
+          country: data.country || undefined,
+          addressLine1: data.addressLine1 || undefined,
+          addressLine2: data.addressLine2 || undefined,
+          city: data.city || undefined,
+          state: data.state || undefined,
+          postalCode: data.postalCode || undefined,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      publisherProfile: { select: { website: true, trafficSource: true } },
+    },
+  });
+
+  return { user, tempPassword };
+}
+
+export async function approvePublisher(userId: string, adminId: string) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { status: "ACTIVE" },
+  });
+
+  await prisma.publisherProfile.updateMany({
+    where: { userId },
+    data: { rejectionReason: null, rejectedAt: null },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "publisher.approved",
+      entityType: "user",
+      entityId: userId,
+      metadata: { status: "ACTIVE" },
+    },
+  });
+
+  return user;
+}
+
+export async function rejectPublisher(
+  userId: string,
+  adminId: string,
+  reason: string,
+) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { status: "SUSPENDED" },
+  });
+
+  await prisma.publisherProfile.updateMany({
+    where: { userId },
+    data: { rejectionReason: reason, rejectedAt: new Date() },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "publisher.rejected",
+      entityType: "user",
+      entityId: userId,
+      metadata: { status: "SUSPENDED", reason },
+    },
+  });
+
+  return user;
+}
+
+export async function approveCampaign(campaignId: string, adminId: string) {
+  const campaign = await prisma.campaign.update({
+    where: { id: campaignId },
+    data: {
+      status: "ACTIVE",
+      rejectionReason: null,
+      rejectedAt: null,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "campaign.approved",
+      entityType: "campaign",
+      entityId: campaignId,
+      metadata: { status: "ACTIVE" },
+    },
+  });
+
+  return campaign;
+}
+
+export async function rejectCampaign(
+  campaignId: string,
+  adminId: string,
+  reason: string,
+) {
+  const campaign = await prisma.campaign.update({
+    where: { id: campaignId },
+    data: {
+      status: "ARCHIVED",
+      rejectionReason: reason,
+      rejectedAt: new Date(),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "campaign.rejected",
+      entityType: "campaign",
+      entityId: campaignId,
+      metadata: { status: "ARCHIVED", reason },
+    },
+  });
+
+  return campaign;
+}
+
 export async function getPlatformSettingsRecord() {
   const settings = await prisma.platformSetting.findMany();
   const map: Record<string, unknown> = {};
   for (const s of settings) map[s.key] = s.value;
-  return {
-    platformFeePercent: Number(map.platform_fee_percent ?? 10),
-    minPayoutAmount: Number(map.min_payout_amount ?? 50),
-    holdPeriodDays: Number(map.hold_period_days ?? 0),
-    duplicateWindowDays: Number(map.duplicate_window_days ?? 30),
-  };
+  return parsePlatformSettings(map);
 }
 
 export async function updatePlatformSettings(
   data: {
-    platformFeePercent?: number;
+    publisherPayoutPercent?: number;
     minPayoutAmount?: number;
-    holdPeriodDays?: number;
-    duplicateWindowDays?: number;
+    tier1PayoutMin?: number;
+    tier1PayoutMax?: number;
+    tier2PayoutMin?: number;
+    tier2PayoutMax?: number;
+    tier3PayoutMin?: number;
+    tier3PayoutMax?: number;
+    globalLinkUrl?: string | null;
   },
   adminId: string,
 ) {
-  const updates: Array<{ key: string; value: unknown }> = [];
-  if (data.platformFeePercent !== undefined) {
-    updates.push({ key: "platform_fee_percent", value: data.platformFeePercent });
-  }
-  if (data.minPayoutAmount !== undefined) {
-    updates.push({ key: "min_payout_amount", value: data.minPayoutAmount });
-  }
-  if (data.holdPeriodDays !== undefined) {
-    updates.push({ key: "hold_period_days", value: data.holdPeriodDays });
-  }
-  if (data.duplicateWindowDays !== undefined) {
-    updates.push({ key: "duplicate_window_days", value: data.duplicateWindowDays });
-  }
+  const updates = platformSettingsToUpdates(data);
 
   for (const u of updates) {
     await prisma.platformSetting.upsert({
@@ -131,17 +312,24 @@ export async function updatePlatformSettings(
     });
   }
 
-  await prisma.auditLog.create({
-    data: {
-      actorId: adminId,
-      action: "settings.updated",
-      entityType: "platform_settings",
-      entityId: "global",
-      metadata: data,
-    },
-  });
+  if (updates.length > 0) {
+    await prisma.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: "settings.updated",
+        entityType: "platform_settings",
+        entityId: "global",
+        metadata: data,
+      },
+    });
+  }
 
   return getPlatformSettingsRecord();
+}
+
+export async function getPlatformSettingsResponse() {
+  const config = await getPlatformSettingsRecord();
+  return settingsConfigToApi(config);
 }
 
 export type CampaignSort = "cpl_asc" | "cpl_desc" | "created_desc";
@@ -208,7 +396,8 @@ export async function listCampaigns(filters: {
     prisma.campaign.findMany({
       where,
       include: {
-        advertiser: { select: { name: true } },
+        advertiser: { select: { name: true, email: true } },
+        fields: { orderBy: { sortOrder: "asc" } },
         _count: { select: { leads: true } },
       },
       orderBy,

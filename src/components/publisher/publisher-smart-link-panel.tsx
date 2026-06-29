@@ -212,40 +212,6 @@ export function PublisherSmartLinkPanel({
         </div>
       )}
 
-      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-indigo-500 bg-white p-6 shadow-sm">
-        <h3 className="mb-1 text-sm font-semibold text-slate-900">Rotation pool</h3>
-        <p className="mb-4 text-sm text-slate-600">
-          Active campaigns currently eligible for your Smart Link.
-        </p>
-        {eligible.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-            No active campaigns available right now. Check back soon.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Advertiser</TableHead>
-                  <TableHead className="text-right">CPL</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {eligible.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium text-slate-800">{campaign.name}</TableCell>
-                    <TableCell className="text-slate-600">{campaign.advertiser.name}</TableCell>
-                    <TableCell className="text-right font-semibold text-[var(--theme-primary)]">
-                      {formatCurrency(campaign.cpl)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

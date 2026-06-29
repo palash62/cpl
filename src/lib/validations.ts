@@ -24,7 +24,7 @@ export const campaignSchema = z.object({
   monthlyCap: z.number().int().positive().optional(),
   publisherAccess: z.enum(["OPEN", "APPROVAL_REQUIRED", "INVITE_ONLY"]).optional(),
   autoApprove: z.boolean().optional(),
-  status: z.enum(["DRAFT", "ACTIVE", "PAUSED"]).optional(),
+  status: z.enum(["DRAFT", "PENDING", "ACTIVE", "PAUSED"]).optional(),
   targeting: z.record(z.string(), z.unknown()).optional(),
   fields: z
     .array(
@@ -94,7 +94,33 @@ export const updatePublisherProfileSchema = z.object({
     .refine((val) => !val || val === "" || z.string().url().safeParse(val).success, {
       message: "Enter a valid website URL",
     }),
+  trafficSource: z.string().trim().max(120)    .optional(),
+});
+
+export const adminCreateCampaignSchema = campaignSchema.extend({
+  advertiserId: z.string().min(1, "Select an advertiser"),
+  destinationUrl: z.string().trim().url("Enter a valid destination URL"),
+  vertical: z.string().trim().min(1, "Select a vertical"),
+});
+
+export const adminCreatePublisherSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().email("Enter a valid email address"),
+  website: z
+    .string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val === "" || z.string().url().safeParse(val).success, {
+      message: "Enter a valid website URL",
+    }),
   trafficSource: z.string().trim().max(120).optional(),
+  country: z.string().trim().max(120).optional(),
+  addressLine1: z.string().trim().max(160).optional(),
+  addressLine2: z.string().trim().max(160).optional(),
+  city: z.string().trim().max(120).optional(),
+  state: z.string().trim().max(120).optional(),
+  postalCode: z.string().trim().max(40).optional(),
+  status: z.enum(["ACTIVE", "PENDING"]).optional(),
 });
 
 export function isValidEmail(email: string): boolean {

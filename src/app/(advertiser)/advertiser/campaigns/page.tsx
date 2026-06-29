@@ -94,8 +94,8 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
       >
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
-          Create a campaign to start collecting leads from publishers. Set your CPL, budget, and
-          approval rules — verified leads are billed only when they meet your criteria.
+          Create a campaign to start collecting leads from publishers. New campaigns are reviewed by
+          admin before going live. Verified leads are billed only when they meet your criteria.
         </p>
       </div>
 
@@ -199,11 +199,16 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                       {formatCurrency(Number(c.spent))}
                     </TableCell>
                     <TableCell className="px-4 py-4">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <CampaignStatusBadge status={c.status} />
-                        <Badge variant="outline" className="text-xs font-normal">
-                          {c.autoApprove ? "Auto" : "Manual"}
-                        </Badge>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CampaignStatusBadge status={c.status} />
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {c.autoApprove ? "Auto" : "Manual"}
+                          </Badge>
+                        </div>
+                        {c.rejectionReason && (
+                          <p className="max-w-xs text-xs text-red-600">{c.rejectionReason}</p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">

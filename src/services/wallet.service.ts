@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import {
+  calculatePublisherPayout,
+  parsePlatformSettings,
+} from "@/lib/platform-settings";
 
 export async function getPlatformSettings() {
   const settings = await prisma.platformSetting.findMany();
@@ -7,12 +11,7 @@ export async function getPlatformSettings() {
   for (const s of settings) {
     map[s.key] = s.value;
   }
-  return {
-    platformFeePercent: Number(map.platform_fee_percent ?? 10),
-    minPayoutAmount: Number(map.min_payout_amount ?? 50),
-    holdPeriodDays: Number(map.hold_period_days ?? 0),
-    duplicateWindowDays: Number(map.duplicate_window_days ?? 30),
-  };
+  return parsePlatformSettings(map);
 }
 
 export async function creditWallet(
@@ -91,8 +90,12 @@ export async function processLeadPayment(leadId: string) {
 
   const settings = await getPlatformSettings();
   const cpl = Number(lead.campaign.cpl);
-  const fee = (cpl * settings.platformFeePercent) / 100;
-  const publisherAmount = cpl - fee;
+  const { publisherAmount, platformFee } = calculatePublisherPayout(
+    cpl,
+    lead.country,
+    settings,
+  );
+  const feePercent = cpl > 0 ? Math.round((platformFee / cpl) * 10000) / 100 : 0;
 
   await prisma.$transaction(async (tx) => {
     await debitWallet(
@@ -116,8 +119,8 @@ export async function processLeadPayment(leadId: string) {
     await tx.platformFee.create({
       data: {
         leadId,
-        feeAmount: fee,
-        feePercent: settings.platformFeePercent,
+        feeAmount: platformFee,
+        feePercent,
       },
     });
 

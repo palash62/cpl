@@ -21,6 +21,7 @@ enum UserStatus {
 
 enum CampaignStatus {
   DRAFT
+  PENDING
   ACTIVE
   PAUSED
   COMPLETED
@@ -168,6 +169,14 @@ model PublisherProfile {
   userId        String    @unique @map("user_id")
   website       String?
   trafficSource String?   @map("traffic_source")
+  country       String?
+  addressLine1  String?   @map("address_line_1")
+  addressLine2  String?   @map("address_line_2")
+  city          String?
+  state         String?
+  postalCode    String?   @map("postal_code")
+  rejectionReason String? @map("rejection_reason")
+  rejectedAt    DateTime? @map("rejected_at")
   kycStatus     KycStatus @default(NOT_SUBMITTED) @map("kyc_status")
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -190,6 +199,8 @@ model Campaign {
   autoApprove     Boolean          @default(false) @map("auto_approve")
   targeting       Json             @default("{}")
   pixelToken      String?          @unique @map("pixel_token")
+  rejectionReason String?          @map("rejection_reason")
+  rejectedAt      DateTime?        @map("rejected_at")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 

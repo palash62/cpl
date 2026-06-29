@@ -7,8 +7,8 @@ async function main() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
   await prisma.platformSetting.upsert({
-    where: { key: "platform_fee_percent" },
-    create: { key: "platform_fee_percent", value: 10 },
+    where: { key: "publisher_payout_percent" },
+    create: { key: "publisher_payout_percent", value: 70 },
     update: {},
   });
   await prisma.platformSetting.upsert({
@@ -19,6 +19,36 @@ async function main() {
   await prisma.platformSetting.upsert({
     where: { key: "duplicate_window_days" },
     create: { key: "duplicate_window_days", value: 30 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier1_payout_min" },
+    create: { key: "tier1_payout_min", value: 0.7 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier1_payout_max" },
+    create: { key: "tier1_payout_max", value: 2.5 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier2_payout_min" },
+    create: { key: "tier2_payout_min", value: 0.5 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier2_payout_max" },
+    create: { key: "tier2_payout_max", value: 1.8 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier3_payout_min" },
+    create: { key: "tier3_payout_min", value: 0.25 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "tier3_payout_max" },
+    create: { key: "tier3_payout_max", value: 1.0 },
     update: {},
   });
 

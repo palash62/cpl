@@ -6,6 +6,8 @@ import { listUsers } from "@/services/admin.service";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
+import { AdminCreatePublisherDialog } from "@/components/admin/admin-create-publisher-dialog";
+import { AdminPublisherReviewDialog } from "@/components/admin/admin-publisher-review-dialog";
 import {
   avatarColors,
   formatCurrency,
@@ -70,6 +72,10 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
         description="Manage publisher accounts, KYC status, and earnings"
         badge={`${meta.total} total account${meta.total === 1 ? "" : "s"}`}
       />
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <AdminCreatePublisherDialog />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <GradientStatCard variant="leads" label="Total Leads Generated" value={totalLeads} icon={Megaphone} />
@@ -165,7 +171,10 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                         {format(new Date(publisher.createdAt), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
-                        <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
+                        <div className="flex items-center justify-end gap-2">
+                          <AdminPublisherReviewDialog publisher={publisher} />
+                          <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

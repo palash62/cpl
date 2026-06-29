@@ -8,6 +8,8 @@ import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { CampaignStatusBadge, formatCurrency } from "@/components/admin/admin-ui";
 import { CampaignsTableFilters } from "@/components/admin/campaigns-table-filters";
+import { AdminCampaignReviewDialog } from "@/components/admin/admin-campaign-review-dialog";
+import { ButtonLink } from "@/components/ui/button-link";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import {
   Table,
@@ -36,7 +38,7 @@ interface PageProps {
 function parseCampaignStatus(status?: string): CampaignStatus | "STOP" | undefined {
   if (!status || status === "all") return undefined;
   if (status === "STOP") return "STOP";
-  const valid: CampaignStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"];
+  const valid: CampaignStatus[] = ["DRAFT", "PENDING", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"];
   return valid.includes(status as CampaignStatus) ? (status as CampaignStatus) : undefined;
 }
 
@@ -92,6 +94,16 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
         badge={`${meta.total} campaign${meta.total === 1 ? "" : "s"}`}
       />
 
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <ButtonLink
+          href="/admin/campaigns/new"
+          className="h-10 gap-2 rounded-xl bg-[var(--theme-primary)] px-4 hover:opacity-90"
+        >
+          <Megaphone className="h-4 w-4" />
+          Add Campaign
+        </ButtonLink>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <GradientStatCard variant="revenue" label="Total Spent" value={formatCurrency(totalSpent)} icon={DollarSign} />
         <NeutralStatCard label="Active Campaigns" value={activeCount} icon={Megaphone} accent="green" />
@@ -129,6 +141,7 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
@@ -139,6 +152,7 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                   <TableHead className="h-11 px-4 text-right text-slate-600">Spent</TableHead>
                   <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
                   <TableHead className="h-11 px-4 text-slate-600">Created</TableHead>
+                  <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -173,10 +187,21 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                     <TableCell className="px-4 py-4 text-sm text-slate-500">
                       {format(new Date(c.createdAt), "MMM d, yyyy")}
                     </TableCell>
+                    <TableCell className="px-6 py-4 text-right">
+                      <AdminCampaignReviewDialog
+                        campaign={{
+                          ...c,
+                          cpl: Number(c.cpl),
+                          budget: Number(c.budget),
+                          spent: Number(c.spent),
+                        }}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
             <Suspense>
               <UsersTablePagination page={meta.page} totalPages={meta.totalPages} total={meta.total} />
             </Suspense>

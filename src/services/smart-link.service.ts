@@ -53,7 +53,15 @@ export async function pickNextCampaign(publisherId: string) {
   const eligible = await getEligibleCampaigns(publisherId);
 
   if (eligible.length === 0) {
-    return { smartLink, eligible: [], campaign: null, trackingSlug: null };
+    const { getPlatformSettings } = await import("@/services/wallet.service");
+    const settings = await getPlatformSettings();
+    return {
+      smartLink,
+      eligible: [],
+      campaign: null,
+      trackingSlug: null,
+      globalLinkUrl: settings.globalLinkUrl,
+    };
   }
 
   const index = smartLink.rotationCursor % eligible.length;
@@ -88,6 +96,7 @@ export async function pickNextCampaign(publisherId: string) {
     eligible,
     campaign,
     trackingSlug: trackingLink.slug,
+    globalLinkUrl: null,
   };
 }
 

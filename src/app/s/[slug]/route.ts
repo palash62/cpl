@@ -39,6 +39,17 @@ export async function GET(
   const result = await pickNextCampaign(smartLink.publisherId);
 
   if (!result.trackingSlug) {
+    if (result.globalLinkUrl) {
+      try {
+        const redirectUrl = new URL(result.globalLinkUrl);
+        if (src) redirectUrl.searchParams.set("src", src);
+        if (subId) redirectUrl.searchParams.set("sub_id", subId);
+        return NextResponse.redirect(redirectUrl.toString(), 302);
+      } catch {
+        return new NextResponse("Invalid global link configured", { status: 500 });
+      }
+    }
+
     return new NextResponse(noOffersHtml(), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },

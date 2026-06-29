@@ -4,9 +4,6 @@ export const URL_TOKENS = [
   { token: "{click_id}", highlight: false },
   { token: "{campaign_id}", highlight: true },
   { token: "{provider_id}", highlight: true },
-  { token: "{placement_id}", highlight: false },
-  { token: "{tag}", highlight: false },
-  { token: "{bid}", highlight: false },
 ] as const;
 
 export const VERTICALS = [
@@ -71,18 +68,18 @@ export const COUNTRY_BY_CODE: Record<string, string> = {
   EG: "Egypt",
   TR: "Turkey",
   UA: "Ukraine",
+  GH: "Ghana",
+  KE: "Kenya",
+  LK: "Sri Lanka",
+  TZ: "Tanzania",
+  UG: "Uganda",
+  ZM: "Zambia",
 };
 
 export const TIER_COUNTRIES = {
-  tier1: [
-    "US", "CA", "GB", "AU", "NZ", "IE", "DE", "FR", "NL", "SE", "NO", "DK", "FI", "CH", "AT", "BE", "LU", "SG", "JP",
-  ],
-  tier2: [
-    "IT", "ES", "PT", "PL", "CZ", "SK", "HU", "RO", "GR", "ZA", "KR", "TW", "HK", "MY", "TH", "IL", "AE", "SA",
-  ],
-  tier3: [
-    "IN", "BR", "MX", "AR", "CO", "CL", "PE", "PH", "ID", "VN", "PK", "BD", "NG", "EG", "TR", "UA",
-  ],
+  tier1: ["AU", "CA", "NZ", "GB", "US"],
+  tier2: ["AR", "BR", "CL", "IN", "ID", "MY", "MX", "PH", "PL", "ZA", "TH", "TR"],
+  tier3: ["BD", "EG", "GH", "KE", "NG", "PK", "LK", "TZ", "UG", "VN", "ZM"],
 } as const;
 
 export type CountryTier = keyof typeof TIER_COUNTRIES;
@@ -108,7 +105,20 @@ export function countriesFromTiers(tiers: CountryTier[]) {
   return Array.from(new Set(tiers.flatMap((tier) => TIER_COUNTRIES[tier])));
 }
 
-export function formatSelectedCountriesSummary(tiers: CountryTier[]) {
+export const ALL_TIER_COUNTRY_CODES = Array.from(
+  new Set(Object.values(TIER_COUNTRIES).flatMap((codes) => [...codes])),
+).sort((a, b) => getCountryName(a).localeCompare(getCountryName(b)));
+
+export function formatSelectedCountriesSummary(codes: string[]) {
+  if (codes.length === 0) return "All countries";
+  if (codes.length <= 3) {
+    return codes.map((code) => getCountryName(code)).join(", ");
+  }
+  return `${codes.length} countries`;
+}
+
+/** @deprecated use formatSelectedCountriesSummary with country codes */
+export function formatSelectedCountriesSummaryFromTiers(tiers: CountryTier[]) {
   if (tiers.length === 0) return "All countries";
   return tiers.map((t) => TIER_META[t].label).join(", ");
 }

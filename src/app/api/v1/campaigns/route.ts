@@ -1,6 +1,7 @@
 import { withAuth, parsePagination } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
-import { campaignSchema } from "@/lib/validations";
+import { adminCreateCampaignSchema, campaignSchema } from "@/lib/validations";
+import { prisma } from "@/lib/prisma";
 import { createCampaign, listCampaigns } from "@/services/campaign.service";
 
 export async function GET(request: Request) {
@@ -27,8 +28,47 @@ export async function POST(request: Request) {
 
     try {
       const body = await request.json();
-      const parsed = campaignSchema.safeParse(body);
+      const isAdmin = session.user.role === "ADMIN";
 
+      if (isAdmin) {
+        const parsed = adminCreateCampaignSchema.safeParse(body);
+        if (!parsed.success) {
+          const message = parsed.error.issues[0]?.message ?? parsed.error.message;
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message, status: 422 } },
+            { status: 422 },
+          );
+        }
+
+        const { advertiserId, destinationUrl, vertical, ...campaignData } = parsed.data;
+        const advertiser = await prisma.user.findFirst({
+          where: { id: advertiserId, role: "ADVERTISER" },
+          select: { id: true },
+        });
+        if (!advertiser) {
+          return Response.json(
+            { error: { code: "NOT_FOUND", message: "Advertiser not found", status: 404 } },
+            { status: 404 },
+          );
+        }
+
+        const campaign = await createCampaign({
+          ...campaignData,
+          advertiserId,
+          description: campaignData.description ?? `Destination: ${destinationUrl}`,
+          targeting: {
+            ...(campaignData.targeting ?? {}),
+            destinationUrl,
+            vertical,
+          },
+          status: campaignData.status ?? "ACTIVE",
+          fields: campaignData.fields,
+        });
+
+        return Response.json({ data: campaign }, { status: 201 });
+      }
+
+      const parsed = campaignSchema.safeParse(body);
       if (!parsed.success) {
         return Response.json(
           { error: { code: "VALIDATION_ERROR", message: parsed.error.message, status: 422 } },
@@ -37,8 +77,9 @@ export async function POST(request: Request) {
       }
 
       const campaign = await createCampaign({
-        advertiserId: session.user.role === "ADMIN" && body.advertiserId ? body.advertiserId : session.user.id,
+        advertiserId: session.user.id,
         ...parsed.data,
+        status: "PENDING",
       });
 
       return Response.json({ data: campaign }, { status: 201 });

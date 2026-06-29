@@ -75,6 +75,7 @@ export function DepositStatusBadge({ status }: { status: string }) {
 export function CampaignStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    PENDING: "border-amber-200 bg-amber-50 text-amber-700",
     PAUSED: "border-amber-200 bg-amber-50 text-amber-700",
     DRAFT: "border-slate-200 bg-slate-50 text-slate-600",
     COMPLETED: "border-red-200 bg-red-50 text-red-700",
@@ -83,8 +84,9 @@ export function CampaignStatusBadge({ status }: { status: string }) {
 
   const labels: Record<string, string> = {
     COMPLETED: "stopped",
-    ARCHIVED: "stopped",
+    ARCHIVED: "rejected",
     PAUSED: "paused",
+    PENDING: "pending review",
   };
 
   return (

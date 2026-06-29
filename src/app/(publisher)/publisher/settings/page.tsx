@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { format } from "date-fns";
-import { CheckCircle, DollarSign, FileText, KeyRound } from "lucide-react";
+import { AlertTriangle, CheckCircle, DollarSign, FileText, KeyRound } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getPublisherSettings } from "@/services/user.service";
 import { prisma } from "@/lib/prisma";
@@ -37,6 +37,7 @@ export default async function PublisherSettingsPage() {
 
   const website = user.publisherProfile?.website ?? "";
   const trafficSource = user.publisherProfile?.trafficSource ?? "";
+  const rejectionReason = user.publisherProfile?.rejectionReason ?? "";
   const memberSince = format(user.createdAt, "MMM d, yyyy");
   const availableBalance = user.wallet
     ? Number(user.wallet.balance)
@@ -55,6 +56,16 @@ export default async function PublisherSettingsPage() {
         Keep your profile up to date so advertisers can verify your traffic sources. Email changes
         require support assistance.
       </PublisherInfoBanner>
+
+      {user.status === "SUSPENDED" && rejectionReason && (
+        <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Publisher application rejected</p>
+            <p className="mt-1 text-sm text-red-600">{rejectionReason}</p>
+          </div>
+        </div>
+      )}
 
       <div className="premium-card overflow-hidden">
         <div className="h-1" style={{ background: "var(--theme-gradient-leads)" }} />

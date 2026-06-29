@@ -1,16 +1,34 @@
 "use client";
 
-import { Calendar, Globe, Layers, Sparkles, Target, TrendingUp, Wallet } from "lucide-react";
+import { Calendar, Globe, Layers, Sparkles, Target, TrendingUp, Wallet, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   getBidRecommendations,
   formatSummaryDate,
   formatSelectedCountriesSummary,
-  type CountryTier,
 } from "@/lib/campaign-form";
+import {
+  TIER_PAYOUT_ROWS,
+  formatUsd,
+  estimateTierPayout,
+  type PayoutTiersDisplay,
+} from "@/lib/platform-settings";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type CampaignStatusChoice = "ACTIVE" | "PAUSED";
+type CampaignStatusChoice = "ACTIVE" | "PENDING" | "PAUSED" | "DRAFT";
 
 interface CampaignSummaryPanelProps {
   name: string;
@@ -19,13 +37,16 @@ interface CampaignSummaryPanelProps {
   endMode: "forever" | "scheduled";
   endDate: string;
   vertical: string;
-  selectedTiers: CountryTier[];
+  selectedCountries: string[];
   totalBudgetValue: number | null;
   dailyBudgetValue: number | null;
   cplValue: number;
-  campaignStatus: CampaignStatusChoice | null;
-  onStatusChange: (status: CampaignStatusChoice) => void;
   todayLabel: string;
+  mode?: "advertiser" | "admin";
+  status?: CampaignStatusChoice;
+  onStatusChange?: (status: CampaignStatusChoice) => void;
+  autoApprove?: boolean;
+  onAutoApproveChange?: (value: boolean) => void;
 }
 
 export function CampaignSummaryPanel({
@@ -35,13 +56,16 @@ export function CampaignSummaryPanel({
   endMode,
   endDate,
   vertical,
-  selectedTiers,
+  selectedCountries,
   totalBudgetValue,
   dailyBudgetValue,
   cplValue,
-  campaignStatus,
-  onStatusChange,
   todayLabel,
+  mode = "advertiser",
+  status = "ACTIVE",
+  onStatusChange,
+  autoApprove = false,
+  onAutoApproveChange,
 }: CampaignSummaryPanelProps) {
   const rows = [
     {
@@ -65,7 +89,7 @@ export function CampaignSummaryPanel({
     {
       icon: Globe,
       label: "Geo",
-      value: formatSelectedCountriesSummary(selectedTiers),
+      value: formatSelectedCountriesSummary(selectedCountries),
     },
     {
       icon: Wallet,
@@ -108,27 +132,50 @@ export function CampaignSummaryPanel({
 
       <div className="border-t border-slate-100 px-5 py-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Campaign Status
+          {mode === "admin" ? "Launch settings" : "Submission"}
         </p>
-        <div className="flex gap-2">
-          {(["ACTIVE", "PAUSED"] as const).map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => onStatusChange(status)}
-              className={cn(
-                "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-                campaignStatus === status
-                  ? status === "ACTIVE"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm"
-                    : "border-amber-300 bg-amber-50 text-amber-800 shadow-sm"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50",
-              )}
+        {mode === "admin" ? (
+          <div className="space-y-3">
+            <Select
+              value={status}
+              onValueChange={(value) => value && onStatusChange?.(value as CampaignStatusChoice)}
             >
-              {status === "ACTIVE" ? "● Active" : "○ Paused"}
-            </button>
-          ))}
-        </div>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="PENDING">Pending review</SelectItem>
+                <SelectItem value="PAUSED">Paused</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={autoApprove}
+                onChange={(e) => onAutoApproveChange?.(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)]"
+              />
+              Auto-approve leads
+            </label>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              Your campaign will be submitted for admin review. Once approved, it goes live as Active.
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={autoApprove}
+                onChange={(e) => onAutoApproveChange?.(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)]"
+              />
+              Auto-approve leads
+            </label>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -232,5 +279,101 @@ export function BidRecommendationPanel({ cplValue }: BidRecommendationPanelProps
         </p>
       )}
     </div>
+  );
+}
+
+interface TierPayoutInfoPanelProps {
+  payoutTiers: PayoutTiersDisplay;
+  cplValue?: number;
+  compact?: boolean;
+}
+
+function TierPayoutChip({
+  label,
+  shortLabel,
+  countries,
+  min,
+  max,
+  estimate,
+  hasCpl,
+}: {
+  label: string;
+  shortLabel: string;
+  countries: string;
+  min: number;
+  max: number;
+  estimate: number | null;
+  hasCpl: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-left shadow-sm transition-colors hover:border-[var(--theme-primary)]/30 hover:bg-[var(--theme-primary-soft)]/40"
+      >
+        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          {shortLabel}
+        </span>
+        <span className="truncate text-xs font-semibold text-[var(--theme-primary)]">
+          {formatUsd(min)}–{formatUsd(max)}
+        </span>
+        {hasCpl && estimate !== null && (
+          <span className="hidden shrink-0 text-[10px] text-slate-500 sm:inline">
+            → {formatUsd(estimate)}
+          </span>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[220px] text-center">
+        <p className="font-medium">{label}</p>
+        <p className="mt-0.5 text-[11px] opacity-90">{countries}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function TierPayoutInfoPanel({
+  payoutTiers,
+  cplValue = 0,
+}: TierPayoutInfoPanelProps) {
+  const hasCpl = cplValue > 0;
+
+  return (
+    <TooltipProvider delay={200}>
+      <div className="rounded-lg border border-slate-200/80 bg-gradient-to-r from-slate-50/80 to-white px-2.5 py-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <div className="flex shrink-0 items-center gap-1 text-slate-500">
+            <Coins className="h-3.5 w-3.5 text-[var(--theme-primary)]" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide">Payouts</span>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            {TIER_PAYOUT_ROWS.map((row) => {
+              const min = payoutTiers[row.minKey];
+              const max = payoutTiers[row.maxKey];
+              const estimate = estimateTierPayout(
+                cplValue,
+                min,
+                max,
+                payoutTiers.publisherPayoutPercent,
+              );
+              return (
+                <TierPayoutChip
+                  key={row.label}
+                  label={row.label}
+                  shortLabel={row.label.replace("Tier ", "T")}
+                  countries={row.countries}
+                  min={min}
+                  max={max}
+                  estimate={estimate}
+                  hasCpl={hasCpl}
+                />
+              );
+            })}
+          </div>
+          <span className="shrink-0 text-[10px] text-slate-400">
+            {payoutTiers.publisherPayoutPercent}% CPL
+          </span>
+        </div>
+      </div>
+    </TooltipProvider>
   );
 }

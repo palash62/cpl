@@ -11,7 +11,12 @@ export default function AdminSettingsPage() {
         title="Platform Settings"
         description="Configure global platform options and defaults"
       />
-      <PageSection title="General Settings" description="Manage platform-wide configuration" icon={Settings} gradient="revenue">
+      <PageSection
+        title="Payout & Smart Link Fallback"
+        description="Publisher earnings, tier ranges, and global campaign routing"
+        icon={Settings}
+        gradient="revenue"
+      >
         <div className="p-6">
           <PlatformSettingsForm />
         </div>

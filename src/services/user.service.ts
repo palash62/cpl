@@ -31,7 +31,13 @@ export async function getPublisherSettings(userId: string) {
       status: true,
       createdAt: true,
       publisherProfile: {
-        select: { website: true, trafficSource: true, kycStatus: true },
+        select: {
+          website: true,
+          trafficSource: true,
+          kycStatus: true,
+          rejectionReason: true,
+          rejectedAt: true,
+        },
       },
       wallet: { select: { balance: true } },
       _count: { select: { leads: true } },
