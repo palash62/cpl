@@ -8,6 +8,7 @@ import {
   AdminNotificationsPanel,
   AdminPendingApprovalCenter,
   AdminPlatformHealthPanel,
+  AdminProfitOverview,
   AdminRecentActivitiesPanel,
   AdminRecentLeadsPanel,
   AdminRevenueOverview,
@@ -44,6 +45,9 @@ export default async function AdminDashboardPage() {
 
       {/* 4. Revenue Overview */}
       <AdminRevenueOverview revenue={data.revenue} />
+
+      {/* 4b. Admin Profit */}
+      <AdminProfitOverview adminProfit={data.adminProfit} />
 
       {/* 5. Pending Approval Center */}
       <AdminPendingApprovalCenter lanes={data.approvalLanes} />

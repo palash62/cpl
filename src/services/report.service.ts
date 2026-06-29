@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
+import { calculatePublisherPayout } from "@/lib/platform-settings";
+import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
+import type { LeadStatus } from "@prisma/client";
 import {
   getAdvertiserPeriodRange,
   type AdvertiserPeriod,
@@ -39,7 +43,7 @@ export async function getAdminDashboardStats() {
         publisher: { select: { name: true } },
       },
     }),
-    prisma.payout.count({ where: { status: "REQUESTED" } }),
+    prisma.payout.count({ where: { status: { in: [...PENDING_PAYOUT_STATUSES] } } }),
     prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
     getLeadsTrend(30),
   ]);
@@ -412,4 +416,329 @@ async function getLeadsTrend(days: number, campaignIds?: string[]) {
   }
 
   return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
+}
+
+export type AdminEntityReportRow = {
+  id: string;
+  name: string;
+  email: string;
+  clicks: number;
+  leads: number;
+  approvedLeads: number;
+  rejectedLeads: number;
+  pendingLeads: number;
+  conversionRate: number;
+  approvalRate: number;
+  spend: number;
+  earnings: number;
+};
+
+export type AdminReportsBreakdown = {
+  totals: {
+    clicks: number;
+    leads: number;
+    approvedLeads: number;
+    rejectedLeads: number;
+    pendingLeads: number;
+    conversionRate: number;
+    approvalRate: number;
+    spend: number;
+    earnings: number;
+  };
+  publishers: AdminEntityReportRow[];
+  advertisers: AdminEntityReportRow[];
+};
+
+function isApprovedLeadStatus(status: LeadStatus) {
+  return status === "APPROVED" || status === "PAID";
+}
+
+function isRejectedLeadStatus(status: LeadStatus) {
+  return status === "REJECTED";
+}
+
+function isPendingLeadStatus(status: LeadStatus) {
+  return status === "PENDING" || status === "CAPTURED" || status === "VALIDATING";
+}
+
+function buildReportRow(
+  user: { id: string; name: string; email: string },
+  stats: {
+    clicks: number;
+    leads: number;
+    approvedLeads: number;
+    rejectedLeads: number;
+    pendingLeads: number;
+    spend: number;
+    earnings: number;
+  },
+): AdminEntityReportRow {
+  const { clicks, leads, approvedLeads, rejectedLeads, pendingLeads, spend, earnings } = stats;
+  const conversionRate = clicks > 0 ? Math.round((leads / clicks) * 10000) / 100 : 0;
+  const approvalRate = leads > 0 ? Math.round((approvedLeads / leads) * 10000) / 100 : 0;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    clicks,
+    leads,
+    approvedLeads,
+    rejectedLeads,
+    pendingLeads,
+    spend: Math.round(spend * 100) / 100,
+    earnings: Math.round(earnings * 100) / 100,
+    conversionRate,
+    approvalRate,
+  };
+}
+
+type LeadBucket = {
+  leads: number;
+  approvedLeads: number;
+  rejectedLeads: number;
+  pendingLeads: number;
+  spend: number;
+  earnings: number;
+};
+
+function emptyBucket(): LeadBucket {
+  return {
+    leads: 0,
+    approvedLeads: 0,
+    rejectedLeads: 0,
+    pendingLeads: 0,
+    spend: 0,
+    earnings: 0,
+  };
+}
+
+function applyLeadToBucket(
+  bucket: LeadBucket,
+  status: LeadStatus,
+  spendAmount: number,
+  earningsAmount: number,
+) {
+  bucket.leads += 1;
+  if (isRejectedLeadStatus(status)) {
+    bucket.rejectedLeads += 1;
+  } else if (isApprovedLeadStatus(status)) {
+    bucket.approvedLeads += 1;
+    if (status === "PAID") {
+      bucket.spend += spendAmount;
+      bucket.earnings += earningsAmount;
+    }
+  } else if (isPendingLeadStatus(status)) {
+    bucket.pendingLeads += 1;
+  }
+}
+
+export async function getAdminReportsBreakdown(filters?: {
+  search?: string;
+  from?: Date;
+  to?: Date;
+  sort?: "leads" | "clicks" | "conversion" | "spend";
+}): Promise<AdminReportsBreakdown> {
+  const search = filters?.search?.trim();
+  const dateRange =
+    filters?.from && filters?.to
+      ? { createdAt: { gte: filters.from, lte: filters.to } }
+      : undefined;
+
+  const userSearch = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          { email: { contains: search } },
+        ],
+      }
+    : undefined;
+
+  const [publishers, advertisers, platformSettings, leads, clicks] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "PUBLISHER", ...userSearch },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { role: "ADVERTISER", ...userSearch },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    }),
+    getPlatformSettingsConfig(),
+    prisma.lead.findMany({
+      where: dateRange,
+      select: {
+        id: true,
+        publisherId: true,
+        status: true,
+        country: true,
+        campaign: { select: { advertiserId: true, cpl: true } },
+      },
+    }),
+    prisma.click.findMany({
+      where: dateRange,
+      select: {
+        trackingLink: {
+          select: { publisherId: true, campaign: { select: { advertiserId: true } } },
+        },
+      },
+    }),
+  ]);
+
+  const paidLeadIds = leads.filter((lead) => lead.status === "PAID").map((lead) => lead.id);
+  const [publisherCredits, advertiserDebits] =
+    paidLeadIds.length > 0
+      ? await Promise.all([
+          prisma.ledgerEntry.findMany({
+            where: { type: "CREDIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
+            select: {
+              referenceId: true,
+              amount: true,
+              wallet: { select: { userId: true } },
+            },
+          }),
+          prisma.ledgerEntry.findMany({
+            where: { type: "DEBIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
+            select: {
+              referenceId: true,
+              amount: true,
+              wallet: { select: { userId: true } },
+            },
+          }),
+        ])
+      : [[], []];
+
+  const earningsByLeadId = new Map(
+    publisherCredits.map((entry) => [entry.referenceId!, Number(entry.amount)]),
+  );
+  const earningsByPublisherId = new Map<string, number>();
+  for (const entry of publisherCredits) {
+    const userId = entry.wallet.userId;
+    earningsByPublisherId.set(userId, (earningsByPublisherId.get(userId) ?? 0) + Number(entry.amount));
+  }
+
+  const spendByLeadId = new Map(
+    advertiserDebits.map((entry) => [entry.referenceId!, Number(entry.amount)]),
+  );
+  const spendByAdvertiserId = new Map<string, number>();
+  for (const entry of advertiserDebits) {
+    const userId = entry.wallet.userId;
+    spendByAdvertiserId.set(userId, (spendByAdvertiserId.get(userId) ?? 0) + Number(entry.amount));
+  }
+
+  function resolveLeadAmounts(lead: (typeof leads)[number]) {
+    if (lead.status !== "PAID") {
+      return { spend: 0, earnings: 0 };
+    }
+
+    const ledgerSpend = spendByLeadId.get(lead.id);
+    const ledgerEarnings = earningsByLeadId.get(lead.id);
+    if (ledgerSpend !== undefined && ledgerEarnings !== undefined) {
+      return { spend: ledgerSpend, earnings: ledgerEarnings };
+    }
+
+    const cpl = Number(lead.campaign.cpl);
+    const { publisherAmount } = calculatePublisherPayout(cpl, lead.country, platformSettings);
+    return { spend: cpl, earnings: publisherAmount };
+  }
+
+  const publisherClickMap = new Map<string, number>();
+  const advertiserClickMap = new Map<string, number>();
+  for (const click of clicks) {
+    const { publisherId, campaign } = click.trackingLink;
+    publisherClickMap.set(publisherId, (publisherClickMap.get(publisherId) ?? 0) + 1);
+    advertiserClickMap.set(
+      campaign.advertiserId,
+      (advertiserClickMap.get(campaign.advertiserId) ?? 0) + 1,
+    );
+  }
+
+  const publisherLeadMap = new Map<string, LeadBucket>();
+  const advertiserLeadMap = new Map<string, LeadBucket>();
+
+  for (const lead of leads) {
+    const amounts = resolveLeadAmounts(lead);
+
+    const publisherBucket = publisherLeadMap.get(lead.publisherId) ?? emptyBucket();
+    applyLeadToBucket(publisherBucket, lead.status, amounts.spend, amounts.earnings);
+    publisherLeadMap.set(lead.publisherId, publisherBucket);
+
+    const advertiserBucket = advertiserLeadMap.get(lead.campaign.advertiserId) ?? emptyBucket();
+    applyLeadToBucket(advertiserBucket, lead.status, amounts.spend, amounts.earnings);
+    advertiserLeadMap.set(lead.campaign.advertiserId, advertiserBucket);
+  }
+
+  for (const [publisherId, earnings] of earningsByPublisherId) {
+    const bucket = publisherLeadMap.get(publisherId) ?? emptyBucket();
+    bucket.earnings = earnings;
+    publisherLeadMap.set(publisherId, bucket);
+  }
+  for (const [advertiserId, spend] of spendByAdvertiserId) {
+    const bucket = advertiserLeadMap.get(advertiserId) ?? emptyBucket();
+    bucket.spend = spend;
+    advertiserLeadMap.set(advertiserId, bucket);
+  }
+
+  const sortKey = filters?.sort ?? "leads";
+  const sortRows = (rows: AdminEntityReportRow[]) => {
+    const sorted = [...rows];
+    if (sortKey === "clicks") sorted.sort((a, b) => b.clicks - a.clicks || b.leads - a.leads);
+    else if (sortKey === "conversion")
+      sorted.sort((a, b) => b.conversionRate - a.conversionRate || b.leads - a.leads);
+    else if (sortKey === "spend")
+      sorted.sort((a, b) => b.spend - a.spend || b.leads - a.leads);
+    else sorted.sort((a, b) => b.leads - a.leads || b.clicks - a.clicks);
+    return sorted;
+  };
+
+  const publisherRows = sortRows(
+    publishers.map((publisher) => {
+      const bucket = publisherLeadMap.get(publisher.id) ?? emptyBucket();
+      return buildReportRow(publisher, {
+        clicks: publisherClickMap.get(publisher.id) ?? 0,
+        leads: bucket.leads,
+        approvedLeads: bucket.approvedLeads,
+        rejectedLeads: bucket.rejectedLeads,
+        pendingLeads: bucket.pendingLeads,
+        spend: bucket.spend,
+        earnings: bucket.earnings,
+      });
+    }),
+  );
+
+  const advertiserRows = sortRows(
+    advertisers.map((advertiser) => {
+      const bucket = advertiserLeadMap.get(advertiser.id) ?? emptyBucket();
+      return buildReportRow(advertiser, {
+        clicks: advertiserClickMap.get(advertiser.id) ?? 0,
+        leads: bucket.leads,
+        approvedLeads: bucket.approvedLeads,
+        rejectedLeads: bucket.rejectedLeads,
+        pendingLeads: bucket.pendingLeads,
+        spend: bucket.spend,
+        earnings: 0,
+      });
+    }),
+  );
+
+  const totalClicks = publisherRows.reduce((sum, row) => sum + row.clicks, 0);
+  const totalLeads = publisherRows.reduce((sum, row) => sum + row.leads, 0);
+  const totalApproved = publisherRows.reduce((sum, row) => sum + row.approvedLeads, 0);
+
+  return {
+    totals: {
+      clicks: totalClicks,
+      leads: totalLeads,
+      approvedLeads: totalApproved,
+      rejectedLeads: publisherRows.reduce((sum, row) => sum + row.rejectedLeads, 0),
+      pendingLeads: publisherRows.reduce((sum, row) => sum + row.pendingLeads, 0),
+      spend: advertiserRows.reduce((sum, row) => sum + row.spend, 0),
+      earnings: publisherRows.reduce((sum, row) => sum + row.earnings, 0),
+      conversionRate: totalClicks > 0 ? Math.round((totalLeads / totalClicks) * 10000) / 100 : 0,
+      approvalRate: totalLeads > 0 ? Math.round((totalApproved / totalLeads) * 10000) / 100 : 0,
+    },
+    publishers: publisherRows,
+    advertisers: advertiserRows,
+  };
 }

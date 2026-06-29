@@ -69,6 +69,7 @@ enum DepositStatus {
 }
 
 enum PayoutStatus {
+  PENDING
   REQUESTED
   PROCESSING
   COMPLETED
@@ -433,7 +434,9 @@ model Payout {
   publisherId     String       @map("publisher_id")
   amount          Decimal      @db.Decimal(12, 2)
   method          PayoutMethod
-  status          PayoutStatus @default(REQUESTED)
+  status          PayoutStatus @default(PENDING)
+  rejectionReason String?      @map("rejection_reason")
+  rejectedAt      DateTime?    @map("rejected_at")
   idempotencyKey  String?      @unique @map("idempotency_key")
   processedAt     DateTime?    @map("processed_at")
   createdAt       DateTime     @default(now()) @map("created_at")

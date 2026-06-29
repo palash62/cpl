@@ -17,8 +17,11 @@ import {
   Users,
   Wallet,
   XCircle,
+  TrendingUp,
+  Minus,
 } from "lucide-react";
 import type { AdminControlCenterData } from "@/services/admin-dashboard.service";
+import { formatCurrency } from "@/components/admin/admin-ui";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -386,12 +389,12 @@ export function AdminFinancialSummary({
   financial: AdminControlCenterData["financial"];
 }) {
   const items = [
-    { label: "Wallet Balance", value: `$${financial.walletBalance.toFixed(2)}`, bg: "bg-violet-50", text: "text-violet-700" },
-    { label: "Pending Payouts", value: `$${financial.pendingPayoutsAmount.toFixed(2)}`, bg: "bg-amber-50", text: "text-amber-700" },
-    { label: "Completed Payouts (MTD)", value: financial.completedPayoutsMonth, bg: "bg-emerald-50", text: "text-emerald-700" },
-    { label: "Platform Revenue", value: `$${financial.platformRevenue.toFixed(2)}`, bg: "bg-sky-50", text: "text-sky-700" },
-    { label: "Commission Earned", value: `$${financial.commissionEarned.toFixed(2)}`, bg: "bg-indigo-50", text: "text-indigo-700" },
-    { label: "On Hold", value: `$${financial.holdBalance.toFixed(2)}`, bg: "bg-slate-50", text: "text-slate-700" },
+    { label: "Admin Profit", value: formatCurrency(financial.adminProfit), bg: "bg-emerald-50", text: "text-emerald-700" },
+    { label: "Advertiser Payments", value: formatCurrency(financial.advertiserPayment), bg: "bg-sky-50", text: "text-sky-700" },
+    { label: "Publisher Payouts", value: formatCurrency(financial.publisherPayout), bg: "bg-amber-50", text: "text-amber-700" },
+    { label: "Referral Pay", value: formatCurrency(financial.referralPay), bg: "bg-violet-50", text: "text-violet-700" },
+    { label: "Wallet Balance", value: formatCurrency(financial.walletBalance), bg: "bg-slate-50", text: "text-slate-700" },
+    { label: "Pending Payouts", value: formatCurrency(financial.pendingPayoutsAmount), bg: "bg-orange-50", text: "text-orange-700" },
   ];
 
   return (
@@ -749,6 +752,95 @@ export function AdminRecentLeadsPanel({
           </table>
         </div>
       )}
+    </AccentCard>
+  );
+}
+
+export function AdminProfitOverview({
+  adminProfit,
+}: {
+  adminProfit: AdminControlCenterData["adminProfit"];
+}) {
+  const rows = [
+    { label: "Today", snapshot: adminProfit.today, highlight: false },
+    { label: "Last 7 Days", snapshot: adminProfit.last7Days, highlight: false },
+    { label: "Last 30 Days", snapshot: adminProfit.last30Days, highlight: false },
+    { label: "Lifetime", snapshot: adminProfit.lifetime, highlight: true },
+  ];
+
+  const lifetime = adminProfit.lifetime;
+
+  return (
+    <AccentCard accent="emerald">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <TrendingUp className="h-4 w-4" />
+        </div>
+        <SectionHeader
+          title="Admin Profit"
+          description="Advertiser payments − publisher payouts − referral pay"
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className={cn(
+              "rounded-xl border p-3",
+              row.highlight
+                ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50"
+                : "border-slate-100 bg-slate-50/50",
+            )}
+          >
+            <p className="text-xs text-slate-500">{row.label}</p>
+            <p
+              className={cn(
+                "mt-1 text-lg font-bold",
+                row.snapshot.adminProfit >= 0
+                  ? row.highlight
+                    ? "text-emerald-700"
+                    : "text-slate-900"
+                  : "text-red-600",
+              )}
+            >
+              {formatCurrency(row.snapshot.adminProfit)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-100 bg-sky-50/60 px-4 py-3">
+          <p className="text-xs font-medium text-slate-500">Advertiser payments</p>
+          <p className="mt-1 text-lg font-bold text-sky-700">
+            {formatCurrency(lifetime.advertiserPayment)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-amber-50/60 px-4 py-3">
+          <p className="flex items-center gap-1 text-xs font-medium text-slate-500">
+            <Minus className="h-3 w-3" />
+            Publisher payouts
+          </p>
+          <p className="mt-1 text-lg font-bold text-amber-700">
+            {formatCurrency(lifetime.publisherPayout)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-violet-50/60 px-4 py-3">
+          <p className="flex items-center gap-1 text-xs font-medium text-slate-500">
+            <Minus className="h-3 w-3" />
+            Referral pay
+          </p>
+          <p className="mt-1 text-lg font-bold text-violet-700">
+            {formatCurrency(lifetime.referralPay)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs text-slate-500">
+        Publisher withdrawals and referral commissions reduce admin profit after advertisers pay for
+        leads.
+      </p>
     </AccentCard>
   );
 }

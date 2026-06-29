@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { debitWallet, getPlatformSettings } from "@/services/wallet.service";
 import { Errors } from "@/lib/errors";
+import { isPendingPayoutStatus } from "@/lib/payout-status";
 import type { PayoutMethod } from "@prisma/client";
 
 export async function requestPayout(
@@ -36,7 +37,7 @@ export async function requestPayout(
       amount,
       method,
       idempotencyKey,
-      status: "REQUESTED",
+      status: "PENDING",
     },
   });
 
@@ -48,8 +49,8 @@ export async function approvePayout(payoutId: string, adminId: string) {
     where: { id: payoutId },
   });
 
-  if (payout.status !== "REQUESTED") {
-    throw new Error("Payout not in REQUESTED status");
+  if (!isPendingPayoutStatus(payout.status)) {
+    throw new Error("Payout is not pending approval");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -80,19 +81,29 @@ export async function approvePayout(payoutId: string, adminId: string) {
   return prisma.payout.findUniqueOrThrow({ where: { id: payoutId } });
 }
 
-export async function rejectPayout(payoutId: string, adminId: string, reason?: string) {
+export async function rejectPayout(payoutId: string, adminId: string, reason: string) {
   const payout = await prisma.payout.findUniqueOrThrow({
     where: { id: payoutId },
   });
 
-  if (payout.status !== "REQUESTED") {
-    throw new Error("Payout not in REQUESTED status");
+  if (!isPendingPayoutStatus(payout.status)) {
+    throw new Error("Payout is not pending approval");
+  }
+
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    throw new Error("Rejection note is required");
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.payout.update({
       where: { id: payoutId },
-      data: { status: "REJECTED", processedAt: new Date() },
+      data: {
+        status: "REJECTED",
+        processedAt: new Date(),
+        rejectionReason: trimmedReason,
+        rejectedAt: new Date(),
+      },
     });
 
     await tx.auditLog.create({
@@ -101,7 +112,7 @@ export async function rejectPayout(payoutId: string, adminId: string, reason?: s
         action: "payout.rejected",
         entityType: "payout",
         entityId: payoutId,
-        metadata: { reason },
+        metadata: { reason: trimmedReason },
       },
     });
   });

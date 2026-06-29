@@ -6,6 +6,7 @@ import { ArrowDownLeft, CheckCircle, Clock, History, Plus, TrendingUp, Wallet } 
 import { getSession } from "@/lib/session";
 import { getWalletBalance, listPublisherLedger } from "@/services/wallet.service";
 import { prisma } from "@/lib/prisma";
+import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
 import { formatCurrency } from "@/components/admin/admin-ui";
@@ -43,7 +44,7 @@ export default async function EarningsPage({ searchParams }: PageProps) {
       where: { publisherId: session!.user.id, status: { in: ["APPROVED", "PAID"] } },
     }),
     prisma.payout.count({
-      where: { publisherId: session!.user.id, status: "REQUESTED" },
+      where: { publisherId: session!.user.id, status: { in: [...PENDING_PAYOUT_STATUSES] } },
     }),
   ]);
 

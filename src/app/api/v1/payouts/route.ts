@@ -49,7 +49,14 @@ export async function PATCH(request: Request) {
       const body = await request.json();
 
       if (body.action === "reject") {
-        const payout = await rejectPayout(body.payoutId, session.user.id, body.reason);
+        const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+        if (!reason) {
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message: "Rejection note is required", status: 422 } },
+            { status: 422 },
+          );
+        }
+        const payout = await rejectPayout(body.payoutId, session.user.id, reason);
         return Response.json({ data: payout });
       }
 

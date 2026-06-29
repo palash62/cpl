@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { Banknote, Clock, DollarSign, Wallet } from "lucide-react";
+import { format } from "date-fns";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
-import { formatCurrency } from "@/components/admin/admin-ui";
-import { Badge } from "@/components/ui/badge";
-import { ApprovePayoutButton } from "@/components/forms/approve-payout-button";
-import { RejectPayoutButton } from "@/components/forms/reject-payout-button";
+import { formatCurrency, PayoutStatusBadge } from "@/components/admin/admin-ui";
+import { AdminPayoutReviewDialog } from "@/components/admin/admin-payout-review-dialog";
+import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import {
   Table,
   TableBody,
@@ -20,8 +20,25 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPayoutsPage() {
   const payouts = await prisma.payout.findMany({
-    where: { status: "REQUESTED" },
-    include: { publisher: { select: { name: true, email: true } } },
+    where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
+    include: {
+      publisher: {
+        select: {
+          name: true,
+          email: true,
+          wallet: { select: { balance: true, holdBalance: true, currency: true } },
+          publisherProfile: {
+            select: {
+              website: true,
+              country: true,
+              city: true,
+              state: true,
+              kycStatus: true,
+            },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -55,32 +72,35 @@ export default async function AdminPayoutsPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
-                <TableHead className="h-11 px-6 text-slate-600">Publisher</TableHead>
+                <TableHead className="h-11 px-6 text-slate-600">Requested</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
                 <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {payouts.map((p) => (
                 <TableRow key={p.id} className="border-slate-100 transition-colors hover:bg-emerald-50/40">
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-4 text-sm text-slate-600">
+                    {format(p.createdAt, "MMM d, yyyy HH:mm")}
+                  </TableCell>
+                  <TableCell className="px-4 py-4">
                     <p className="font-medium text-slate-900">{p.publisher.name}</p>
                     <p className="text-xs text-slate-500">{p.publisher.email}</p>
                   </TableCell>
                   <TableCell className="px-4 py-4 text-right">
                     <span className="text-lg font-bold text-emerald-600">{formatCurrency(Number(p.amount))}</span>
                   </TableCell>
-                  <TableCell className="px-4 py-4">
-                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
-                      {p.method}
-                    </Badge>
+                  <TableCell className="px-4 py-4 text-sm capitalize text-slate-600">
+                    {p.method.toLowerCase().replace(/_/g, " ")}
                   </TableCell>
-                  <TableCell className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <ApprovePayoutButton payoutId={p.id} />
-                      <RejectPayoutButton payoutId={p.id} />
-                    </div>
+                  <TableCell className="px-4 py-4">
+                    <PayoutStatusBadge status={p.status} />
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right">
+                    <AdminPayoutReviewDialog payout={p} />
                   </TableCell>
                 </TableRow>
               ))}

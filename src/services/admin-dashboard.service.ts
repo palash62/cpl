@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
+import { getAdminProfitSnapshots } from "@/services/admin-profit.service";
 import {
   endOfDay,
   endOfMonth,
@@ -122,6 +124,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
     leadsTrend,
     revenueTrend,
     dbHealthy,
+    adminProfitSnapshots,
   ] = await Promise.all([
     prisma.user.count({ where: { role: "ADVERTISER", status: "ACTIVE" } }),
     prisma.user.count({ where: { role: "PUBLISHER", status: "ACTIVE" } }),
@@ -149,9 +152,9 @@ export async function getAdminControlCenterData(adminUserId: string) {
     getRevenueForRange(thirtyDaysStart, todayEnd),
     getRevenueForRange(lastMonthStart, lastMonthEnd),
     getRevenueForRange(new Date(0), todayEnd),
-    prisma.payout.count({ where: { status: "REQUESTED" } }),
+    prisma.payout.count({ where: { status: { in: [...PENDING_PAYOUT_STATUSES] } } }),
     prisma.payout.aggregate({
-      where: { status: "REQUESTED" },
+      where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
       _sum: { amount: true },
     }),
     prisma.payout.count({
@@ -217,6 +220,12 @@ export async function getAdminControlCenterData(adminUserId: string) {
     getLeadsTrend(30),
     getRevenueTrend(30),
     prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false),
+    getAdminProfitSnapshots({
+      today: { from: todayStart, to: todayEnd },
+      last7Days: { from: sevenDaysStart, to: todayEnd },
+      last30Days: { from: thirtyDaysStart, to: todayEnd },
+      lifetime: { from: new Date(0), to: todayEnd },
+    }),
   ]);
 
   const [topAdvertisersRaw, topPublishersRaw] = await Promise.all([
@@ -430,6 +439,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
       lifetime: revenueLifetime,
       trend: revenueTrend,
     },
+    adminProfit: adminProfitSnapshots,
     approvalLanes,
     analytics: {
       leadsTrend,
@@ -484,6 +494,10 @@ export async function getAdminControlCenterData(adminUserId: string) {
       completedPayoutsMonth,
       platformRevenue: revenueLifetime,
       commissionEarned: revenueLifetime,
+      adminProfit: adminProfitSnapshots.lifetime.adminProfit,
+      advertiserPayment: adminProfitSnapshots.lifetime.advertiserPayment,
+      publisherPayout: adminProfitSnapshots.lifetime.publisherPayout,
+      referralPay: adminProfitSnapshots.lifetime.referralPay,
     },
     notifications: recentNotifications,
     legacy: {

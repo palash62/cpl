@@ -90,10 +90,21 @@ async function main() {
       role: "PUBLISHER",
       status: "ACTIVE",
       emailVerified: new Date(),
-      wallet: { create: {} },
-      publisherProfile: { create: { kycStatus: "APPROVED" } },
+      wallet: { create: { balance: 250 } },
+      publisherProfile: {
+        create: {
+          kycStatus: "APPROVED",
+          website: "https://demo-publisher.example",
+          country: "US",
+          city: "New York",
+          state: "NY",
+        },
+      },
     },
-    update: { status: "ACTIVE" },
+    update: {
+      status: "ACTIVE",
+      wallet: { upsert: { create: { balance: 250 }, update: { balance: 250 } } },
+    },
   });
 
   const campaign = await prisma.campaign.upsert({
@@ -146,6 +157,24 @@ async function main() {
     },
     update: {},
   });
+
+  const existingPendingPayout = await prisma.payout.findFirst({
+    where: {
+      publisherId: publisher.id,
+      status: { in: ["PENDING", "REQUESTED"] },
+    },
+  });
+
+  if (!existingPendingPayout) {
+    await prisma.payout.create({
+      data: {
+        publisherId: publisher.id,
+        amount: 100,
+        method: "PAYPAL",
+        status: "PENDING",
+      },
+    });
+  }
 
   console.log("Seed complete:");
   console.log("  Admin:      admin@cpl.local / password123");

@@ -124,7 +124,12 @@ export default async function PayoutsPage({ searchParams }: PageProps) {
                       {payout.method.toLowerCase().replace("_", " ")}
                     </TableCell>
                     <TableCell className="px-4 py-4">
-                      <PayoutStatusBadge status={payout.status} />
+                      <div className="space-y-1">
+                        <PayoutStatusBadge status={payout.status} />
+                        {payout.status === "REJECTED" && payout.rejectionReason && (
+                          <p className="max-w-xs text-xs text-red-600">{payout.rejectionReason}</p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-sm text-slate-600">
                       {payout.processedAt
