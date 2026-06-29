@@ -17,6 +17,7 @@ import {
   Link2,
   TrendingUp,
   Gift,
+  LayoutTemplate,
   Palette,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ export const ADMIN_NAV: NavItem[] = [
 
 export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
+  { label: "Optin Pages", href: "/advertiser/optin-pages", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
   { label: "Leads", href: "/advertiser/leads", icon: FileText },
   { label: "Wallet", href: "/advertiser/wallet", icon: Wallet },
