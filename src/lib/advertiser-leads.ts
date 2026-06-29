@@ -2,6 +2,10 @@ export function shortCampaignId(id: string) {
   return id.slice(-8).toUpperCase();
 }
 
+export function shortPublisherId(id: string) {
+  return id.slice(-8).toUpperCase();
+}
+
 export function formatLeadLogData(data: unknown): string {
   if (!data || typeof data !== "object") return "";
 

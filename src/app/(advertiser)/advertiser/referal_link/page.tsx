@@ -48,7 +48,7 @@ export default async function AdvertiserReferralLinkPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
           Earn commissions by referring others to the platform. Level 1 pays{" "}
-          <strong>20%</strong> of direct referral ad spend. Level 2 pays <strong>10%</strong> from
+          <strong>10%</strong> of direct referral ad spend. Level 2 pays <strong>5%</strong> from
           users your referrals refer. Minimum payout threshold is {formatCurrency(REFERRAL_MIN_PAYOUT)}.
         </p>
       </div>
@@ -149,14 +149,14 @@ export default async function AdvertiserReferralLinkPage() {
           <p className="mt-2 text-2xl font-bold text-emerald-600">
             {formatCurrency(data.stats.level1Commission)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">20% of direct referral ad spend</p>
+          <p className="mt-1 text-xs text-slate-500">10% of direct referral ad spend</p>
         </div>
         <div className="premium-card p-5">
           <p className="text-sm font-semibold text-slate-900">Level 2 earnings</p>
           <p className="mt-2 text-2xl font-bold text-violet-600">
             {formatCurrency(data.stats.level2Commission)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">10% of indirect referral ad spend</p>
+          <p className="mt-1 text-xs text-slate-500">5% of indirect referral ad spend</p>
         </div>
       </div>
 

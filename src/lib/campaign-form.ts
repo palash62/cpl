@@ -8,11 +8,9 @@ export const URL_TOKENS = [
 
 export const VERTICALS = [
   { label: "Make Money Online", category: "GENERIC" as CampaignCategory },
-  { label: "Finance", category: "FINANCE" as CampaignCategory },
-  { label: "Insurance", category: "INSURANCE" as CampaignCategory },
-  { label: "Education", category: "EDUCATION" as CampaignCategory },
-  { label: "Real Estate", category: "REAL_ESTATE" as CampaignCategory },
 ] as const;
+
+export const DEFAULT_VERTICAL = VERTICALS[0].label;
 
 export const COUNTRY_BY_CODE: Record<string, string> = {
   US: "United States",
@@ -134,6 +132,163 @@ export const OPERATING_SYSTEMS = [
   "Chrome OS",
 ] as const;
 
+import type { PayoutTiersDisplay } from "@/lib/platform-settings";
+
+function cplForPublisherPayout(payout: number, publisherPayoutPercent: number) {
+  const rate = publisherPayoutPercent / 100;
+  if (rate <= 0) return 0;
+  return Math.round((payout / rate) * 100) / 100;
+}
+
+export function getActiveTiersFromCountries(countryCodes: string[]): CountryTier[] {
+  if (countryCodes.length === 0) {
+    return ["tier1", "tier2", "tier3"];
+  }
+
+  const tiers = new Set<CountryTier>();
+  for (const code of countryCodes) {
+    const tier = resolveCountryTier(code);
+    if (tier) tiers.add(tier);
+  }
+
+  return tiers.size > 0 ? Array.from(tiers) : ["tier1", "tier2", "tier3"];
+}
+
+export function resolveCountryTier(code: string): CountryTier | null {
+  const upper = code.trim().toUpperCase();
+  for (const tier of ["tier1", "tier2", "tier3"] as CountryTier[]) {
+    if ((TIER_COUNTRIES[tier] as readonly string[]).includes(upper)) {
+      return tier;
+    }
+  }
+  return null;
+}
+
+export function hasMultipleCountryTiers(countryCodes: string[]): boolean {
+  if (countryCodes.length === 0) return false;
+  const tiers = new Set<CountryTier>();
+  for (const code of countryCodes) {
+    const tier = resolveCountryTier(code);
+    if (tier) tiers.add(tier);
+  }
+  return tiers.size > 1;
+}
+
+/** Returns the single tier when all selected countries belong to one tier; otherwise null. */
+export function getLockedCountryTier(countryCodes: string[]): CountryTier | null {
+  if (countryCodes.length === 0) return null;
+  const tiers = new Set<CountryTier>();
+  for (const code of countryCodes) {
+    const tier = resolveCountryTier(code);
+    if (tier) tiers.add(tier);
+  }
+  return tiers.size === 1 ? Array.from(tiers)[0] : null;
+}
+
+export function getFullTierFromSelection(countryCodes: string[]): CountryTier | null {
+  if (countryCodes.length === 0) return null;
+  for (const tier of ["tier1", "tier2", "tier3"] as CountryTier[]) {
+    const tierCodes = TIER_COUNTRIES[tier];
+    if (tierCodes.every((code) => countryCodes.includes(code))) {
+      return tier;
+    }
+  }
+  return null;
+}
+
+export function isTierFullySelectedInList(tier: CountryTier, countryCodes: string[]) {
+  return TIER_COUNTRIES[tier].every((code) => countryCodes.includes(code));
+}
+
+export function getFullySelectedTiers(countryCodes: string[]): CountryTier[] {
+  return (["tier1", "tier2", "tier3"] as CountryTier[]).filter((tier) =>
+    isTierFullySelectedInList(tier, countryCodes),
+  );
+}
+
+/** Returns the tier with a partial selection, if any. */
+export function getPartialTierFromSelection(countryCodes: string[]): CountryTier | null {
+  if (countryCodes.length === 0) return null;
+
+  const tiersWithCountries = new Set<CountryTier>();
+  for (const code of countryCodes) {
+    const tier = resolveCountryTier(code);
+    if (tier) tiersWithCountries.add(tier);
+  }
+
+  for (const tier of tiersWithCountries) {
+    if (!isTierFullySelectedInList(tier, countryCodes)) {
+      return tier;
+    }
+  }
+
+  return null;
+}
+
+export function hasPartialAndFullTierMix(countryCodes: string[]): boolean {
+  const partial = getPartialTierFromSelection(countryCodes);
+  const fullTiers = getFullySelectedTiers(countryCodes);
+  return partial !== null && fullTiers.length > 0;
+}
+
+export function isValidTierCountrySelection(countryCodes: string[]): boolean {
+  if (countryCodes.length === 0) return true;
+  if (hasPartialAndFullTierMix(countryCodes)) return false;
+
+  const partial = getPartialTierFromSelection(countryCodes);
+  if (partial) {
+    return countryCodes.every((code) => resolveCountryTier(code) === partial);
+  }
+
+  return countryCodes.every((code) => {
+    const tier = resolveCountryTier(code);
+    return tier !== null && isTierFullySelectedInList(tier, countryCodes);
+  });
+}
+
+export function isFullTierCountrySelection(countryCodes: string[]): boolean {
+  if (countryCodes.length === 0) return true;
+  return getFullTierFromSelection(countryCodes) !== null;
+}
+
+export const TIER_COUNTRY_GROUPS = (Object.keys(TIER_META) as CountryTier[]).map((tier) => ({
+  tier,
+  label: TIER_META[tier].label,
+  accent: TIER_META[tier].accent,
+  countries: [...TIER_COUNTRIES[tier]].sort((a, b) => getCountryName(a).localeCompare(getCountryName(b))),
+}));
+
+export function getBidRecommendationsFromTiers(
+  payoutTiers: PayoutTiersDisplay,
+  selectedCountries: string[],
+) {
+  const activeTiers = getActiveTiersFromCountries(selectedCountries);
+  const ranges = activeTiers.map((tier) => {
+    if (tier === "tier1") {
+      return { min: payoutTiers.tier1PayoutMin, max: payoutTiers.tier1PayoutMax };
+    }
+    if (tier === "tier2") {
+      return { min: payoutTiers.tier2PayoutMin, max: payoutTiers.tier2PayoutMax };
+    }
+    return { min: payoutTiers.tier3PayoutMin, max: payoutTiers.tier3PayoutMax };
+  });
+
+  const payoutMin = Math.min(...ranges.map((range) => range.min));
+  const payoutMax = Math.max(...ranges.map((range) => range.max));
+  const payoutMid = (payoutMin + payoutMax) / 2;
+  const percent = payoutTiers.publisherPayoutPercent;
+
+  return {
+    minimum: cplForPublisherPayout(payoutMin, percent),
+    optimal: cplForPublisherPayout(payoutMid, percent),
+    maximum: cplForPublisherPayout(payoutMax, percent),
+    payoutMin,
+    payoutMax,
+    activeTiers,
+  };
+}
+
+/** @deprecated use getBidRecommendationsFromTiers */
 export function getBidRecommendations(cpl: number) {
   const base = Number.isFinite(cpl) && cpl > 0 ? cpl : 1;
   return {

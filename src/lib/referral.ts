@@ -1,5 +1,5 @@
-export const REFERRAL_LEVEL_1_RATE = 0.2;
-export const REFERRAL_LEVEL_2_RATE = 0.1;
+export const REFERRAL_LEVEL_1_RATE = 0.1;
+export const REFERRAL_LEVEL_2_RATE = 0.05;
 export const REFERRAL_MIN_PAYOUT = 30;
 
 export const REFERRAL_LEVELS = [
@@ -7,16 +7,16 @@ export const REFERRAL_LEVELS = [
     level: 1,
     label: "Level 1",
     title: "Direct Referrals",
-    rate: "20%",
-    description: "Earn 20% of the ad spend from users you refer directly.",
+    rate: "10%",
+    description: "Earn 10% of the ad spend from users you refer directly.",
     gradient: "var(--theme-gradient-revenue)",
   },
   {
     level: 2,
     label: "Level 2",
     title: "Indirect Referrals",
-    rate: "10%",
-    description: "Earn 10% from the ad spend of users your referrals refer.",
+    rate: "5%",
+    description: "Earn 5% from the ad spend of users your referrals refer.",
     gradient: "var(--theme-gradient-approved)",
   },
 ] as const;

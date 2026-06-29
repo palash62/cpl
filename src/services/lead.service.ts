@@ -188,6 +188,7 @@ export async function listLeads(filters: {
   campaignId?: string;
   campaignSearch?: string;
   publisherId?: string;
+  publisherSearch?: string;
   advertiserId?: string;
   status?: LeadStatus;
   source?: string;
@@ -215,6 +216,9 @@ export async function listLeads(filters: {
   const where = {
     ...(filters.campaignId && { campaignId: filters.campaignId }),
     ...(filters.publisherId && { publisherId: filters.publisherId }),
+    ...(filters.publisherSearch?.trim() && {
+      publisherId: { contains: filters.publisherSearch.trim() },
+    }),
     ...(filters.status && { status: filters.status }),
     ...(filters.source?.trim() && { source: filters.source.trim() }),
     ...(campaignWhere && { campaign: campaignWhere }),
@@ -265,6 +269,118 @@ export async function listLeads(filters: {
     data,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
   };
+}
+
+export type AdvertiserPublisherLeadReportRow = {
+  publisherId: string;
+  totalLeads: number;
+  approvedLeads: number;
+  pendingLeads: number;
+  rejectedLeads: number;
+  paidLeads: number;
+  estimatedSpend: number;
+  payoutMin: number | null;
+  payoutMax: number | null;
+  lastLeadAt: Date | null;
+};
+
+export async function listAdvertiserPublisherLeadReport(filters: {
+  advertiserId: string;
+  publisherSearch?: string;
+  campaignSearch?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  payoutMin?: number;
+  payoutMax?: number;
+}) {
+  const campaignWhere: {
+    advertiserId: string;
+    id?: { contains: string };
+    cpl?: { gte?: number; lte?: number };
+  } = {
+    advertiserId: filters.advertiserId,
+    ...(filters.campaignSearch?.trim() && {
+      id: { contains: filters.campaignSearch.trim() },
+    }),
+  };
+
+  if (filters.payoutMin !== undefined || filters.payoutMax !== undefined) {
+    campaignWhere.cpl = {
+      ...(filters.payoutMin !== undefined && { gte: filters.payoutMin }),
+      ...(filters.payoutMax !== undefined && { lte: filters.payoutMax }),
+    };
+  }
+
+  const createdAt: { gte?: Date; lte?: Date } = {};
+  if (filters.dateFrom) {
+    const from = new Date(filters.dateFrom);
+    from.setHours(0, 0, 0, 0);
+    createdAt.gte = from;
+  }
+  if (filters.dateTo) {
+    const to = new Date(filters.dateTo);
+    to.setHours(23, 59, 59, 999);
+    createdAt.lte = to;
+  }
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      campaign: campaignWhere,
+      ...(filters.publisherSearch?.trim() && {
+        publisherId: { contains: filters.publisherSearch.trim() },
+      }),
+      ...(Object.keys(createdAt).length > 0 && { createdAt }),
+    },
+    select: {
+      publisherId: true,
+      status: true,
+      createdAt: true,
+      campaign: { select: { cpl: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const grouped = new Map<string, AdvertiserPublisherLeadReportRow>();
+
+  for (const lead of leads) {
+    const existing = grouped.get(lead.publisherId) ?? {
+      publisherId: lead.publisherId,
+      totalLeads: 0,
+      approvedLeads: 0,
+      pendingLeads: 0,
+      rejectedLeads: 0,
+      paidLeads: 0,
+      estimatedSpend: 0,
+      payoutMin: null,
+      payoutMax: null,
+      lastLeadAt: null,
+    };
+
+    const cpl = Number(lead.campaign.cpl);
+    existing.payoutMin = existing.payoutMin === null ? cpl : Math.min(existing.payoutMin, cpl);
+    existing.payoutMax = existing.payoutMax === null ? cpl : Math.max(existing.payoutMax, cpl);
+
+    existing.totalLeads += 1;
+    if (lead.status === "APPROVED") {
+      existing.approvedLeads += 1;
+      existing.estimatedSpend += Number(lead.campaign.cpl);
+    } else if (lead.status === "PAID") {
+      existing.paidLeads += 1;
+      existing.estimatedSpend += Number(lead.campaign.cpl);
+    } else if (lead.status === "REJECTED") {
+      existing.rejectedLeads += 1;
+    } else {
+      existing.pendingLeads += 1;
+    }
+
+    if (!existing.lastLeadAt || lead.createdAt > existing.lastLeadAt) {
+      existing.lastLeadAt = lead.createdAt;
+    }
+
+    grouped.set(lead.publisherId, existing);
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.totalLeads - a.totalLeads);
 }
 
 export async function logClick(slug: string, meta: {

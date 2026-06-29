@@ -2,23 +2,18 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { format } from "date-fns";
-import { FileText, Info } from "lucide-react";
+import { Ban, FileText, Info } from "lucide-react";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
-import {
-  formatLeadLogData,
-  formatLeadMessage,
-  shortCampaignId,
-} from "@/lib/advertiser-leads";
-import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
+import { shortPublisherId } from "@/lib/advertiser-leads";
+import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
+import { listAdvertiserPublisherLeadReport } from "@/services/lead.service";
 import { listBlockedPublishers } from "@/services/smart-link.service";
 import { PageSection } from "@/components/admin/page-section";
-import { LeadStatusBadge } from "@/components/admin/admin-ui";
 import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserBlockPublisherButton } from "@/components/advertiser/advertiser-block-publisher-button";
+import { AdvertiserBlockedPublishersTable } from "@/components/advertiser/advertiser-blocked-publishers-table";
 import { AdvertiserLeadsFilters } from "@/components/advertiser/advertiser-leads-filters";
-import { AdvertiserLeadsSortHeader } from "@/components/advertiser/advertiser-leads-sort-header";
-import { AdvertiserLeadsTableFooter } from "@/components/advertiser/advertiser-leads-table-footer";
 import {
   Table,
   TableBody,
@@ -31,46 +26,49 @@ import {
 interface PageProps {
   searchParams: Promise<{
     campaign?: string;
-    sort?: string;
-    page?: string;
+    publisher?: string;
+    payoutMin?: string;
+    payoutMax?: string;
+    from?: string;
+    to?: string;
   }>;
 }
 
-function parseSort(sort?: string): AdvertiserLeadSort {
-  const valid: AdvertiserLeadSort[] = [
-    "created_desc",
-    "created_asc",
-    "campaign_asc",
-    "campaign_desc",
-    "campaignId_asc",
-    "campaignId_desc",
-    "logData_asc",
-    "logData_desc",
-    "status_asc",
-    "status_desc",
-    "message_asc",
-    "message_desc",
-  ];
-  return valid.includes(sort as AdvertiserLeadSort)
-    ? (sort as AdvertiserLeadSort)
-    : "created_desc";
+function formatPayoutRange(min: number | null, max: number | null) {
+  if (min === null || max === null) return "—";
+  if (min === max) return formatCurrency(min);
+  return `${formatCurrency(min)} – ${formatCurrency(max)}`;
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(amount);
 }
 
 export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
   const session = await getSession();
   const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page ?? "1", 10));
-  const limit = 10;
+  const dateFrom = params.from ?? defaultCampaignDateFrom();
+  const dateTo = params.to ?? defaultCampaignDateTo();
+  const payoutMin = params.payoutMin ? parseFloat(params.payoutMin) : undefined;
+  const payoutMax = params.payoutMax ? parseFloat(params.payoutMax) : undefined;
 
-  const { data: leads, meta } = await listLeads({
-    advertiserId: session!.user.id,
-    campaignSearch: params.campaign,
-    sort: parseSort(params.sort),
-    page,
-    limit,
-  });
+  const [publisherReport, blockedPublishers] = await Promise.all([
+    listAdvertiserPublisherLeadReport({
+      advertiserId: session!.user.id,
+      publisherSearch: params.publisher,
+      campaignSearch: params.campaign,
+      dateFrom: new Date(dateFrom),
+      dateTo: new Date(dateTo),
+      payoutMin: payoutMin !== undefined && !Number.isNaN(payoutMin) ? payoutMin : undefined,
+      payoutMax: payoutMax !== undefined && !Number.isNaN(payoutMax) ? payoutMax : undefined,
+    }),
+    listBlockedPublishers(session!.user.id),
+  ]);
 
-  const blockedPublishers = await listBlockedPublishers(session!.user.id);
   const blockedIds = new Set(blockedPublishers.map((b) => b.publisherId));
 
   return (
@@ -78,7 +76,7 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
       <RoleHero
         eyebrow="Advertiser Portal"
         title="Leads / Sales Logs"
-        description="Review lead submissions, conversion events, and postback activity for your campaigns."
+        description="Review lead performance by publisher, block low-quality traffic, and manage your block list."
       />
 
       <div
@@ -90,10 +88,13 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
       >
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
-          You can review your leads and sales pixel and postback logs here. Please note that older
-          logs are automatically deleted after a few days. For a comprehensive overview of leads and
-          sales, refer to the{" "}
-          <Link href="/advertiser/reports" className="font-medium text-[var(--theme-primary)] hover:underline">
+          Publisher names are hidden for privacy. Use the publisher ID to identify traffic sources.
+          Blocked publishers are excluded from Smart Link rotation for your campaigns. For campaign-level
+          stats, see the{" "}
+          <Link
+            href="/advertiser/reports"
+            className="font-medium text-[var(--theme-primary)] hover:underline"
+          >
             campaign statistics report
           </Link>
           .
@@ -101,8 +102,8 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
       </div>
 
       <PageSection
-        title="Leads / Sales Logs"
-        description="Lead and postback log entries for your campaigns"
+        title="Publisher Lead Report"
+        description="Aggregated lead counts and spend by publisher"
         icon={FileText}
         gradient="leads"
       >
@@ -117,85 +118,65 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
                 className="border-none hover:bg-transparent"
                 style={{ background: "var(--theme-primary-soft)" }}
               >
-                <TableHead className="h-11 px-6 text-slate-600">
-                  <Suspense fallback={<span>AT</span>}>
-                    <AdvertiserLeadsSortHeader field="at" label="AT" />
-                  </Suspense>
-                </TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">
-                  <Suspense fallback={<span>CAMPAIGN ID</span>}>
-                    <AdvertiserLeadsSortHeader field="campaignId" label="Campaign ID" />
-                  </Suspense>
-                </TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">
-                  <Suspense fallback={<span>CAMPAIGN</span>}>
-                    <AdvertiserLeadsSortHeader field="campaign" label="Campaign" />
-                  </Suspense>
-                </TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">
-                  <Suspense fallback={<span>LOG DATA</span>}>
-                    <AdvertiserLeadsSortHeader field="logData" label="Log Data" />
-                  </Suspense>
-                </TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">
-                  <Suspense fallback={<span>STATUS</span>}>
-                    <AdvertiserLeadsSortHeader field="status" label="Status" />
-                  </Suspense>
-                </TableHead>
-                <TableHead className="h-11 px-6 text-slate-600">
-                  <Suspense fallback={<span>MESSAGE</span>}>
-                    <AdvertiserLeadsSortHeader field="message" label="Message" />
-                  </Suspense>
-                </TableHead>
+                <TableHead className="h-11 px-6 text-slate-600">Publisher ID</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Total</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Approved</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Pending</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Rejected</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Paid</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Payout Range</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Est. Spend</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Last Lead</TableHead>
+                <TableHead className="h-11 px-6 text-right text-slate-600">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leads.length === 0 ? (
+              {publisherReport.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={10} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No Data Found</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                leads.map((lead) => (
+                publisherReport.map((row) => (
                   <TableRow
-                    key={lead.id}
+                    key={row.publisherId}
                     className="border-slate-100 transition-colors hover:bg-blue-50/40"
                   >
-                    <TableCell className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {format(new Date(lead.createdAt), "MMM d, yyyy HH:mm:ss")}
+                    <TableCell className="px-6 py-4 font-mono text-sm font-medium text-slate-800">
+                      {shortPublisherId(row.publisherId)}
                     </TableCell>
-                    <TableCell className="px-4 py-4 font-mono text-xs text-slate-500">
-                      {shortCampaignId(lead.campaign.id)}
+                    <TableCell className="px-4 py-4 text-right text-sm text-slate-700">
+                      {row.totalLeads}
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-slate-800">
-                      {lead.campaign.name}
+                    <TableCell className="px-4 py-4 text-right text-sm text-emerald-700">
+                      {row.approvedLeads}
                     </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <div className="flex flex-col gap-2">
-                        <span className="text-sm font-medium text-slate-800">
-                          {lead.publisher.name}
-                        </span>
-                        <AdvertiserBlockPublisherButton
-                          publisherId={lead.publisherId}
-                          publisherName={lead.publisher.name}
-                          blocked={blockedIds.has(lead.publisherId)}
-                        />
-                      </div>
+                    <TableCell className="px-4 py-4 text-right text-sm text-amber-700">
+                      {row.pendingLeads}
                     </TableCell>
-                    <TableCell className="max-w-[280px] px-4 py-4 font-mono text-xs text-slate-600">
-                      <p className="truncate" title={formatLeadLogData(lead.data)}>
-                        {formatLeadLogData(lead.data)}
-                      </p>
+                    <TableCell className="px-4 py-4 text-right text-sm text-red-700">
+                      {row.rejectedLeads}
                     </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <LeadStatusBadge status={lead.status} />
+                    <TableCell className="px-4 py-4 text-right text-sm text-slate-700">
+                      {row.paidLeads}
                     </TableCell>
-                    <TableCell className="max-w-[240px] px-6 py-4 text-sm text-slate-600">
-                      <p className="truncate" title={formatLeadMessage(lead)}>
-                        {formatLeadMessage(lead)}
-                      </p>
+                    <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-600">
+                      {formatPayoutRange(row.payoutMin, row.payoutMax)}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-right text-sm font-medium text-slate-800">
+                      {formatCurrency(row.estimatedSpend)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
+                      {row.lastLeadAt
+                        ? format(new Date(row.lastLeadAt), "MMM d, yyyy HH:mm")
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-right">
+                      <AdvertiserBlockPublisherButton
+                        publisherId={row.publisherId}
+                        blocked={blockedIds.has(row.publisherId)}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
@@ -203,15 +184,20 @@ export default async function AdvertiserLeadsPage({ searchParams }: PageProps) {
             </TableBody>
           </Table>
         </div>
+      </PageSection>
 
-        <Suspense>
-          <AdvertiserLeadsTableFooter
-            page={meta.page}
-            totalPages={meta.totalPages}
-            total={meta.total}
-            perPage={meta.limit}
-          />
-        </Suspense>
+      <PageSection
+        title="Blocked Publishers"
+        description={`${blockedPublishers.length} publisher${blockedPublishers.length === 1 ? "" : "s"} blocked from your campaigns`}
+        icon={Ban}
+        gradient="revenue"
+      >
+        <AdvertiserBlockedPublishersTable
+          blockedPublishers={blockedPublishers.map((b) => ({
+            publisherId: b.publisherId,
+            createdAt: b.createdAt,
+          }))}
+        />
       </PageSection>
     </div>
   );

@@ -19,6 +19,8 @@ import {
   OPERATING_SYSTEMS,
   URL_TOKENS,
   VERTICALS,
+  DEFAULT_VERTICAL,
+  isValidTierCountrySelection,
 } from "@/lib/campaign-form";
 import { CampaignCountryField } from "@/components/advertiser/campaign-country-field";
 import { CampaignSearchMultiSelect } from "@/components/advertiser/campaign-search-multi-select";
@@ -203,7 +205,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
   const [endMode, setEndMode] = useState<EndMode>("forever");
   const [endDate, setEndDate] = useState(todayInputValue());
   const [trafficMode, setTrafficMode] = useState<TrafficMode>("allow");
-  const [vertical, setVertical] = useState("");
+  const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [blacklistedCountries, setBlacklistedCountries] = useState<string[]>([]);
   const [devices, setDevices] = useState<string[]>([]);
@@ -279,6 +281,16 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
     }
     if (insufficientBalance) {
       setError("You do not have enough balance to create a campaign. Please add funds to your account.");
+      return;
+    }
+    if (
+      trafficMode === "allow" &&
+      selectedCountries.length > 0 &&
+      !isValidTierCountrySelection(selectedCountries)
+    ) {
+      setError(
+        "Invalid country selection. Use specific countries within one tier, or select full tier(s) only.",
+      );
       return;
     }
 
@@ -531,22 +543,14 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
 
           <SectionCard step={3} title="Targeting" icon={Target} accentIndex={2}>
             <div className="space-y-2">
-              <Label htmlFor="vertical">Select a Vertical*</Label>
-              <select
+              <Label htmlFor="vertical">Vertical</Label>
+              <div
                 id="vertical"
-                value={vertical}
-                onChange={(e) => setVertical(e.target.value)}
-                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                required
+                className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800"
               >
-                <option value="">Search Verticals...</option>
-                {VERTICALS.map((item) => (
-                  <option key={item.label} value={item.label}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <FieldHint>You can select only one vertical.</FieldHint>
+                {DEFAULT_VERTICAL}
+              </div>
+              <FieldHint>Make Money Online campaigns only.</FieldHint>
             </div>
 
             <Tabs value={trafficMode} onValueChange={(v) => v && setTrafficMode(v as TrafficMode)}>
@@ -561,9 +565,11 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
 
               <TabsContent value="allow" className="mt-4 space-y-4">
                 <CampaignCountryField
-                  label="Country (Keep empty for all countries)"
+                  label="Specific Countries"
+                  hint="Leave empty for all countries. Pick specific countries within one tier, or use Select all to add full tiers (Tier 1 + Tier 2 + Tier 3 together)."
                   selected={selectedCountries}
                   onChange={setSelectedCountries}
+                  singleTierOnly
                 />
 
                 <TierPayoutInfoPanel payoutTiers={payoutTiers} cplValue={cplValue} />
@@ -590,7 +596,8 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                   label="Blacklisted Countries"
                   selected={blacklistedCountries}
                   onChange={setBlacklistedCountries}
-                  searchPlaceholder="Search Countries..."
+                  showTierButtons={false}
+                  searchPlaceholder="Search countries..."
                 />
 
                 <CampaignSearchMultiSelect
@@ -713,7 +720,11 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
             onAutoApproveChange={setAutoApprove}
           />
 
-          <BidRecommendationPanel cplValue={cplValue} />
+          <BidRecommendationPanel
+            cplValue={cplValue}
+            payoutTiers={payoutTiers}
+            selectedCountries={selectedCountries}
+          />
 
           <TierPayoutInfoPanel payoutTiers={payoutTiers} cplValue={cplValue} />
 

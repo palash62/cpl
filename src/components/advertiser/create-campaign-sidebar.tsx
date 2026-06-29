@@ -3,7 +3,7 @@
 import { Calendar, Globe, Layers, Sparkles, Target, TrendingUp, Wallet, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  getBidRecommendations,
+  getBidRecommendationsFromTiers,
   formatSummaryDate,
   formatSelectedCountriesSummary,
 } from "@/lib/campaign-form";
@@ -183,19 +183,40 @@ export function CampaignSummaryPanel({
 
 interface BidRecommendationPanelProps {
   cplValue: number;
+  payoutTiers: PayoutTiersDisplay;
+  selectedCountries: string[];
 }
 
-export function BidRecommendationPanel({ cplValue }: BidRecommendationPanelProps) {
-  const bids = getBidRecommendations(cplValue > 0 ? cplValue : 1);
+export function BidRecommendationPanel({
+  cplValue,
+  payoutTiers,
+  selectedCountries,
+}: BidRecommendationPanelProps) {
+  const bids = getBidRecommendationsFromTiers(payoutTiers, selectedCountries);
   const hasBid = cplValue > 0;
   const currentPct = hasBid
     ? Math.min(100, Math.round((cplValue / bids.maximum) * 100))
     : 0;
 
   const tiers = [
-    { key: "minimum", label: "Conservative", sub: "Lower volume", amount: bids.minimum, pct: 31 },
-    { key: "optimal", label: "Balanced", sub: "Recommended", amount: bids.optimal, pct: 41 },
-    { key: "maximum", label: "Aggressive", sub: "Higher volume", amount: bids.maximum, pct: 52 },
+    {
+      key: "minimum",
+      label: "Conservative",
+      sub: `Publisher payout from ${formatUsd(bids.payoutMin)}`,
+      amount: bids.minimum,
+    },
+    {
+      key: "optimal",
+      label: "Balanced",
+      sub: "Mid-tier payout target",
+      amount: bids.optimal,
+    },
+    {
+      key: "maximum",
+      label: "Aggressive",
+      sub: `Publisher payout up to ${formatUsd(bids.payoutMax)}`,
+      amount: bids.maximum,
+    },
   ] as const;
 
   return (
@@ -207,7 +228,7 @@ export function BidRecommendationPanel({ cplValue }: BidRecommendationPanelProps
             <h3 className="text-sm font-semibold text-slate-900">Bid Recommendation</h3>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Suggested CPL ranges based on your vertical and targeting
+            Suggested CPL bids based on tier payout ranges ({payoutTiers.publisherPayoutPercent}% publisher share)
           </p>
         </div>
         {hasBid && (
@@ -258,16 +279,14 @@ export function BidRecommendationPanel({ cplValue }: BidRecommendationPanelProps
                           : "var(--theme-gradient-revenue)",
                   }}
                 >
-                  {tier.pct}%
+                  {index + 1}
                 </span>
                 <div>
                   <p className="text-sm font-medium text-slate-800">{tier.label}</p>
                   <p className="text-xs text-slate-500">{tier.sub}</p>
                 </div>
               </div>
-              <p className="text-sm font-bold text-slate-900">
-                {hasBid ? `$${tier.amount.toFixed(2)}` : "—"}
-              </p>
+              <p className="text-sm font-bold text-slate-900">${tier.amount.toFixed(2)}</p>
             </div>
           );
         })}

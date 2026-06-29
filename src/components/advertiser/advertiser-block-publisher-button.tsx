@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Ban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,13 +15,12 @@ import {
 
 export function AdvertiserBlockPublisherButton({
   publisherId,
-  publisherName,
   blocked,
 }: {
   publisherId: string;
-  publisherName: string;
   blocked: boolean;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(blocked);
@@ -36,6 +36,7 @@ export function AdvertiserBlockPublisherButton({
       if (res.ok) {
         setIsBlocked(true);
         setOpen(false);
+        router.refresh();
       }
     } finally {
       setLoading(false);
@@ -51,6 +52,7 @@ export function AdvertiserBlockPublisherButton({
       );
       if (res.ok) {
         setIsBlocked(false);
+        router.refresh();
       }
     } finally {
       setLoading(false);
@@ -89,8 +91,9 @@ export function AdvertiserBlockPublisherButton({
         <DialogHeader>
           <DialogTitle>Block publisher</DialogTitle>
           <DialogDescription>
-            Block <strong>{publisherName}</strong> from all your campaigns? They will no longer
-            receive traffic from their Smart Link to your offers.
+            Block publisher <strong className="font-mono">{publisherId.slice(-8).toUpperCase()}</strong> from
+            all your campaigns? They will no longer receive traffic from their Smart Link to your
+            offers.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
