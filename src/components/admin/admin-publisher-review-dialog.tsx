@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Ban, CheckCircle2, Eye, MapPin, Users } from "lucide-react";
+import { Ban, CheckCircle2, Eye, MapPin, ShieldAlert, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { SpamScoreBadge, SpamScoreGuide, spamScoreLevel } from "@/components/admin/admin-ui";
 import { cn } from "@/lib/utils";
 
 type PublisherProfile = {
@@ -20,6 +21,9 @@ type PublisherProfile = {
   rejectionReason?: string | null;
   rejectedAt?: string | Date | null;
   kycStatus?: string | null;
+  qualityScore?: number | null;
+  spamScore?: number | null;
+  fraudFlags?: number | null;
 };
 
 type PublisherRow = {
@@ -32,10 +36,16 @@ type PublisherRow = {
 };
 
 export function AdminPublisherReviewDialog({ publisher }: { publisher: PublisherRow }) {
+  const profile = publisher.publisherProfile;
+  const spamScore = profile?.spamScore ?? null;
+  const highSpam = spamScore !== null && spamScoreLevel(spamScore) === "high";
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(
+    highSpam ? `High spam score (${spamScore}/100) — traffic quality below platform standards.` : "",
+  );
   const [status, setStatus] = useState(publisher.status);
 
   async function sendDecision(action: "approve" | "reject") {
@@ -65,8 +75,6 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
       setNote("");
     }
   }
-
-  const profile = publisher.publisherProfile;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -116,6 +124,53 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
                 <p className="text-xs text-slate-500">Country</p>
                 <p className="text-sm font-medium text-slate-900">{profile?.country || "—"}</p>
               </div>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "rounded-xl border p-4",
+              highSpam ? "border-red-200 bg-red-50/70" : "border-slate-200 bg-white",
+            )}
+          >
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <ShieldAlert className={cn("h-4 w-4", highSpam ? "text-red-600" : "text-[var(--theme-primary)]")} />
+              Spam & quality signals (30 days)
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <p className="text-xs text-slate-500">Spam score</p>
+                <div className="mt-1">
+                  <SpamScoreBadge score={spamScore} />
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">Avg lead risk (0 safe, 100 risky)</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <p className="text-xs text-slate-500">Quality score</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {profile?.qualityScore != null ? `${profile.qualityScore}%` : "—"}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500">Lead approval rate</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <p className="text-xs text-slate-500">Fraud flags</p>
+                <p className="text-sm font-semibold text-slate-900">{profile?.fraudFlags ?? 0}</p>
+                <p className="mt-1 text-[11px] text-slate-500">Quality warnings triggered</p>
+              </div>
+            </div>
+            {highSpam && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-700">
+                Spam score is {spamScore}/100 (high risk). Consider rejecting this publisher or
+                reviewing their recent leads before approval.
+              </p>
+            )}
+            {spamScore === null && (
+              <p className="mt-3 text-sm text-slate-500">
+                No scored leads yet — spam score will appear after the publisher submits traffic.
+              </p>
+            )}
+            <div className="mt-3">
+              <SpamScoreGuide compact />
             </div>
           </div>
 
@@ -189,8 +244,8 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
               </Button>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Rejecting a publisher will set the account to Suspended and show the note in their
-              settings page.
+              Rejecting sets the account to Suspended and shows the note on the publisher settings
+              page.
             </p>
           </div>
         </div>

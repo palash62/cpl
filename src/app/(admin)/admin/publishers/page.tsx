@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import { format } from "date-fns";
-import { Mail, Megaphone, UserCheck, Users, Share2 } from "lucide-react";
+import { Mail, Megaphone, ShieldAlert, UserCheck, Users, Share2 } from "lucide-react";
 import type { UserStatus } from "@prisma/client";
 import { listUsers } from "@/services/admin.service";
+import { getPublisherSpamScoresByIds } from "@/modules/fraud/repositories/quality.repo";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -13,6 +14,8 @@ import {
   formatCurrency,
   getInitials,
   KycStatusBadge,
+  SpamScoreBadge,
+  SpamScoreGuide,
   UserStatusBadge,
 } from "@/components/admin/admin-ui";
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
@@ -58,9 +61,27 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
     listUsers({ role: "PUBLISHER", limit: 500 }),
   ]);
 
+  const publisherIds = publishers.map((p) => p.id);
+  const allPublisherIds = allPublishers.map((p) => p.id);
+  const [pageSpamScores, allSpamScores] = await Promise.all([
+    getPublisherSpamScoresByIds(publisherIds),
+    getPublisherSpamScoresByIds(allPublisherIds),
+  ]);
+
+  function resolveSpamScore(publisherId: string, stored: number | null | undefined) {
+    return pageSpamScores.get(publisherId) ?? stored ?? null;
+  }
+
+  function resolveAllSpamScore(publisherId: string, stored: number | null | undefined) {
+    return allSpamScores.get(publisherId) ?? stored ?? null;
+  }
+
   const activeCount = allPublishers.filter((u) => u.status === "ACTIVE").length;
   const totalLeads = allPublishers.reduce((sum, u) => sum + u._count.leads, 0);
   const kycApproved = allPublishers.filter((u) => u.publisherProfile?.kycStatus === "APPROVED").length;
+  const highSpamCount = allPublishers.filter(
+    (u) => (resolveAllSpamScore(u.id, u.publisherProfile?.spamScore) ?? 0) >= 51,
+  ).length;
 
   const hasFilters = !!(params.q || params.status || params.from || params.to);
 
@@ -77,12 +98,15 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
         <AdminCreatePublisherDialog />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <GradientStatCard variant="leads" label="Total Leads Generated" value={totalLeads} icon={Megaphone} />
         <NeutralStatCard label="Total Publishers" value={allPublishers.length} icon={Users} accent="purple" />
         <NeutralStatCard label="Active Accounts" value={activeCount} icon={UserCheck} accent="green" />
         <NeutralStatCard label="KYC Approved" value={kycApproved} icon={Share2} accent="orange" />
+        <NeutralStatCard label="High Spam Score" value={highSpamCount} icon={ShieldAlert} accent="red" />
       </div>
+
+      <SpamScoreGuide />
 
       <PageSection
         title="Publisher Accounts"
@@ -119,6 +143,7 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                 <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
                   <TableHead className="h-11 px-6 text-slate-600">Publisher</TableHead>
                   <TableHead className="h-11 px-4 text-slate-600">KYC</TableHead>
+                  <TableHead className="h-11 px-4 text-center text-slate-600">Spam Score</TableHead>
                   <TableHead className="h-11 px-4 text-center text-slate-600">Leads</TableHead>
                   <TableHead className="h-11 px-4 text-right text-slate-600">Earnings</TableHead>
                   <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
@@ -129,6 +154,10 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
               <TableBody>
                 {publishers.map((publisher, index) => {
                   const balance = Number(publisher.wallet?.balance ?? 0);
+                  const spamScore = resolveSpamScore(
+                    publisher.id,
+                    publisher.publisherProfile?.spamScore,
+                  );
                   return (
                     <TableRow key={publisher.id} className="border-slate-100 transition-colors hover:bg-indigo-50/40">
                       <TableCell className="px-6 py-4">
@@ -155,6 +184,9 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                         )}
                       </TableCell>
                       <TableCell className="px-4 py-4 text-center">
+                        <SpamScoreBadge score={spamScore} />
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
                         <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-violet-50 px-2.5 py-1 text-sm font-semibold text-violet-700">
                           {publisher._count.leads}
                         </span>
@@ -172,7 +204,20 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <AdminPublisherReviewDialog publisher={publisher} />
+                          <AdminPublisherReviewDialog
+                            publisher={{
+                              ...publisher,
+                              publisherProfile: publisher.publisherProfile
+                                ? {
+                                    ...publisher.publisherProfile,
+                                    spamScore: resolveSpamScore(
+                                      publisher.id,
+                                      publisher.publisherProfile.spamScore,
+                                    ),
+                                  }
+                                : publisher.publisherProfile,
+                            }}
+                          />
                           <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
                         </div>
                       </TableCell>

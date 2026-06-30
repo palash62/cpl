@@ -26,7 +26,11 @@ export async function getFraudDashboardMetrics() {
       where: { rule: "disposable_email", passed: false },
     }),
     prisma.lead.count({ where: { riskScore: { gte: 51 } } }),
-    prisma.publisherProfile.count({ where: { qualityScore: { lt: 50 } } }),
+    prisma.publisherProfile.count({
+      where: {
+        OR: [{ qualityScore: { lt: 50 } }, { spamScore: { gte: 51 } }],
+      },
+    }),
     prisma.ipBlocklist.count(),
     prisma.lead.aggregate({ _avg: { riskScore: true }, where: { riskScore: { not: null } } }),
     prisma.lead.count({ where: { riskScore: { gte: 51 }, status: { not: "REJECTED" } } }),

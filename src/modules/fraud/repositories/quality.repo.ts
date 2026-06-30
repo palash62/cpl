@@ -25,6 +25,39 @@ export async function computePublisherQualityScore(publisherId: string, windowDa
   return Math.round((approved / total) * 1000) / 10;
 }
 
+export async function computePublisherSpamScore(publisherId: string, windowDays = 30) {
+  const since = subDays(new Date(), windowDays);
+  const agg = await prisma.lead.aggregate({
+    where: {
+      publisherId,
+      createdAt: { gte: since },
+      riskScore: { not: null },
+    },
+    _avg: { riskScore: true },
+    _count: { id: true },
+  });
+
+  if (agg._count.id === 0) return null;
+  return Math.round(agg._avg.riskScore ?? 0);
+}
+
+export async function getPublisherSpamScoresByIds(publisherIds: string[], windowDays = 30) {
+  if (publisherIds.length === 0) return new Map<string, number>();
+
+  const since = subDays(new Date(), windowDays);
+  const rows = await prisma.lead.groupBy({
+    by: ["publisherId"],
+    where: {
+      publisherId: { in: publisherIds },
+      createdAt: { gte: since },
+      riskScore: { not: null },
+    },
+    _avg: { riskScore: true },
+  });
+
+  return new Map(rows.map((row) => [row.publisherId, Math.round(row._avg.riskScore ?? 0)]));
+}
+
 export async function computeCampaignRejectionRate(campaignId: string, sampleSize = 100) {
   const leads = await prisma.lead.findMany({
     where: { campaignId, status: { in: ["APPROVED", "PAID", "REJECTED", "PENDING"] } },

@@ -36,7 +36,9 @@ By default, **Use risk-based decisions** is **off**. Fraud scores are recorded o
 
 ## Publisher quality
 
-Publishers receive a rolling **30-day quality score** (approval rate). Scores below 50% trigger admin alerts. Campaigns with very high rejection rates also notify admins.
+Publishers receive a rolling **30-day quality score** (approval rate) and **spam score** (average lead risk 0–100). Quality below 50% or spam score at 51+ triggers admin alerts. Review both metrics in **Admin → Publishers** when approving or rejecting accounts.
+
+Campaigns with very high rejection rates also notify admins.
 
 ## Optional API providers
 

@@ -208,6 +208,7 @@ model PublisherProfile {
   rejectedAt    DateTime? @map("rejected_at")
   kycStatus     KycStatus @default(NOT_SUBMITTED) @map("kyc_status")
   qualityScore  Float     @default(100) @map("quality_score")
+  spamScore     Float?    @map("spam_score")
   qualityWarningAt DateTime? @map("quality_warning_at")
   fraudFlags    Int       @default(0) @map("fraud_flags")
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
