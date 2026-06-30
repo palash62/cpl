@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { AppError, Errors } from "@/lib/errors";
+import { notifyPasswordChanged } from "@/services/notify.service";
 
 export async function getAdvertiserSettings(userId: string) {
   return prisma.user.findUnique({
@@ -114,8 +115,45 @@ export async function changeUserPassword(
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { passwordHash },
+    select: { id: true, email: true, name: true },
   });
+
+  void notifyPasswordChanged(updated);
+}
+
+export async function resetUserPasswordWithToken(token: string, newPassword: string) {
+  const { consumePasswordResetToken } = await import("@/services/auth-token.service");
+  const user = await consumePasswordResetToken(token);
+  if (!user) {
+    throw new AppError("AUTH_INVALID_TOKEN", "This reset link is invalid or has expired", 422);
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+    select: { id: true, email: true, name: true },
+  });
+
+  void notifyPasswordChanged(updated);
+  return updated;
+}
+
+export async function requestPasswordReset(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: { id: true, email: true, name: true, status: true },
+  });
+
+  if (!user || user.status === "SUSPENDED") {
+    return;
+  }
+
+  const { createPasswordResetToken } = await import("@/services/auth-token.service");
+  const { notifyPasswordReset } = await import("@/services/notify.service");
+  const token = await createPasswordResetToken(user.id);
+  await notifyPasswordReset(user, token);
 }

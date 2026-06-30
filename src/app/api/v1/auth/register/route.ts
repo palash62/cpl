@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/errors";
 import { resolveReferrerId } from "@/services/referral.service";
+import { createEmailVerificationToken } from "@/services/auth-token.service";
+import {
+  notifyAdminAlert,
+  notifyEmailVerification,
+  notifyReferralSignup,
+  notifyWelcome,
+} from "@/services/notify.service";
 
 export async function POST(request: Request) {
   try {
@@ -54,6 +61,40 @@ export async function POST(request: Request) {
 
       return created;
     });
+
+    void (async () => {
+      await notifyWelcome({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      });
+
+      const verifyToken = await createEmailVerificationToken(user.id);
+      await notifyEmailVerification(
+        { id: user.id, email: user.email, name: user.name },
+        verifyToken,
+      );
+
+      const roleLabel = user.role === "PUBLISHER" ? "publisher" : "advertiser";
+      await notifyAdminAlert({
+        title: `New ${roleLabel} registration`,
+        message: `${user.name} (${user.email}) registered and is pending review.`,
+        actionPath:
+          user.role === "PUBLISHER" ? "/admin/publishers" : "/admin/advertisers",
+        metadata: { userId: user.id, role: user.role },
+      });
+
+      if (referredById) {
+        const referrer = await prisma.user.findUnique({
+          where: { id: referredById },
+          select: { id: true, email: true, name: true },
+        });
+        if (referrer) {
+          await notifyReferralSignup(referrer, { name: user.name, email: user.email });
+        }
+      }
+    })();
 
     return Response.json(
       { user: { id: user.id, email: user.email, role: user.role, status: user.status } },

@@ -3,8 +3,107 @@ import { validateLead } from "@/lib/lead-validation";
 import { Errors } from "@/lib/errors";
 import { processLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
+import { notifyGeneric, notifyRejected } from "@/services/notify.service";
 import type { LeadStatus } from "@prisma/client";
 import { subDays } from "date-fns";
+
+async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?: string) {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: {
+      campaign: {
+        include: { advertiser: { select: { id: true, email: true, name: true } } },
+      },
+      publisher: { select: { id: true, email: true, name: true } },
+    },
+  });
+  if (!lead) return;
+
+  const campaignName = lead.campaign.name;
+  const isOptin = lead.source === "optin";
+
+  if (status === "PENDING") {
+    void notifyGeneric(lead.campaign.advertiser, {
+      title: "New lead awaiting review",
+      message: `A new lead was submitted for campaign "${campaignName}".`,
+      actionPath: "/advertiser/leads",
+      notificationType: "lead.pending",
+    });
+    return;
+  }
+
+  if (status === "REJECTED" && !isOptin) {
+    void notifyRejected(
+      lead.publisher,
+      "Lead",
+      reason || "Lead did not pass validation.",
+      undefined,
+      "lead.rejected",
+    );
+    return;
+  }
+
+  if ((status === "APPROVED" || status === "PAID") && !isOptin) {
+    void notifyGeneric(lead.publisher, {
+      title: status === "PAID" ? "Lead paid" : "Lead approved",
+      message: `A lead for campaign "${campaignName}" was approved and earnings were credited.`,
+      actionPath: "/publisher/earnings",
+      notificationType: "lead.approved",
+    });
+  }
+}
+
+async function notifyInsufficientLeadFunds(leadId: string) {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: {
+      campaign: { include: { advertiser: { select: { id: true, email: true, name: true } } } },
+    },
+  });
+  if (!lead) return;
+
+  void notifyGeneric(lead.campaign.advertiser, {
+    title: "Insufficient wallet balance",
+    message: `A lead for "${lead.campaign.name}" could not be paid because your wallet balance is too low.`,
+    actionPath: "/advertiser/wallet",
+    notificationType: "lead.payment_failed",
+  });
+}
+
+async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, rejectionReason?: string) {
+  if (nextStatus === "REJECTED") {
+    void notifyForLeadOutcome(leadId, "REJECTED", rejectionReason);
+    return;
+  }
+
+  if (nextStatus === "PENDING") {
+    void notifyForLeadOutcome(leadId, "PENDING");
+    return;
+  }
+
+  if (nextStatus === "APPROVED") {
+    try {
+      await processLeadPayment(leadId);
+      void notifyForLeadOutcome(leadId, "PAID");
+    } catch {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          status: "PENDING",
+          statusHistory: {
+            create: {
+              fromStatus: "APPROVED",
+              toStatus: "PENDING",
+              reason: "Insufficient advertiser funds",
+            },
+          },
+        },
+      });
+      void notifyForLeadOutcome(leadId, "PENDING");
+      void notifyInsufficientLeadFunds(leadId);
+    }
+  }
+}
 
 export async function submitLead(input: {
   slug: string;
@@ -110,25 +209,7 @@ export async function submitLead(input: {
     },
   });
 
-  if (nextStatus === "APPROVED") {
-    try {
-      await processLeadPayment(lead.id);
-    } catch {
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          status: "PENDING",
-          statusHistory: {
-            create: {
-              fromStatus: "APPROVED",
-              toStatus: "PENDING",
-              reason: "Insufficient advertiser funds",
-            },
-          },
-        },
-      });
-    }
-  }
+  await finalizeLeadStatus(lead.id, nextStatus);
 
   return prisma.lead.findUniqueOrThrow({
     where: { id: lead.id },
@@ -239,25 +320,7 @@ export async function submitOptinLead(input: {
     },
   });
 
-  if (nextStatus === "APPROVED") {
-    try {
-      await processLeadPayment(lead.id);
-    } catch {
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          status: "PENDING",
-          statusHistory: {
-            create: {
-              fromStatus: "APPROVED",
-              toStatus: "PENDING",
-              reason: "Insufficient advertiser funds",
-            },
-          },
-        },
-      });
-    }
-  }
+  await finalizeLeadStatus(lead.id, nextStatus);
 
   return prisma.lead.findUniqueOrThrow({
     where: { id: lead.id },
@@ -293,7 +356,9 @@ export async function updateLeadStatus(
   });
 
   if (status === "APPROVED") {
-    await processLeadPayment(leadId);
+    await finalizeLeadStatus(leadId, "APPROVED");
+  } else {
+    void notifyForLeadOutcome(leadId, "REJECTED", reason);
   }
 
   return prisma.lead.findUniqueOrThrow({ where: { id: leadId } });

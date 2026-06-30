@@ -20,6 +20,7 @@ function templateToPreviewPage(
     id: "preview",
     slug: page?.slug ?? "preview",
     title,
+    destinationUrl: page?.destinationUrl ?? null,
     campaignId: null,
     templateId: template.id,
     headline: usePageContent && page ? page.headline : template.headline,

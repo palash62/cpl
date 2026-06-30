@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { TicketCategory } from "@prisma/client";
+import { notifyAdminAlert, notifyGeneric } from "@/services/notify.service";
 
 const TICKET_CATEGORIES: TicketCategory[] = [
   "GENERAL",
@@ -61,7 +62,15 @@ export async function createTicket(
         create: { senderId: userId, body: body.trim() },
       },
     },
-    include: { messages: true },
+    include: { messages: true, user: { select: { id: true, email: true, name: true } } },
+  }).then(async (ticket) => {
+    void notifyAdminAlert({
+      title: "New support ticket",
+      message: `${ticket.user.name} opened "${ticket.subject}" (${ticketCategory}).`,
+      actionPath: "/admin/support",
+      metadata: { ticketId: ticket.id },
+    });
+    return ticket;
   });
 }
 
@@ -121,8 +130,33 @@ export async function addTicketMessage(
         orderBy: { createdAt: "asc" },
         include: { sender: { select: { name: true, role: true } } },
       },
-      user: { select: { name: true, email: true, role: true } },
+      user: { select: { name: true, email: true, role: true, id: true } },
     },
+  }).then(async (ticket) => {
+    if (isInternal) return ticket;
+
+    if (sender?.role === "ADMIN") {
+      const supportPath =
+        ticket.user.role === "ADVERTISER" ? "/advertiser/support" : "/publisher/support";
+      void notifyGeneric(
+        { id: ticket.user.id, email: ticket.user.email, name: ticket.user.name },
+        {
+          title: "Support reply",
+          message: `Admin replied to your ticket "${ticket.subject}".`,
+          actionPath: supportPath,
+          notificationType: "support.reply",
+        },
+      );
+    } else {
+      void notifyAdminAlert({
+        title: "Support ticket reply",
+        message: `${ticket.user.name} replied to "${ticket.subject}".`,
+        actionPath: "/admin/support",
+        metadata: { ticketId },
+      });
+    }
+
+    return ticket;
   });
 }
 

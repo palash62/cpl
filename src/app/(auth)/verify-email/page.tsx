@@ -1,0 +1,69 @@
+"use client";
+
+import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthLayout } from "@/components/layout/auth-layout";
+
+function VerifyEmailContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!token) {
+      setStatus("error");
+      setMessage("Invalid verification link.");
+      return;
+    }
+
+    fetch(`/api/v1/auth/verify-email?token=${encodeURIComponent(token)}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setStatus("error");
+          setMessage(data?.error?.message ?? "Verification failed.");
+          return;
+        }
+        setStatus("success");
+        setMessage(data?.message ?? "Email verified successfully.");
+      })
+      .catch(() => {
+        setStatus("error");
+        setMessage("Verification failed. Please try again.");
+      });
+  }, [token]);
+
+  return (
+    <>
+      {status === "loading" && <p className="text-sm text-slate-500">Verifying your email...</p>}
+      {status === "success" && (
+        <Alert>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      )}
+      {status === "error" && (
+        <Alert variant="destructive">
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <AuthLayout title="Verify email" description="Confirming your email address">
+      <Suspense fallback={<p className="text-sm text-slate-500">Loading...</p>}>
+        <VerifyEmailContent />
+      </Suspense>
+      <p className="mt-4 text-center text-sm text-slate-500">
+        <Link href="/login" className="font-medium text-[var(--theme-primary)] hover:underline">
+          Go to sign in
+        </Link>
+      </p>
+    </AuthLayout>
+  );
+}

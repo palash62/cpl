@@ -1,8 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { debitWallet, getPlatformSettings } from "@/services/wallet.service";
 import { Errors } from "@/lib/errors";
-import { isPendingPayoutStatus } from "@/lib/payout-status";
-import type { PayoutMethod } from "@prisma/client";
+import { isPendingPayoutStatus, PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
+import { payoutPublisherSelect } from "@/lib/payout";
+import type { Prisma, PayoutMethod } from "@prisma/client";
+import {
+  notifyAdminAlert,
+  notifyApproved,
+  notifyRejected,
+} from "@/services/notify.service";
 
 export async function requestPayout(
   publisherId: string,
@@ -39,6 +45,14 @@ export async function requestPayout(
       idempotencyKey,
       status: "PENDING",
     },
+    include: { publisher: { select: { id: true, name: true, email: true } } },
+  });
+
+  void notifyAdminAlert({
+    title: "New payout request",
+    message: `${payout.publisher.name} requested ${method} payout of $${amount.toFixed(2)}.`,
+    actionPath: "/admin/payouts",
+    metadata: { payoutId: payout.id },
   });
 
   return payout;
@@ -78,7 +92,19 @@ export async function approvePayout(payoutId: string, adminId: string) {
     });
   });
 
-  return prisma.payout.findUniqueOrThrow({ where: { id: payoutId } });
+  const updated = await prisma.payout.findUniqueOrThrow({
+    where: { id: payoutId },
+    include: { publisher: { select: { id: true, name: true, email: true } } },
+  });
+
+  void notifyApproved(
+    updated.publisher,
+    "Payout request",
+    `$${Number(updated.amount).toFixed(2)} has been processed to your payment method.`,
+    "payout.approved",
+  );
+
+  return updated;
 }
 
 export async function rejectPayout(payoutId: string, adminId: string, reason: string) {
@@ -117,7 +143,99 @@ export async function rejectPayout(payoutId: string, adminId: string, reason: st
     });
   });
 
-  return prisma.payout.findUniqueOrThrow({ where: { id: payoutId } });
+  const updated = await prisma.payout.findUniqueOrThrow({
+    where: { id: payoutId },
+    include: { publisher: { select: { id: true, name: true, email: true } } },
+  });
+
+  void notifyRejected(
+    updated.publisher,
+    "Payout request",
+    trimmedReason,
+    undefined,
+    "payout.rejected",
+  );
+
+  return updated;
+}
+
+export async function listPendingPayouts() {
+  return prisma.payout.findMany({
+    where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
+    include: { publisher: { select: payoutPublisherSelect } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function listAdminPayouts(options: {
+  publisherId?: string;
+  status?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  page?: number;
+  limit?: number;
+}) {
+  const page = Math.max(1, options.page ?? 1);
+  const limit = Math.min(50, Math.max(1, options.limit ?? 20));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.PayoutWhereInput = {};
+
+  if (options.publisherId) {
+    where.publisherId = options.publisherId;
+  }
+
+  if (options.status && options.status !== "all") {
+    where.status = options.status as never;
+  }
+
+  if (options.dateFrom || options.dateTo) {
+    where.createdAt = {};
+    if (options.dateFrom) {
+      const from = new Date(options.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      where.createdAt.gte = from;
+    }
+    if (options.dateTo) {
+      const to = new Date(options.dateTo);
+      to.setHours(23, 59, 59, 999);
+      where.createdAt.lte = to;
+    }
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.payout.findMany({
+      where,
+      include: { publisher: { select: payoutPublisherSelect } },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.payout.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
+}
+
+export async function listPayoutPublisherOptions() {
+  return prisma.user.findMany({
+    where: { role: "PUBLISHER" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      publisherProfile: { select: { website: true } },
+    },
+    orderBy: { name: "asc" },
+  });
 }
 
 export async function listPayouts(filters: {

@@ -4,6 +4,13 @@ import {
   calculatePublisherPayout,
   parsePlatformSettings,
 } from "@/lib/platform-settings";
+import {
+  notifyAdminAlert,
+  notifyApproved,
+  notifyGeneric,
+  notifyRejected,
+  notifyUserById,
+} from "@/services/notify.service";
 
 export async function getPlatformSettings() {
   const settings = await prisma.platformSetting.findMany();
@@ -129,8 +136,9 @@ export async function processLeadPayment(leadId: string) {
     const spent = Number(lead.campaign.spent) + cpl;
     const budget = Number(lead.campaign.budget);
     const updateData: Prisma.CampaignUpdateInput = { spent };
+    const pausedForBudget = spent >= budget;
 
-    if (spent >= budget) {
+    if (pausedForBudget) {
       updateData.status = "PAUSED";
     }
 
@@ -143,6 +151,17 @@ export async function processLeadPayment(leadId: string) {
       where: { id: leadId },
       data: { status: "PAID" },
     });
+
+    return { pausedForBudget, campaignName: lead.campaign.name, advertiserId: lead.campaign.advertiserId };
+  }).then(async (result) => {
+    if (result?.pausedForBudget) {
+      void notifyUserById(result.advertiserId, {
+        title: "Campaign paused",
+        message: `Campaign "${result.campaignName}" has been paused because its budget has been reached.`,
+        actionPath: "/advertiser/campaigns",
+        notificationType: "campaign.paused",
+      });
+    }
   });
 }
 
@@ -289,6 +308,20 @@ export async function createCreditCardDeposit(userId: string, amount: number) {
 
     await creditWallet(tx, userId, amount, "deposit", deposit.id, "Credit card deposit");
 
+    return { deposit, userId };
+  }).then(async ({ deposit, userId }) => {
+    void notifyGeneric(
+      await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { id: true, email: true, name: true },
+      }),
+      {
+        title: "Deposit received",
+        message: `Your credit card deposit of $${amount.toFixed(2)} has been credited to your wallet.`,
+        actionPath: "/advertiser/wallet",
+        notificationType: "deposit.completed",
+      },
+    );
     return deposit;
   });
 }
@@ -307,7 +340,7 @@ export async function createWiseDeposit(
         }
       : undefined;
 
-  return prisma.deposit.create({
+  const deposit = await prisma.deposit.create({
     data: {
       userId,
       amount,
@@ -316,7 +349,25 @@ export async function createWiseDeposit(
       wiseReference,
       paymentDetails: details,
     },
+    include: { user: { select: { id: true, name: true, email: true } } },
   });
+
+  void (async () => {
+    await notifyGeneric(deposit.user, {
+      title: "Wise deposit submitted",
+      message: `We received your Wise deposit request for $${amount.toFixed(2)}. Reference: ${wiseReference}. It will be reviewed shortly.`,
+      actionPath: "/advertiser/wallet",
+      notificationType: "deposit.pending",
+    });
+    await notifyAdminAlert({
+      title: "Wise deposit pending approval",
+      message: `${deposit.user.name} submitted a Wise deposit of $${amount.toFixed(2)} (ref: ${wiseReference}).`,
+      actionPath: "/admin/deposits",
+      metadata: { depositId: deposit.id },
+    });
+  })();
+
+  return deposit;
 }
 
 export async function listPendingDeposits() {
@@ -455,7 +506,19 @@ export async function approveDeposit(depositId: string, adminId: string) {
     });
   });
 
-  return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
+  const updated = await prisma.deposit.findUniqueOrThrow({
+    where: { id: depositId },
+    include: { user: { select: { id: true, email: true, name: true } } },
+  });
+
+  void notifyApproved(
+    updated.user,
+    "Wise deposit",
+    `$${Number(updated.amount).toFixed(2)} has been credited to your wallet.`,
+    "deposit.approved",
+  );
+
+  return updated;
 }
 
 export async function rejectDeposit(depositId: string, adminId: string, reason: string) {
@@ -488,5 +551,12 @@ export async function rejectDeposit(depositId: string, adminId: string, reason: 
     });
   });
 
-  return prisma.deposit.findUniqueOrThrow({ where: { id: depositId } });
+  const updated = await prisma.deposit.findUniqueOrThrow({
+    where: { id: depositId },
+    include: { user: { select: { id: true, email: true, name: true } } },
+  });
+
+  void notifyRejected(updated.user, "Wise deposit", reason, undefined, "deposit.rejected");
+
+  return updated;
 }

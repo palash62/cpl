@@ -3,6 +3,7 @@ import { errorResponse } from "@/lib/errors";
 import { adminCreateCampaignSchema, campaignSchema } from "@/lib/validations";
 import { prisma } from "@/lib/prisma";
 import { createCampaign, listCampaigns } from "@/services/campaign.service";
+import { notifyAdminAlert } from "@/services/notify.service";
 import {
   linkOptinPageToCampaign,
   resolveOptinPageDestination,
@@ -137,6 +138,13 @@ export async function POST(request: Request) {
           ...parsed.data,
           status: "PENDING",
         },
+      });
+
+      void notifyAdminAlert({
+        title: "Campaign pending review",
+        message: `${session.user.name} submitted "${campaign.name}" for approval.`,
+        actionPath: "/admin/campaigns",
+        metadata: { campaignId: campaign.id, advertiserId: session.user.id },
       });
 
       return Response.json({ data: campaign }, { status: 201 });

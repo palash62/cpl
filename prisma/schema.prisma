@@ -153,6 +153,8 @@ model User {
   auditLogs         AuditLog[]
   leadStatusChanges LeadStatusHistory[]
   optinPage         AdvertiserOptinPage?
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@index([role])
   @@index([status])
@@ -578,4 +580,47 @@ model IpBlocklist {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("ip_blocklist")
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  template  String
+  subject   String
+  status    String
+  error     String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("email_logs")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }

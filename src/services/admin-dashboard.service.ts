@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { getAdminProfitSnapshots } from "@/services/admin-profit.service";
 import {
@@ -409,6 +410,13 @@ export async function getAdminControlCenterData(adminUserId: string) {
     { name: "Leads", value: totalLeads },
   ];
 
+  const emailConfig = await getResolvedEmailConfig();
+  const emailHealthLabel = emailConfig.enabled
+    ? emailConfig.source === "database"
+      ? "Configured (admin)"
+      : "Configured (env)"
+    : "Console only";
+
   return {
     platformStatus: dbHealthy ? ("Operational" as const) : ("Degraded" as const),
     summary: {
@@ -471,7 +479,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
     platformHealth: {
       database: dbHealthy ? "Healthy" : "Down",
       api: "Healthy",
-      email: "Healthy",
+      email: emailHealthLabel,
       backgroundJobs: "Healthy",
       cache: "Healthy",
     },

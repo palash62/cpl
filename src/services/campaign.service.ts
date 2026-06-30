@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createPixelToken } from "@/lib/campaign-pixel.server";
 import type { CampaignCategory, CampaignStatus, PublisherAccess } from "@prisma/client";
+import { notifyAdminAlert, notifyApproved, notifyGeneric } from "@/services/notify.service";
 
 export interface CreateCampaignInput {
   advertiserId: string;
@@ -202,18 +203,38 @@ export async function getCampaignById(id: string) {
 }
 
 export async function updateCampaignStatus(id: string, status: CampaignStatus) {
-  return prisma.campaign.update({ where: { id }, data: { status } });
+  const campaign = await prisma.campaign.update({
+    where: { id },
+    data: { status },
+    include: { advertiser: { select: { id: true, email: true, name: true } } },
+  });
+
+  void notifyGeneric(campaign.advertiser, {
+    title: "Campaign status updated",
+    message: `Your campaign "${campaign.name}" is now ${status.replace(/_/g, " ").toLowerCase()}.`,
+    actionPath: "/advertiser/campaigns",
+    notificationType: "campaign.status_changed",
+  });
+
+  return campaign;
 }
 
 export async function joinCampaign(publisherId: string, campaignId: string) {
-  const campaign = await prisma.campaign.findUniqueOrThrow({
-    where: { id: campaignId },
-  });
+  const [campaign, publisher] = await Promise.all([
+    prisma.campaign.findUniqueOrThrow({
+      where: { id: campaignId },
+      include: { advertiser: { select: { id: true, email: true, name: true } } },
+    }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: publisherId },
+      select: { id: true, email: true, name: true },
+    }),
+  ]);
 
   const status =
     campaign.publisherAccess === "OPEN" ? "APPROVED" : "PENDING";
 
-  return prisma.publisherCampaign.upsert({
+  const join = await prisma.publisherCampaign.upsert({
     where: {
       publisherId_campaignId: { publisherId, campaignId },
     },
@@ -225,6 +246,24 @@ export async function joinCampaign(publisherId: string, campaignId: string) {
     },
     update: {},
   });
+
+  if (status === "PENDING") {
+    void notifyGeneric(campaign.advertiser, {
+      title: "Publisher join request",
+      message: `${publisher.name} requested to join your campaign "${campaign.name}".`,
+      actionPath: "/advertiser/campaigns",
+      notificationType: "campaign.publisher_join_pending",
+    });
+  } else {
+    void notifyApproved(
+      publisher,
+      "Campaign access",
+      `You can now promote "${campaign.name}".`,
+      "campaign.join_approved",
+    );
+  }
+
+  return join;
 }
 
 export async function createTrackingLink(publisherId: string, campaignId: string) {

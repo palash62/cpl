@@ -1,5 +1,6 @@
 import { campaignExcludesBlockedPublishers } from "@/lib/campaign-targeting";
 import { prisma } from "@/lib/prisma";
+import { notifyGeneric, notifyUserById } from "@/services/notify.service";
 import { createTrackingLink } from "@/services/campaign.service";
 import type { Campaign, PublisherSmartLink, User } from "@prisma/client";
 
@@ -169,19 +170,49 @@ export async function blockPublisher(
   publisherId: string,
   reason?: string,
 ) {
-  return prisma.advertiserPublisherBlock.upsert({
-    where: {
-      advertiserId_publisherId: { advertiserId, publisherId },
-    },
-    create: { advertiserId, publisherId, reason },
-    update: { reason },
-  });
+  const [block, publisher] = await Promise.all([
+    prisma.advertiserPublisherBlock.upsert({
+      where: {
+        advertiserId_publisherId: { advertiserId, publisherId },
+      },
+      create: { advertiserId, publisherId, reason },
+      update: { reason },
+    }),
+    prisma.user.findUnique({
+      where: { id: publisherId },
+      select: { id: true, email: true, name: true },
+    }),
+  ]);
+
+  if (publisher) {
+    void notifyGeneric(publisher, {
+      title: "Access restricted",
+      message: reason?.trim()
+        ? `An advertiser has blocked you from their campaigns. Reason: ${reason.trim()}`
+        : "An advertiser has blocked you from their campaigns.",
+      actionPath: "/publisher/marketplace",
+      notificationType: "publisher.blocked",
+    });
+  }
+
+  return block;
 }
 
 export async function unblockPublisher(advertiserId: string, publisherId: string) {
-  return prisma.advertiserPublisherBlock.deleteMany({
+  const result = await prisma.advertiserPublisherBlock.deleteMany({
     where: { advertiserId, publisherId },
   });
+
+  if (result.count > 0) {
+    void notifyUserById(publisherId, {
+      title: "Access restored",
+      message: "An advertiser has unblocked you. You may join their campaigns again.",
+      actionPath: "/publisher/marketplace",
+      notificationType: "publisher.unblocked",
+    });
+  }
+
+  return result;
 }
 
 export async function listBlockedPublishers(advertiserId: string) {

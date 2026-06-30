@@ -9,6 +9,15 @@ import {
   platformSettingsToUpdates,
   settingsConfigToApi,
 } from "@/lib/platform-settings";
+import {
+  notifyAccountActivated,
+  notifyAccountSuspended,
+  notifyAdminAlert,
+  notifyApproved,
+  notifyPublisherCredentials,
+  notifyRejected,
+  notifyUserById,
+} from "@/services/notify.service";
 
 export async function listUsers(filters: {
   role?: UserRole;
@@ -92,6 +101,11 @@ export async function listUsers(filters: {
 }
 
 export async function updateUserStatus(userId: string, status: UserStatus, adminId: string) {
+  const previous = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, status: true, role: true },
+  });
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: { status },
@@ -106,6 +120,16 @@ export async function updateUserStatus(userId: string, status: UserStatus, admin
       metadata: { status },
     },
   });
+
+  if (previous && previous.status !== status) {
+    void (async () => {
+      if (status === "ACTIVE") {
+        await notifyAccountActivated(previous);
+      } else if (status === "SUSPENDED") {
+        await notifyAccountSuspended(previous);
+      }
+    })();
+  }
 
   return user;
 }
@@ -176,6 +200,13 @@ export async function createPublisherAccount(data: {
     },
   });
 
+  void notifyPublisherCredentials({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    tempPassword,
+  });
+
   return { user, tempPassword };
 }
 
@@ -183,6 +214,7 @@ export async function approvePublisher(userId: string, adminId: string) {
   const user = await prisma.user.update({
     where: { id: userId },
     data: { status: "ACTIVE" },
+    select: { id: true, email: true, name: true },
   });
 
   await prisma.publisherProfile.updateMany({
@@ -200,6 +232,8 @@ export async function approvePublisher(userId: string, adminId: string) {
     },
   });
 
+  void notifyApproved(user, "Publisher account", undefined, "publisher.approved");
+
   return user;
 }
 
@@ -211,6 +245,7 @@ export async function rejectPublisher(
   const user = await prisma.user.update({
     where: { id: userId },
     data: { status: "SUSPENDED" },
+    select: { id: true, email: true, name: true },
   });
 
   await prisma.publisherProfile.updateMany({
@@ -228,6 +263,8 @@ export async function rejectPublisher(
     },
   });
 
+  void notifyRejected(user, "Publisher account", reason, undefined, "publisher.rejected");
+
   return user;
 }
 
@@ -239,6 +276,7 @@ export async function approveCampaign(campaignId: string, adminId: string) {
       rejectionReason: null,
       rejectedAt: null,
     },
+    include: { advertiser: { select: { id: true, email: true, name: true } } },
   });
 
   await prisma.auditLog.create({
@@ -250,6 +288,13 @@ export async function approveCampaign(campaignId: string, adminId: string) {
       metadata: { status: "ACTIVE" },
     },
   });
+
+  void notifyApproved(
+    campaign.advertiser,
+    `Campaign "${campaign.name}"`,
+    "Your campaign is now active and can receive traffic.",
+    "campaign.approved",
+  );
 
   return campaign;
 }
@@ -266,6 +311,7 @@ export async function rejectCampaign(
       rejectionReason: reason,
       rejectedAt: new Date(),
     },
+    include: { advertiser: { select: { id: true, email: true, name: true } } },
   });
 
   await prisma.auditLog.create({
@@ -277,6 +323,14 @@ export async function rejectCampaign(
       metadata: { status: "ARCHIVED", reason },
     },
   });
+
+  void notifyRejected(
+    campaign.advertiser,
+    `Campaign "${campaign.name}"`,
+    reason,
+    undefined,
+    "campaign.rejected",
+  );
 
   return campaign;
 }
@@ -452,5 +506,19 @@ export async function adjustWallet(
         metadata: { amount, type, reason },
       },
     });
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const walletPath =
+    user?.role === "PUBLISHER" ? "/publisher/earnings" : "/advertiser/wallet";
+
+  void notifyUserById(userId, {
+    title: "Wallet adjustment",
+    message: `An admin ${type === "CREDIT" ? "credited" : "debited"} $${amount.toFixed(2)} to your wallet. Reason: ${reason}`,
+    actionPath: walletPath,
+    notificationType: "wallet.adjusted",
   });
 }

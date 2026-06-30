@@ -1,0 +1,298 @@
+import {
+  renderAdminAlertEmail,
+  renderApprovedEmail,
+  renderCredentialsEmail,
+  renderEmailVerificationEmail,
+  renderGenericEmail,
+  renderPasswordResetEmail,
+  renderRejectedEmail,
+  renderWelcomeEmail,
+} from "@/lib/email/templates";
+import type { EmailTemplateId } from "@/lib/email/types";
+import { prisma } from "@/lib/prisma";
+import { sendEmail, getAdminAlertEmail } from "@/services/email.service";
+import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
+import { createNotification } from "@/services/notification.service";
+
+async function baseParams(recipientName?: string) {
+  const config = await getResolvedEmailConfig();
+  return { appUrl: config.appUrl, recipientName };
+}
+
+async function deliver(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  template: EmailTemplateId;
+  metadata?: Record<string, unknown>;
+  userId?: string;
+  notificationType?: string;
+  notificationTitle?: string;
+  notificationBody?: string;
+}) {
+  const tasks: Promise<unknown>[] = [
+    sendEmail({
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      template: params.template,
+      metadata: params.metadata,
+    }),
+  ];
+
+  if (params.userId && params.notificationType && params.notificationTitle && params.notificationBody) {
+    tasks.push(
+      createNotification(
+        params.userId,
+        params.notificationType,
+        params.notificationTitle,
+        params.notificationBody,
+      ),
+    );
+  }
+
+  await Promise.allSettled(tasks);
+}
+
+export async function notifyWelcome(user: { id: string; email: string; name: string; role: string }) {
+  const rendered = renderWelcomeEmail({ ...(await baseParams(user.name)), role: user.role });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "welcome",
+    userId: user.id,
+    notificationType: "auth.welcome",
+    notificationTitle: "Welcome to CPL Platform",
+    notificationBody: "Your account is pending review. We will notify you when it is activated.",
+  });
+}
+
+export async function notifyAccountActivated(user: { id: string; email: string; name: string }) {
+  const rendered = renderApprovedEmail({
+    ...(await baseParams(user.name)),
+    itemLabel: "Account",
+    details: "You can now sign in and use the platform.",
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "approved",
+    userId: user.id,
+    notificationType: "account.activated",
+    notificationTitle: "Account activated",
+    notificationBody: "Your account has been approved and is now active.",
+  });
+}
+
+export async function notifyAccountSuspended(
+  user: { id: string; email: string; name: string },
+  reason?: string,
+) {
+  const rendered = renderRejectedEmail({
+    ...(await baseParams(user.name)),
+    itemLabel: "Account",
+    reason: reason?.trim() || "Please contact support for more information.",
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "rejected",
+    userId: user.id,
+    notificationType: "account.suspended",
+    notificationTitle: "Account suspended",
+    notificationBody: reason?.trim() || "Your account has been suspended.",
+  });
+}
+
+export async function notifyPublisherCredentials(user: {
+  id: string;
+  email: string;
+  name: string;
+  tempPassword: string;
+}) {
+  const rendered = renderCredentialsEmail({
+    ...(await baseParams(user.name)),
+    email: user.email,
+    tempPassword: user.tempPassword,
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "credentials",
+    userId: user.id,
+    notificationType: "auth.credentials",
+    notificationTitle: "Publisher account created",
+    notificationBody: "Check your email for your temporary password.",
+  });
+}
+
+export async function notifyPasswordChanged(user: { id: string; email: string; name: string }) {
+  const rendered = renderGenericEmail({
+    ...(await baseParams(user.name)),
+    title: "Password changed",
+    message: "Your CPL Platform password was changed successfully. If this was not you, contact support immediately.",
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "password_changed",
+    userId: user.id,
+    notificationType: "auth.password_changed",
+    notificationTitle: "Password changed",
+    notificationBody: "Your password was updated successfully.",
+  });
+}
+
+export async function notifyPasswordReset(user: { id: string; email: string; name: string }, token: string) {
+  const config = await getResolvedEmailConfig();
+  const resetUrl = `${config.appUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const rendered = renderPasswordResetEmail({ ...(await baseParams(user.name)), resetUrl });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "password_reset",
+    metadata: { userId: user.id },
+  });
+}
+
+export async function notifyEmailVerification(user: { id: string; email: string; name: string }, token: string) {
+  const config = await getResolvedEmailConfig();
+  const verifyUrl = `${config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  const rendered = renderEmailVerificationEmail({ ...(await baseParams(user.name)), verifyUrl });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "email_verification",
+    metadata: { userId: user.id },
+  });
+}
+
+export async function notifyAdminAlert(params: {
+  title: string;
+  message: string;
+  actionPath?: string;
+  actionLabel?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const adminEmail = await getAdminAlertEmail();
+  if (!adminEmail) return;
+
+  const config = await getResolvedEmailConfig();
+  const rendered = renderAdminAlertEmail({
+    appUrl: config.appUrl,
+    title: params.title,
+    message: params.message,
+    actionUrl: params.actionPath ? `${config.appUrl}${params.actionPath}` : undefined,
+    actionLabel: params.actionLabel,
+  });
+
+  await sendEmail({
+    to: adminEmail,
+    ...rendered,
+    template: "admin_alert",
+    metadata: params.metadata,
+  });
+}
+
+export async function notifyApproved(
+  user: { id: string; email: string; name: string },
+  itemLabel: string,
+  details?: string,
+  notificationType?: string,
+) {
+  const rendered = renderApprovedEmail({ ...(await baseParams(user.name)), itemLabel, details });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "approved",
+    userId: user.id,
+    notificationType: notificationType ?? "item.approved",
+    notificationTitle: `${itemLabel} approved`,
+    notificationBody: details ?? `Your ${itemLabel.toLowerCase()} has been approved.`,
+  });
+}
+
+export async function notifyRejected(
+  user: { id: string; email: string; name: string },
+  itemLabel: string,
+  reason: string,
+  details?: string,
+  notificationType?: string,
+) {
+  const rendered = renderRejectedEmail({ ...(await baseParams(user.name)), itemLabel, reason, details });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "rejected",
+    userId: user.id,
+    notificationType: notificationType ?? "item.rejected",
+    notificationTitle: `${itemLabel} not approved`,
+    notificationBody: reason,
+  });
+}
+
+export async function notifyGeneric(
+  user: { id: string; email: string; name: string },
+  params: {
+    title: string;
+    message: string;
+    actionPath?: string;
+    actionLabel?: string;
+    notificationType: string;
+  },
+) {
+  const config = await getResolvedEmailConfig();
+  const rendered = renderGenericEmail({
+    ...(await baseParams(user.name)),
+    title: params.title,
+    message: params.message,
+    actionUrl: params.actionPath ? `${config.appUrl}${params.actionPath}` : undefined,
+    actionLabel: params.actionLabel,
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "generic",
+    userId: user.id,
+    notificationType: params.notificationType,
+    notificationTitle: params.title,
+    notificationBody: params.message,
+  });
+}
+
+export async function notifyReferralSignup(
+  referrer: { id: string; email: string; name: string },
+  referral: { name: string; email: string },
+) {
+  await notifyGeneric(referrer, {
+    title: "New referral signup",
+    message: `${referral.name} (${referral.email}) joined using your referral link.`,
+    actionPath: "/advertiser/referal_link",
+    actionLabel: "View referrals",
+    notificationType: "referral.signup",
+  });
+}
+
+async function loadUser(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, role: true, status: true },
+  });
+}
+
+export async function notifyUserById(
+  userId: string,
+  params: {
+    title: string;
+    message: string;
+    actionPath?: string;
+    actionLabel?: string;
+    notificationType: string;
+  },
+) {
+  const user = await loadUser(userId);
+  if (!user) return;
+  await notifyGeneric(user, params);
+}
