@@ -1,4 +1,8 @@
 import { campaignExcludesBlockedPublishers } from "@/lib/campaign-targeting";
+import {
+  filterCampaignsByCountry,
+  pickCampaignForIpRotation,
+} from "@/lib/smart-link-rotation";
 import { prisma } from "@/lib/prisma";
 import { notifyGeneric, notifyUserById } from "@/services/notify.service";
 import { createTrackingLink } from "@/services/campaign.service";
@@ -62,24 +66,71 @@ export async function ensureTrackingLink(publisherId: string, campaignId: string
   return createTrackingLink(publisherId, campaignId);
 }
 
-export async function pickNextCampaign(publisherId: string) {
+export async function getCampaignsShownToIp(publisherId: string, ip: string) {
+  const clicks = await prisma.click.findMany({
+    where: {
+      ip,
+      trackingLink: { publisherId },
+    },
+    select: { trackingLink: { select: { campaignId: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const row of clicks) {
+    const campaignId = row.trackingLink.campaignId;
+    if (!seen.has(campaignId)) {
+      seen.add(campaignId);
+      ordered.push(campaignId);
+    }
+  }
+  return ordered;
+}
+
+async function resolveGlobalLinkFallback() {
+  const { getPlatformSettings } = await import("@/services/wallet.service");
+  const settings = await getPlatformSettings();
+  return settings.globalLinkUrl;
+}
+
+export async function pickNextCampaign(
+  publisherId: string,
+  options: { ip: string; countryCode?: string },
+) {
   const smartLink = await getOrCreatePublisherSmartLink(publisherId);
   const eligible = await getEligibleCampaigns(publisherId);
+  const countryEligible = filterCampaignsByCountry(eligible, options.countryCode);
 
-  if (eligible.length === 0) {
-    const { getPlatformSettings } = await import("@/services/wallet.service");
-    const settings = await getPlatformSettings();
+  if (countryEligible.length === 0) {
     return {
       smartLink,
-      eligible: [],
+      eligible,
       campaign: null,
       trackingSlug: null,
-      globalLinkUrl: settings.globalLinkUrl,
+      globalLinkUrl: await resolveGlobalLinkFallback(),
+      visitorCountry: options.countryCode ?? null,
     };
   }
 
-  const index = smartLink.rotationCursor % eligible.length;
-  const campaign = eligible[index]!;
+  const shownCampaignIds = await getCampaignsShownToIp(publisherId, options.ip);
+  const campaign = pickCampaignForIpRotation(
+    countryEligible,
+    shownCampaignIds,
+    smartLink.rotationCursor,
+  );
+
+  if (!campaign) {
+    return {
+      smartLink,
+      eligible: countryEligible,
+      campaign: null,
+      trackingSlug: null,
+      globalLinkUrl: await resolveGlobalLinkFallback(),
+      visitorCountry: options.countryCode ?? null,
+    };
+  }
 
   const [updatedSmartLink, trackingLink] = await prisma.$transaction(async (tx) => {
     const updated = await tx.publisherSmartLink.update({
@@ -107,10 +158,11 @@ export async function pickNextCampaign(publisherId: string) {
 
   return {
     smartLink: updatedSmartLink,
-    eligible,
+    eligible: countryEligible,
     campaign,
     trackingSlug: trackingLink.slug,
     globalLinkUrl: null,
+    visitorCountry: options.countryCode ?? null,
   };
 }
 

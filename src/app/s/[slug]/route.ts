@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeTrackingParam } from "@/lib/smart-link";
+import { lookupIpCountry } from "@/modules/fraud/providers/registry";
 import { logClick } from "@/services/lead.service";
 import { pickNextCampaign, resolveSmartLinkBySlug } from "@/services/smart-link.service";
-
 function getClientIp(request: NextRequest): string {
   return (
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -35,13 +35,16 @@ export async function GET(
 
   const src = sanitizeTrackingParam(request.nextUrl.searchParams.get("src"));
   const subId = sanitizeTrackingParam(request.nextUrl.searchParams.get("sub_id"));
+  const ip = getClientIp(request);
+  const countryCode = await lookupIpCountry(ip);
 
-  const result = await pickNextCampaign(smartLink.publisherId);
-
+  const result = await pickNextCampaign(smartLink.publisherId, { ip, countryCode });
   if (!result.trackingSlug) {
     if (result.globalLinkUrl) {
       try {
-        const redirectUrl = new URL(result.globalLinkUrl);
+        const redirectUrl = result.globalLinkUrl.startsWith("/")
+          ? new URL(result.globalLinkUrl, request.nextUrl.origin)
+          : new URL(result.globalLinkUrl);
         if (src) redirectUrl.searchParams.set("src", src);
         if (subId) redirectUrl.searchParams.set("sub_id", subId);
         return NextResponse.redirect(redirectUrl.toString(), 302);
@@ -57,13 +60,13 @@ export async function GET(
   }
 
   await logClick(result.trackingSlug, {
-    ip: getClientIp(request),
+    ip,
     userAgent: request.headers.get("user-agent") ?? undefined,
     referrer: request.headers.get("referer") ?? undefined,
+    geo: countryCode ? { country: countryCode } : undefined,
     source: src,
     subId,
   });
-
   const redirectUrl = new URL(`/t/${result.trackingSlug}`, request.nextUrl.origin);
   if (src) redirectUrl.searchParams.set("src", src);
   if (subId) redirectUrl.searchParams.set("sub_id", subId);

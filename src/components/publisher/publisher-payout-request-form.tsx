@@ -52,7 +52,7 @@ export function PublisherPayoutRequestForm({
       return;
     }
 
-    router.push("/publisher/payouts");
+    router.push("/publisher/earnings?tab=payouts");
     router.refresh();
   }
 

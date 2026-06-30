@@ -12,6 +12,7 @@ import {
   checkCampaignQualityAlert,
 } from "@/modules/fraud";
 import type { SubmissionMeta } from "@/modules/fraud";
+import { dispatchAutoresponderEvent } from "@/modules/autoresponder";
 import type { LeadStatus } from "@prisma/client";
 import type { Campaign, CampaignField } from "@prisma/client";
 
@@ -34,7 +35,7 @@ async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?:
     void notifyGeneric(lead.campaign.advertiser, {
       title: "New lead awaiting review",
       message: `A new lead was submitted for campaign "${campaignName}".`,
-      actionPath: "/advertiser/leads",
+      actionPath: "/advertiser/lead-details",
       notificationType: "lead.pending",
     });
     return;
@@ -109,6 +110,7 @@ async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, reject
         void refreshPublisherQuality(lead.publisherId);
         void checkCampaignQualityAlert(lead.campaignId, lead.campaign.name);
       }
+      void dispatchAutoresponderEvent({ leadId, event: "LEAD_APPROVED" });
     } catch {
       await prisma.lead.update({
         where: { id: leadId },
@@ -281,6 +283,10 @@ async function createAndProcessLead(input: {
 
   await finalizeLeadStatus(lead.id, nextStatus, reason);
 
+  if (nextStatus !== "REJECTED") {
+    void dispatchAutoresponderEvent({ leadId: lead.id, event: "LEAD_CAPTURED" });
+  }
+
   return prisma.lead.findUniqueOrThrow({
     where: { id: lead.id },
     include: { validationResults: true },
@@ -437,12 +443,26 @@ export async function listLeads(filters: {
   source?: string;
   minRiskScore?: number;
   sort?: AdvertiserLeadSort;
+  dateFrom?: Date;
+  dateTo?: Date;
   page?: number;
   limit?: number;
 }) {
   const page = filters.page ?? 1;
   const limit = filters.limit ?? 10;
   const sort = filters.sort ?? "created_desc";
+
+  const createdAt: { gte?: Date; lte?: Date } = {};
+  if (filters.dateFrom) {
+    const from = new Date(filters.dateFrom);
+    from.setHours(0, 0, 0, 0);
+    createdAt.gte = from;
+  }
+  if (filters.dateTo) {
+    const to = new Date(filters.dateTo);
+    to.setHours(23, 59, 59, 999);
+    createdAt.lte = to;
+  }
 
   const campaignWhere =
     filters.advertiserId || filters.campaignSearch?.trim()
@@ -466,6 +486,7 @@ export async function listLeads(filters: {
     ...(filters.status && { status: filters.status }),
     ...(filters.source?.trim() && { source: filters.source.trim() }),
     ...(filters.minRiskScore !== undefined && { riskScore: { gte: filters.minRiskScore } }),
+    ...(Object.keys(createdAt).length > 0 && { createdAt }),
     ...(campaignWhere && { campaign: campaignWhere }),
   };
 

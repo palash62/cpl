@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 /** Bump when Prisma schema changes so dev hot-reload picks up new models/fields. */
-const PRISMA_CLIENT_VERSION = 9;
+const PRISMA_CLIENT_VERSION = 11;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -34,7 +34,7 @@ function getPrisma() {
   const cached = globalForPrisma.prisma;
   const versionMatches = globalForPrisma.prismaClientVersion === PRISMA_CLIENT_VERSION;
 
-  if (cached && versionMatches && "advertiserOptinPage" in cached) {
+  if (cached && versionMatches && "advertiserAutoresponder" in cached) {
     return cached;
   }
 

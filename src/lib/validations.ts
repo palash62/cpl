@@ -236,6 +236,69 @@ export const adminCreatePublisherSchema = z.object({
   status: z.enum(["ACTIVE", "PENDING"]).optional(),
 });
 
+const webhookConfigSchema = z.object({
+  url: z.string().url("Enter a valid webhook URL"),
+  method: z.enum(["POST", "PUT"]).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  secret: z.string().optional(),
+});
+
+const mailchimpConfigSchema = z.object({
+  apiKey: z.string().min(1, "API key is required"),
+  serverPrefix: z.string().min(1, "Server prefix is required (e.g. us21)"),
+  listId: z.string().min(1, "List ID is required"),
+  tags: z.array(z.string()).optional(),
+});
+
+const aweberConfigSchema = z.object({
+  accessToken: z.string().min(1, "Access token is required"),
+  accountId: z.string().min(1, "Account ID is required"),
+  listId: z.string().min(1, "List ID is required"),
+});
+
+const getResponseConfigSchema = z.object({
+  apiKey: z.string().min(1, "API key is required"),
+  campaignId: z.string().min(1, "Campaign ID is required"),
+});
+
+const autoresponderBaseSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  trigger: z.enum(["LEAD_CAPTURED", "LEAD_APPROVED"]),
+  campaignId: z.string().cuid().optional().nullable(),
+  isEnabled: z.boolean().optional(),
+  fieldMapping: z.record(z.string(), z.string()).optional().nullable(),
+});
+
+export const autoresponderConnectionSchema = z.discriminatedUnion("provider", [
+  autoresponderBaseSchema.extend({
+    provider: z.literal("WEBHOOK"),
+    config: webhookConfigSchema,
+  }),
+  autoresponderBaseSchema.extend({
+    provider: z.literal("MAILCHIMP"),
+    config: mailchimpConfigSchema,
+  }),
+  autoresponderBaseSchema.extend({
+    provider: z.literal("AWEBER"),
+    config: aweberConfigSchema,
+  }),
+  autoresponderBaseSchema.extend({
+    provider: z.literal("GETRESPONSE"),
+    config: getResponseConfigSchema,
+  }),
+]);
+
+export const autoresponderConnectionUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  trigger: z.enum(["LEAD_CAPTURED", "LEAD_APPROVED"]).optional(),
+  campaignId: z.string().cuid().optional().nullable(),
+  isEnabled: z.boolean().optional(),
+  fieldMapping: z.record(z.string(), z.string()).optional().nullable(),
+  config: z
+    .union([webhookConfigSchema, mailchimpConfigSchema, aweberConfigSchema, getResponseConfigSchema])
+    .optional(),
+});
+
 export function isValidEmail(email: string): boolean {
   return z.string().email().safeParse(email).success;
 }

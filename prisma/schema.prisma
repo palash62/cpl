@@ -119,6 +119,25 @@ enum KycStatus {
   REJECTED
 }
 
+enum AutoresponderProvider {
+  WEBHOOK
+  MAILCHIMP
+  AWEBER
+  GETRESPONSE
+}
+
+enum AutoresponderTrigger {
+  LEAD_CAPTURED
+  LEAD_APPROVED
+}
+
+enum AutoresponderDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -155,6 +174,7 @@ model User {
   optinPage         AdvertiserOptinPage?
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  advertiserAutoresponders AdvertiserAutoresponder[]
 
   @@index([role])
   @@index([status])
@@ -367,6 +387,7 @@ model Lead {
   platformFee       PlatformFee?
   pixelEvents       PixelEvent[]
   deviceSeen        LeadDeviceSeen[]
+  autoresponderDeliveries AutoresponderDelivery[]
 
   @@index([campaignId])
   @@index([publisherId])
@@ -605,6 +626,47 @@ model IpBlocklist {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("ip_blocklist")
+}
+
+model AdvertiserAutoresponder {
+  id           String               @id @default(cuid())
+  advertiserId String               @map("advertiser_id")
+  name         String
+  provider     AutoresponderProvider
+  trigger      AutoresponderTrigger
+  campaignId   String?              @map("campaign_id")
+  isEnabled    Boolean              @default(true) @map("is_enabled")
+  config       Json
+  fieldMapping Json?                @map("field_mapping")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  advertiser User                    @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  deliveries AutoresponderDelivery[]
+
+  @@index([advertiserId])
+  @@index([advertiserId, isEnabled])
+  @@map("advertiser_autoresponders")
+}
+
+model AutoresponderDelivery {
+  id           String                      @id @default(cuid())
+  connectionId String                      @map("connection_id")
+  leadId       String                      @map("lead_id")
+  event        AutoresponderTrigger
+  status       AutoresponderDeliveryStatus @default(PENDING)
+  attemptCount Int                         @default(0) @map("attempt_count")
+  httpStatus   Int?                        @map("http_status")
+  error        String?                     @db.Text
+  createdAt    DateTime                    @default(now()) @map("created_at")
+
+  connection AdvertiserAutoresponder @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  lead       Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, leadId, event])
+  @@index([connectionId])
+  @@index([leadId])
+  @@map("autoresponder_deliveries")
 }
 
 model EmailLog {

@@ -219,7 +219,7 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                           pixelToken={c.pixelToken}
                         />
                         <ButtonLink
-                          href="/advertiser/leads"
+                          href={`/advertiser/lead-details?campaignId=${c.id}`}
                           variant="outline"
                           size="sm"
                           className="h-8 rounded-md border-slate-200 text-xs"

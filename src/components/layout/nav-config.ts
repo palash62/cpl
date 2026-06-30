@@ -20,6 +20,7 @@ import {
   LayoutTemplate,
   Palette,
   ShieldAlert,
+  Plug,
 } from "lucide-react";
 
 export interface NavItem {
@@ -49,7 +50,9 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
   { label: "Optin Pages", href: "/advertiser/optin-pages", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
-  { label: "Leads", href: "/advertiser/leads", icon: FileText },
+  { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
+  { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
+  { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },
   { label: "Wallet", href: "/advertiser/wallet", icon: Wallet },
   { label: "Referral Link", href: "/advertiser/referal_link", icon: Gift },
   { label: "Reports", href: "/advertiser/reports", icon: BarChart3 },
@@ -61,8 +64,7 @@ export const PUBLISHER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/publisher", icon: LayoutDashboard },
   { label: "Smart Link", href: "/publisher/smart-link", icon: Link2 },
   { label: "Leads", href: "/publisher/leads", icon: FileText },
-  { label: "Earnings", href: "/publisher/earnings", icon: TrendingUp },
-  { label: "Payouts", href: "/publisher/payouts", icon: Banknote },
+  { label: "Earnings & Payouts", href: "/publisher/earnings", icon: Wallet },
   { label: "Support", href: "/publisher/support", icon: LifeBuoy },
   { label: "Settings", href: "/publisher/settings", icon: Settings },
 ];
