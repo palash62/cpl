@@ -1,16 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PublicOptinPage } from "@/lib/optin-page";
 import { OptinPageLayout, OptinSuccessScreen } from "@/components/optin/optin-page-layout";
+import {
+  attachSignalListeners,
+  collectSubmissionSignals,
+  createSignalCollector,
+} from "@/modules/fraud/client/collect-signals";
 
 export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
   const [data, setData] = useState<Record<string, string>>({});
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState("");
+  const signalRef = useRef(createSignalCollector());
 
   const redirectUrl = page.destinationUrl?.trim() || null;
+
+  useEffect(() => {
+    return attachSignalListeners(signalRef.current);
+  }, []);
 
   useEffect(() => {
     if (status !== "success" || page.previewMode || !redirectUrl) return;
@@ -25,10 +35,12 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
     setStatus("loading");
     setError("");
 
+    const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
+
     const res = await fetch("/api/v1/leads/submit-optin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ optinSlug: page.slug, data, honeypot }),
+      body: JSON.stringify({ optinSlug: page.slug, data, honeypot, submissionMeta, deviceFingerprint }),
     });
 
     const result = await res.json();

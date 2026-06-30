@@ -26,6 +26,8 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent") ?? undefined,
       source: parsed.data.source,
       subId: parsed.data.subId,
+      deviceFingerprint: parsed.data.deviceFingerprint,
+      submissionMeta: parsed.data.submissionMeta,
     });
 
     return Response.json({ lead: { id: lead.id, status: lead.status } }, { status: 201 });

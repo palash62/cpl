@@ -19,6 +19,7 @@ import {
   Gift,
   LayoutTemplate,
   Palette,
+  ShieldAlert,
 } from "lucide-react";
 
 export interface NavItem {
@@ -33,6 +34,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Publishers", href: "/admin/publishers", icon: Users },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
   { label: "Leads", href: "/admin/leads", icon: FileText },
+  { label: "Fraud Center", href: "/admin/fraud", icon: ShieldAlert },
   { label: "Wallets", href: "/admin/wallets", icon: Wallet },
   { label: "Deposits", href: "/admin/deposits", icon: ArrowDownToLine },
   { label: "Payouts", href: "/admin/payouts", icon: Banknote },

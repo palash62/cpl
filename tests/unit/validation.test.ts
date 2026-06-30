@@ -20,15 +20,15 @@ describe("Lead Validation", () => {
     expect(result.score).toBeGreaterThanOrEqual(50);
   });
 
-  it("rejects duplicate email", () => {
+  it("records duplicate email as passed (handled by fraud module)", () => {
     const result = validateLead({
       data: { first_name: "Jane", email: "jane@example.com", phone: "+15551234567" },
       campaignFields: baseFields,
       existingEmails: ["jane@example.com"],
       existingPhones: [],
     });
-    expect(result.passed).toBe(false);
-    expect(result.results.some((r) => r.rule === "duplicate_email" && !r.passed)).toBe(true);
+    expect(result.passed).toBe(true);
+    expect(result.results.some((r) => r.rule === "duplicate_email" && r.passed)).toBe(true);
   });
 
   it("rejects honeypot", () => {

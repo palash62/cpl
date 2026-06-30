@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { getAdminProfitSnapshots } from "@/services/admin-profit.service";
+import { getFraudDashboardMetrics } from "@/modules/fraud";
 import {
   endOfDay,
   endOfMonth,
@@ -114,8 +115,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
     draftCampaigns,
     pendingAdvertisers,
     pendingPublisherKyc,
-    duplicateLeadFlags,
-    lowScoreLeads,
+    fraudMetrics,
     suspendedUsers,
     walletAggregate,
     recentLeads,
@@ -177,10 +177,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
     prisma.campaign.count({ where: { status: "DRAFT" } }),
     prisma.user.count({ where: { role: "ADVERTISER", status: "PENDING" } }),
     prisma.publisherProfile.count({ where: { kycStatus: "PENDING" } }),
-    prisma.leadValidationResult.count({
-      where: { rule: { in: ["duplicate_email", "duplicate_phone"] }, passed: false },
-    }),
-    prisma.lead.count({ where: { score: { lt: 50 }, status: { not: "REJECTED" } } }),
+    getFraudDashboardMetrics(),
     prisma.user.count({ where: { status: "SUSPENDED" } }),
     prisma.wallet.aggregate({ _sum: { balance: true, holdBalance: true } }),
     prisma.lead.findMany({
@@ -488,12 +485,7 @@ export async function getAdminControlCenterData(adminUserId: string) {
       urgentTickets,
       recentClosed: recentClosedTickets,
     },
-    fraud: {
-      duplicateLeads: duplicateLeadFlags,
-      lowScoreLeads,
-      suspendedUsers,
-      rejectedLeads,
-    },
+    fraud: fraudMetrics,
     financial: {
       walletBalance: Number(walletAggregate._sum.balance ?? 0),
       holdBalance: Number(walletAggregate._sum.holdBalance ?? 0),

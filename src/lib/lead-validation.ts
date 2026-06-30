@@ -62,37 +62,20 @@ export function validateLead(input: ValidationInput): ValidationResult {
   }
 
   const email = input.data.email?.toLowerCase();
-  if (email && input.existingEmails.includes(email)) {
-    results.push({
-      rule: "duplicate_email",
-      passed: false,
-      details: "Email already exists for this campaign",
-    });
-    score -= 50;
-  } else if (email) {
+  if (email) {
     results.push({ rule: "duplicate_email", passed: true });
   }
 
   const phone = input.data.phone?.replace(/\D/g, "");
-  if (phone && input.existingPhones.includes(phone)) {
-    results.push({
-      rule: "duplicate_phone",
-      passed: false,
-      details: "Phone already exists for this campaign",
-    });
-    score -= 50;
-  } else if (phone) {
+  if (phone) {
     results.push({ rule: "duplicate_phone", passed: true });
   }
 
   const failedRequired = results.some(
     (r) => r.rule.startsWith("required_") && !r.passed,
   );
-  const failedDuplicate = results.some(
-    (r) => r.rule.startsWith("duplicate_") && !r.passed,
-  );
 
-  const passed = !failedRequired && !failedDuplicate && score >= 50;
+  const passed = !failedRequired && score >= 50;
 
   return { passed, score: Math.max(0, score), results };
 }

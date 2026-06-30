@@ -4,8 +4,16 @@ import { Errors } from "@/lib/errors";
 import { processLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
 import { notifyGeneric, notifyRejected } from "@/services/notify.service";
+import {
+  evaluateLead,
+  getFraudConfig,
+  recordDeviceSeen,
+  refreshPublisherQuality,
+  checkCampaignQualityAlert,
+} from "@/modules/fraud";
+import type { SubmissionMeta } from "@/modules/fraud";
 import type { LeadStatus } from "@prisma/client";
-import { subDays } from "date-fns";
+import type { Campaign, CampaignField } from "@prisma/client";
 
 async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?: string) {
   const lead = await prisma.lead.findUnique({
@@ -73,6 +81,14 @@ async function notifyInsufficientLeadFunds(leadId: string) {
 async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, rejectionReason?: string) {
   if (nextStatus === "REJECTED") {
     void notifyForLeadOutcome(leadId, "REJECTED", rejectionReason);
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { publisherId: true, campaignId: true, campaign: { select: { name: true } } },
+    });
+    if (lead) {
+      void refreshPublisherQuality(lead.publisherId);
+      void checkCampaignQualityAlert(lead.campaignId, lead.campaign.name);
+    }
     return;
   }
 
@@ -85,6 +101,14 @@ async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, reject
     try {
       await processLeadPayment(leadId);
       void notifyForLeadOutcome(leadId, "PAID");
+      const lead = await prisma.lead.findUnique({
+        where: { id: leadId },
+        select: { publisherId: true, campaignId: true, campaign: { select: { name: true } } },
+      });
+      if (lead) {
+        void refreshPublisherQuality(lead.publisherId);
+        void checkCampaignQualityAlert(lead.campaignId, lead.campaign.name);
+      }
     } catch {
       await prisma.lead.update({
         where: { id: leadId },
@@ -105,6 +129,164 @@ async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, reject
   }
 }
 
+function extractCountry(data: Record<string, string>) {
+  const countryKeys = ["country", "country_code", "countryCode", "nationality"] as const;
+  return countryKeys.map((key) => data[key]?.trim()).find(Boolean) ?? undefined;
+}
+
+async function resolveNextStatus(params: {
+  qualityPassed: boolean;
+  qualityScore: number;
+  autoApprove: boolean;
+  fraudDecision: string;
+  hardReject: boolean;
+  rejectReason?: string;
+  useRiskDecision: boolean;
+}): Promise<{ status: LeadStatus; reason?: string }> {
+  if (!params.qualityPassed || params.hardReject) {
+    return { status: "REJECTED", reason: params.rejectReason ?? "Validation failed" };
+  }
+
+  if (params.useRiskDecision) {
+    if (params.fraudDecision === "auto_reject") {
+      return { status: "REJECTED", reason: params.rejectReason ?? "Fraud risk too high" };
+    }
+    if (params.fraudDecision === "auto_approve" && params.autoApprove) {
+      return { status: "APPROVED" };
+    }
+    return { status: "PENDING" };
+  }
+
+  if (params.autoApprove && params.qualityScore >= 80) {
+    return { status: "APPROVED" };
+  }
+  return { status: "PENDING" };
+}
+
+async function createAndProcessLead(input: {
+  campaignId: string;
+  publisherId: string;
+  trackingLinkId?: string;
+  campaign: Campaign & { fields: CampaignField[] };
+  data: Record<string, string>;
+  honeypot?: string;
+  ip?: string;
+  userAgent?: string;
+  source?: string;
+  subId?: string;
+  deviceFingerprint?: string;
+  submissionMeta?: SubmissionMeta;
+}) {
+  const settings = await getPlatformSettings();
+  const country = extractCountry(input.data);
+  const targeting =
+    typeof input.campaign.targeting === "object" && input.campaign.targeting
+      ? (input.campaign.targeting as Record<string, unknown>)
+      : {};
+
+  const validation = validateLead({
+    data: input.data,
+    campaignFields: input.campaign.fields,
+    existingEmails: [],
+    existingPhones: [],
+    honeypot: input.honeypot,
+  });
+
+  const fraud = await evaluateLead({
+    campaignId: input.campaignId,
+    publisherId: input.publisherId,
+    trackingLinkId: input.trackingLinkId,
+    data: input.data,
+    ip: input.ip,
+    userAgent: input.userAgent,
+    country,
+    deviceFingerprint: input.deviceFingerprint,
+    submissionMeta: input.submissionMeta,
+    honeypot: input.honeypot,
+    targeting,
+    duplicateWindowDays: settings.duplicateWindowDays,
+  });
+
+  const fraudConfig = await getFraudConfig();
+  const allResults = [
+    ...validation.results.map((r) => ({
+      rule: r.rule,
+      passed: r.passed,
+      riskDelta: null as number | null,
+      details: r.details,
+    })),
+    ...fraud.outcomes.map((o) => ({
+      rule: o.rule,
+      passed: o.passed,
+      riskDelta: o.riskDelta,
+      details: o.details,
+    })),
+  ];
+
+  const lead = await prisma.lead.create({
+    data: {
+      campaignId: input.campaignId,
+      publisherId: input.publisherId,
+      trackingLinkId: input.trackingLinkId,
+      status: "VALIDATING",
+      data: input.data,
+      score: validation.score,
+      riskScore: fraud.riskScore,
+      fraudDecision: fraud.fraudDecision,
+      deviceFingerprint: input.deviceFingerprint,
+      geoCountry: fraud.geoCountry,
+      submissionMeta: input.submissionMeta ?? undefined,
+      ip: input.ip,
+      userAgent: input.userAgent,
+      country,
+      source: input.source,
+      subId: input.subId,
+      validationResults: {
+        create: allResults.map((r) => ({
+          rule: r.rule,
+          passed: r.passed,
+          riskDelta: r.riskDelta ?? undefined,
+          details: r.details,
+        })),
+      },
+      statusHistory: {
+        create: { toStatus: "VALIDATING" },
+      },
+    },
+  });
+
+  if (input.deviceFingerprint) {
+    await recordDeviceSeen(input.deviceFingerprint, input.campaignId, lead.id);
+  }
+
+  const { status: nextStatus, reason } = await resolveNextStatus({
+    qualityPassed: validation.passed,
+    qualityScore: validation.score,
+    autoApprove: input.campaign.autoApprove,
+    fraudDecision: fraud.fraudDecision,
+    hardReject: fraud.hardReject,
+    rejectReason: fraud.rejectReason,
+    useRiskDecision: fraudConfig.useRiskDecision,
+  });
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      status: nextStatus,
+      statusHistory: {
+        create: { fromStatus: "VALIDATING", toStatus: nextStatus, reason },
+      },
+    },
+  });
+
+  await finalizeLeadStatus(lead.id, nextStatus, reason);
+
+  return prisma.lead.findUniqueOrThrow({
+    where: { id: lead.id },
+    include: { validationResults: true },
+  });
+}
+
 export async function submitLead(input: {
   slug: string;
   data: Record<string, string>;
@@ -113,6 +295,8 @@ export async function submitLead(input: {
   userAgent?: string;
   source?: string;
   subId?: string;
+  deviceFingerprint?: string;
+  submissionMeta?: SubmissionMeta;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -129,91 +313,19 @@ export async function submitLead(input: {
     throw Errors.notFound("Campaign");
   }
 
-  const settings = await getPlatformSettings();
-  const since = subDays(new Date(), settings.duplicateWindowDays);
-
-  const countryKeys = ["country", "country_code", "countryCode", "nationality"] as const;
-  const country =
-    countryKeys.map((key) => input.data[key]?.trim()).find(Boolean) ?? undefined;
-
-  const existingLeads = await prisma.lead.findMany({
-    where: {
-      campaignId: trackingLink.campaignId,
-      createdAt: { gte: since },
-      status: { notIn: ["REJECTED"] },
-    },
-    select: { data: true },
-  });
-
-  const existingEmails = existingLeads
-    .map((l) => (l.data as Record<string, string>).email?.toLowerCase())
-    .filter(Boolean) as string[];
-
-  const existingPhones = existingLeads
-    .map((l) =>
-      (l.data as Record<string, string>).phone?.replace(/\D/g, ""),
-    )
-    .filter(Boolean) as string[];
-
-  const validation = validateLead({
+  return createAndProcessLead({
+    campaignId: trackingLink.campaignId,
+    publisherId: trackingLink.publisherId,
+    trackingLinkId: trackingLink.id,
+    campaign: trackingLink.campaign,
     data: input.data,
-    campaignFields: trackingLink.campaign.fields,
-    existingEmails,
-    existingPhones,
     honeypot: input.honeypot,
-  });
-
-  const lead = await prisma.lead.create({
-    data: {
-      campaignId: trackingLink.campaignId,
-      publisherId: trackingLink.publisherId,
-      trackingLinkId: trackingLink.id,
-      status: "VALIDATING",
-      data: input.data,
-      score: validation.score,
-      ip: input.ip,
-      userAgent: input.userAgent,
-      country,
-      source: input.source,
-      subId: input.subId,
-      validationResults: {
-        create: validation.results.map((r) => ({
-          rule: r.rule,
-          passed: r.passed,
-          details: r.details,
-        })),
-      },
-      statusHistory: {
-        create: { toStatus: "VALIDATING" },
-      },
-    },
-  });
-
-  let nextStatus: LeadStatus;
-
-  if (!validation.passed) {
-    nextStatus = "REJECTED";
-  } else if (trackingLink.campaign.autoApprove && validation.score >= 80) {
-    nextStatus = "APPROVED";
-  } else {
-    nextStatus = "PENDING";
-  }
-
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: {
-      status: nextStatus,
-      statusHistory: {
-        create: { fromStatus: "VALIDATING", toStatus: nextStatus },
-      },
-    },
-  });
-
-  await finalizeLeadStatus(lead.id, nextStatus);
-
-  return prisma.lead.findUniqueOrThrow({
-    where: { id: lead.id },
-    include: { validationResults: true },
+    ip: input.ip,
+    userAgent: input.userAgent,
+    source: input.source,
+    subId: input.subId,
+    deviceFingerprint: input.deviceFingerprint,
+    submissionMeta: input.submissionMeta,
   });
 }
 
@@ -223,6 +335,8 @@ export async function submitOptinLead(input: {
   honeypot?: string;
   ip?: string;
   userAgent?: string;
+  deviceFingerprint?: string;
+  submissionMeta?: SubmissionMeta;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -243,88 +357,17 @@ export async function submitOptinLead(input: {
     throw Errors.notFound("Optin page");
   }
 
-  const campaign = optinPage.campaign;
-  const settings = await getPlatformSettings();
-  const since = subDays(new Date(), settings.duplicateWindowDays);
-
-  const countryKeys = ["country", "country_code", "countryCode", "nationality"] as const;
-  const country =
-    countryKeys.map((key) => input.data[key]?.trim()).find(Boolean) ?? undefined;
-
-  const existingLeads = await prisma.lead.findMany({
-    where: {
-      campaignId: campaign.id,
-      createdAt: { gte: since },
-      status: { notIn: ["REJECTED"] },
-    },
-    select: { data: true },
-  });
-
-  const existingEmails = existingLeads
-    .map((l) => (l.data as Record<string, string>).email?.toLowerCase())
-    .filter(Boolean) as string[];
-
-  const existingPhones = existingLeads
-    .map((l) => (l.data as Record<string, string>).phone?.replace(/\D/g, ""))
-    .filter(Boolean) as string[];
-
-  const validation = validateLead({
+  return createAndProcessLead({
+    campaignId: optinPage.campaign.id,
+    publisherId: optinPage.advertiserId,
+    campaign: optinPage.campaign,
     data: input.data,
-    campaignFields: campaign.fields,
-    existingEmails,
-    existingPhones,
     honeypot: input.honeypot,
-  });
-
-  const lead = await prisma.lead.create({
-    data: {
-      campaignId: campaign.id,
-      publisherId: optinPage.advertiserId,
-      status: "VALIDATING",
-      data: input.data,
-      score: validation.score,
-      ip: input.ip,
-      userAgent: input.userAgent,
-      country,
-      source: "optin",
-      validationResults: {
-        create: validation.results.map((r) => ({
-          rule: r.rule,
-          passed: r.passed,
-          details: r.details,
-        })),
-      },
-      statusHistory: {
-        create: { toStatus: "VALIDATING" },
-      },
-    },
-  });
-
-  let nextStatus: LeadStatus;
-
-  if (!validation.passed) {
-    nextStatus = "REJECTED";
-  } else if (campaign.autoApprove && validation.score >= 80) {
-    nextStatus = "APPROVED";
-  } else {
-    nextStatus = "PENDING";
-  }
-
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: {
-      status: nextStatus,
-      statusHistory: {
-        create: { fromStatus: "VALIDATING", toStatus: nextStatus },
-      },
-    },
-  });
-
-  await finalizeLeadStatus(lead.id, nextStatus);
-
-  return prisma.lead.findUniqueOrThrow({
-    where: { id: lead.id },
-    include: { validationResults: true },
+    ip: input.ip,
+    userAgent: input.userAgent,
+    source: "optin",
+    deviceFingerprint: input.deviceFingerprint,
+    submissionMeta: input.submissionMeta,
   });
 }
 
@@ -359,6 +402,12 @@ export async function updateLeadStatus(
     await finalizeLeadStatus(leadId, "APPROVED");
   } else {
     void notifyForLeadOutcome(leadId, "REJECTED", reason);
+    void refreshPublisherQuality(lead.publisherId);
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: lead.campaignId },
+      select: { name: true },
+    });
+    if (campaign) void checkCampaignQualityAlert(lead.campaignId, campaign.name);
   }
 
   return prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
@@ -386,6 +435,7 @@ export async function listLeads(filters: {
   advertiserId?: string;
   status?: LeadStatus;
   source?: string;
+  minRiskScore?: number;
   sort?: AdvertiserLeadSort;
   page?: number;
   limit?: number;
@@ -415,6 +465,7 @@ export async function listLeads(filters: {
     }),
     ...(filters.status && { status: filters.status }),
     ...(filters.source?.trim() && { source: filters.source.trim() }),
+    ...(filters.minRiskScore !== undefined && { riskScore: { gte: filters.minRiskScore } }),
     ...(campaignWhere && { campaign: campaignWhere }),
   };
 

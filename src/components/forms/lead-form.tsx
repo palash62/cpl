@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
+import {
+  attachSignalListeners,
+  collectSubmissionSignals,
+  createSignalCollector,
+} from "@/modules/fraud/client/collect-signals";
 
 interface Field {
   fieldName: string;
@@ -32,16 +37,23 @@ export function LeadForm({
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState("");
+  const signalRef = useRef(createSignalCollector());
+
+  useEffect(() => {
+    return attachSignalListeners(signalRef.current);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setError("");
 
+    const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
+
     const res = await fetch("/api/v1/leads/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, data, honeypot, source, subId }),
+      body: JSON.stringify({ slug, data, honeypot, source, subId, submissionMeta, deviceFingerprint }),
     });
 
     const result = await res.json();

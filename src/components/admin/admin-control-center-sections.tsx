@@ -431,19 +431,24 @@ export function AdminFraudMonitoring({
   fraud: AdminControlCenterData["fraud"];
 }) {
   const items = [
-    { label: "Duplicate Flags", value: fraud.duplicateLeads, href: "/admin/leads", bg: "bg-rose-50 hover:bg-rose-100/60" },
-    { label: "Low Quality Leads", value: fraud.lowScoreLeads, href: "/admin/leads", bg: "bg-amber-50 hover:bg-amber-100/60" },
-    { label: "Rejected Leads", value: fraud.rejectedLeads, href: "/admin/leads", bg: "bg-orange-50 hover:bg-orange-100/60" },
-    { label: "Suspended Users", value: fraud.suspendedUsers, href: "/admin/publishers", bg: "bg-red-50 hover:bg-red-100/60" },
+    { label: "Duplicate Flags", value: fraud.duplicateLeads, href: "/admin/fraud?filter=duplicate", bg: "bg-rose-50 hover:bg-rose-100/60" },
+    { label: "VPN / Proxy", value: fraud.vpnLeads, href: "/admin/fraud?filter=vpn", bg: "bg-amber-50 hover:bg-amber-100/60" },
+    { label: "High Risk", value: fraud.highRiskDevices, href: "/admin/fraud?filter=high-risk", bg: "bg-orange-50 hover:bg-orange-100/60" },
+    { label: "Avg Risk Score", value: `${fraud.spamScoreAvg}%`, href: "/admin/fraud", bg: "bg-red-50 hover:bg-red-100/60" },
   ];
 
   return (
     <AccentCard accent="rose">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-          <ShieldAlert className="h-4 w-4" />
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+            <ShieldAlert className="h-4 w-4" />
+          </div>
+          <SectionHeader title="Fraud & Quality Monitoring" description="Protect lead quality and advertiser ROI" />
         </div>
-        <SectionHeader title="Fraud & Quality Monitoring" description="Protect lead quality and advertiser ROI" />
+        <ButtonLink href="/admin/fraud" size="sm" variant="outline">
+          Review
+        </ButtonLink>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => (

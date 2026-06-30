@@ -187,6 +187,9 @@ model PublisherProfile {
   rejectionReason String? @map("rejection_reason")
   rejectedAt    DateTime? @map("rejected_at")
   kycStatus     KycStatus @default(NOT_SUBMITTED) @map("kyc_status")
+  qualityScore  Float     @default(100) @map("quality_score")
+  qualityWarningAt DateTime? @map("quality_warning_at")
+  fraudFlags    Int       @default(0) @map("fraud_flags")
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("publisher_profiles")
@@ -336,20 +339,25 @@ model Click {
 }
 
 model Lead {
-  id             String     @id @default(cuid())
-  campaignId     String     @map("campaign_id")
-  publisherId    String     @map("publisher_id")
-  trackingLinkId String?    @map("tracking_link_id")
-  status         LeadStatus @default(CAPTURED)
-  data           Json
-  score          Int?
-  ip             String?
-  userAgent      String?    @map("user_agent")
-  country        String?
-  source         String?
-  subId          String?    @map("sub_id")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  id                String     @id @default(cuid())
+  campaignId        String     @map("campaign_id")
+  publisherId       String     @map("publisher_id")
+  trackingLinkId    String?    @map("tracking_link_id")
+  status            LeadStatus @default(CAPTURED)
+  data              Json
+  score             Int?
+  riskScore         Int?       @map("risk_score")
+  fraudDecision     String?    @map("fraud_decision")
+  deviceFingerprint String?    @map("device_fingerprint")
+  geoCountry        String?    @map("geo_country")
+  submissionMeta    Json?      @map("submission_meta")
+  ip                String?
+  userAgent         String?    @map("user_agent")
+  country           String?
+  source            String?
+  subId             String?    @map("sub_id")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
   campaign          Campaign               @relation(fields: [campaignId], references: [id])
   publisher         User                   @relation("PublisherLeads", fields: [publisherId], references: [id])
@@ -358,12 +366,28 @@ model Lead {
   validationResults LeadValidationResult[]
   platformFee       PlatformFee?
   pixelEvents       PixelEvent[]
+  deviceSeen        LeadDeviceSeen[]
 
   @@index([campaignId])
   @@index([publisherId])
   @@index([status])
   @@index([createdAt])
+  @@index([riskScore])
+  @@index([deviceFingerprint])
   @@map("leads")
+}
+
+model LeadDeviceSeen {
+  id              String   @id @default(cuid())
+  fingerprintHash String   @map("fingerprint_hash")
+  campaignId      String   @map("campaign_id")
+  leadId          String   @map("lead_id")
+  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([fingerprintHash, campaignId])
+  @@map("lead_device_seen")
 }
 
 model LeadStatusHistory {
@@ -382,11 +406,12 @@ model LeadStatusHistory {
 }
 
 model LeadValidationResult {
-  id      String  @id @default(cuid())
-  leadId  String  @map("lead_id")
-  rule    String
-  passed  Boolean
-  details String?
+  id        String  @id @default(cuid())
+  leadId    String  @map("lead_id")
+  rule      String
+  passed    Boolean
+  riskDelta Int?    @map("risk_delta")
+  details   String?
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 

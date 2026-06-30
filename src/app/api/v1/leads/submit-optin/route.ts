@@ -25,6 +25,8 @@ export async function POST(request: Request) {
       honeypot: parsed.data.honeypot,
       ip,
       userAgent: request.headers.get("user-agent") ?? undefined,
+      deviceFingerprint: parsed.data.deviceFingerprint,
+      submissionMeta: parsed.data.submissionMeta,
     });
 
     return Response.json({ lead: { id: lead.id, status: lead.status } }, { status: 201 });
