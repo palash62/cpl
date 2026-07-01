@@ -39,7 +39,7 @@ describe("buildLeadPayload", () => {
 
   it("returns null without email", () => {
     const payload = buildLeadPayload(
-      { ...baseLead, data: { first_name: "Jane" } },
+      { ...(baseLead as object), data: { first_name: "Jane" } } as never,
       "LEAD_CAPTURED",
     );
     expect(payload).toBeNull();

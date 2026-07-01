@@ -138,6 +138,41 @@ enum AutoresponderDeliveryStatus {
   SKIPPED
 }
 
+enum EmailContactStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+enum EmailAutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum EmailSendStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+}
+
+enum EmailEventType {
+  OPEN
+  CLICK
+  DELIVERY
+  BOUNCE
+  COMPLAINT
+}
+
+enum SendingIdentityStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -175,6 +210,12 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   advertiserAutoresponders AdvertiserAutoresponder[]
+  emailContacts            EmailContact[]
+  emailTemplates           EmailTemplate[]
+  emailAutomations         EmailAutomation[]
+  emailSends               EmailSend[]
+  emailMarketingSettings   AdvertiserEmailSettings?
+  sendingIdentities        AdvertiserSendingIdentity[]
 
   @@index([role])
   @@index([status])
@@ -389,6 +430,8 @@ model Lead {
   pixelEvents       PixelEvent[]
   deviceSeen        LeadDeviceSeen[]
   autoresponderDeliveries AutoresponderDelivery[]
+  emailSends              EmailSend[]
+  emailContacts           EmailContact[]
 
   @@index([campaignId])
   @@index([publisherId])
@@ -711,4 +754,167 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+model EmailContact {
+  id             String             @id @default(cuid())
+  advertiserId   String             @map("advertiser_id")
+  email          String
+  firstName      String?            @map("first_name")
+  lastName       String?            @map("last_name")
+  phone          String?
+  status         EmailContactStatus @default(SUBSCRIBED)
+  consentSource  String?            @map("consent_source")
+  sourceLeadId   String?            @map("source_lead_id")
+  sourceCampaignId String?          @map("source_campaign_id")
+  metadata       Json?
+  unsubscribeToken String           @unique @map("unsubscribe_token")
+  unsubscribedAt DateTime?          @map("unsubscribed_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  advertiser User        @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  sourceLead Lead?       @relation(fields: [sourceLeadId], references: [id], onDelete: SetNull)
+  sends      EmailSend[]
+
+  @@unique([advertiserId, email])
+  @@index([advertiserId])
+  @@index([status])
+  @@map("email_contacts")
+}
+
+model EmailTemplate {
+  id           String   @id @default(cuid())
+  advertiserId String   @map("advertiser_id")
+  name         String
+  subject      String
+  htmlBody     String   @map("html_body") @db.Text
+  textBody     String?  @map("text_body") @db.Text
+  previewText  String?  @map("preview_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  advertiser User                  @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  steps      EmailAutomationStep[]
+  sends      EmailSend[]
+
+  @@index([advertiserId])
+  @@map("email_templates")
+}
+
+model EmailAutomation {
+  id           String                @id @default(cuid())
+  advertiserId String                @map("advertiser_id")
+  name         String
+  trigger      AutoresponderTrigger
+  campaignId   String?               @map("campaign_id")
+  status       EmailAutomationStatus @default(DRAFT)
+  fromName     String                @map("from_name")
+  replyTo      String?               @map("reply_to")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  advertiser User                  @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  steps      EmailAutomationStep[]
+  sends      EmailSend[]
+
+  @@index([advertiserId])
+  @@index([advertiserId, status])
+  @@map("email_automations")
+}
+
+model EmailAutomationStep {
+  id           String   @id @default(cuid())
+  automationId String   @map("automation_id")
+  order        Int
+  delayMinutes Int      @default(0) @map("delay_minutes")
+  templateId   String   @map("template_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  automation EmailAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  template   EmailTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  sends      EmailSend[]
+
+  @@unique([automationId, order])
+  @@index([automationId])
+  @@map("email_automation_steps")
+}
+
+model EmailSend {
+  id           String          @id @default(cuid())
+  advertiserId String          @map("advertiser_id")
+  contactId    String          @map("contact_id")
+  automationId String?         @map("automation_id")
+  stepId       String?         @map("step_id")
+  leadId       String?         @map("lead_id")
+  templateId   String          @map("template_id")
+  status       EmailSendStatus @default(QUEUED)
+  scheduledAt  DateTime        @map("scheduled_at")
+  sentAt       DateTime?       @map("sent_at")
+  sesMessageId String?         @map("ses_message_id")
+  error        String?         @db.Text
+  attemptCount Int             @default(0) @map("attempt_count")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  advertiser User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  contact    EmailContact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  automation EmailAutomation?     @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  step       EmailAutomationStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  lead       Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  template   EmailTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  events     EmailEvent[]
+
+  @@unique([automationId, stepId, leadId])
+  @@index([advertiserId])
+  @@index([status, scheduledAt])
+  @@index([contactId])
+  @@map("email_sends")
+}
+
+model EmailEvent {
+  id        String         @id @default(cuid())
+  sendId    String         @map("send_id")
+  type      EmailEventType
+  metadata  Json?
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  send EmailSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@index([sendId])
+  @@index([sendId, type])
+  @@map("email_events")
+}
+
+model AdvertiserEmailSettings {
+  id           String   @id @default(cuid())
+  advertiserId String   @unique @map("advertiser_id")
+  fromName     String?  @map("from_name")
+  replyTo      String?  @map("reply_to")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  advertiser User @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@map("advertiser_email_settings")
+}
+
+model AdvertiserSendingIdentity {
+  id                 String                @id @default(cuid())
+  advertiserId       String                @map("advertiser_id")
+  domain             String
+  fromEmail          String                @map("from_email")
+  fromName           String                @map("from_name")
+  verificationStatus SendingIdentityStatus @default(PENDING) @map("verification_status")
+  dkimTokens         Json?                 @map("dkim_tokens")
+  isDefault          Boolean               @default(false) @map("is_default")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  advertiser User @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@unique([advertiserId, domain])
+  @@index([advertiserId])
+  @@map("advertiser_sending_identities")
 }

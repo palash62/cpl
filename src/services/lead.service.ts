@@ -13,6 +13,7 @@ import {
 } from "@/modules/fraud";
 import type { SubmissionMeta } from "@/modules/fraud";
 import { dispatchAutoresponderEvent } from "@/modules/autoresponder";
+import { dispatchLeadEmailAutomations } from "@/modules/email-marketing";
 import type { LeadStatus } from "@prisma/client";
 import type { Campaign, CampaignField } from "@prisma/client";
 
@@ -111,6 +112,7 @@ async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, reject
         void checkCampaignQualityAlert(lead.campaignId, lead.campaign.name);
       }
       void dispatchAutoresponderEvent({ leadId, event: "LEAD_APPROVED" });
+      void dispatchLeadEmailAutomations({ leadId, event: "LEAD_APPROVED" });
     } catch {
       await prisma.lead.update({
         where: { id: leadId },
@@ -285,6 +287,7 @@ async function createAndProcessLead(input: {
 
   if (nextStatus !== "REJECTED") {
     void dispatchAutoresponderEvent({ leadId: lead.id, event: "LEAD_CAPTURED" });
+    void dispatchLeadEmailAutomations({ leadId: lead.id, event: "LEAD_CAPTURED" });
   }
 
   return prisma.lead.findUniqueOrThrow({

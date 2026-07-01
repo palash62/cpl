@@ -306,3 +306,63 @@ export function isValidEmail(email: string): boolean {
 export function isValidPhone(phone: string): boolean {
   return /^\+?[\d\s\-()]{10,}$/.test(phone);
 }
+
+export const sesSettingsSchema = z.object({
+  region: z.string().trim().min(1).optional(),
+  accessKeyId: z.string().trim().optional(),
+  secretAccessKey: z.string().optional(),
+  fromDomain: z.string().trim().optional(),
+  fromEmail: z.string().trim().email().optional().or(z.literal("")),
+  configurationSet: z.string().trim().optional(),
+  appUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const emailTemplateSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  subject: z.string().trim().min(1).max(200),
+  htmlBody: z.string().min(1),
+  textBody: z.string().optional().nullable(),
+  previewText: z.string().max(200).optional().nullable(),
+});
+
+export const emailTemplateUpdateSchema = emailTemplateSchema.partial();
+
+export const emailAutomationStepSchema = z.object({
+  templateId: z.string().cuid(),
+  delayMinutes: z.number().int().min(0).max(525600),
+  order: z.number().int().min(0),
+});
+
+export const emailAutomationSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  trigger: z.enum(["LEAD_CAPTURED", "LEAD_APPROVED"]),
+  campaignId: z.string().cuid().optional().nullable(),
+  fromName: z.string().trim().min(2).max(80),
+  replyTo: z.string().email().optional().nullable().or(z.literal("")),
+  steps: z.array(emailAutomationStepSchema).min(1).max(20),
+});
+
+export const emailAutomationUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  trigger: z.enum(["LEAD_CAPTURED", "LEAD_APPROVED"]).optional(),
+  campaignId: z.string().cuid().optional().nullable(),
+  fromName: z.string().trim().min(2).max(80).optional(),
+  replyTo: z.string().email().optional().nullable().or(z.literal("")),
+  status: z.enum(["DRAFT", "ACTIVE", "PAUSED"]).optional(),
+  steps: z.array(emailAutomationStepSchema).min(1).max(20).optional(),
+});
+
+export const advertiserEmailSettingsSchema = z.object({
+  fromName: z.string().trim().min(2).max(80).optional(),
+  replyTo: z.string().email().optional().or(z.literal("")),
+});
+
+export const sendingIdentitySchema = z.object({
+  domain: z
+    .string()
+    .trim()
+    .min(3)
+    .max(253)
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i),
+  fromName: z.string().trim().min(2).max(80),
+});

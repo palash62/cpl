@@ -21,6 +21,7 @@ import {
   Palette,
   ShieldAlert,
   Plug,
+  Mail,
 } from "lucide-react";
 
 export interface NavItem {
@@ -50,6 +51,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
   { label: "Optin Pages", href: "/advertiser/optin-pages", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
+  { label: "Email", href: "/advertiser/email", icon: Mail },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
   { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },

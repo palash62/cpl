@@ -39,6 +39,9 @@ const publicPaths = [
   "/o/",
   "/api/v1/leads/submit",
   "/api/v1/leads/submit-optin",
+  "/api/v1/email/track/",
+  "/api/v1/webhooks/ses",
+  "/unsubscribe/",
   "/api/auth",
 ];
 

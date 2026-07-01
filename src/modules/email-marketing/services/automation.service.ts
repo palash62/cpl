@@ -1,0 +1,170 @@
+import type { AutoresponderTrigger, EmailAutomationStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { AppError } from "@/lib/errors";
+import { EMAIL_MARKETING_CONFIG_KEY } from "@/lib/email/ses-settings";
+import { parseEmailMarketingConfig } from "../config/platform-config";
+
+export async function listAutomations(advertiserId: string) {
+  return prisma.emailAutomation.findMany({
+    where: { advertiserId },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      steps: {
+        orderBy: { order: "asc" },
+        include: { template: { select: { id: true, name: true, subject: true } } },
+      },
+      _count: { select: { sends: true } },
+    },
+  });
+}
+
+export async function getAutomation(advertiserId: string, id: string) {
+  const automation = await prisma.emailAutomation.findFirst({
+    where: { id, advertiserId },
+    include: {
+      steps: {
+        orderBy: { order: "asc" },
+        include: { template: true },
+      },
+    },
+  });
+  if (!automation) throw new AppError("NOT_FOUND", "Automation not found", 404);
+  return automation;
+}
+
+async function getMaxAutomations(): Promise<number> {
+  const row = await prisma.platformSetting.findUnique({
+    where: { key: EMAIL_MARKETING_CONFIG_KEY },
+  });
+  const config = parseEmailMarketingConfig(row?.value);
+  return config.maxAutomationsPerAdvertiser;
+}
+
+export async function createAutomation(
+  advertiserId: string,
+  data: {
+    name: string;
+    trigger: AutoresponderTrigger;
+    campaignId?: string | null;
+    fromName: string;
+    replyTo?: string | null;
+    steps: { templateId: string; delayMinutes: number; order: number }[];
+  },
+) {
+  const count = await prisma.emailAutomation.count({ where: { advertiserId } });
+  const max = await getMaxAutomations();
+  if (count >= max) {
+    throw new AppError(
+      "LIMIT_REACHED",
+      `Maximum ${max} automations allowed.`,
+      422,
+    );
+  }
+
+  if (data.campaignId) {
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: data.campaignId, advertiserId },
+    });
+    if (!campaign) throw new AppError("NOT_FOUND", "Campaign not found", 404);
+  }
+
+  if (!data.steps.length) {
+    throw new AppError("VALIDATION_ERROR", "At least one step is required", 422);
+  }
+
+  for (const step of data.steps) {
+    const template = await prisma.emailTemplate.findFirst({
+      where: { id: step.templateId, advertiserId },
+    });
+    if (!template) {
+      throw new AppError("NOT_FOUND", `Template ${step.templateId} not found`, 404);
+    }
+  }
+
+  return prisma.emailAutomation.create({
+    data: {
+      advertiserId,
+      name: data.name,
+      trigger: data.trigger,
+      campaignId: data.campaignId ?? null,
+      fromName: data.fromName,
+      replyTo: data.replyTo ?? null,
+      status: "DRAFT",
+      steps: {
+        create: data.steps.map((s) => ({
+          order: s.order,
+          delayMinutes: s.delayMinutes,
+          templateId: s.templateId,
+        })),
+      },
+    },
+    include: {
+      steps: { orderBy: { order: "asc" }, include: { template: true } },
+    },
+  });
+}
+
+export async function updateAutomation(
+  advertiserId: string,
+  id: string,
+  data: Partial<{
+    name: string;
+    trigger: AutoresponderTrigger;
+    campaignId: string | null;
+    fromName: string;
+    replyTo: string | null;
+    status: EmailAutomationStatus;
+    steps: { templateId: string; delayMinutes: number; order: number }[];
+  }>,
+) {
+  const existing = await getAutomation(advertiserId, id);
+
+  if (data.steps) {
+    if (!data.steps.length) {
+      throw new AppError("VALIDATION_ERROR", "At least one step is required", 422);
+    }
+    await prisma.emailAutomationStep.deleteMany({ where: { automationId: id } });
+    await prisma.emailAutomationStep.createMany({
+      data: data.steps.map((s) => ({
+        automationId: id,
+        order: s.order,
+        delayMinutes: s.delayMinutes,
+        templateId: s.templateId,
+      })),
+    });
+  }
+
+  return prisma.emailAutomation.update({
+    where: { id },
+    data: {
+      name: data.name ?? existing.name,
+      trigger: data.trigger ?? existing.trigger,
+      campaignId: data.campaignId !== undefined ? data.campaignId : existing.campaignId,
+      fromName: data.fromName ?? existing.fromName,
+      replyTo: data.replyTo !== undefined ? data.replyTo : existing.replyTo,
+      status: data.status ?? existing.status,
+    },
+    include: {
+      steps: { orderBy: { order: "asc" }, include: { template: true } },
+    },
+  });
+}
+
+export async function activateAutomation(advertiserId: string, id: string) {
+  const automation = await getAutomation(advertiserId, id);
+  if (!automation.steps.length) {
+    throw new AppError("VALIDATION_ERROR", "Add at least one step before activating", 422);
+  }
+  return prisma.emailAutomation.update({
+    where: { id },
+    data: { status: "ACTIVE" },
+    include: {
+      steps: { orderBy: { order: "asc" }, include: { template: true } },
+    },
+  });
+}
+
+export async function deleteAutomation(advertiserId: string, id: string) {
+  await getAutomation(advertiserId, id);
+  await prisma.emailAutomation.delete({ where: { id } });
+}

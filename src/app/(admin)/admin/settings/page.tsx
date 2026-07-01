@@ -1,9 +1,10 @@
 import { PlatformSettingsForm } from "@/components/forms/platform-settings-form";
 import { SmtpSettingsForm } from "@/components/forms/smtp-settings-form";
+import { SesSettingsForm } from "@/components/forms/ses-settings-form";
 import { EmailLogsTable } from "@/components/admin/email-logs-table";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
-import { Mail, Settings } from "lucide-react";
+import { Mail, Settings, Cloud } from "lucide-react";
 
 export default function AdminSettingsPage() {
   return (
@@ -21,6 +22,16 @@ export default function AdminSettingsPage() {
       >
         <div className="p-6">
           <PlatformSettingsForm />
+        </div>
+      </PageSection>
+      <PageSection
+        title="Email Marketing (AWS SES)"
+        description="Configure SES for advertiser autoresponder and drip campaigns"
+        icon={Cloud}
+        gradient="leads"
+      >
+        <div className="p-6">
+          <SesSettingsForm />
         </div>
       </PageSection>
       <PageSection
