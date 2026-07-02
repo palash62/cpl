@@ -40,10 +40,16 @@ export async function ensureReferralCode(userId: string) {
   if (user?.referralCode) return user.referralCode;
 
   const referralCode = await createUniqueReferralCode();
-  await prisma.user.update({
+  const updated = await prisma.user.updateMany({
     where: { id: userId },
     data: { referralCode },
   });
+
+  // Session can occasionally reference a stale/deleted user row.
+  // Avoid crashing dashboard rendering on missing records.
+  if (updated.count === 0) {
+    return referralCode;
+  }
 
   return referralCode;
 }

@@ -8,7 +8,11 @@ export async function withAuth<T>(
 ) {
   const { error, session } = await requireApiAuth(roles);
   if (error || !session) return errorResponse(error ?? new Error("Unauthorized"));
-  return handler(session);
+  try {
+    return await handler(session);
+  } catch (err) {
+    return errorResponse(err);
+  }
 }
 
 export function parsePagination(searchParams: URLSearchParams) {

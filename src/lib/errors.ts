@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 export class AppError extends Error {
   constructor(
     public code: string,
@@ -11,6 +13,20 @@ export class AppError extends Error {
 }
 
 export function errorResponse(error: unknown, requestId?: string) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+    return Response.json(
+      {
+        error: {
+          code: "RECORD_NOT_FOUND",
+          message: "The requested record no longer exists",
+          status: 404,
+          requestId,
+        },
+      },
+      { status: 404 },
+    );
+  }
+
   if (error instanceof AppError) {
     return Response.json(
       {

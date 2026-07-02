@@ -51,7 +51,6 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
   { label: "Optin Pages", href: "/advertiser/optin-pages", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
-  { label: "Email", href: "/advertiser/email", icon: Mail },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
   { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },
@@ -60,6 +59,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Reports", href: "/advertiser/reports", icon: BarChart3 },
   { label: "Support", href: "/advertiser/support", icon: LifeBuoy },
   { label: "Settings", href: "/advertiser/settings", icon: Settings },
+  { label: "Autoresponder", href: "/advertiser/email", icon: Mail },
 ];
 
 export const PUBLISHER_NAV: NavItem[] = [
