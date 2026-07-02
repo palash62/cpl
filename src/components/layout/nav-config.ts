@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Gift,
   LayoutTemplate,
+  FileStack,
   Palette,
   ShieldAlert,
   Plug,
@@ -50,6 +51,7 @@ export const ADMIN_NAV: NavItem[] = [
 export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
   { label: "Optin Pages", href: "/advertiser/optin-pages", icon: LayoutTemplate },
+  { label: "Landing Pages", href: "/advertiser/landing-pages", icon: FileStack },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },

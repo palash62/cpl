@@ -380,6 +380,82 @@ export async function submitOptinLead(input: {
   });
 }
 
+export async function submitLandingLead(input: {
+  landingPageSlug: string;
+  data: Record<string, string>;
+  honeypot?: string;
+  ip?: string;
+  userAgent?: string;
+  deviceFingerprint?: string;
+  submissionMeta?: SubmissionMeta;
+}) {
+  if (input.honeypot) {
+    throw Errors.duplicateLead();
+  }
+
+  const page = await prisma.landingPage.findUnique({
+    where: { slug: input.landingPageSlug },
+    include: {
+      publishedVersion: true,
+      campaign: { include: { fields: true } },
+    },
+  });
+
+  if (
+    !page?.publishedVersion ||
+    page.status !== "PUBLISHED" ||
+    !page.campaign ||
+    page.campaign.status !== "ACTIVE"
+  ) {
+    throw Errors.notFound("Landing page");
+  }
+
+  const formJson = page.publishedVersion.formJson as {
+    fields: Array<{
+      name: string;
+      required?: boolean;
+      minLength?: number;
+      maxLength?: number;
+      pattern?: string;
+      type: string;
+    }>;
+  } | null;
+
+  if (formJson?.fields) {
+    for (const field of formJson.fields) {
+      const value = input.data[field.name]?.trim() ?? "";
+      if (field.required && !value) {
+        throw Errors.validation(`${field.name} is required`, field.name);
+      }
+      if (field.minLength && value.length < field.minLength) {
+        throw Errors.validation(`${field.name} is too short`, field.name);
+      }
+      if (field.maxLength && value.length > field.maxLength) {
+        throw Errors.validation(`${field.name} is too long`, field.name);
+      }
+      if (field.pattern && value && !new RegExp(field.pattern).test(value)) {
+        throw Errors.validation(`${field.name} is invalid`, field.name);
+      }
+      if (field.type === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        throw Errors.validation("Invalid email address", field.name);
+      }
+    }
+  }
+
+  return createAndProcessLead({
+    campaignId: page.campaign.id,
+    publisherId: page.advertiserId,
+    campaign: page.campaign,
+    data: input.data,
+    honeypot: input.honeypot,
+    ip: input.ip,
+    userAgent: input.userAgent,
+    source: "landing_page",
+    deviceFingerprint: input.deviceFingerprint,
+    submissionMeta: input.submissionMeta,
+  });
+}
+
 export async function updateLeadStatus(
   leadId: string,
   status: "APPROVED" | "REJECTED",

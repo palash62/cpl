@@ -216,6 +216,8 @@ model User {
   emailSends               EmailSend[]
   emailMarketingSettings   AdvertiserEmailSettings?
   sendingIdentities        AdvertiserSendingIdentity[]
+  landingPages             LandingPage[]
+  pageTemplateFavorites    PageTemplateFavorite[]
 
   @@index([role])
   @@index([status])
@@ -285,11 +287,18 @@ model Campaign {
   leads              Lead[]
   pixelEvents        PixelEvent[]
   optinPages         AdvertiserOptinPage[]
+  landingPages       LandingPage[]
 
   @@index([advertiserId])
   @@index([status])
   @@index([category])
   @@map("campaigns")
+}
+
+enum LandingPageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 model CampaignField {
@@ -917,4 +926,99 @@ model AdvertiserSendingIdentity {
   @@unique([advertiserId, domain])
   @@index([advertiserId])
   @@map("advertiser_sending_identities")
+}
+
+model LandingPage {
+  id                 String            @id @default(cuid())
+  advertiserId       String            @map("advertiser_id")
+  campaignId         String?           @map("campaign_id")
+  slug               String            @unique
+  name               String
+  status             LandingPageStatus @default(DRAFT)
+  craftState         Json              @map("craft_state")
+  themeJson          Json              @default("{}") @map("theme_json")
+  formJson           Json?             @map("form_json")
+  publishedVersionId String?           @unique @map("published_version_id")
+  autosaveAt         DateTime?         @map("autosave_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  versions         LandingPageVersion[] @relation("PageVersions")
+  publishedVersion LandingPageVersion?  @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  assets           LandingPageAsset[]
+
+  @@index([advertiserId])
+  @@index([campaignId])
+  @@index([status])
+  @@map("landing_pages")
+}
+
+model LandingPageVersion {
+  id            String   @id @default(cuid())
+  landingPageId String   @map("landing_page_id")
+  versionNumber Int      @map("version_number")
+  label         String?
+  craftState    Json     @map("craft_state")
+  themeJson     Json     @map("theme_json")
+  formJson      Json?    @map("form_json")
+  createdById   String?  @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage  LandingPage  @relation("PageVersions", fields: [landingPageId], references: [id], onDelete: Cascade)
+  publishedFor LandingPage? @relation("PublishedVersion")
+
+  @@unique([landingPageId, versionNumber])
+  @@index([landingPageId])
+  @@map("landing_page_versions")
+}
+
+model PageTemplate {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  category      String
+  thumbnailUrl  String?  @map("thumbnail_url")
+  craftState    Json     @map("craft_state")
+  themeJson     Json     @map("theme_json")
+  isSystem      Boolean  @default(true) @map("is_system")
+  advertiserId  String?  @map("advertiser_id")
+  favoriteCount Int      @default(0) @map("favorite_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  favorites PageTemplateFavorite[]
+
+  @@index([category])
+  @@index([advertiserId])
+  @@map("page_templates")
+}
+
+model PageTemplateFavorite {
+  advertiserId String @map("advertiser_id")
+  templateId   String @map("template_id")
+
+  advertiser User         @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  template   PageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([advertiserId, templateId])
+  @@map("page_template_favorites")
+}
+
+model LandingPageAsset {
+  id            String   @id @default(cuid())
+  landingPageId String   @map("landing_page_id")
+  advertiserId  String   @map("advertiser_id")
+  fileName      String   @map("file_name")
+  mimeType      String   @map("mime_type")
+  sizeBytes     Int      @map("size_bytes")
+  storageKey    String   @map("storage_key")
+  url           String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  @@index([landingPageId])
+  @@index([advertiserId])
+  @@map("landing_page_assets")
 }

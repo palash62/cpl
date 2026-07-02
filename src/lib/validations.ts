@@ -366,3 +366,36 @@ export const sendingIdentitySchema = z.object({
     .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i),
   fromName: z.string().trim().min(2).max(80),
 });
+
+export const landingPageCreateSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  templateId: z.string().optional(),
+  campaignId: z.string().optional(),
+});
+
+export const landingPageUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  slug: z.string().trim().min(2).max(40).optional(),
+  campaignId: z.string().nullable().optional(),
+  craftState: z.record(z.string(), z.unknown()).optional(),
+  themeJson: z.record(z.string(), z.unknown()).optional(),
+  autosave: z.boolean().optional(),
+});
+
+export const landingSubmitSchema = z.object({
+  landingPageSlug: z.string().min(1),
+  data: z.record(z.string(), z.string()),
+  honeypot: z.string().optional(),
+  deviceFingerprint: z.string().max(128).optional(),
+  submissionMeta: submissionMetaSchema,
+});
+
+export const templateImportSchema = z.object({
+  templateMeta: z.object({
+    name: z.string(),
+    category: z.string(),
+    schemaVersion: z.literal(1),
+  }),
+  craft: z.record(z.string(), z.unknown()),
+  theme: z.record(z.string(), z.unknown()),
+});

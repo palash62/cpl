@@ -94,4 +94,6 @@ export const Errors = {
       "A payout request with this key already exists",
       422,
     ),
+  validation: (message: string, field?: string) =>
+    new AppError("VALIDATION_ERROR", message, 422, field),
 };
