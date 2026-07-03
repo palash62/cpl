@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Link2, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy, Globe, Link2, Loader2, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,19 +38,29 @@ export function PublisherSmartLinkPanel({
   slug,
   eligible,
   sourceBreakdown,
+  globalLinkUrl: initialGlobalLinkUrl,
+  platformGlobalLinkUrl,
 }: {
   slug: string;
   eligible: EligibleCampaign[];
   sourceBreakdown: SourceStat[];
+  globalLinkUrl: string | null;
+  platformGlobalLinkUrl: string | null;
 }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [customSrc, setCustomSrc] = useState("");
   const [customSubId, setCustomSubId] = useState("");
+  const [globalLinkUrl, setGlobalLinkUrl] = useState(initialGlobalLinkUrl ?? "");
+  const [savingGlobalLink, setSavingGlobalLink] = useState(false);
+  const [globalLinkMessage, setGlobalLinkMessage] = useState<string | null>(null);
 
-  const baseUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/s/${slug}`
-      : `/s/${slug}`;
+  const [origin, setOrigin] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const baseUrl = origin ? `${origin}/s/${slug}` : null;
 
   async function copyUrl(key: string, url: string) {
     await navigator.clipboard.writeText(url);
@@ -60,10 +70,36 @@ export function PublisherSmartLinkPanel({
 
   const customSrcSafe = sanitizeTrackingParam(customSrc);
   const customSubIdSafe = sanitizeTrackingParam(customSubId);
-  const customUrl = buildSmartLinkUrl(baseUrl, {
-    src: customSrcSafe,
-    subId: customSubIdSafe,
-  });
+  const customUrl =
+    baseUrl && (customSrcSafe || customSubIdSafe)
+      ? buildSmartLinkUrl(baseUrl, { src: customSrcSafe, subId: customSubIdSafe })
+      : baseUrl ?? `/s/${slug}`;
+
+  async function saveGlobalLink(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingGlobalLink(true);
+    setGlobalLinkMessage(null);
+
+    const res = await fetch("/api/v1/publisher/global-link", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        globalLinkUrl: globalLinkUrl.trim() || null,
+      }),
+    });
+    const data = await res.json();
+
+    setSavingGlobalLink(false);
+
+    if (!res.ok) {
+      setGlobalLinkMessage(data?.error?.message ?? "Unable to save global link");
+      return;
+    }
+
+    setGlobalLinkMessage("Global link saved.");
+  }
+
+  const activeFallback = globalLinkUrl.trim() || platformGlobalLinkUrl;
 
   return (
     <div className="space-y-6">
@@ -96,11 +132,12 @@ export function PublisherSmartLinkPanel({
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             readOnly
-            value={baseUrl}
+            value={baseUrl ?? `/s/${slug}`}
             className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 font-mono text-sm text-slate-700"
           />
           <Button
-            onClick={() => copyUrl("base", baseUrl)}
+            onClick={() => baseUrl && copyUrl("base", baseUrl)}
+            disabled={!baseUrl}
             className="h-11 shrink-0 gap-2 rounded-xl bg-[var(--theme-primary)] px-5 hover:opacity-90"
           >
             {copiedKey === "base" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -112,6 +149,70 @@ export function PublisherSmartLinkPanel({
         </p>
       </div>
 
+      <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-indigo-500 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Globe className="h-4 w-4 text-indigo-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Your global fallback link</h3>
+        </div>
+        <p className="mb-4 text-sm text-slate-600">
+          When no campaigns match rotation rules for a visitor, they are redirected here instead of
+          seeing an empty page. Leave blank to use the platform default.
+        </p>
+        <form onSubmit={saveGlobalLink} className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="publisher-global-link">Global campaign link</Label>
+            <Input
+              id="publisher-global-link"
+              type="url"
+              value={globalLinkUrl}
+              onChange={(e) => setGlobalLinkUrl(e.target.value)}
+              placeholder="https://example.com/offer"
+              className="h-10"
+            />
+          </div>
+          {!globalLinkUrl.trim() && platformGlobalLinkUrl && (
+            <p className="text-xs text-slate-500">
+              Platform default:{" "}
+              <span className="font-mono text-slate-600">{platformGlobalLinkUrl}</span>
+            </p>
+          )}
+          {activeFallback && (
+            <p className="text-xs text-emerald-700">
+              Visitors without a matching offer will be sent to your{" "}
+              {globalLinkUrl.trim() ? "custom" : "platform"} fallback link.
+            </p>
+          )}
+          {!activeFallback && (
+            <p className="text-xs text-amber-700">
+              No fallback link configured yet. Set yours below or ask admin to set the platform default.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="submit"
+              disabled={savingGlobalLink}
+              className="h-10 gap-2 rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
+            >
+              {savingGlobalLink ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {savingGlobalLink ? "Saving..." : "Save global link"}
+            </Button>
+            {globalLinkMessage && (
+              <p
+                className={`text-sm ${
+                  globalLinkMessage.includes("Unable") ? "text-red-600" : "text-emerald-600"
+                }`}
+              >
+                {globalLinkMessage}
+              </p>
+            )}
+          </div>
+        </form>
+      </div>
+
       <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-sky-500 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-sm font-semibold text-slate-900">Platform links</h3>
         <p className="mb-4 text-sm text-slate-600">
@@ -119,13 +220,14 @@ export function PublisherSmartLinkPanel({
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SMART_LINK_PLATFORMS.map((platform) => {
-            const url = buildSmartLinkUrl(baseUrl, { src: platform.id });
+            const url = baseUrl ? buildSmartLinkUrl(baseUrl, { src: platform.id }) : null;
             const key = `platform-${platform.id}`;
             return (
               <button
                 key={platform.id}
                 type="button"
-                onClick={() => copyUrl(key, url)}
+                disabled={!url}
+                onClick={() => url && copyUrl(key, url)}
                 className={cn(
                   "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all hover:shadow-sm",
                   platform.color,

@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DeviceSwitcher } from "@/modules/page-builder/components/editor/device-switcher";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { savePageCraft } from "@/modules/page-builder/lib/save-page";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -22,34 +23,23 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
   const saveStatus = useBuilderStore((s) => s.saveStatus);
   const setPreviewOpen = useBuilderStore((s) => s.setPreviewOpen);
   const setVersionHistoryOpen = useBuilderStore((s) => s.setVersionHistoryOpen);
+  const builderConfig = useBuilderStore((s) => s.builderConfig);
+  const funnelStep = useBuilderStore((s) => s.funnelStep);
 
   async function handleSave() {
-    const store = useBuilderStore.getState();
-    store.setSaveStatus("saving");
-    try {
-      const json = query.serialize();
-      const res = await fetch(`/api/v1/advertiser/landing-pages/${pageId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          craftState: JSON.parse(json),
-          themeJson: store.theme,
-          autosave: false,
-        }),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      store.setSaveStatus("saved");
-      toast.success("Page saved");
-    } catch {
-      store.setSaveStatus("error");
-      toast.error("Failed to save page");
+    const json = query.serialize();
+    const result = await savePageCraft(pageId, json, { autosave: false });
+    if (!result.ok) {
+      toast.error(result.errorMessage ?? "Failed to save page");
+      return;
     }
+    toast.success("Page saved");
   }
 
   async function handlePublish() {
     await handleSave();
     try {
-      const res = await fetch(`/api/v1/advertiser/landing-pages/${pageId}/publish`, { method: "POST" });
+      const res = await fetch(`${builderConfig.apiBasePath}/${pageId}/publish`, { method: "POST" });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error?.message ?? "Publish failed");
@@ -63,7 +53,7 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.08] bg-[#12141c] px-4">
       <Link
-        href="/advertiser/landing-pages"
+        href={builderConfig.listPath}
         className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -74,7 +64,10 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
 
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-white">{pageName}</p>
-        <p className="text-[10px] text-slate-500">Landing Page Builder</p>
+        <p className="text-[10px] text-slate-500">
+          {builderConfig.label}
+          {funnelStep === "thankYou" ? " · Thank You" : ""}
+        </p>
       </div>
 
       <div className="mx-2 hidden h-6 w-px bg-white/10 md:block" />

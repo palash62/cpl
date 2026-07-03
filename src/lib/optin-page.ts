@@ -100,6 +100,8 @@ export type PublicOptinPage = OptinPageContent & {
     required: boolean;
   }>;
   previewMode?: boolean;
+  thankYouEnabled?: boolean;
+  funnelId?: string;
 };
 
 export const PREVIEW_FALLBACK_FIELDS: PublicOptinPage["fields"] = [
@@ -137,6 +139,8 @@ export function buildPublicOptinPage(
     displayTitle: page.title?.trim() || campaign?.name || DEFAULT_OPTIN_PAGE.title,
     fields,
     previewMode: options?.previewMode,
+    thankYouEnabled: Boolean((page as { thankYouEnabled?: boolean }).thankYouEnabled),
+    funnelId: page.id,
   };
 }
 

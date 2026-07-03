@@ -70,10 +70,14 @@ type OptinPageOption = {
   title: string;
   slug: string;
   isPublished: boolean;
+  name?: string;
+  editorType?: string;
 };
 
 function formatOptinPageLabel(page: OptinPageOption) {
-  return `${page.title} (/o/${page.slug})`;
+  const label = page.name ?? page.title;
+  const type = page.editorType === "BUILDER" ? "Builder" : "Template";
+  return `${label} (${type}) · /o/${page.slug}`;
 }
 
 type CreateCampaignFormProps = {
@@ -433,7 +437,7 @@ export function CreateCampaignForm({
 
       if (canEditField("description")) {
         patchBody.description = selectedOptinPage
-          ? `Optin page: ${selectedOptinPage.title}`
+          ? `Optin funnel: ${selectedOptinPage.title}`
           : editCampaign.name;
       }
       if (canEditField("dailyCap")) {
@@ -484,7 +488,7 @@ export function CreateCampaignForm({
           status: campaignStatus,
           autoApprove,
           description: selectedOptinPage
-            ? `Optin page: ${selectedOptinPage.title}`
+            ? `Optin funnel: ${selectedOptinPage.title}`
             : undefined,
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
@@ -493,7 +497,7 @@ export function CreateCampaignForm({
           name: name.trim(),
           optinPageId,
           description: selectedOptinPage
-            ? `Optin page: ${selectedOptinPage.title}`
+            ? `Optin funnel: ${selectedOptinPage.title}`
             : undefined,
           category: selectedVertical.category,
           cpl: cplValue,
@@ -628,7 +632,7 @@ export function CreateCampaignForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="optinPageId">Optin page*</Label>
+              <Label htmlFor="optinPageId">Optin funnel*</Label>
               {loadingOptinPages ? (
                 <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
                   Loading optin pages...
@@ -660,7 +664,7 @@ export function CreateCampaignForm({
                           {formatOptinPageLabel(selectedOptinPage)}
                         </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Select optin page</span>
+                        <span className="text-sm text-muted-foreground">Select optin funnel</span>
                       )}
                     </SelectTrigger>
                     <SelectContent>

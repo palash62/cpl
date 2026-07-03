@@ -1,6 +1,7 @@
 import { errorResponse } from "@/lib/errors";
 import { optinSubmitSchema } from "@/lib/validations";
 import { submitOptinLead } from "@/services/lead.service";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +29,23 @@ export async function POST(request: Request) {
       deviceFingerprint: parsed.data.deviceFingerprint,
       submissionMeta: parsed.data.submissionMeta,
     });
+
+    const optinPage = await prisma.advertiserOptinPage.findUnique({
+      where: { slug: parsed.data.optinSlug },
+      select: { id: true, campaignId: true },
+    });
+    if (optinPage?.campaignId) {
+      const { recordFunnelEvent } = await import("@/services/funnel-analytics.service");
+      await recordFunnelEvent({
+        funnelId: optinPage.id,
+        campaignId: optinPage.campaignId,
+        leadId: lead.id,
+        eventType: "SUBMIT",
+        step: "optin",
+        ip,
+        userAgent: request.headers.get("user-agent") ?? undefined,
+      });
+    }
 
     return Response.json({ lead: { id: lead.id, status: lead.status } }, { status: 201 });
   } catch (error) {

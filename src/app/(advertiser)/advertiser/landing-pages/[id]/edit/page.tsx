@@ -21,6 +21,16 @@ export default function LandingPageEditPage() {
   } | null>(null);
 
   useEffect(() => {
+    useBuilderStore.getState().setBuilderConfig({
+      apiBasePath: "/api/v1/advertiser/landing-pages",
+      listPath: "/advertiser/landing-pages",
+      publicPathPrefix: "/p/",
+      label: "Landing Page Builder",
+    });
+    useBuilderStore.getState().setFunnelStep("optin");
+  }, []);
+
+  useEffect(() => {
     fetch(`/api/v1/advertiser/landing-pages/${pageId}`)
       .then((r) => r.json())
       .then((body) => {

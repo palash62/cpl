@@ -24,10 +24,12 @@ export function OptinPageEditor({
   initialPage,
   publicBaseUrl,
   templateName,
+  funnelId,
 }: {
   initialPage: OptinPageContent;
   publicBaseUrl: string;
   templateName?: string;
+  funnelId?: string;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(initialPage);
@@ -60,27 +62,31 @@ export function OptinPageEditor({
       .filter(Boolean)
       .slice(0, 6);
 
-    const res = await fetch("/api/v1/advertiser/optin-page", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: page.title.trim(),
-        slug: slugifyOptinAddress(page.slug),
-        destinationUrl: page.destinationUrl?.trim() || null,
-        templateId: page.templateId,
-        headline: page.headline,
-        subheadline: page.subheadline,
-        description: page.description,
-        ctaText: page.ctaText,
-        successTitle: page.successTitle,
-        successMessage: page.successMessage,
-        badgeText: page.badgeText,
-        bulletPoints,
-        primaryColor: page.primaryColor,
-        accentColor: page.accentColor,
-        isPublished: publish ?? page.isPublished,
-      }),
-    });
+    const res = await fetch(
+      funnelId ? `/api/v1/advertiser/optin-funnels/${funnelId}` : "/api/v1/advertiser/optin-page",
+      {
+        method: funnelId ? "PATCH" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: page.title.trim(),
+          slug: slugifyOptinAddress(page.slug),
+          destinationUrl: page.destinationUrl?.trim() || null,
+          templateId: page.templateId,
+          headline: page.headline,
+          subheadline: page.subheadline,
+          description: page.description,
+          ctaText: page.ctaText,
+          successTitle: page.successTitle,
+          successMessage: page.successMessage,
+          badgeText: page.badgeText,
+          bulletPoints,
+          primaryColor: page.primaryColor,
+          accentColor: page.accentColor,
+          isPublished: publish ?? page.isPublished,
+          ...(funnelId ? { funnelId } : {}),
+        }),
+      },
+    );
     const data = await res.json();
 
     setSaving(false);
@@ -90,8 +96,9 @@ export function OptinPageEditor({
       return;
     }
 
-    setPage(data.page);
-    setBulletText(data.page.bulletPoints.join("\n"));
+    const savedPage = funnelId ? data.data : data.page;
+    setPage(savedPage);
+    setBulletText(savedPage.bulletPoints.join("\n"));
     setSuccess(publish ? "Optin page published." : "Changes saved.");
     router.refresh();
   }

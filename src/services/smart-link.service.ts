@@ -123,7 +123,14 @@ export async function getCampaignsShownToIp(publisherId: string, ip: string) {
   return ordered;
 }
 
-async function resolveGlobalLinkFallback() {
+async function resolveGlobalLinkFallback(publisherId: string) {
+  const publisherProfile = await prisma.publisherProfile.findUnique({
+    where: { userId: publisherId },
+    select: { globalLinkUrl: true },
+  });
+  const publisherUrl = publisherProfile?.globalLinkUrl?.trim();
+  if (publisherUrl) return publisherUrl;
+
   const { getPlatformSettings } = await import("@/services/wallet.service");
   const settings = await getPlatformSettings();
   return settings.globalLinkUrl;
@@ -145,7 +152,7 @@ export async function pickNextCampaign(
       eligible,
       campaign: null,
       trackingSlug: null,
-      globalLinkUrl: await resolveGlobalLinkFallback(),
+      globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
       visitorCountry: options.countryCode ?? null,
     };
   }
@@ -163,7 +170,7 @@ export async function pickNextCampaign(
       eligible: countryEligible,
       campaign: null,
       trackingSlug: null,
-      globalLinkUrl: await resolveGlobalLinkFallback(),
+      globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
       visitorCountry: options.countryCode ?? null,
     };
   }
@@ -217,7 +224,9 @@ export async function getPublisherSmartLinkDashboard(publisherId: string) {
   const smartLink = await getOrCreatePublisherSmartLink(publisherId);
   const eligible = await getEligibleCampaigns(publisherId);
 
-  const [leadStats, clickStats] = await Promise.all([
+  const { getPlatformSettings } = await import("@/services/wallet.service");
+
+  const [leadStats, clickStats, publisherProfile, platformSettings] = await Promise.all([
     prisma.lead.groupBy({
       by: ["source"],
       where: { publisherId, source: { not: null } },
@@ -231,6 +240,11 @@ export async function getPublisherSmartLinkDashboard(publisherId: string) {
       },
       _count: { id: true },
     }),
+    prisma.publisherProfile.findUnique({
+      where: { userId: publisherId },
+      select: { globalLinkUrl: true },
+    }),
+    getPlatformSettings(),
   ]);
 
   const sourceMap = new Map<string, { leads: number; clicks: number }>();
@@ -250,7 +264,13 @@ export async function getPublisherSmartLinkDashboard(publisherId: string) {
     .map(([source, stats]) => ({ source, ...stats }))
     .sort((a, b) => b.leads - a.leads);
 
-  return { smartLink, eligible, sourceBreakdown };
+  return {
+    smartLink,
+    eligible,
+    sourceBreakdown,
+    globalLinkUrl: publisherProfile?.globalLinkUrl?.trim() || null,
+    platformGlobalLinkUrl: platformSettings.globalLinkUrl,
+  };
 }
 
 export async function blockPublisher(

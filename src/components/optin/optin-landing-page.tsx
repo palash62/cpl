@@ -49,6 +49,13 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
       setError(result.error?.message ?? "Submission failed");
       return;
     }
+
+    const leadId = result.lead?.id as string | undefined;
+    if (page.thankYouEnabled && leadId && !page.previewMode) {
+      window.location.assign(`/o/${page.slug}/thank-you?lead_id=${leadId}&txn_id=${leadId}`);
+      return;
+    }
+
     setStatus("success");
   }
 

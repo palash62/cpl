@@ -24,8 +24,11 @@ export function buildSmartLinkUrl(
   baseUrl: string,
   params?: { src?: string; subId?: string },
 ): string {
-  const url = new URL(baseUrl);
+  const isAbsolute = /^https?:\/\//i.test(baseUrl);
+  const url = isAbsolute ? new URL(baseUrl) : new URL(baseUrl, "http://localhost");
   if (params?.src) url.searchParams.set("src", params.src);
   if (params?.subId) url.searchParams.set("sub_id", params.subId);
-  return url.toString();
+  const query = url.search;
+  const path = url.pathname;
+  return isAbsolute ? url.toString() : `${path}${query}`;
 }

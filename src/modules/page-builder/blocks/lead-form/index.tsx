@@ -2,7 +2,7 @@
 
 import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { CanvasWrapper, BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import {
   StandardSettings,
@@ -35,6 +35,7 @@ export function LeadForm({
 }: LeadFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const theme = useBuilderStore((s) => s.theme);
   const published = usePublishedPage();
   const slug = landingPageSlug ?? published.landingPageSlug;
@@ -68,23 +69,39 @@ export function LeadForm({
     );
   }
 
+  const formBody = (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <input type="text" name="honeypot" className="hidden" tabIndex={-1} autoComplete="off" />
+      {children}
+      {!children && <p className="text-sm text-muted-foreground">Drop form fields here</p>}
+      {slug && submitHandler && (
+        <button
+          type="submit"
+          disabled={loading}
+          style={buttonStyleFromTheme(theme)}
+          className="px-4 py-2.5 font-medium"
+        >
+          {loading ? "Submitting..." : "Submit"}
+        </button>
+      )}
+    </form>
+  );
+
   return (
     <CanvasWrapper {...props}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input type="text" name="honeypot" className="hidden" tabIndex={-1} autoComplete="off" />
-        {children}
-        {!children && <p className="text-sm text-muted-foreground">Drop form fields here</p>}
-        {slug && submitHandler && (
-          <button
-            type="submit"
-            disabled={loading}
-            style={buttonStyleFromTheme(theme)}
-            className="px-4 py-2.5 font-medium"
-          >
-            {loading ? "Submitting..." : "Submit"}
-          </button>
-        )}
-      </form>
+      {!enabled ? (
+        <div
+          className="rounded-3xl border border-slate-200/80 p-6 shadow-xl"
+          style={{
+            background: "var(--pb-form-surface-bg, #ffffff)",
+            color: "var(--pb-form-surface-text, #0f172a)",
+          }}
+        >
+          {formBody}
+        </div>
+      ) : (
+        formBody
+      )}
     </CanvasWrapper>
   );
 }
@@ -163,14 +180,14 @@ export function FormInput({
 }: FormFieldProps) {
   return (
     <BlockWrapper {...props} draggable>
-      <label className="block text-sm font-medium">
+      <label className="block text-sm font-medium text-slate-700">
         {label}{required && <span className="text-red-500"> *</span>}
         <input
           name={name}
           type={renderInput(fieldType)}
           required={required}
           placeholder={placeholder}
-          className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
         />
       </label>
     </BlockWrapper>
@@ -186,9 +203,9 @@ FormInput.craft = {
 export function FormTextarea({ name = "message", label = "Message", required = false, placeholder = "", ...props }: FormFieldProps) {
   return (
     <BlockWrapper {...props} draggable>
-      <label className="block text-sm font-medium">
+      <label className="block text-sm font-medium text-slate-700">
         {label}{required && <span className="text-red-500"> *</span>}
-        <textarea name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-md border px-3 py-2 text-sm min-h-[80px]" />
+        <textarea name={name} required={required} placeholder={placeholder} className="mt-1 min-h-[80px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
       </label>
     </BlockWrapper>
   );
@@ -244,7 +261,7 @@ export function FormSelect({ name = "select", label = "Select", options = [{ lab
     <BlockWrapper {...props} draggable>
       <label className="block text-sm font-medium">
         {label}
-        <select name={name} required={required} className="mt-1 w-full rounded-md border px-3 py-2 text-sm">
+        <select name={name} required={required} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       </label>

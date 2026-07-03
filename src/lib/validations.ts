@@ -108,6 +108,10 @@ export const optinPageUpdateSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   isPublished: z.boolean(),
+  thankYouEnabled: z.boolean().optional(),
+  thankYouPixelHtml: z.string().trim().max(10000).nullable().optional(),
+  thankYouUseCampaignPixel: z.boolean().optional(),
+  funnelId: z.string().optional(),
 });
 
 export const optinPageColorsSchema = z.object({
@@ -208,6 +212,13 @@ export const updatePublisherProfileSchema = z.object({
       message: "Enter a valid website URL",
     }),
   trafficSource: z.string().trim().max(120)    .optional(),
+});
+
+export const updatePublisherGlobalLinkSchema = z.object({
+  globalLinkUrl: z
+    .union([z.string().trim().max(500), z.null()])
+    .optional()
+    .transform((val) => (val === "" || val === undefined ? null : val)),
 });
 
 export const adminCreateCampaignSchema = campaignSchema.extend({
@@ -411,6 +422,50 @@ export const landingPageCreateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   templateId: z.string().optional(),
   campaignId: z.string().optional(),
+});
+
+export const optinFunnelCreateSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  editorType: z.enum(["TEMPLATE", "BUILDER"]),
+  templateId: z.enum(["aurora", "sunrise", "ocean", "minimal", "bold", "neon"]).optional(),
+  pageTemplateId: z.string().optional(),
+});
+
+export const optinFunnelUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  title: z.string().trim().min(2).max(80).optional(),
+  slug: z.string().trim().min(2).max(40).optional(),
+  campaignId: z.string().nullable().optional(),
+  destinationUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: "Enter a valid destination URL",
+    }),
+  templateId: z.enum(["aurora", "sunrise", "ocean", "minimal", "bold", "neon"]).optional(),
+  headline: z.string().trim().min(3).max(120).optional(),
+  subheadline: z.string().trim().min(3).max(200).optional(),
+  description: z.string().trim().max(1000).nullable().optional(),
+  ctaText: z.string().trim().min(2).max(60).optional(),
+  successTitle: z.string().trim().min(2).max(80).optional(),
+  successMessage: z.string().trim().min(2).max(200).optional(),
+  badgeText: z.string().trim().max(80).nullable().optional(),
+  bulletPoints: z.array(z.string().trim().min(1).max(120)).max(6).optional(),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  isPublished: z.boolean().optional(),
+  craftState: z.record(z.string(), z.unknown()).optional(),
+  themeJson: z.record(z.string(), z.unknown()).optional(),
+  thankYouEnabled: z.boolean().optional(),
+  thankYouCraftState: z.record(z.string(), z.unknown()).optional(),
+  thankYouThemeJson: z.record(z.string(), z.unknown()).optional(),
+  thankYouPixelHtml: z.string().trim().max(10000).nullable().optional(),
+  thankYouUseCampaignPixel: z.boolean().optional(),
+  step: z.enum(["optin", "thankYou"]).optional(),
+  autosave: z.boolean().optional(),
 });
 
 export const landingPageUpdateSchema = z.object({

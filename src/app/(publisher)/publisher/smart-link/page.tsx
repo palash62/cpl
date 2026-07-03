@@ -8,9 +8,8 @@ import { PublisherSmartLinkPanel } from "@/components/publisher/publisher-smart-
 
 export default async function PublisherSmartLinkPage() {
   const session = await getSession();
-  const { smartLink, eligible, sourceBreakdown } = await getPublisherSmartLinkDashboard(
-    session!.user.id,
-  );
+  const { smartLink, eligible, sourceBreakdown, globalLinkUrl, platformGlobalLinkUrl } =
+    await getPublisherSmartLinkDashboard(session!.user.id);
 
   const eligibleCampaigns = eligible.map((campaign) => ({
     id: campaign.id,
@@ -36,6 +35,8 @@ export default async function PublisherSmartLinkPage() {
         slug={smartLink.slug}
         eligible={eligibleCampaigns}
         sourceBreakdown={sourceBreakdown}
+        globalLinkUrl={globalLinkUrl}
+        platformGlobalLinkUrl={platformGlobalLinkUrl}
       />
     </div>
   );

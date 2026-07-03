@@ -28,18 +28,19 @@ export function VersionHistoryDrawer({ pageId }: VersionHistoryDrawerProps) {
 
   useEffect(() => {
     if (!open) return;
+    const apiBasePath = useBuilderStore.getState().builderConfig.apiBasePath;
     setLoading(true);
-    fetch(`/api/v1/advertiser/landing-pages/${pageId}/versions`)
+    fetch(`${apiBasePath}/${pageId}/versions`)
       .then((r) => r.json())
       .then((body) => setVersions(body.data ?? []))
       .finally(() => setLoading(false));
   }, [open, pageId]);
 
   async function restore(versionId: string) {
-    const res = await fetch(
-      `/api/v1/advertiser/landing-pages/${pageId}/versions/${versionId}/restore`,
-      { method: "POST" },
-    );
+    const apiBasePath = useBuilderStore.getState().builderConfig.apiBasePath;
+    const res = await fetch(`${apiBasePath}/${pageId}/versions/${versionId}/restore`, {
+      method: "POST",
+    });
     if (!res.ok) {
       toast.error("Failed to restore version");
       return;

@@ -18,6 +18,8 @@ export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBa
   const saveStatus = useBuilderStore((s) => s.saveStatus);
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const setPageMeta = useBuilderStore((s) => s.setPageMeta);
+  const builderConfig = useBuilderStore((s) => s.builderConfig);
+  const funnelStep = useBuilderStore((s) => s.funnelStep);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selected, setSelected] = useState(campaignId ?? "");
 
@@ -33,7 +35,7 @@ export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBa
 
   async function linkCampaign(id: string) {
     setSelected(id);
-    await fetch(`/api/v1/advertiser/landing-pages/${pageId}`, {
+    await fetch(`${builderConfig.apiBasePath}/${pageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ campaignId: id || null }),
@@ -45,7 +47,11 @@ export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBa
     <footer className="flex h-9 shrink-0 items-center gap-4 border-t border-white/[0.08] bg-[#12141c] px-4 text-xs">
       <div className="flex items-center gap-1.5 text-slate-500">
         <Link2 className="h-3 w-3" />
-        <span className="font-mono text-slate-400">/p/{pageSlug}</span>
+        <span className="font-mono text-slate-400">
+          {builderConfig.publicPathPrefix}
+          {pageSlug}
+          {funnelStep === "thankYou" ? "/thank-you" : ""}
+        </span>
       </div>
       <div className="flex items-center gap-1.5 text-slate-500">
         <Monitor className="h-3 w-3" />

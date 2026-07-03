@@ -35,6 +35,7 @@ export async function getPublisherSettings(userId: string) {
         select: {
           website: true,
           trafficSource: true,
+          globalLinkUrl: true,
           kycStatus: true,
           rejectionReason: true,
           rejectedAt: true,
@@ -71,6 +72,19 @@ export async function updatePublisherProfile(
 
     return getPublisherSettings(userId);
   });
+}
+
+export async function updatePublisherGlobalLink(
+  userId: string,
+  globalLinkUrl: string | null,
+) {
+  await prisma.publisherProfile.upsert({
+    where: { userId },
+    create: { userId, globalLinkUrl },
+    update: { globalLinkUrl },
+  });
+
+  return getPublisherSettings(userId);
 }
 
 export async function updateAdvertiserProfile(

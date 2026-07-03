@@ -207,7 +207,7 @@ model User {
   ticketMessages    TicketMessage[]
   auditLogs         AuditLog[]
   leadStatusChanges LeadStatusHistory[]
-  optinPage         AdvertiserOptinPage?
+  optinPages               AdvertiserOptinPage[]
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   impersonationTokensAsAdmin ImpersonationToken[] @relation("ImpersonationAdmin")
@@ -261,6 +261,7 @@ model PublisherProfile {
   tier1SpecialPayout Decimal? @map("tier1_special_payout") @db.Decimal(10, 2)
   tier2SpecialPayout Decimal? @map("tier2_special_payout") @db.Decimal(10, 2)
   tier3SpecialPayout Decimal? @map("tier3_special_payout") @db.Decimal(10, 2)
+  globalLinkUrl     String?   @map("global_link_url")
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("publisher_profiles")
@@ -295,6 +296,7 @@ model Campaign {
   pixelEvents        PixelEvent[]
   optinPages         AdvertiserOptinPage[]
   landingPages       LandingPage[]
+  funnelEvents       FunnelEvent[]
 
   @@index([advertiserId])
   @@index([status])
@@ -444,6 +446,7 @@ model Lead {
   validationResults LeadValidationResult[]
   platformFee       PlatformFee?
   pixelEvents       PixelEvent[]
+  funnelEvents      FunnelEvent[]
   deviceSeen        LeadDeviceSeen[]
   autoresponderDeliveries AutoresponderDelivery[]
   emailSends              EmailSend[]
@@ -663,13 +666,34 @@ model ImpersonationToken {
   @@map("impersonation_tokens")
 }
 
+enum OptinFunnelEditorType {
+  TEMPLATE
+  BUILDER
+}
+
+enum OptinFunnelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum FunnelEventType {
+  VIEW
+  SUBMIT
+  THANK_YOU_VIEW
+  PIXEL_FIRE
+}
+
 model AdvertiserOptinPage {
   id             String   @id @default(cuid())
-  advertiserId   String   @unique @map("advertiser_id")
+  advertiserId   String   @map("advertiser_id")
   slug           String   @unique
+  name           String   @default("My Optin Funnel")
   title          String   @default("My Optin Page")
   destinationUrl String?  @map("destination_url")
   campaignId     String?  @map("campaign_id")
+  editorType     OptinFunnelEditorType @default(TEMPLATE) @map("editor_type")
+  status         OptinFunnelStatus @default(DRAFT)
   headline       String   @default("Unlock Your Free Guide")
   subheadline    String   @default("Join thousands getting results every week")
   description    String?  @db.Text
@@ -681,15 +705,75 @@ model AdvertiserOptinPage {
   primaryColor   String   @default("#6366f1") @map("primary_color")
   accentColor    String   @default("#a855f7") @map("accent_color")
   templateId     String   @default("aurora") @map("template_id")
+  craftState         Json?    @map("craft_state")
+  themeJson          Json?    @map("theme_json")
+  formJson           Json?    @map("form_json")
+  publishedVersionId String?  @unique @map("published_version_id")
+  autosaveAt         DateTime? @map("autosave_at")
+  thankYouEnabled         Boolean  @default(false) @map("thank_you_enabled")
+  thankYouCraftState      Json?    @map("thank_you_craft_state")
+  thankYouThemeJson       Json?    @map("thank_you_theme_json")
+  thankYouPixelHtml       String?  @db.Text @map("thank_you_pixel_html")
+  thankYouUseCampaignPixel Boolean @default(true) @map("thank_you_use_campaign_pixel")
   isPublished    Boolean  @default(false) @map("is_published")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  advertiser User      @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
-  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  versions         OptinFunnelVersion[] @relation("FunnelVersions")
+  publishedVersion OptinFunnelVersion?  @relation("FunnelPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  funnelEvents     FunnelEvent[]
 
+  @@index([advertiserId])
   @@index([campaignId])
+  @@index([status])
   @@map("advertiser_optin_pages")
+}
+
+model OptinFunnelVersion {
+  id                 String   @id @default(cuid())
+  funnelId           String   @map("funnel_id")
+  versionNumber      Int      @map("version_number")
+  label              String?
+  craftState         Json     @map("craft_state")
+  themeJson          Json     @map("theme_json")
+  formJson           Json?    @map("form_json")
+  thankYouCraftState Json?    @map("thank_you_craft_state")
+  thankYouThemeJson  Json?    @map("thank_you_theme_json")
+  createdById        String?  @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  funnel       AdvertiserOptinPage  @relation("FunnelVersions", fields: [funnelId], references: [id], onDelete: Cascade)
+  publishedFor AdvertiserOptinPage? @relation("FunnelPublishedVersion")
+
+  @@unique([funnelId, versionNumber])
+  @@index([funnelId])
+  @@map("optin_funnel_versions")
+}
+
+model FunnelEvent {
+  id         String          @id @default(cuid())
+  funnelId   String          @map("funnel_id")
+  campaignId String          @map("campaign_id")
+  leadId     String?         @map("lead_id")
+  eventType  FunnelEventType @map("event_type")
+  step       String          @default("optin")
+  ip         String?
+  userAgent  String?         @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  funnel   AdvertiserOptinPage @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  campaign Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([funnelId])
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("funnel_events")
 }
 
 model PlatformSetting {

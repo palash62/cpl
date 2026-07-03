@@ -13,113 +13,81 @@ import {
   type OptinTemplateId,
 } from "@/lib/optin-templates";
 import { Errors } from "@/lib/errors";
+import {
+  buildOptinDestinationUrl,
+  getAdvertiserOptinFunnelPreview,
+  getOrCreateFirstTemplateFunnel,
+  getPublicOptinFunnel,
+  linkOptinFunnelToCampaign,
+  listOptinFunnelOptions,
+  resolveOptinFunnelDestination,
+} from "@/services/optin-funnel.service";
 
 export type OptinPageOption = {
   id: string;
   title: string;
   slug: string;
   isPublished: boolean;
+  name?: string;
+  editorType?: string;
 };
 
-async function createUniqueSlug(advertiserId: string, seed: string) {
-  const base = slugifyOptinAddress(seed) || "optin";
-  let slug = base;
-  let attempt = 0;
-
-  while (true) {
-    const existing = await prisma.advertiserOptinPage.findUnique({ where: { slug } });
-    if (!existing || existing.advertiserId === advertiserId) return slug;
-    attempt += 1;
-    slug = `${base}-${attempt}`;
-  }
+async function getPrimaryFunnel(advertiserId: string) {
+  return prisma.advertiserOptinPage.findFirst({
+    where: { advertiserId, status: { not: "ARCHIVED" } },
+    orderBy: { createdAt: "asc" },
+  });
 }
 
-async function assertUniqueSlug(slug: string, advertiserId: string) {
+async function assertUniqueSlug(slug: string, advertiserId: string, funnelId?: string) {
   const existing = await prisma.advertiserOptinPage.findUnique({ where: { slug } });
-  if (existing && existing.advertiserId !== advertiserId) {
+  if (existing && existing.advertiserId !== advertiserId && existing.id !== funnelId) {
+    throw new Error("This page address is already taken. Choose another.");
+  }
+  if (existing && funnelId && existing.id !== funnelId) {
     throw new Error("This page address is already taken. Choose another.");
   }
 }
 
 export async function getAdvertiserOptinPageState(advertiserId: string) {
-  const page = await prisma.advertiserOptinPage.findUnique({
-    where: { advertiserId },
-  });
+  const page = await getPrimaryFunnel(advertiserId);
   return page ? serializeOptinPage(page) : null;
 }
 
 export async function listAdvertiserOptinPageOptions(
   advertiserId: string,
 ): Promise<OptinPageOption[]> {
-  const page = await prisma.advertiserOptinPage.findUnique({
-    where: { advertiserId },
-    select: { id: true, title: true, slug: true, isPublished: true },
-  });
-
-  return page
-    ? [
-        {
-          id: page.id,
-          title: page.title,
-          slug: page.slug,
-          isPublished: page.isPublished,
-        },
-      ]
-    : [];
+  const options = await listOptinFunnelOptions(advertiserId);
+  return options.map((o) => ({
+    id: o.id,
+    title: o.title,
+    slug: o.slug,
+    isPublished: o.isPublished,
+    name: o.name,
+    editorType: o.editorType,
+  }));
 }
 
 export async function getOrCreateAdvertiserOptinPage(advertiserId: string) {
-  const existing = await prisma.advertiserOptinPage.findUnique({
-    where: { advertiserId },
-  });
-
-  if (existing) {
-    return serializeOptinPage(existing);
-  }
-
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: advertiserId },
-    select: {
-      name: true,
-      advertiserProfile: { select: { company: true } },
-    },
-  });
-
-  const seed = user.advertiserProfile?.company ?? user.name;
-  const slug = await createUniqueSlug(advertiserId, seed);
-  const template = getOptinTemplate(getDefaultTemplateId());
-  const title = user.advertiserProfile?.company ?? user.name ?? DEFAULT_OPTIN_PAGE.title;
-
-  const created = await prisma.advertiserOptinPage.create({
-    data: {
-      advertiserId,
-      slug,
-      title,
-      templateId: template.id,
-      headline: template.headline,
-      subheadline: template.subheadline,
-      description: DEFAULT_OPTIN_PAGE.description,
-      ctaText: DEFAULT_OPTIN_PAGE.ctaText,
-      successTitle: DEFAULT_OPTIN_PAGE.successTitle,
-      successMessage: DEFAULT_OPTIN_PAGE.successMessage,
-      badgeText: template.badgeText,
-      bulletPoints: DEFAULT_OPTIN_PAGE.bulletPoints,
-      primaryColor: template.primaryColor,
-      accentColor: template.accentColor,
-    },
-  });
-
-  return serializeOptinPage(created);
+  return getOrCreateFirstTemplateFunnel(advertiserId);
 }
 
 export async function selectAdvertiserOptinTemplate(
   advertiserId: string,
   templateId: OptinTemplateId,
+  funnelId?: string,
 ) {
-  await getOrCreateAdvertiserOptinPage(advertiserId);
+  const page = funnelId
+    ? await prisma.advertiserOptinPage.findFirst({ where: { id: funnelId, advertiserId } })
+    : await getPrimaryFunnel(advertiserId);
+
+  if (!page) {
+    await getOrCreateAdvertiserOptinPage(advertiserId);
+    return selectAdvertiserOptinTemplate(advertiserId, templateId, funnelId);
+  }
 
   const updated = await prisma.advertiserOptinPage.update({
-    where: { advertiserId },
+    where: { id: page.id },
     data: { templateId },
   });
 
@@ -130,11 +98,19 @@ export async function updateAdvertiserOptinColors(
   advertiserId: string,
   primaryColor: string,
   accentColor: string,
+  funnelId?: string,
 ) {
-  await getOrCreateAdvertiserOptinPage(advertiserId);
+  const page = funnelId
+    ? await prisma.advertiserOptinPage.findFirst({ where: { id: funnelId, advertiserId } })
+    : await getPrimaryFunnel(advertiserId);
+
+  if (!page) {
+    await getOrCreateAdvertiserOptinPage(advertiserId);
+    return updateAdvertiserOptinColors(advertiserId, primaryColor, accentColor, funnelId);
+  }
 
   const updated = await prisma.advertiserOptinPage.update({
-    where: { advertiserId },
+    where: { id: page.id },
     data: { primaryColor, accentColor },
   });
 
@@ -144,6 +120,7 @@ export async function updateAdvertiserOptinColors(
 export async function updateAdvertiserOptinPage(
   advertiserId: string,
   input: {
+    funnelId?: string;
     title: string;
     slug: string;
     destinationUrl?: string | null;
@@ -159,22 +136,35 @@ export async function updateAdvertiserOptinPage(
     primaryColor: string;
     accentColor: string;
     isPublished: boolean;
+    thankYouEnabled?: boolean;
+    thankYouPixelHtml?: string | null;
+    thankYouUseCampaignPixel?: boolean;
   },
 ) {
-  await getOrCreateAdvertiserOptinPage(advertiserId);
+  let page = input.funnelId
+    ? await prisma.advertiserOptinPage.findFirst({ where: { id: input.funnelId, advertiserId } })
+    : await getPrimaryFunnel(advertiserId);
+
+  if (!page) {
+    await getOrCreateAdvertiserOptinPage(advertiserId);
+    page = await getPrimaryFunnel(advertiserId);
+  }
+
+  if (!page) throw Errors.notFound("Optin funnel");
 
   const slug = slugifyOptinAddress(input.slug);
   if (!isValidOptinSlug(slug)) {
     throw new Error("Page address must be at least 2 characters and use letters, numbers, or hyphens.");
   }
 
-  await assertUniqueSlug(slug, advertiserId);
+  await assertUniqueSlug(slug, advertiserId, page.id);
 
   async function runUpdate() {
     return prisma.advertiserOptinPage.update({
-      where: { advertiserId },
+      where: { id: page!.id },
       data: {
         title: input.title.trim(),
+        name: input.title.trim(),
         slug,
         destinationUrl: input.destinationUrl?.trim() || null,
         ...(input.templateId ? { templateId: input.templateId } : {}),
@@ -189,6 +179,14 @@ export async function updateAdvertiserOptinPage(
         primaryColor: input.primaryColor,
         accentColor: input.accentColor,
         isPublished: input.isPublished,
+        status: input.isPublished ? "PUBLISHED" : "DRAFT",
+        ...(input.thankYouEnabled !== undefined ? { thankYouEnabled: input.thankYouEnabled } : {}),
+        ...(input.thankYouPixelHtml !== undefined
+          ? { thankYouPixelHtml: input.thankYouPixelHtml }
+          : {}),
+        ...(input.thankYouUseCampaignPixel !== undefined
+          ? { thankYouUseCampaignPixel: input.thankYouUseCampaignPixel }
+          : {}),
       },
     });
   }
@@ -213,83 +211,25 @@ export async function linkOptinPageToCampaign(
   campaignId: string,
   advertiserId: string,
 ) {
-  const page = await prisma.advertiserOptinPage.findFirst({
-    where: { id: optinPageId, advertiserId },
-    select: { id: true },
-  });
-
-  if (!page) {
-    throw new Error("Select a valid optin page");
-  }
-
-  await prisma.advertiserOptinPage.update({
-    where: { id: page.id },
-    data: { campaignId },
-  });
+  return linkOptinFunnelToCampaign(optinPageId, campaignId, advertiserId);
 }
 
-export function buildOptinDestinationUrl(baseUrl: string, slug: string) {
-  const normalizedBase = baseUrl.replace(/\/$/, "");
-  return `${normalizedBase}/o/${slug}`;
-}
+export { buildOptinDestinationUrl };
 
 export async function resolveOptinPageDestination(
   optinPageId: string,
   advertiserId: string,
   baseUrl: string,
 ) {
-  const page = await prisma.advertiserOptinPage.findFirst({
-    where: { id: optinPageId, advertiserId },
-    select: { id: true, slug: true, title: true },
-  });
-
-  if (!page) {
-    throw new Error("Select a valid optin page");
-  }
-
-  return {
-    page,
-    destinationUrl: buildOptinDestinationUrl(baseUrl, page.slug),
-  };
+  return resolveOptinFunnelDestination(optinPageId, advertiserId, baseUrl);
 }
 
 export async function getPublicOptinPage(slug: string) {
-  const page = await prisma.advertiserOptinPage.findUnique({
-    where: { slug },
-    include: {
-      campaign: {
-        include: {
-          fields: { orderBy: { sortOrder: "asc" } },
-        },
-      },
-    },
-  });
-
-  if (!page?.isPublished || !page.campaign || page.campaign.status !== "ACTIVE") {
-    return null;
-  }
-
-  return serializePublicOptinPage({
-    ...page,
-    campaign: page.campaign,
-  });
+  return getPublicOptinFunnel(slug);
 }
 
 export async function getAdvertiserOptinPreview(slug: string, advertiserId: string) {
-  const page = await prisma.advertiserOptinPage.findFirst({
-    where: { slug, advertiserId },
-    include: {
-      campaign: {
-        include: { fields: { orderBy: { sortOrder: "asc" } } },
-      },
-    },
-  });
-
-  if (!page) {
-    return null;
-  }
-
-  return buildPublicOptinPage(page, page.campaign, { previewMode: true });
+  return getAdvertiserOptinFunnelPreview(slug, advertiserId);
 }
 
 export async function assertOptinPageOwner(slug: string, advertiserId: string) {
