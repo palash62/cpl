@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Ban, CheckCircle2, Eye, MapPin, ShieldAlert, Users, X } from "lucide-react";
+import { Ban, CheckCircle2, ClipboardList, MapPin, ShieldAlert, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -86,9 +86,9 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="h-8 gap-1">View</Button>}>
-        <Eye className="h-3.5 w-3.5" />
-        View
+      <DialogTrigger render={<Button variant="outline" size="sm" className="h-8 gap-1">Review</Button>}>
+        <ClipboardList className="h-3.5 w-3.5" />
+        Review
       </DialogTrigger>
       <DialogContent className="flex max-h-[min(90vh,880px)] w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-4 pr-12">

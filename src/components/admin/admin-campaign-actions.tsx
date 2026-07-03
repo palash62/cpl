@@ -37,9 +37,15 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
   const lifecycle = { status: campaign.status, leadCount: campaign.leadCount };
   const canEdit = canAdminEditCampaign(lifecycle);
   const canDelete = canAdminDeleteCampaign(lifecycle);
+  const isRunning = campaign.status === "ACTIVE" || campaign.status === "PAUSED";
   const transitions = getAllowedStatusTransitions(campaign.status).filter(
     (s) => s === "PAUSED" || s === "ACTIVE" || s === "ARCHIVED",
   );
+  const deleteBlockedReason = isRunning
+    ? "Running campaign cannot be deleted"
+    : campaign.leadCount > 0
+      ? "Campaigns with leads cannot be deleted"
+      : "Only draft or pending campaigns can be deleted";
 
   async function patchStatus(status: CampaignStatus) {
     setLoading(true);
@@ -112,7 +118,7 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
           Resume
         </Button>
       )}
-      {canDelete && (
+      {canDelete ? (
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogTrigger
             render={
@@ -140,6 +146,18 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
             </div>
           </DialogContent>
         </Dialog>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1 text-red-400 hover:text-red-400"
+          disabled
+          title={deleteBlockedReason}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </Button>
       )}
       {error && !deleteOpen && <p className="w-full text-right text-xs text-red-600">{error}</p>}
     </div>

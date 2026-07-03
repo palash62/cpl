@@ -11,8 +11,6 @@ import { AdminCreatePublisherDialog } from "@/components/admin/admin-create-publ
 import { AdminPublisherReviewDialog } from "@/components/admin/admin-publisher-review-dialog";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import { AdminPublisherSpecialPayoutDialog } from "@/components/admin/admin-publisher-special-payout-dialog";
-import { ButtonLink } from "@/components/ui/button-link";
-import { Eye } from "lucide-react";
 import {
   avatarColors,
   formatCurrency,
@@ -208,15 +206,6 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <ButtonLink
-                            href={`/admin/publishers/${publisher.id}`}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            View
-                          </ButtonLink>
                           <AdminPublisherSpecialPayoutDialog
                             publisherId={publisher.id}
                             publisherName={publisher.name}
