@@ -94,6 +94,12 @@ export const Errors = {
       "A payout request with this key already exists",
       422,
     ),
+  payoutWeeklyLimit: (nextAllowedAt: Date) =>
+    new AppError(
+      "PAYOUT_WEEKLY_LIMIT",
+      `You can only request one payout per week. You can submit your next request after ${nextAllowedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.`,
+      422,
+    ),
   validation: (message: string, field?: string) =>
     new AppError("VALIDATION_ERROR", message, 422, field),
   campaignHasLeads: () =>

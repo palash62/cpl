@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, Clock, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { AlertTriangle, Banknote, Clock, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { PageSection } from "@/components/admin/page-section";
 import { Button } from "@/components/ui/button";
@@ -16,23 +17,40 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type PayoutEligibility = {
+  canRequest: boolean;
+  lastRequestAt?: string | null;
+  nextAllowedAt?: string | null;
+};
+
 export function PublisherPayoutRequestForm({
   availableBalance,
   minPayoutAmount,
+  payoutEligibility,
 }: {
   availableBalance: number;
   minPayoutAmount: number;
+  payoutEligibility: PayoutEligibility;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(Math.max(minPayoutAmount, Math.min(availableBalance, 50)));
   const [method, setMethod] = useState("PAYPAL");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState(
+    payoutEligibility.canRequest
+      ? ""
+      : buildWeeklyLimitWarning(payoutEligibility.nextAllowedAt),
+  );
+
+  const canSubmit =
+    payoutEligibility.canRequest && availableBalance >= minPayoutAmount && !loading;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setWarning("");
 
     const res = await fetch("/api/v1/payouts", {
       method: "POST",
@@ -48,7 +66,12 @@ export function PublisherPayoutRequestForm({
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error?.message ?? "Request failed");
+      const message = data.error?.message ?? "Request failed";
+      if (data.error?.code === "PAYOUT_WEEKLY_LIMIT") {
+        setWarning(message);
+      } else {
+        setError(message);
+      }
       return;
     }
 
@@ -70,6 +93,13 @@ export function PublisherPayoutRequestForm({
             <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Available balance</p>
             <p className="mt-1 text-2xl font-bold text-emerald-800">{formatCurrency(availableBalance)}</p>
           </div>
+
+          {warning && (
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{warning}</p>
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -109,7 +139,7 @@ export function PublisherPayoutRequestForm({
           <Button
             type="submit"
             className="h-10 w-full rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
-            disabled={loading || availableBalance < minPayoutAmount}
+            disabled={!canSubmit}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Request Payout"}
           </Button>
@@ -127,11 +157,20 @@ export function PublisherPayoutRequestForm({
           </div>
         </div>
         <ul className="mt-4 space-y-3 text-sm text-slate-600">
-          <li>1. Your request is reviewed by our team (1–3 business days)</li>
-          <li>2. Approved payouts are processed to your selected method</li>
-          <li>3. You can track status on the Payouts page</li>
+          <li>1. You can submit one payout request per week</li>
+          <li>2. Your request is reviewed by our team (1–3 business days)</li>
+          <li>3. Approved payouts are processed to your selected method</li>
+          <li>4. You can track status on the Payouts page</li>
         </ul>
       </div>
     </div>
   );
+}
+
+function buildWeeklyLimitWarning(nextAllowedAt?: string | null) {
+  if (!nextAllowedAt) {
+    return "You can only request one payout per week. Please try again later.";
+  }
+
+  return `You can only request one payout per week. Your next request will be available on ${format(new Date(nextAllowedAt), "MMM d, yyyy")}.`;
 }

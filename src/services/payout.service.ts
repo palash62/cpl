@@ -10,6 +10,43 @@ import {
   notifyRejected,
 } from "@/services/notify.service";
 
+export const PUBLISHER_PAYOUT_REQUEST_COOLDOWN_DAYS = 7;
+
+export type PublisherPayoutRequestEligibility = {
+  canRequest: boolean;
+  lastRequestAt?: Date;
+  nextAllowedAt?: Date;
+};
+
+export async function getPublisherPayoutRequestEligibility(
+  publisherId: string,
+): Promise<PublisherPayoutRequestEligibility> {
+  const since = new Date();
+  since.setDate(since.getDate() - PUBLISHER_PAYOUT_REQUEST_COOLDOWN_DAYS);
+
+  const recent = await prisma.payout.findFirst({
+    where: {
+      publisherId,
+      createdAt: { gte: since },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  if (!recent) {
+    return { canRequest: true };
+  }
+
+  const nextAllowedAt = new Date(recent.createdAt);
+  nextAllowedAt.setDate(nextAllowedAt.getDate() + PUBLISHER_PAYOUT_REQUEST_COOLDOWN_DAYS);
+
+  return {
+    canRequest: false,
+    lastRequestAt: recent.createdAt,
+    nextAllowedAt,
+  };
+}
+
 export async function requestPayout(
   publisherId: string,
   amount: number,
@@ -27,6 +64,11 @@ export async function requestPayout(
       where: { idempotencyKey },
     });
     if (existing) throw Errors.duplicatePayout();
+  }
+
+  const eligibility = await getPublisherPayoutRequestEligibility(publisherId);
+  if (!eligibility.canRequest && eligibility.nextAllowedAt) {
+    throw Errors.payoutWeeklyLimit(eligibility.nextAllowedAt);
   }
 
   const wallet = await prisma.wallet.findUniqueOrThrow({
