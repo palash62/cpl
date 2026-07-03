@@ -3,6 +3,11 @@ import {
   filterCampaignsByCountry,
   pickCampaignForIpRotation,
 } from "@/lib/smart-link-rotation";
+import { calculatePublisherPayout } from "@/lib/platform-settings";
+import {
+  campaignQualifiesForSpecialPayouts,
+  readPublisherSpecialTierPayouts,
+} from "@/lib/publisher-special-payout";
 import { prisma } from "@/lib/prisma";
 import { notifyGeneric, notifyUserById } from "@/services/notify.service";
 import { createTrackingLink } from "@/services/campaign.service";
@@ -24,12 +29,27 @@ export async function getOrCreatePublisherSmartLink(publisherId: string): Promis
   });
 }
 
-export async function getEligibleCampaigns(publisherId: string): Promise<EligibleCampaign[]> {
-  const blockedAdvertisers = await prisma.advertiserPublisherBlock.findMany({
-    where: { publisherId },
-    select: { advertiserId: true },
-  });
+export async function getEligibleCampaigns(
+  publisherId: string,
+  options?: { countryCode?: string },
+): Promise<EligibleCampaign[]> {
+  const [blockedAdvertisers, publisherProfile] = await Promise.all([
+    prisma.advertiserPublisherBlock.findMany({
+      where: { publisherId },
+      select: { advertiserId: true },
+    }),
+    prisma.publisherProfile.findUnique({
+      where: { userId: publisherId },
+      select: {
+        useSpecialTierPayouts: true,
+        tier1SpecialPayout: true,
+        tier2SpecialPayout: true,
+        tier3SpecialPayout: true,
+      },
+    }),
+  ]);
   const blockedAdvertiserIds = new Set(blockedAdvertisers.map((row) => row.advertiserId));
+  const specialPayouts = readPublisherSpecialTierPayouts(publisherProfile);
 
   const campaigns = await prisma.campaign.findMany({
     where: {
@@ -43,6 +63,9 @@ export async function getEligibleCampaigns(publisherId: string): Promise<Eligibl
     orderBy: { createdAt: "asc" },
   });
 
+  const { getPlatformSettings } = await import("@/services/wallet.service");
+  const platformSettings = await getPlatformSettings();
+
   return campaigns.filter((campaign) => {
     if (Number(campaign.spent) >= Number(campaign.budget)) return false;
 
@@ -51,6 +74,17 @@ export async function getEligibleCampaigns(publisherId: string): Promise<Eligibl
       blockedAdvertiserIds.has(campaign.advertiserId)
     ) {
       return false;
+    }
+
+    if (specialPayouts.enabled) {
+      const cpl = Number(campaign.cpl);
+      const qualifies = campaignQualifiesForSpecialPayouts(
+        (_tier, sampleCountry) =>
+          calculatePublisherPayout(cpl, sampleCountry, platformSettings).publisherAmount,
+        specialPayouts,
+        options?.countryCode ?? null,
+      );
+      if (!qualifies) return false;
     }
 
     return true;
@@ -100,7 +134,9 @@ export async function pickNextCampaign(
   options: { ip: string; countryCode?: string },
 ) {
   const smartLink = await getOrCreatePublisherSmartLink(publisherId);
-  const eligible = await getEligibleCampaigns(publisherId);
+  const eligible = await getEligibleCampaigns(publisherId, {
+    countryCode: options.countryCode,
+  });
   const countryEligible = filterCampaignsByCountry(eligible, options.countryCode);
 
   if (countryEligible.length === 0) {

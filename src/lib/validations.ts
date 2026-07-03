@@ -229,6 +229,33 @@ export const adminBulkEmailSchema = z.object({
   message: z.string().trim().min(10, "Message must be at least 10 characters").max(10000),
 });
 
+export const adminPublisherSpecialPayoutSchema = z
+  .object({
+    useSpecialTierPayouts: z.boolean(),
+    tier1SpecialPayout: z.number().min(0).max(1000).nullable().optional(),
+    tier2SpecialPayout: z.number().min(0).max(1000).nullable().optional(),
+    tier3SpecialPayout: z.number().min(0).max(1000).nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.useSpecialTierPayouts) return;
+
+    const tiers = [
+      ["tier1SpecialPayout", data.tier1SpecialPayout],
+      ["tier2SpecialPayout", data.tier2SpecialPayout],
+      ["tier3SpecialPayout", data.tier3SpecialPayout],
+    ] as const;
+
+    for (const [field, value] of tiers) {
+      if (value == null || !Number.isFinite(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Set a minimum payout for each tier",
+          path: [field],
+        });
+      }
+    }
+  });
+
 export const adminCreatePublisherSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   email: z.string().trim().email("Enter a valid email address"),

@@ -161,18 +161,21 @@ export const TIER_PAYOUT_ROWS = [
     countries: "AU, CA, NZ, GB, US",
     minKey: "tier1PayoutMin" as const,
     maxKey: "tier1PayoutMax" as const,
+    tier: "tier1" as const,
   },
   {
     label: "Tier 2",
     countries: "AR, BR, CL, IN, ID, MY, MX, PH, PL, ZA, TH, TR",
     minKey: "tier2PayoutMin" as const,
     maxKey: "tier2PayoutMax" as const,
+    tier: "tier2" as const,
   },
   {
     label: "Tier 3",
     countries: "BD, EG, GH, KE, NG, PK, LK, TZ, UG, VN, ZM",
     minKey: "tier3PayoutMin" as const,
     maxKey: "tier3PayoutMax" as const,
+    tier: "tier3" as const,
   },
 ];
 

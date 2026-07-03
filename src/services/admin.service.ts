@@ -5,6 +5,9 @@ import type { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import {
+  serializePublisherSpecialTierPayouts,
+} from "@/lib/publisher-special-payout";
+import {
   parsePlatformSettings,
   platformSettingsToUpdates,
   settingsConfigToApi,
@@ -88,6 +91,10 @@ export async function listUsers(filters: {
             qualityScore: true,
             spamScore: true,
             fraudFlags: true,
+            useSpecialTierPayouts: true,
+            tier1SpecialPayout: true,
+            tier2SpecialPayout: true,
+            tier3SpecialPayout: true,
           },
         },
         wallet: { select: { balance: true } },
@@ -103,6 +110,12 @@ export async function listUsers(filters: {
   const serialized = data.map((user) => ({
     ...user,
     wallet: user.wallet ? { balance: Number(user.wallet.balance) } : null,
+    publisherProfile: user.publisherProfile
+      ? {
+          ...user.publisherProfile,
+          ...serializePublisherSpecialTierPayouts(user.publisherProfile),
+        }
+      : user.publisherProfile,
   }));
 
   return { data: serialized, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
@@ -182,6 +195,103 @@ export async function getAdvertiserDetail(id: string) {
       amount: Number(deposit.amount),
     })),
   };
+}
+
+export async function getPublisherDetail(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id, role: "PUBLISHER" },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      status: true,
+      createdAt: true,
+      publisherProfile: true,
+      wallet: {
+        select: {
+          id: true,
+          balance: true,
+          holdBalance: true,
+          currency: true,
+        },
+      },
+      _count: { select: { leads: true } },
+    },
+  });
+
+  if (!user) return null;
+
+  const profile = user.publisherProfile;
+
+  return {
+    ...user,
+    wallet: user.wallet
+      ? {
+          ...user.wallet,
+          balance: Number(user.wallet.balance),
+          holdBalance: Number(user.wallet.holdBalance),
+        }
+      : null,
+    publisherProfile: profile
+      ? {
+          ...profile,
+          ...serializePublisherSpecialTierPayouts(profile),
+        }
+      : null,
+  };
+}
+
+export async function updatePublisherSpecialPayout(
+  userId: string,
+  input: {
+    useSpecialTierPayouts: boolean;
+    tier1SpecialPayout?: number | null;
+    tier2SpecialPayout?: number | null;
+    tier3SpecialPayout?: number | null;
+  },
+  adminId: string,
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId, role: "PUBLISHER" },
+    select: { id: true, publisherProfile: { select: { id: true } } },
+  });
+
+  if (!user?.publisherProfile) {
+    throw new AppError("NOT_FOUND", "Publisher profile not found", 404);
+  }
+
+  const data = input.useSpecialTierPayouts
+    ? {
+        useSpecialTierPayouts: true,
+        tier1SpecialPayout: input.tier1SpecialPayout,
+        tier2SpecialPayout: input.tier2SpecialPayout,
+        tier3SpecialPayout: input.tier3SpecialPayout,
+      }
+    : {
+        useSpecialTierPayouts: false,
+        tier1SpecialPayout: null,
+        tier2SpecialPayout: null,
+        tier3SpecialPayout: null,
+      };
+
+  const profile = await prisma.publisherProfile.update({
+    where: { id: user.publisherProfile.id },
+    data,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "publisher.special_payout_updated",
+      entityType: "publisher",
+      entityId: userId,
+      metadata: {
+        useSpecialTierPayouts: input.useSpecialTierPayouts,
+      },
+    },
+  });
+
+  return profile;
 }
 
 export async function updateUserStatus(userId: string, status: UserStatus, adminId: string) {

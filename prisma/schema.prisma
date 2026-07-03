@@ -257,6 +257,10 @@ model PublisherProfile {
   spamScore     Float?    @map("spam_score")
   qualityWarningAt DateTime? @map("quality_warning_at")
   fraudFlags    Int       @default(0) @map("fraud_flags")
+  useSpecialTierPayouts Boolean @default(false) @map("use_special_tier_payouts")
+  tier1SpecialPayout Decimal? @map("tier1_special_payout") @db.Decimal(10, 2)
+  tier2SpecialPayout Decimal? @map("tier2_special_payout") @db.Decimal(10, 2)
+  tier3SpecialPayout Decimal? @map("tier3_special_payout") @db.Decimal(10, 2)
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("publisher_profiles")
