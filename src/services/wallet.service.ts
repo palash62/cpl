@@ -560,3 +560,66 @@ export async function rejectDeposit(depositId: string, adminId: string, reason: 
 
   return updated;
 }
+
+export async function createManualDeposit(
+  adminId: string,
+  userId: string,
+  amount: number,
+  note: string,
+) {
+  if (amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, email: true, name: true },
+  });
+
+  if (!user || user.role !== "ADVERTISER") {
+    throw new Error("INVALID_USER");
+  }
+
+  const deposit = await prisma.$transaction(async (tx) => {
+    const created = await tx.deposit.create({
+      data: {
+        userId,
+        amount,
+        method: "MANUAL",
+        status: "COMPLETED",
+        processedAt: new Date(),
+        paymentDetails: note ? { note, recordedBy: adminId } : { recordedBy: adminId },
+      },
+    });
+
+    await creditWallet(
+      tx,
+      userId,
+      amount,
+      "deposit",
+      created.id,
+      note || "Manual admin deposit",
+    );
+
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: "deposit.manual",
+        entityType: "deposit",
+        entityId: created.id,
+        metadata: { userId, amount, note },
+      },
+    });
+
+    return created;
+  });
+
+  void notifyApproved(
+    user,
+    "Wallet deposit",
+    `$${amount.toFixed(2)} has been credited to your wallet.${note ? ` Note: ${note}` : ""}`,
+    "deposit.manual",
+  );
+
+  return deposit;
+}

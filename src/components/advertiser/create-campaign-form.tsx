@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import type { CampaignStatus } from "@prisma/client";
 import {
   CalendarClock,
   Crosshair,
@@ -21,6 +22,15 @@ import {
   DEFAULT_VERTICAL,
   isValidTierCountrySelection,
 } from "@/lib/campaign-form";
+import {
+  getCampaignEditFormDefaults,
+  type CampaignEditInitial,
+} from "@/lib/campaign-form-edit";
+import {
+  getEditableFields,
+  getAllowedStatusTransitions,
+  isFullEditCampaign,
+} from "@/lib/campaign-lifecycle";
 import { CampaignCountryField } from "@/components/advertiser/campaign-country-field";
 import { CampaignSearchMultiSelect } from "@/components/advertiser/campaign-search-multi-select";
 import {
@@ -46,7 +56,7 @@ import {
 type StartMode = "now" | "scheduled";
 type EndMode = "forever" | "scheduled";
 type TrafficMode = "allow" | "block";
-type CampaignStatusChoice = "ACTIVE" | "PENDING" | "PAUSED" | "DRAFT";
+type CampaignStatusChoice = CampaignStatus;
 
 type AdvertiserOption = {
   id: string;
@@ -69,6 +79,7 @@ function formatOptinPageLabel(page: OptinPageOption) {
 type CreateCampaignFormProps = {
   mode?: "advertiser" | "admin";
   payoutTiers: PayoutTiersDisplay;
+  editCampaign?: CampaignEditInitial;
 };
 
 const SECTION_ACCENTS = [
@@ -127,6 +138,7 @@ function CurrencyInput({
   max,
   step,
   required,
+  disabled,
 }: {
   id: string;
   value: string;
@@ -136,12 +148,14 @@ function CurrencyInput({
   max?: number;
   step?: number;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div
       className={cn(
         "flex h-10 w-full items-stretch overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm",
         "transition-colors focus-within:border-[var(--theme-primary)] focus-within:ring-2 focus-within:ring-[var(--theme-primary)]/15",
+        disabled && "opacity-60",
       )}
     >
       <span className="flex w-10 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 text-sm font-semibold text-slate-600">
@@ -154,10 +168,11 @@ function CurrencyInput({
         max={max}
         step={step}
         required={required}
+        disabled={disabled}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 border-0 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="min-w-0 flex-1 border-0 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <span className="flex w-12 shrink-0 items-center justify-center border-l border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
         USD
@@ -194,41 +209,74 @@ function RadioOption({
   );
 }
 
-export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateCampaignFormProps) {
+export function CreateCampaignForm({
+  mode = "advertiser",
+  payoutTiers,
+  editCampaign,
+}: CreateCampaignFormProps) {
   const isAdmin = mode === "admin";
-  const backHref = isAdmin ? "/admin/campaigns" : "/advertiser/campaigns";
+  const isEdit = Boolean(editCampaign);
+  const editDefaults = editCampaign ? getCampaignEditFormDefaults(editCampaign) : null;
+  const backHref = isEdit
+    ? `/admin/campaigns/${editCampaign!.id}`
+    : isAdmin
+      ? "/admin/campaigns"
+      : "/advertiser/campaigns";
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [error, setError] = useState("");
 
+  const lifecycle = editCampaign
+    ? { status: editCampaign.status, leadCount: editCampaign.leadCount }
+    : null;
+  const editableFields = lifecycle ? getEditableFields(lifecycle) : null;
+  const fullEdit = !lifecycle || isFullEditCampaign(lifecycle);
+  const canEditField = (field: string) => !editableFields || editableFields.has(field);
+
   const [advertisers, setAdvertisers] = useState<AdvertiserOption[]>([]);
   const [loadingAdvertisers, setLoadingAdvertisers] = useState(isAdmin);
-  const [advertiserId, setAdvertiserId] = useState("");
-  const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice>("ACTIVE");
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [advertiserId, setAdvertiserId] = useState(editDefaults?.advertiserId ?? "");
+  const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice>(
+    (editDefaults?.campaignStatus as CampaignStatusChoice) ?? "ACTIVE",
+  );
+  const [autoApprove, setAutoApprove] = useState(editDefaults?.autoApprove ?? false);
 
-  const [name, setName] = useState("");
-  const [optinPageId, setOptinPageId] = useState("");
+  const [name, setName] = useState(editDefaults?.name ?? "");
+  const [optinPageId, setOptinPageId] = useState(editDefaults?.optinPageId ?? "");
   const [optinPages, setOptinPages] = useState<OptinPageOption[]>([]);
-  const [loadingOptinPages, setLoadingOptinPages] = useState(!isAdmin);
-  const [startMode, setStartMode] = useState<StartMode>("now");
-  const [startDate, setStartDate] = useState(todayInputValue());
-  const [endMode, setEndMode] = useState<EndMode>("forever");
-  const [endDate, setEndDate] = useState(todayInputValue());
-  const [trafficMode, setTrafficMode] = useState<TrafficMode>("allow");
-  const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [blacklistedCountries, setBlacklistedCountries] = useState<string[]>([]);
-  const [devices, setDevices] = useState<string[]>([]);
-  const [operatingSystems, setOperatingSystems] = useState<string[]>([]);
-  const [blacklistedDevices, setBlacklistedDevices] = useState<string[]>([]);
-  const [blacklistedOperatingSystems, setBlacklistedOperatingSystems] = useState<string[]>([]);
-  const [excludeBlockedPublishers, setExcludeBlockedPublishers] = useState(false);
-  const [cpl, setCpl] = useState("");
-  const [totalBudget, setTotalBudget] = useState("");
-  const [dailyBudget, setDailyBudget] = useState("");
-  const [createdPixelToken, setCreatedPixelToken] = useState<string | null>(null);
+  const [loadingOptinPages, setLoadingOptinPages] = useState(!isAdmin && !isEdit);
+  const [startMode, setStartMode] = useState<StartMode>(editDefaults?.startMode ?? "now");
+  const [startDate, setStartDate] = useState(editDefaults?.startDate ?? todayInputValue());
+  const [endMode, setEndMode] = useState<EndMode>(editDefaults?.endMode ?? "forever");
+  const [endDate, setEndDate] = useState(editDefaults?.endDate ?? todayInputValue());
+  const [trafficMode, setTrafficMode] = useState<TrafficMode>(editDefaults?.trafficMode ?? "allow");
+  const [vertical, setVertical] = useState(editDefaults?.vertical ?? DEFAULT_VERTICAL);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(
+    editDefaults?.selectedCountries ?? [],
+  );
+  const [blacklistedCountries, setBlacklistedCountries] = useState<string[]>(
+    editDefaults?.blacklistedCountries ?? [],
+  );
+  const [devices, setDevices] = useState<string[]>(editDefaults?.devices ?? []);
+  const [operatingSystems, setOperatingSystems] = useState<string[]>(
+    editDefaults?.operatingSystems ?? [],
+  );
+  const [blacklistedDevices, setBlacklistedDevices] = useState<string[]>(
+    editDefaults?.blacklistedDevices ?? [],
+  );
+  const [blacklistedOperatingSystems, setBlacklistedOperatingSystems] = useState<string[]>(
+    editDefaults?.blacklistedOperatingSystems ?? [],
+  );
+  const [excludeBlockedPublishers, setExcludeBlockedPublishers] = useState(
+    editDefaults?.excludeBlockedPublishers ?? false,
+  );
+  const [cpl, setCpl] = useState(editDefaults?.cpl ?? "");
+  const [totalBudget, setTotalBudget] = useState(editDefaults?.totalBudget ?? "");
+  const [dailyBudget, setDailyBudget] = useState(editDefaults?.dailyBudget ?? "");
+  const [createdPixelToken, setCreatedPixelToken] = useState<string | null>(
+    editDefaults?.pixelToken ?? null,
+  );
   const [siteOrigin, setSiteOrigin] = useState("");
 
   useEffect(() => {
@@ -242,6 +290,14 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
         .then((data) => setAdvertisers(data.data ?? []))
         .catch(() => setAdvertisers([]))
         .finally(() => setLoadingAdvertisers(false));
+      if (isEdit && editCampaign?.advertiserId) {
+        setLoadingOptinPages(true);
+        fetch(`/api/v1/optin-page-options?advertiserId=${encodeURIComponent(editCampaign.advertiserId)}`)
+          .then((res) => res.json())
+          .then((data) => setOptinPages((data.pages ?? []) as OptinPageOption[]))
+          .catch(() => setOptinPages([]))
+          .finally(() => setLoadingOptinPages(false));
+      }
       return;
     }
 
@@ -329,8 +385,10 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       return;
     }
     if (!cplValue || cplValue < minCpl || cplValue > 100) {
-      setError(`CPL bid is required (min $${minCpl.toFixed(2)}).`);
-      return;
+      if (canEditField("cpl")) {
+        setError(`CPL bid is required (min $${minCpl.toFixed(2)}).`);
+        return;
+      }
     }
     if (insufficientBalance) {
       setError("You do not have enough balance to create a campaign. Please add funds to your account.");
@@ -366,6 +424,52 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
       blacklistedOperatingSystems: trafficMode === "block" ? blacklistedOperatingSystems : [],
       excludeBlockedPublishers,
     };
+
+    if (isEdit && editCampaign) {
+      const patchBody: Record<string, unknown> = {
+        autoApprove,
+        targeting,
+      };
+
+      if (canEditField("description")) {
+        patchBody.description = selectedOptinPage
+          ? `Optin page: ${selectedOptinPage.title}`
+          : editCampaign.name;
+      }
+      if (canEditField("dailyCap")) {
+        patchBody.dailyCap = dailyBudgetValue ? Math.round(dailyBudgetValue) : null;
+      }
+      if (canEditField("status")) {
+        patchBody.status = campaignStatus;
+      }
+      if (canEditField("name")) patchBody.name = name.trim();
+      if (canEditField("cpl")) patchBody.cpl = cplValue;
+      if (canEditField("budget")) patchBody.budget = totalBudgetValue ?? editCampaign.budget;
+      if (canEditField("category")) patchBody.category = selectedVertical?.category;
+      if (fullEdit) {
+        patchBody.optinPageId = optinPageId;
+        patchBody.vertical = vertical;
+        patchBody.fields = DEFAULT_LEAD_FIELDS;
+      }
+
+      const res = await fetch(`/api/v1/campaigns/${editCampaign.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patchBody),
+      });
+
+      setLoading(false);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error?.message ?? "Failed to save campaign. Please try again.");
+        return;
+      }
+
+      router.push(backHref);
+      router.refresh();
+      return;
+    }
 
     const payload = isAdmin
       ? {
@@ -427,11 +531,16 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
     router.refresh();
   }
 
+  const statusOptions =
+    isEdit && lifecycle
+      ? Array.from(new Set([lifecycle.status, ...getAllowedStatusTransitions(lifecycle.status)]))
+      : undefined;
+
   const canSubmit =
     name.trim() &&
     optinPageId &&
     vertical &&
-    cplValue >= minCpl &&
+    (cplValue >= minCpl || isEdit) &&
     !insufficientBalance &&
     !cplInvalid &&
     !loadingOptinPages &&
@@ -453,11 +562,17 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
             <p className="text-xs font-medium uppercase tracking-wider text-white/70">
               {isAdmin ? "Admin Portal" : "Advertiser Portal"}
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Create Campaign</h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">
+              {isEdit ? "Edit Campaign" : "Create Campaign"}
+            </h1>
             <p className="mt-1.5 max-w-lg text-sm text-white/80">
-              {isAdmin
-                ? "Create a full campaign on behalf of an advertiser with the same targeting and budget options."
-                : "Set up targeting, tier payouts, budget, scheduling, and tracking for your next lead campaign. Submissions are reviewed by admin before going live."}
+              {isEdit
+                ? fullEdit
+                  ? "Update campaign settings, targeting, budget, and scheduling. Full edit is available for draft and pending campaigns."
+                  : "Running campaigns allow limited edits. CPL and budget cannot be changed while active."
+                : isAdmin
+                  ? "Create a full campaign on behalf of an advertiser with the same targeting and budget options."
+                  : "Set up targeting, tier payouts, budget, scheduling, and tracking for your next lead campaign. Submissions are reviewed by admin before going live."}
             </p>
           </div>
           <Link
@@ -478,7 +593,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                 <Select
                   value={advertiserId}
                   onValueChange={(value) => value && setAdvertiserId(value)}
-                  disabled={loadingAdvertisers}
+                  disabled={loadingAdvertisers || isEdit}
                 >
                   <SelectTrigger id="advertiser" className="h-10 w-full">
                     <SelectValue
@@ -507,6 +622,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter campaign name"
                 required
+                disabled={!canEditField("name")}
               />
               <FieldHint>This is the name of your campaign that will be displayed in the dashboard</FieldHint>
             </div>
@@ -533,7 +649,11 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                 </div>
               ) : (
                 <>
-                  <Select value={optinPageId} onValueChange={(value) => setOptinPageId(value ?? "")}>
+                  <Select
+                    value={optinPageId}
+                    onValueChange={(value) => setOptinPageId(value ?? "")}
+                    disabled={!fullEdit}
+                  >
                     <SelectTrigger id="optinPageId" className="h-11 w-full bg-white">
                       {selectedOptinPage ? (
                         <span className="truncate text-left text-sm text-slate-900">
@@ -570,6 +690,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
             </div>
           </SectionCard>
 
+          <div className={cn(!canEditField("targeting") && "pointer-events-none opacity-60")}>
           <SectionCard step={2} title="Scheduling" icon={CalendarClock} accentIndex={1}>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4">
@@ -729,6 +850,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
               </FieldHint>
             </div>
           </SectionCard>
+          </div>
 
           <SectionCard step={4} title="Budget" icon={Wallet} accentIndex={3}>
             <div className="space-y-2">
@@ -742,6 +864,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                 max={100}
                 step={0.01}
                 required
+                disabled={!canEditField("cpl")}
               />
               <FieldHint>Min. {minCpl.toFixed(2)} and Max. 100.00</FieldHint>
             </div>
@@ -760,6 +883,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                     placeholder="Unlimited"
                     min={1}
                     step={1}
+                    disabled={!canEditField("budget")}
                   />
                 </div>
               </div>
@@ -776,6 +900,7 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
                     placeholder="Unlimited"
                     min={1}
                     step={1}
+                    disabled={!canEditField("dailyCap")}
                   />
                 </div>
               </div>
@@ -829,6 +954,9 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
             onStatusChange={setCampaignStatus}
             autoApprove={autoApprove}
             onAutoApproveChange={setAutoApprove}
+            statusOptions={statusOptions}
+            statusDisabled={!canEditField("status")}
+            autoApproveDisabled={!canEditField("autoApprove")}
           />
 
           <BidRecommendationPanel
@@ -864,22 +992,26 @@ export function CreateCampaignForm({ mode = "advertiser", payoutTiers }: CreateC
 
             <Button
               type="submit"
-              disabled={loading || !canSubmit || !!createdPixelToken}
+              disabled={loading || !canSubmit || (!isEdit && !!createdPixelToken)}
               className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
             >
               {loading
-                ? isAdmin
-                  ? "Creating..."
-                  : "Submitting..."
-                : createdPixelToken
-                  ? isAdmin
-                    ? "Campaign created"
-                    : "Campaign submitted"
+                ? isEdit
+                  ? "Saving..."
                   : isAdmin
-                    ? "Create Campaign"
-                    : "Submit for Review"}
+                    ? "Creating..."
+                    : "Submitting..."
+                : isEdit
+                  ? "Save changes"
+                  : createdPixelToken
+                    ? isAdmin
+                      ? "Campaign created"
+                      : "Campaign submitted"
+                    : isAdmin
+                      ? "Create Campaign"
+                      : "Submit for Review"}
             </Button>
-            {createdPixelToken ? (
+            {createdPixelToken && !isEdit ? (
               <ButtonLink
                 href={backHref}
                 className="mt-2 h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold text-white hover:opacity-90"

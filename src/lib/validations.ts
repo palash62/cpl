@@ -216,6 +216,19 @@ export const adminCreateCampaignSchema = campaignSchema.extend({
   vertical: z.string().trim().min(1, "Select a vertical"),
 });
 
+export const adminUpdateCampaignSchema = campaignSchema
+  .partial()
+  .extend({
+    optinPageId: z.string().min(1).optional(),
+    vertical: z.string().trim().min(1).optional(),
+  });
+
+export const adminBulkEmailSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, "Select at least one recipient"),
+  subject: z.string().trim().min(3, "Subject must be at least 3 characters").max(200),
+  message: z.string().trim().min(10, "Message must be at least 10 characters").max(10000),
+});
+
 export const adminCreatePublisherSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   email: z.string().trim().email("Enter a valid email address"),

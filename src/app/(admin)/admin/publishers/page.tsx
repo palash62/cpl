@@ -9,6 +9,7 @@ import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { AdminCreatePublisherDialog } from "@/components/admin/admin-create-publisher-dialog";
 import { AdminPublisherReviewDialog } from "@/components/admin/admin-publisher-review-dialog";
+import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import {
   avatarColors,
   formatCurrency,
@@ -206,7 +207,11 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                         <div className="flex items-center justify-end gap-2">
                           <AdminPublisherReviewDialog
                             publisher={{
-                              ...publisher,
+                              id: publisher.id,
+                              name: publisher.name,
+                              email: publisher.email,
+                              status: publisher.status,
+                              createdAt: publisher.createdAt,
                               publisherProfile: publisher.publisherProfile
                                 ? {
                                     ...publisher.publisherProfile,
@@ -217,6 +222,11 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                                   }
                                 : publisher.publisherProfile,
                             }}
+                          />
+                          <AdminLoginAsButton
+                            userId={publisher.id}
+                            userName={publisher.name}
+                            disabled={publisher.status === "SUSPENDED"}
                           />
                           <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
                         </div>

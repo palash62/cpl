@@ -96,4 +96,24 @@ export const Errors = {
     ),
   validation: (message: string, field?: string) =>
     new AppError("VALIDATION_ERROR", message, 422, field),
+  campaignHasLeads: () =>
+    new AppError(
+      "CAMPAIGN_HAS_LEADS",
+      "Campaigns with leads cannot be deleted",
+      422,
+    ),
+  campaignIsActive: () =>
+    new AppError(
+      "CAMPAIGN_IS_ACTIVE",
+      "Pause or archive the campaign before deleting",
+      422,
+    ),
+  campaignReadOnly: () =>
+    new AppError(
+      "CAMPAIGN_READ_ONLY",
+      "This campaign cannot be edited",
+      422,
+    ),
+  campaignInvalidTransition: (message: string) =>
+    new AppError("CAMPAIGN_INVALID_TRANSITION", message, 422),
 };

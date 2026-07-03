@@ -100,7 +100,88 @@ export async function listUsers(filters: {
     prisma.user.count({ where }),
   ]);
 
-  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  const serialized = data.map((user) => ({
+    ...user,
+    wallet: user.wallet ? { balance: Number(user.wallet.balance) } : null,
+  }));
+
+  return { data: serialized, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+}
+
+export async function getAdvertiserDetail(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id, role: "ADVERTISER" },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      status: true,
+      createdAt: true,
+      advertiserProfile: {
+        select: {
+          company: true,
+          industry: true,
+          billingInfo: true,
+        },
+      },
+      wallet: {
+        select: {
+          id: true,
+          balance: true,
+          holdBalance: true,
+          currency: true,
+        },
+      },
+      campaigns: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          cpl: true,
+          spent: true,
+          createdAt: true,
+          _count: { select: { leads: true } },
+        },
+      },
+      deposits: {
+        orderBy: { createdAt: "desc" },
+        take: 15,
+        select: {
+          id: true,
+          amount: true,
+          method: true,
+          status: true,
+          createdAt: true,
+          paymentDetails: true,
+        },
+      },
+      _count: { select: { campaigns: true } },
+    },
+  });
+
+  if (!user) return null;
+
+  return {
+    ...user,
+    wallet: user.wallet
+      ? {
+          ...user.wallet,
+          balance: Number(user.wallet.balance),
+          holdBalance: Number(user.wallet.holdBalance),
+        }
+      : null,
+    campaigns: user.campaigns.map((campaign) => ({
+      ...campaign,
+      cpl: Number(campaign.cpl),
+      spent: Number(campaign.spent),
+    })),
+    deposits: user.deposits.map((deposit) => ({
+      ...deposit,
+      amount: Number(deposit.amount),
+    })),
+  };
 }
 
 export async function updateUserStatus(userId: string, status: UserStatus, adminId: string) {
@@ -272,6 +353,23 @@ export async function rejectPublisher(
 }
 
 export async function approveCampaign(campaignId: string, adminId: string) {
+  const existing = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { status: true },
+  });
+
+  if (!existing) {
+    throw new AppError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
+  }
+
+  if (existing.status !== "PENDING") {
+    throw new AppError(
+      "CAMPAIGN_INVALID_STATUS",
+      "Only pending campaigns can be approved",
+      422,
+    );
+  }
+
   const campaign = await prisma.campaign.update({
     where: { id: campaignId },
     data: {
@@ -524,4 +622,91 @@ export async function adjustWallet(
     actionPath: walletPath,
     notificationType: "wallet.adjusted",
   });
+}
+
+export async function sendAdminBulkEmail(input: {
+  userIds: string[];
+  subject: string;
+  message: string;
+  actorId: string;
+}) {
+  const uniqueIds = Array.from(new Set(input.userIds));
+  const users = await prisma.user.findMany({
+    where: {
+      id: { in: uniqueIds },
+      role: { in: ["ADVERTISER", "PUBLISHER"] },
+      status: "ACTIVE",
+    },
+    select: { id: true, email: true, name: true, role: true },
+  });
+
+  if (users.length === 0) {
+    throw new AppError("VALIDATION_ERROR", "No active recipients found for the selected users", 422);
+  }
+
+  const { getResolvedEmailConfig } = await import("@/services/smtp-settings.service");
+  const { sendEmail } = await import("@/services/email.service");
+  const { renderGenericEmail } = await import("@/lib/email/templates");
+
+  const config = await getResolvedEmailConfig();
+  const htmlMessage = input.message
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("<br/>");
+
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const user of users) {
+    const rendered = renderGenericEmail({
+      appUrl: config.appUrl,
+      recipientName: user.name,
+      title: input.subject,
+      message: htmlMessage || input.message,
+    });
+
+    const result = await sendEmail({
+      to: user.email,
+      subject: input.subject,
+      html: rendered.html,
+      text: rendered.text,
+      template: "generic",
+      metadata: {
+        kind: "admin_bulk_email",
+        userId: user.id,
+        role: user.role,
+      },
+    });
+
+    if (result.skipped) skipped += 1;
+    else if (result.sent) sent += 1;
+    else failed += 1;
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: input.actorId,
+      action: "email.bulk_sent",
+      entityType: "email",
+      entityId: input.actorId,
+      metadata: {
+        subject: input.subject,
+        recipientCount: users.length,
+        sent,
+        failed,
+        skipped,
+        userIds: users.map((user) => user.id),
+      },
+    },
+  });
+
+  return {
+    recipientCount: users.length,
+    sent,
+    failed,
+    skipped,
+    notFound: uniqueIds.length - users.length,
+  };
 }

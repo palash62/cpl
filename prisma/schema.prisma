@@ -71,6 +71,7 @@ enum DepositStatus {
 enum DepositMethod {
   CREDIT_CARD
   WISE
+  MANUAL
 }
 
 enum PayoutStatus {
@@ -209,6 +210,8 @@ model User {
   optinPage         AdvertiserOptinPage?
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  impersonationTokensAsAdmin ImpersonationToken[] @relation("ImpersonationAdmin")
+  impersonationTokensAsTarget ImpersonationToken[] @relation("ImpersonationTarget")
   advertiserAutoresponders AdvertiserAutoresponder[]
   emailContacts            EmailContact[]
   emailTemplates           EmailTemplate[]
@@ -633,6 +636,27 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum ImpersonationPurpose {
+  IMPERSONATE
+  RESTORE
+}
+
+model ImpersonationToken {
+  id           String               @id @default(cuid())
+  adminId      String               @map("admin_id")
+  targetUserId String               @map("target_user_id")
+  purpose      ImpersonationPurpose @default(IMPERSONATE)
+  expiresAt    DateTime             @map("expires_at")
+  usedAt       DateTime?            @map("used_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  admin  User @relation("ImpersonationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  target User @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("impersonation_tokens")
 }
 
 model AdvertiserOptinPage {

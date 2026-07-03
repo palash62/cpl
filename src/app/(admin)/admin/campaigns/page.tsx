@@ -8,8 +8,9 @@ import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { CampaignStatusBadge, formatCurrency } from "@/components/admin/admin-ui";
 import { CampaignsTableFilters } from "@/components/admin/campaigns-table-filters";
-import { AdminCampaignReviewDialog } from "@/components/admin/admin-campaign-review-dialog";
+import { AdminCampaignActions } from "@/components/admin/admin-campaign-actions";
 import { ButtonLink } from "@/components/ui/button-link";
+import { Eye } from "lucide-react";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import {
   Table,
@@ -188,14 +189,25 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                       {format(new Date(c.createdAt), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
-                      <AdminCampaignReviewDialog
-                        campaign={{
-                          ...c,
-                          cpl: Number(c.cpl),
-                          budget: Number(c.budget),
-                          spent: Number(c.spent),
-                        }}
-                      />
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <ButtonLink
+                          href={`/admin/campaigns/${c.id}`}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </ButtonLink>
+                        <AdminCampaignActions
+                          campaign={{
+                            id: c.id,
+                            name: c.name,
+                            status: c.status,
+                            leadCount: c._count.leads,
+                          }}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

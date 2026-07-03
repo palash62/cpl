@@ -1,5 +1,6 @@
 "use client";
 
+import type { CampaignStatus } from "@prisma/client";
 import { Calendar, Globe, Layers, Sparkles, Target, TrendingUp, Wallet, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -28,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type CampaignStatusChoice = "ACTIVE" | "PENDING" | "PAUSED" | "DRAFT";
+type CampaignStatusChoice = CampaignStatus;
 
 interface CampaignSummaryPanelProps {
   name: string;
@@ -47,6 +48,9 @@ interface CampaignSummaryPanelProps {
   onStatusChange?: (status: CampaignStatusChoice) => void;
   autoApprove?: boolean;
   onAutoApproveChange?: (value: boolean) => void;
+  statusOptions?: string[];
+  statusDisabled?: boolean;
+  autoApproveDisabled?: boolean;
 }
 
 export function CampaignSummaryPanel({
@@ -66,6 +70,9 @@ export function CampaignSummaryPanel({
   onStatusChange,
   autoApprove = false,
   onAutoApproveChange,
+  statusOptions,
+  statusDisabled = false,
+  autoApproveDisabled = false,
 }: CampaignSummaryPanelProps) {
   const rows = [
     {
@@ -139,15 +146,17 @@ export function CampaignSummaryPanel({
             <Select
               value={status}
               onValueChange={(value) => value && onStatusChange?.(value as CampaignStatusChoice)}
+              disabled={statusDisabled}
             >
               <SelectTrigger className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="PENDING">Pending review</SelectItem>
-                <SelectItem value="PAUSED">Paused</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
+                {(statusOptions ?? ["ACTIVE", "PENDING", "PAUSED", "DRAFT"]).map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
@@ -155,7 +164,8 @@ export function CampaignSummaryPanel({
                 type="checkbox"
                 checked={autoApprove}
                 onChange={(e) => onAutoApproveChange?.(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)]"
+                disabled={autoApproveDisabled}
+                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)] disabled:cursor-not-allowed"
               />
               Auto-approve leads
             </label>

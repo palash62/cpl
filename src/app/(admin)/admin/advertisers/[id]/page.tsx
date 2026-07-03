@@ -1,0 +1,232 @@
+import { notFound } from "next/navigation";
+import { format } from "date-fns";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  Mail,
+  Megaphone,
+  Wallet,
+} from "lucide-react";
+import { getAdvertiserDetail } from "@/services/admin.service";
+import { PageHero } from "@/components/admin/page-hero";
+import { PageSection } from "@/components/admin/page-section";
+import {
+  CampaignStatusBadge,
+  formatCurrency,
+  UserStatusBadge,
+} from "@/components/admin/admin-ui";
+import { UserStatusActions } from "@/components/admin/user-status-actions";
+import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
+import { AdminManualDepositDialog } from "@/components/admin/admin-manual-deposit-dialog";
+import { ButtonLink } from "@/components/ui/button-link";
+import { formatDepositMethod } from "@/lib/deposit";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const advertiser = await getAdvertiserDetail(id);
+
+  if (!advertiser) {
+    notFound();
+  }
+
+  const balance = Number(advertiser.wallet?.balance ?? 0);
+  const company = advertiser.advertiserProfile?.company ?? "—";
+
+  return (
+    <div className="space-y-7">
+      <div className="flex flex-wrap items-center gap-3">
+        <ButtonLink href="/admin/advertisers" variant="outline" size="sm" className="h-9 gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </ButtonLink>
+      </div>
+
+      <PageHero
+        eyebrow="Advertiser Account"
+        title={advertiser.name}
+        description={advertiser.email}
+        badge={company}
+      />
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <AdminLoginAsButton
+          userId={advertiser.id}
+          userName={advertiser.name}
+          disabled={advertiser.status === "SUSPENDED"}
+        />
+        <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+        <AdminManualDepositDialog userId={advertiser.id} userName={advertiser.name} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Wallet balance</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-600">{formatCurrency(balance)}</p>
+        </div>
+        <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Campaigns</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{advertiser._count.campaigns}</p>
+        </div>
+        <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
+          <div className="mt-2">
+            <UserStatusBadge status={advertiser.status} />
+          </div>
+        </div>
+        <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Joined</p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">
+            {format(new Date(advertiser.createdAt), "MMM d, yyyy")}
+          </p>
+        </div>
+      </div>
+
+      <PageSection title="Profile" description="Advertiser account details" icon={Building2} gradient="revenue">
+        <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+          <div className="flex items-start gap-3">
+            <Mail className="mt-0.5 h-4 w-4 text-slate-400" />
+            <div>
+              <p className="text-xs text-slate-500">Email</p>
+              <p className="text-sm font-medium text-slate-900">{advertiser.email}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Building2 className="mt-0.5 h-4 w-4 text-slate-400" />
+            <div>
+              <p className="text-xs text-slate-500">Company</p>
+              <p className="text-sm font-medium text-slate-900">{company}</p>
+            </div>
+          </div>
+          {advertiser.advertiserProfile?.industry && (
+            <div className="flex items-start gap-3">
+              <Calendar className="mt-0.5 h-4 w-4 text-slate-400" />
+              <div>
+                <p className="text-xs text-slate-500">Industry</p>
+                <p className="text-sm font-medium text-slate-900">
+                  {advertiser.advertiserProfile.industry}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </PageSection>
+
+      <Tabs defaultValue="campaigns">
+        <TabsList>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="wallet">Wallet & deposits</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="campaigns" className="mt-4">
+          <PageSection
+            title="Campaigns"
+            description={`${advertiser.campaigns.length} recent campaign(s)`}
+            icon={Megaphone}
+            gradient="approved"
+          >
+            {advertiser.campaigns.length === 0 ? (
+              <p className="px-6 py-8 text-sm text-slate-500">No campaigns yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-6">Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">CPL</TableHead>
+                    <TableHead className="text-center">Leads</TableHead>
+                    <TableHead className="text-right">Spent</TableHead>
+                    <TableHead className="px-6 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {advertiser.campaigns.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="px-6 font-medium">{c.name}</TableCell>
+                      <TableCell>
+                        <CampaignStatusBadge status={c.status} />
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(c.cpl))}</TableCell>
+                      <TableCell className="text-center">{c._count.leads}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(c.spent))}</TableCell>
+                      <TableCell className="px-6 text-right">
+                        <ButtonLink
+                          href={`/admin/campaigns/${c.id}`}
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                        >
+                          View
+                        </ButtonLink>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </PageSection>
+        </TabsContent>
+
+        <TabsContent value="wallet" className="mt-4">
+          <PageSection
+            title="Deposit history"
+            description="Wise, card, and manual admin deposits"
+            icon={Wallet}
+            gradient="revenue"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <p className="text-sm text-slate-600">
+                Current balance:{" "}
+                <span className="font-semibold text-emerald-600">{formatCurrency(balance)}</span>
+              </p>
+              <AdminManualDepositDialog userId={advertiser.id} userName={advertiser.name} />
+            </div>
+            {advertiser.deposits.length === 0 ? (
+              <p className="px-6 py-8 text-sm text-slate-500">No deposits recorded.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-6">Date</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {advertiser.deposits.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="px-6 text-sm text-slate-600">
+                        {format(new Date(d.createdAt), "MMM d, yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell>{formatDepositMethod(d.method)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(Number(d.amount))}
+                      </TableCell>
+                      <TableCell className="capitalize text-sm">{d.status.toLowerCase()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </PageSection>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

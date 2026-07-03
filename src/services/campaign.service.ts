@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { createPixelToken } from "@/lib/campaign-pixel.server";
 import type { CampaignCategory, CampaignStatus, PublisherAccess } from "@prisma/client";
 import { notifyAdminAlert, notifyApproved, notifyGeneric } from "@/services/notify.service";
+import { Errors } from "@/lib/errors";
+import {
+  assertFieldEditable,
+  canAdminDeleteCampaign,
+  canTransitionStatus,
+  getEditableFields,
+  isFullEditCampaign,
+} from "@/lib/campaign-lifecycle";
+import {
+  linkOptinPageToCampaign,
+  resolveOptinPageDestination,
+} from "@/services/optin-page.service";
 
 export interface CreateCampaignInput {
   advertiserId: string;
@@ -198,6 +210,7 @@ export async function getCampaignById(id: string) {
       publisherCampaigns: {
         include: { publisher: { select: { id: true, name: true, email: true } } },
       },
+      _count: { select: { leads: true } },
     },
   });
 }
@@ -217,6 +230,199 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus) {
   });
 
   return campaign;
+}
+
+export async function updateCampaignByAdmin(
+  id: string,
+  body: Record<string, unknown>,
+  adminId: string,
+  options?: { baseUrl?: string },
+) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    include: { _count: { select: { leads: true } } },
+  });
+
+  if (!campaign) {
+    throw Errors.notFound("Campaign");
+  }
+
+  const lifecycle = { status: campaign.status, leadCount: campaign._count.leads };
+  const editable = getEditableFields(lifecycle);
+
+  if (editable.size === 0) {
+    throw Errors.campaignReadOnly();
+  }
+
+  const data: Prisma.CampaignUpdateInput = {};
+  const scalarFields = [
+    "name",
+    "description",
+    "cpl",
+    "budget",
+    "dailyCap",
+    "monthlyCap",
+    "autoApprove",
+    "publisherAccess",
+    "category",
+  ] as const;
+
+  for (const field of scalarFields) {
+    if (body[field] !== undefined) {
+      if (!assertFieldEditable(lifecycle, field)) {
+        throw Errors.campaignReadOnly();
+      }
+      (data as Record<string, unknown>)[field] = body[field];
+    }
+  }
+
+  if (body.targeting !== undefined) {
+    if (!assertFieldEditable(lifecycle, "targeting")) {
+      throw Errors.campaignReadOnly();
+    }
+    data.targeting = body.targeting as Prisma.InputJsonValue;
+  }
+
+  if (body.optinPageId !== undefined && typeof body.optinPageId === "string") {
+    if (!isFullEditCampaign(lifecycle)) {
+      throw Errors.campaignReadOnly();
+    }
+    if (!options?.baseUrl) {
+      options = { baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000" };
+    }
+
+    const { page, destinationUrl } = await resolveOptinPageDestination(
+      body.optinPageId,
+      campaign.advertiserId,
+      options.baseUrl!,
+    );
+
+    const currentTargeting =
+      body.targeting !== undefined
+        ? (body.targeting as Record<string, unknown>)
+        : campaign.targeting && typeof campaign.targeting === "object"
+          ? (campaign.targeting as Record<string, unknown>)
+          : {};
+
+    data.targeting = {
+      ...currentTargeting,
+      destinationUrl,
+      optinPageId: page.id,
+      optinSlug: page.slug,
+    } as Prisma.InputJsonValue;
+
+    data.description = `Optin page: ${page.title}`;
+
+    await linkOptinPageToCampaign(page.id, id, campaign.advertiserId);
+  }
+
+  if (body.fields !== undefined) {
+    if (!assertFieldEditable(lifecycle, "fields")) {
+      throw Errors.campaignReadOnly();
+    }
+
+    const fields = body.fields as Array<{
+      fieldName: string;
+      label: string;
+      fieldType: string;
+      required?: boolean;
+      validationRules?: Record<string, unknown>;
+      sortOrder?: number;
+    }>;
+
+    await prisma.campaignField.deleteMany({ where: { campaignId: id } });
+    if (fields.length > 0) {
+      await prisma.campaignField.createMany({
+        data: fields.map((field, index) => ({
+          campaignId: id,
+          fieldName: field.fieldName,
+          label: field.label,
+          fieldType: field.fieldType,
+          required: field.required ?? true,
+          validationRules: (field.validationRules ?? undefined) as Prisma.InputJsonValue | undefined,
+          sortOrder: field.sortOrder ?? index,
+        })),
+      });
+    }
+  }
+
+  if (body.status !== undefined) {
+    const nextStatus = body.status as CampaignStatus;
+    if (!assertFieldEditable(lifecycle, "status")) {
+      throw Errors.campaignReadOnly();
+    }
+    if (!canTransitionStatus(campaign.status, nextStatus)) {
+      throw Errors.campaignInvalidTransition(
+        `Cannot change status from ${campaign.status} to ${nextStatus}`,
+      );
+    }
+    data.status = nextStatus;
+  }
+
+  const updated = await prisma.campaign.update({
+    where: { id },
+    data,
+    include: { advertiser: { select: { id: true, email: true, name: true } } },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "campaign.updated",
+      entityType: "campaign",
+      entityId: id,
+      metadata: {
+        status: updated.status,
+        limitedEdit: !isFullEditCampaign(lifecycle),
+      },
+    },
+  });
+
+  if (body.status && body.status !== campaign.status) {
+    void notifyGeneric(updated.advertiser, {
+      title: "Campaign status updated",
+      message: `Your campaign "${updated.name}" is now ${String(body.status).replace(/_/g, " ").toLowerCase()}.`,
+      actionPath: "/advertiser/campaigns",
+      notificationType: "campaign.status_changed",
+    });
+  }
+
+  return updated;
+}
+
+export async function deleteCampaignByAdmin(id: string, adminId: string) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    include: { _count: { select: { leads: true } } },
+  });
+
+  if (!campaign) {
+    throw Errors.notFound("Campaign");
+  }
+
+  const lifecycle = { status: campaign.status, leadCount: campaign._count.leads };
+
+  if (!canAdminDeleteCampaign(lifecycle)) {
+    if (campaign._count.leads > 0) {
+      throw Errors.campaignHasLeads();
+    }
+    if (campaign.status === "ACTIVE" || campaign.status === "PAUSED") {
+      throw Errors.campaignIsActive();
+    }
+    throw Errors.campaignReadOnly();
+  }
+
+  await prisma.campaign.delete({ where: { id } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "campaign.deleted",
+      entityType: "campaign",
+      entityId: id,
+      metadata: { name: campaign.name },
+    },
+  });
 }
 
 export async function joinCampaign(publisherId: string, campaignId: string) {

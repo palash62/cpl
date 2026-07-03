@@ -36,6 +36,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Advertisers", href: "/admin/advertisers", icon: Users },
   { label: "Publishers", href: "/admin/publishers", icon: Users },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
+  { label: "Bulk Email", href: "/admin/bulk-email", icon: Mail },
   { label: "Leads", href: "/admin/leads", icon: FileText },
   { label: "Fraud Center", href: "/admin/fraud", icon: ShieldAlert },
   { label: "Wallets", href: "/admin/wallets", icon: Wallet },

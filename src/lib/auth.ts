@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+import { consumeImpersonationToken } from "@/services/impersonation.service";
 
 export { ROLE_ROUTES, getDashboardPath } from "@/lib/auth.config";
 
@@ -36,6 +37,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+        };
+      },
+    }),
+    CredentialsProvider({
+      id: "impersonation",
+      name: "impersonation",
+      credentials: {
+        token: { label: "Token", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.token) return null;
+
+        const result = await consumeImpersonationToken(String(credentials.token));
+        if (!result) return null;
+
+        return {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+          impersonatorId: result.impersonatorId,
         };
       },
     }),

@@ -14,6 +14,9 @@ import {
 } from "@/components/admin/admin-ui";
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
 import { UserStatusActions } from "@/components/admin/user-status-actions";
+import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
+import { ButtonLink } from "@/components/ui/button-link";
+import { Eye } from "lucide-react";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -168,7 +171,23 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
                         {format(new Date(advertiser.createdAt), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
-                        <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+                        <div className="flex items-center justify-end gap-2">
+                          <ButtonLink
+                            href={`/admin/advertisers/${advertiser.id}`}
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </ButtonLink>
+                          <AdminLoginAsButton
+                            userId={advertiser.id}
+                            userName={advertiser.name}
+                            disabled={advertiser.status === "SUSPENDED"}
+                          />
+                          <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

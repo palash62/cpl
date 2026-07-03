@@ -3,6 +3,7 @@ import type { DepositMethod } from "@prisma/client";
 export function formatDepositMethod(method: DepositMethod | string) {
   if (method === "WISE") return "Wise";
   if (method === "CREDIT_CARD") return "Credit Card";
+  if (method === "MANUAL") return "Manual (Admin)";
   return String(method);
 }
 

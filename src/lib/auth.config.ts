@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import type { UserRole } from "@prisma/client";
+import { parseViewAsCookie, VIEW_AS_COOKIE } from "@/lib/view-as";
 
 declare module "next-auth" {
   interface Session {
@@ -9,9 +10,12 @@ declare module "next-auth" {
       name: string;
       role: UserRole;
     };
+    impersonatorId?: string;
+    viewAsMode?: boolean;
   }
   interface User {
     role: UserRole;
+    impersonatorId?: string;
   }
 }
 
@@ -42,6 +46,8 @@ const publicPaths = [
   "/api/v1/email/track/",
   "/api/v1/webhooks/ses",
   "/unsubscribe/",
+  "/api/v1/admin/impersonate/start",
+  "/api/v1/admin/impersonate/stop",
   "/api/auth",
 ];
 
@@ -54,6 +60,13 @@ export const authConfig = {
       if (user) {
         token.id = user.id!;
         token.role = user.role;
+        token.email = user.email;
+        token.name = user.name;
+        if (user.impersonatorId) {
+          token.impersonatorId = user.impersonatorId;
+        } else {
+          delete token.impersonatorId;
+        }
       }
       return token;
     },
@@ -61,11 +74,19 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
+        session.user.email = (token.email as string) ?? session.user.email;
+        session.user.name = (token.name as string) ?? session.user.name;
+        if (token.impersonatorId) {
+          session.impersonatorId = token.impersonatorId as string;
+        } else {
+          delete session.impersonatorId;
+        }
       }
       return session;
     },
-    authorized({ auth, request }) {
+    async authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
+      const viewAs = await parseViewAsCookie(request.cookies.get(VIEW_AS_COOKIE)?.value);
 
       if (
         publicPaths.some((p) => pathname.startsWith(p)) ||
@@ -76,24 +97,52 @@ export const authConfig = {
         return true;
       }
 
-      if (!auth?.user) {
+      const viewAsPublisher =
+        viewAs?.role === "PUBLISHER" &&
+        (pathname.startsWith("/publisher") ||
+          (pathname.startsWith("/api/v1/") &&
+            (request.headers.get("referer")?.includes("/publisher") ?? false)));
+      const viewAsAdvertiser =
+        viewAs?.role === "ADVERTISER" &&
+        (pathname.startsWith("/advertiser") ||
+          (pathname.startsWith("/api/v1/") &&
+            (request.headers.get("referer")?.includes("/advertiser") ?? false)));
+
+      if (!auth?.user && !viewAsPublisher && !viewAsAdvertiser) {
         return false;
       }
 
-      const role = auth.user.role;
+      if (pathname.startsWith("/admin")) {
+        if (auth?.user?.role !== "ADMIN") {
+          const role = auth?.user?.role ?? viewAs?.role ?? "ADVERTISER";
+          return Response.redirect(new URL(ROLE_ROUTES[role as UserRole], request.nextUrl));
+        }
+        return true;
+      }
 
-      if (pathname.startsWith("/admin") && role !== "ADMIN") {
-        return Response.redirect(new URL(ROLE_ROUTES[role], request.nextUrl));
+      if (pathname.startsWith("/advertiser")) {
+        if (viewAs?.role === "ADVERTISER" || auth?.user?.role === "ADVERTISER") {
+          return true;
+        }
+        if (auth?.user?.role) {
+          return Response.redirect(new URL(ROLE_ROUTES[auth.user.role], request.nextUrl));
+        }
+        return false;
       }
-      if (pathname.startsWith("/advertiser") && role !== "ADVERTISER") {
-        return Response.redirect(new URL(ROLE_ROUTES[role], request.nextUrl));
-      }
-      if (pathname.startsWith("/publisher") && role !== "PUBLISHER") {
-        return Response.redirect(new URL(ROLE_ROUTES[role], request.nextUrl));
+
+      if (pathname.startsWith("/publisher")) {
+        if (viewAs?.role === "PUBLISHER" || auth?.user?.role === "PUBLISHER") {
+          return true;
+        }
+        if (auth?.user?.role) {
+          return Response.redirect(new URL(ROLE_ROUTES[auth.user.role], request.nextUrl));
+        }
+        return false;
       }
 
       if (pathname === "/dashboard") {
-        return Response.redirect(new URL(ROLE_ROUTES[role], request.nextUrl));
+        const role = viewAs?.role ?? auth?.user?.role ?? "ADVERTISER";
+        return Response.redirect(new URL(ROLE_ROUTES[role as UserRole], request.nextUrl));
       }
 
       return true;

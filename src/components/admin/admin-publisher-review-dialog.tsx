@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Ban, CheckCircle2, Eye, MapPin, ShieldAlert, Users } from "lucide-react";
+import { Ban, CheckCircle2, Eye, MapPin, ShieldAlert, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { SpamScoreBadge, SpamScoreGuide, spamScoreLevel } from "@/components/admin/admin-ui";
 import { cn } from "@/lib/utils";
@@ -82,173 +90,185 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
         <Eye className="h-3.5 w-3.5" />
         View
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,880px)] w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="shrink-0 border-b border-slate-200 px-5 py-4 pr-12">
           <DialogTitle>Publisher Review</DialogTitle>
+          <p className="text-sm text-slate-500">{publisher.name} · {publisher.email}</p>
         </DialogHeader>
 
-        <div className="space-y-5">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{publisher.name}</p>
-                <p className="text-xs text-slate-500">{publisher.email}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="capitalize">
-                  {status.toLowerCase()}
-                </Badge>
-                {profile?.kycStatus && (
-                  <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
-                    {profile.kycStatus.toLowerCase()}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-xs text-slate-500">Joined</p>
-                <p className="text-sm font-medium text-slate-900">
-                  {format(new Date(publisher.createdAt), "MMM d, yyyy")}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-xs text-slate-500">Traffic source</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.trafficSource || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-xs text-slate-500">Website</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.website || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-xs text-slate-500">Country</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.country || "—"}</p>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              "rounded-xl border p-4",
-              highSpam ? "border-red-200 bg-red-50/70" : "border-slate-200 bg-white",
-            )}
-          >
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <ShieldAlert className={cn("h-4 w-4", highSpam ? "text-red-600" : "text-[var(--theme-primary)]")} />
-              Spam & quality signals (30 days)
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Spam score</p>
-                <div className="mt-1">
-                  <SpamScoreBadge score={spamScore} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{publisher.name}</p>
+                  <p className="text-xs text-slate-500">{publisher.email}</p>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">Avg lead risk (0 safe, 100 risky)</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {status.toLowerCase()}
+                  </Badge>
+                  {profile?.kycStatus && (
+                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
+                      {profile.kycStatus.toLowerCase()}
+                    </Badge>
+                  )}
+                </div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Quality score</p>
-                <p className="text-sm font-semibold text-slate-900">
-                  {profile?.qualityScore != null ? `${profile.qualityScore}%` : "—"}
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-xs text-slate-500">Joined</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {format(new Date(publisher.createdAt), "MMM d, yyyy")}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-xs text-slate-500">Traffic source</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.trafficSource || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-xs text-slate-500">Website</p>
+                  <p className="break-all text-sm font-medium text-slate-900">{profile?.website || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-xs text-slate-500">Country</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.country || "—"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "rounded-xl border p-4",
+                highSpam ? "border-red-200 bg-red-50/70" : "border-slate-200 bg-white",
+              )}
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <ShieldAlert className={cn("h-4 w-4", highSpam ? "text-red-600" : "text-[var(--theme-primary)]")} />
+                Spam & quality signals (30 days)
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Spam score</p>
+                  <div className="mt-1">
+                    <SpamScoreBadge score={spamScore} />
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">Avg lead risk (0 safe, 100 risky)</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Quality score</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {profile?.qualityScore != null ? `${profile.qualityScore}%` : "—"}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">Lead approval rate</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Fraud flags</p>
+                  <p className="text-sm font-semibold text-slate-900">{profile?.fraudFlags ?? 0}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Quality warnings triggered</p>
+                </div>
+              </div>
+              {highSpam && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-700">
+                  Spam score is {spamScore}/100 (high risk). Consider rejecting this publisher or
+                  reviewing their recent leads before approval.
                 </p>
-                <p className="mt-1 text-[11px] text-slate-500">Lead approval rate</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Fraud flags</p>
-                <p className="text-sm font-semibold text-slate-900">{profile?.fraudFlags ?? 0}</p>
-                <p className="mt-1 text-[11px] text-slate-500">Quality warnings triggered</p>
+              )}
+              {spamScore === null && (
+                <p className="mt-3 text-sm text-slate-500">
+                  No scored leads yet — spam score will appear after the publisher submits traffic.
+                </p>
+              )}
+              <div className="mt-3">
+                <SpamScoreGuide compact />
               </div>
             </div>
-            {highSpam && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-700">
-                Spam score is {spamScore}/100 (high risk). Consider rejecting this publisher or
-                reviewing their recent leads before approval.
-              </p>
-            )}
-            {spamScore === null && (
-              <p className="mt-3 text-sm text-slate-500">
-                No scored leads yet — spam score will appear after the publisher submits traffic.
-              </p>
-            )}
-            <div className="mt-3">
-              <SpamScoreGuide compact />
-            </div>
-          </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <MapPin className="h-4 w-4 text-[var(--theme-primary)]" />
-              Address details
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <MapPin className="h-4 w-4 text-[var(--theme-primary)]" />
+                Address details
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Address line 1</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.addressLine1 || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Address line 2</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.addressLine2 || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">City</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.city || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">State</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.state || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <p className="text-xs text-slate-500">Postal code</p>
+                  <p className="text-sm font-medium text-slate-900">{profile?.postalCode || "—"}</p>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Address line 1</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.addressLine1 || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Address line 2</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.addressLine2 || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">City</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.city || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">State</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.state || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Postal code</p>
-                <p className="text-sm font-medium text-slate-900">{profile?.postalCode || "—"}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <Users className="h-4 w-4 text-[var(--theme-primary)]" />
-              Approval decision
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <Users className="h-4 w-4 text-[var(--theme-primary)]" />
+                Approval decision
+              </div>
+              {error && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
+              <div className="mt-4 space-y-3">
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Rejection note (required if rejecting)"
+                  rows={2}
+                  className={cn(
+                    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none",
+                    "focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15",
+                  )}
+                />
+                <p className="text-xs text-slate-500">
+                  Rejecting sets the account to Suspended and shows the note on the publisher settings
+                  page.
+                </p>
+              </div>
             </div>
-            {error && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </p>
-            )}
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Rejection note (required if rejecting)"
-                rows={2}
-                className={cn(
-                  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none",
-                  "focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15",
-                )}
-              />
-              <Button
-                type="button"
-                disabled={loading}
-                onClick={() => sendDecision("approve")}
-                className="h-10 gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-600/90"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Approve
-              </Button>
-              <Button
-                type="button"
-                disabled={loading}
-                onClick={() => sendDecision("reject")}
-                className="h-10 gap-1 rounded-xl bg-red-600 hover:bg-red-600/90"
-              >
-                <Ban className="h-4 w-4" />
-                Reject
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Rejecting sets the account to Suspended and shows the note on the publisher settings
-              page.
-            </p>
           </div>
         </div>
+
+        <DialogFooter className="shrink-0 gap-2 border-t border-slate-200 bg-slate-50/80 px-5 py-4 sm:flex-row sm:justify-between">
+          <DialogClose render={<Button type="button" variant="outline" className="gap-1" />}>
+            <X className="h-4 w-4" />
+            Close
+          </DialogClose>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button
+              type="button"
+              disabled={loading}
+              onClick={() => sendDecision("approve")}
+              className="gap-1 bg-emerald-600 hover:bg-emerald-600/90"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Approve
+            </Button>
+            <Button
+              type="button"
+              disabled={loading}
+              onClick={() => sendDecision("reject")}
+              className="gap-1 bg-red-600 hover:bg-red-600/90"
+            >
+              <Ban className="h-4 w-4" />
+              Reject
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
