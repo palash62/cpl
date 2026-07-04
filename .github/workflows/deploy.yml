@@ -1,0 +1,72 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    if: github.repository != ''
+
+    env:
+      PLATFORM_URL: http://leadvix.io
+      TRACKING_URL: http://leadgenlink.site
+      DATABASE_URL: mysql://build:build@127.0.0.1:3306/cpl
+      AUTH_SECRET: ci-build-secret-min-32-characters-long
+      INTERNAL_SERVICE_TOKEN: ci-internal-token-for-build-only-64chars-minimum-xx
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Configure production env
+        run: bash deploy/env-production.sh
+
+      - name: Build both apps
+        run: bash deploy/build-production.sh
+
+      - name: Deploy to server
+        if: ${{ secrets.DEPLOY_HOST != '' }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+          PATH_ON_SERVER="${DEPLOY_PATH:-/home/ubuntu/cpl}"
+
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" --delete \
+            apps/platform/.next/ "$REMOTE:$PATH_ON_SERVER/apps/platform/.next/"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" --delete \
+            apps/tracking/.next/ "$REMOTE:$PATH_ON_SERVER/apps/tracking/.next/"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            deploy/.build-ready "$REMOTE:$PATH_ON_SERVER/deploy/.build-ready"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ecosystem.config.production.js "$REMOTE:$PATH_ON_SERVER/ecosystem.config.production.js"
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$REMOTE" \
+            "cd $PATH_ON_SERVER && git pull --ff-only && bash deploy/server-pull-run.sh"
+
+      - name: Upload build artifacts
+        if: ${{ secrets.DEPLOY_HOST == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: |
+            apps/platform/.next
+            apps/tracking/.next
+            deploy/.build-ready
+          retention-days: 7

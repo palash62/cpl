@@ -19,6 +19,7 @@ out/
 
 # production
 /build
+deploy/.build-ready
 
 # misc
 .DS_Store

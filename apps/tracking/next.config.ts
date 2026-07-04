@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   devIndicators: false,
   serverExternalPackages: ["@prisma/client", "prisma"],
   transpilePackages: ["@cpl/database", "@cpl/shared", "@cpl/tracking-core"],
