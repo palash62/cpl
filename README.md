@@ -21,6 +21,19 @@ Development follows a structured 7-phase process. Before implementing features, 
 | [`.cursor/rules/guardrail.md`](.cursor/rules/guardrail.md) | 8-step feature workflow — no code before approval |
 | [`.cursor/rules/skill.md`](.cursor/rules/skill.md) | Product context, modules, stack, design tokens |
 
+## Monorepo Structure
+
+This project is split into two deployable services on one server:
+
+| Domain | App | Port | Package |
+|--------|-----|------|---------|
+| **leadvix.io** | Main Platform | 3000 | `apps/platform` |
+| **leadgenlink.site** | Tracking Service | 3001 | `apps/tracking` |
+
+Shared packages: `packages/database`, `packages/shared`, `packages/tracking-core`
+
+See [docs/SERVICE-ARCHITECTURE.md](docs/SERVICE-ARCHITECTURE.md) and [docs/DEPLOYMENT-4GB.md](docs/DEPLOYMENT-4GB.md) for deployment on a 4GB RAM EC2 instance.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -48,16 +61,21 @@ Development follows a structured 7-phase process. Before implementing features, 
 
 ```bash
 npm install
-cp .env.example .env
-# Set DATABASE_URL and AUTH_SECRET
+cp .env.example apps/platform/.env
+cp .env.example apps/tracking/.env
+# Set DATABASE_URL, AUTH_SECRET, INTERNAL_SERVICE_TOKEN in both .env files
 
-mysql -u root -p -e "CREATE DATABASE cpl;"
-npx prisma db push
+npm run db:push
 npm run db:seed
-npm run dev
+
+# Development (both services)
+npm run dev:platform   # http://localhost:3000 — leadvix.io
+npm run dev:tracking   # http://localhost:3001 — leadgenlink.site
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) (platform)
+
+**Demo lead form:** [http://localhost:3001/t/demo-link](http://localhost:3001/t/demo-link) (tracking)
 
 ### Seed Users
 
@@ -66,8 +84,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | Admin | admin@cpl.local | password123 |
 | Advertiser | advertiser@cpl.local | password123 |
 | Publisher | publisher@cpl.local | password123 |
-
-**Demo lead form:** [http://localhost:3000/t/demo-link](http://localhost:3000/t/demo-link)
 
 ## Environment Variables
 
@@ -87,6 +103,8 @@ AUTH_URL="http://localhost:3000"
 | [API Spec](docs/API-SPEC.md) | Endpoints, auth, implementation status |
 | [Screens](docs/SCREENS.md) | 61 screens with routes and status |
 | [Deployment](docs/DEPLOYMENT.md) | GoDaddy VPS — Nginx, PM2, MySQL, SSL |
+| [4GB EC2 Deployment](docs/DEPLOYMENT-4GB.md) | Low-memory dual-service setup |
+| [Service Architecture](docs/SERVICE-ARCHITECTURE.md) | Platform vs tracking split |
 | [Testing Strategy](docs/TESTING-STRATEGY.md) | Unit, integration, E2E, CI |
 | [Stakeholder Review](docs/STAKEHOLDER-REVIEW.md) | Sign-off checklist |
 
@@ -94,16 +112,19 @@ AUTH_URL="http://localhost:3000"
 
 ```
 cpl/
-├── .cursor/rules/         # AI guardrails (guardrail.md, skill.md)
-├── docs/                  # Product documentation
-├── deploy/                # Nginx + PM2 configs
-├── prisma/
-├── src/
-│   ├── app/               # Routes (admin, advertiser, publisher, API)
-│   ├── components/
-│   ├── lib/
-│   └── services/
-└── tests/
+├── apps/
+│   ├── platform/          # leadvix.io — admin, advertiser, publisher, API
+│   └── tracking/          # leadgenlink.site — clicks, redirects, pixel, postback
+├── packages/
+│   ├── database/          # Prisma schema + client
+│   ├── shared/            # URL builders, env helpers
+│   └── tracking-core/     # Click logging, pixel, geo lookup
+├── deploy/
+│   ├── nginx/             # Virtual hosts per domain
+│   ├── setup-swap.sh      # 1GB swap for 4GB servers
+│   └── build-low-memory.sh
+├── docs/
+└── ecosystem.config.js    # PM2 — both services
 ```
 
 ## Scripts

@@ -1,0 +1,1136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ADVERTISER
+  PUBLISHER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CampaignCategory {
+  FINANCE
+  INSURANCE
+  EDUCATION
+  REAL_ESTATE
+  GENERIC
+}
+
+enum PublisherAccess {
+  OPEN
+  APPROVAL_REQUIRED
+  INVITE_ONLY
+}
+
+enum PublisherCampaignStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeadStatus {
+  CAPTURED
+  VALIDATING
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum DepositStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum DepositMethod {
+  CREDIT_CARD
+  WISE
+  MANUAL
+}
+
+enum PayoutStatus {
+  PENDING
+  REQUESTED
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum PayoutMethod {
+  PAYPAL
+  BANK_TRANSFER
+  STRIPE_CONNECT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  GENERAL
+  BILLING
+  TECHNICAL
+  CAMPAIGN
+  PAYOUT
+  OTHER
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AutoresponderProvider {
+  WEBHOOK
+  MAILCHIMP
+  AWEBER
+  GETRESPONSE
+}
+
+enum AutoresponderTrigger {
+  LEAD_CAPTURED
+  LEAD_APPROVED
+}
+
+enum AutoresponderDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum EmailContactStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+enum EmailAutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum EmailSendStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+}
+
+enum EmailEventType {
+  OPEN
+  CLICK
+  DELIVERY
+  BOUNCE
+  COMPLAINT
+}
+
+enum SendingIdentityStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  name          String
+  role          UserRole
+  status        UserStatus @default(PENDING)
+  emailVerified DateTime?  @map("email_verified")
+  referralCode  String?    @unique @map("referral_code")
+  referredById  String?    @map("referred_by_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  referredBy        User?  @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals         User[] @relation("UserReferrals")
+  advertiserProfile AdvertiserProfile?
+  publisherProfile  PublisherProfile?
+  wallet            Wallet?
+  campaigns         Campaign[]           @relation("AdvertiserCampaigns")
+  leads             Lead[]               @relation("PublisherLeads")
+  publisherCampaigns PublisherCampaign[]
+  trackingLinks     TrackingLink[]
+  publisherSmartLink PublisherSmartLink?
+  advertiserPublisherBlocks AdvertiserPublisherBlock[] @relation("AdvertiserBlocks")
+  blockedByAdvertisers    AdvertiserPublisherBlock[] @relation("PublisherBlocks")
+  payouts           Payout[]
+  deposits          Deposit[]
+  notifications     Notification[]
+  supportTickets    SupportTicket[]      @relation("TicketOwner")
+  assignedTickets   SupportTicket[]      @relation("TicketAssignee")
+  ticketMessages    TicketMessage[]
+  auditLogs         AuditLog[]
+  leadStatusChanges LeadStatusHistory[]
+  optinPages               AdvertiserOptinPage[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  impersonationTokensAsAdmin ImpersonationToken[] @relation("ImpersonationAdmin")
+  impersonationTokensAsTarget ImpersonationToken[] @relation("ImpersonationTarget")
+  advertiserAutoresponders AdvertiserAutoresponder[]
+  emailContacts            EmailContact[]
+  emailTemplates           EmailTemplate[]
+  emailAutomations         EmailAutomation[]
+  emailSends               EmailSend[]
+  emailMarketingSettings   AdvertiserEmailSettings?
+  sendingIdentities        AdvertiserSendingIdentity[]
+  landingPages             LandingPage[]
+  pageTemplateFavorites    PageTemplateFavorite[]
+
+  @@index([role])
+  @@index([status])
+  @@index([referredById])
+  @@map("users")
+}
+
+model AdvertiserProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique @map("user_id")
+  company     String
+  industry    String?
+  billingInfo Json?   @map("billing_info")
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("advertiser_profiles")
+}
+
+model PublisherProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique @map("user_id")
+  website       String?
+  trafficSource String?   @map("traffic_source")
+  country       String?
+  addressLine1  String?   @map("address_line_1")
+  addressLine2  String?   @map("address_line_2")
+  city          String?
+  state         String?
+  postalCode    String?   @map("postal_code")
+  rejectionReason String? @map("rejection_reason")
+  rejectedAt    DateTime? @map("rejected_at")
+  kycStatus     KycStatus @default(NOT_SUBMITTED) @map("kyc_status")
+  qualityScore  Float     @default(100) @map("quality_score")
+  spamScore     Float?    @map("spam_score")
+  qualityWarningAt DateTime? @map("quality_warning_at")
+  fraudFlags    Int       @default(0) @map("fraud_flags")
+  useSpecialTierPayouts Boolean @default(false) @map("use_special_tier_payouts")
+  tier1SpecialPayout Decimal? @map("tier1_special_payout") @db.Decimal(10, 2)
+  tier2SpecialPayout Decimal? @map("tier2_special_payout") @db.Decimal(10, 2)
+  tier3SpecialPayout Decimal? @map("tier3_special_payout") @db.Decimal(10, 2)
+  globalLinkUrl     String?   @map("global_link_url")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("publisher_profiles")
+}
+
+model Campaign {
+  id              String           @id @default(cuid())
+  advertiserId    String           @map("advertiser_id")
+  name            String
+  description     String?
+  category        CampaignCategory @default(GENERIC)
+  cpl             Decimal          @db.Decimal(10, 2)
+  budget          Decimal          @db.Decimal(12, 2)
+  spent           Decimal          @default(0) @db.Decimal(12, 2)
+  dailyCap        Int?             @map("daily_cap")
+  monthlyCap      Int?             @map("monthly_cap")
+  status          CampaignStatus   @default(DRAFT)
+  publisherAccess PublisherAccess  @default(APPROVAL_REQUIRED) @map("publisher_access")
+  autoApprove     Boolean          @default(false) @map("auto_approve")
+  targeting       Json             @default("{}")
+  pixelToken      String?          @unique @map("pixel_token")
+  rejectionReason String?          @map("rejection_reason")
+  rejectedAt      DateTime?        @map("rejected_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  advertiser         User                @relation("AdvertiserCampaigns", fields: [advertiserId], references: [id])
+  fields             CampaignField[]
+  publisherCampaigns PublisherCampaign[]
+  trackingLinks      TrackingLink[]
+  leads              Lead[]
+  pixelEvents        PixelEvent[]
+  optinPages         AdvertiserOptinPage[]
+  landingPages       LandingPage[]
+  funnelEvents       FunnelEvent[]
+
+  @@index([advertiserId])
+  @@index([status])
+  @@index([category])
+  @@map("campaigns")
+}
+
+enum LandingPageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model CampaignField {
+  id              String  @id @default(cuid())
+  campaignId      String  @map("campaign_id")
+  fieldName       String  @map("field_name")
+  label           String
+  fieldType       String  @map("field_type")
+  required        Boolean @default(true)
+  validationRules Json?   @map("validation_rules")
+  sortOrder       Int     @default(0) @map("sort_order")
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_fields")
+}
+
+model PublisherCampaign {
+  id          String                  @id @default(cuid())
+  publisherId String                  @map("publisher_id")
+  campaignId  String                  @map("campaign_id")
+  status      PublisherCampaignStatus @default(PENDING)
+  approvedAt  DateTime?               @map("approved_at")
+  publisher   User                    @relation(fields: [publisherId], references: [id])
+  campaign    Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([publisherId, campaignId])
+  @@map("publisher_campaigns")
+}
+
+model TrackingLink {
+  id          String   @id @default(cuid())
+  publisherId String   @map("publisher_id")
+  campaignId  String   @map("campaign_id")
+  slug        String   @unique
+  clickCount  Int      @default(0) @map("click_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  publisher User     @relation(fields: [publisherId], references: [id])
+  campaign  Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clicks    Click[]
+  leads     Lead[]
+
+  @@index([publisherId, campaignId])
+  @@map("tracking_links")
+}
+
+model PixelEvent {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  leadId     String?  @map("lead_id")
+  txnId      String?  @map("txn_id")
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([createdAt])
+  @@map("pixel_events")
+}
+
+model PublisherSmartLink {
+  id             String   @id @default(cuid())
+  publisherId    String   @unique @map("publisher_id")
+  slug           String   @unique
+  rotationCursor Int      @default(0) @map("rotation_cursor")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  publisher User @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@map("publisher_smart_links")
+}
+
+model AdvertiserPublisherBlock {
+  id           String   @id @default(cuid())
+  advertiserId String   @map("advertiser_id")
+  publisherId  String   @map("publisher_id")
+  reason       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  advertiser User @relation("AdvertiserBlocks", fields: [advertiserId], references: [id], onDelete: Cascade)
+  publisher  User @relation("PublisherBlocks", fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@unique([advertiserId, publisherId])
+  @@index([publisherId])
+  @@map("advertiser_publisher_blocks")
+}
+
+model Click {
+  id             String   @id @default(cuid())
+  trackingLinkId String   @map("tracking_link_id")
+  ip             String
+  userAgent      String?  @map("user_agent")
+  referrer       String?
+  source         String?
+  subId          String?  @map("sub_id")
+  geo            Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  trackingLink TrackingLink @relation(fields: [trackingLinkId], references: [id], onDelete: Cascade)
+
+  @@index([trackingLinkId])
+  @@index([createdAt])
+  @@map("clicks")
+}
+
+model Lead {
+  id                String     @id @default(cuid())
+  campaignId        String     @map("campaign_id")
+  publisherId       String     @map("publisher_id")
+  trackingLinkId    String?    @map("tracking_link_id")
+  status            LeadStatus @default(CAPTURED)
+  data              Json
+  score             Int?
+  riskScore         Int?       @map("risk_score")
+  fraudDecision     String?    @map("fraud_decision")
+  deviceFingerprint String?    @map("device_fingerprint")
+  geoCountry        String?    @map("geo_country")
+  submissionMeta    Json?      @map("submission_meta")
+  ip                String?
+  userAgent         String?    @map("user_agent")
+  country           String?
+  source            String?
+  subId             String?    @map("sub_id")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  campaign          Campaign               @relation(fields: [campaignId], references: [id])
+  publisher         User                   @relation("PublisherLeads", fields: [publisherId], references: [id])
+  trackingLink      TrackingLink?          @relation(fields: [trackingLinkId], references: [id])
+  statusHistory     LeadStatusHistory[]
+  validationResults LeadValidationResult[]
+  platformFee       PlatformFee?
+  pixelEvents       PixelEvent[]
+  funnelEvents      FunnelEvent[]
+  deviceSeen        LeadDeviceSeen[]
+  autoresponderDeliveries AutoresponderDelivery[]
+  emailSends              EmailSend[]
+  emailContacts           EmailContact[]
+
+  @@index([campaignId])
+  @@index([publisherId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([riskScore])
+  @@index([deviceFingerprint])
+  @@map("leads")
+}
+
+model LeadDeviceSeen {
+  id              String   @id @default(cuid())
+  fingerprintHash String   @map("fingerprint_hash")
+  campaignId      String   @map("campaign_id")
+  leadId          String   @map("lead_id")
+  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([fingerprintHash, campaignId])
+  @@map("lead_device_seen")
+}
+
+model LeadStatusHistory {
+  id         String      @id @default(cuid())
+  leadId     String      @map("lead_id")
+  fromStatus LeadStatus? @map("from_status")
+  toStatus   LeadStatus  @map("to_status")
+  actorId    String?     @map("actor_id")
+  reason     String?
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@map("lead_status_history")
+}
+
+model LeadValidationResult {
+  id        String  @id @default(cuid())
+  leadId    String  @map("lead_id")
+  rule      String
+  passed    Boolean
+  riskDelta Int?    @map("risk_delta")
+  details   String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("lead_validation_results")
+}
+
+model Wallet {
+  id           String  @id @default(cuid())
+  userId       String  @unique @map("user_id")
+  balance      Decimal @default(0) @db.Decimal(12, 2)
+  holdBalance  Decimal @default(0) @db.Decimal(12, 2) @map("hold_balance")
+  currency     String  @default("USD")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries LedgerEntry[]
+
+  @@map("wallets")
+}
+
+model LedgerEntry {
+  id            String          @id @default(cuid())
+  walletId      String          @map("wallet_id")
+  type          LedgerEntryType
+  amount        Decimal         @db.Decimal(12, 2)
+  balanceAfter  Decimal         @db.Decimal(12, 2) @map("balance_after")
+  referenceType String          @map("reference_type")
+  referenceId   String?         @map("reference_id")
+  description   String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([createdAt])
+  @@index([referenceType, referenceId])
+  @@map("ledger_entries")
+}
+
+model Deposit {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  amount          Decimal       @db.Decimal(12, 2)
+  method          DepositMethod @default(CREDIT_CARD)
+  stripePaymentId String?       @map("stripe_payment_id")
+  wiseReference   String?       @map("wise_reference")
+  paymentDetails  Json?         @map("payment_details")
+  rejectionReason String?       @map("rejection_reason")
+  processedAt     DateTime?     @map("processed_at")
+  status          DepositStatus @default(PENDING)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([method])
+  @@map("deposits")
+}
+
+model Payout {
+  id              String       @id @default(cuid())
+  publisherId     String       @map("publisher_id")
+  amount          Decimal      @db.Decimal(12, 2)
+  method          PayoutMethod
+  status          PayoutStatus @default(PENDING)
+  rejectionReason String?      @map("rejection_reason")
+  rejectedAt      DateTime?    @map("rejected_at")
+  idempotencyKey  String?      @unique @map("idempotency_key")
+  processedAt     DateTime?    @map("processed_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  publisher User @relation(fields: [publisherId], references: [id])
+
+  @@map("payouts")
+}
+
+model PlatformFee {
+  id          String  @id @default(cuid())
+  leadId      String  @unique @map("lead_id")
+  feeAmount   Decimal @db.Decimal(10, 2) @map("fee_amount")
+  feePercent  Decimal @db.Decimal(5, 2) @map("fee_percent")
+  lead        Lead    @relation(fields: [leadId], references: [id])
+
+  @@map("platform_fees")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model SupportTicket {
+  id         String         @id @default(cuid())
+  userId     String         @map("user_id")
+  subject    String
+  category   TicketCategory
+  status     TicketStatus   @default(OPEN)
+  priority   TicketPriority @default(MEDIUM)
+  assignedTo String?        @map("assigned_to")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user     User            @relation("TicketOwner", fields: [userId], references: [id])
+  assignee User?           @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  messages TicketMessage[]
+
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id          String   @id @default(cuid())
+  ticketId    String   @map("ticket_id")
+  senderId    String   @map("sender_id")
+  body        String
+  isInternal  Boolean  @default(false) @map("is_internal")
+  attachments Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id])
+
+  @@map("ticket_messages")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum ImpersonationPurpose {
+  IMPERSONATE
+  RESTORE
+}
+
+model ImpersonationToken {
+  id           String               @id @default(cuid())
+  adminId      String               @map("admin_id")
+  targetUserId String               @map("target_user_id")
+  purpose      ImpersonationPurpose @default(IMPERSONATE)
+  expiresAt    DateTime             @map("expires_at")
+  usedAt       DateTime?            @map("used_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  admin  User @relation("ImpersonationAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+  target User @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("impersonation_tokens")
+}
+
+enum OptinFunnelEditorType {
+  TEMPLATE
+  BUILDER
+}
+
+enum OptinFunnelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum FunnelEventType {
+  VIEW
+  SUBMIT
+  THANK_YOU_VIEW
+  PIXEL_FIRE
+}
+
+model AdvertiserOptinPage {
+  id             String   @id @default(cuid())
+  advertiserId   String   @map("advertiser_id")
+  slug           String   @unique
+  name           String   @default("My Optin Funnel")
+  title          String   @default("My Optin Page")
+  destinationUrl String?  @map("destination_url")
+  campaignId     String?  @map("campaign_id")
+  editorType     OptinFunnelEditorType @default(TEMPLATE) @map("editor_type")
+  status         OptinFunnelStatus @default(DRAFT)
+  headline       String   @default("Unlock Your Free Guide")
+  subheadline    String   @default("Join thousands getting results every week")
+  description    String?  @db.Text
+  ctaText        String   @default("Get Instant Access") @map("cta_text")
+  successTitle   String   @default("You're in!") @map("success_title")
+  successMessage String   @default("Check your inbox for next steps.") @map("success_message")
+  badgeText      String?  @map("badge_text")
+  bulletPoints   Json     @default("[]") @map("bullet_points")
+  primaryColor   String   @default("#6366f1") @map("primary_color")
+  accentColor    String   @default("#a855f7") @map("accent_color")
+  templateId     String   @default("aurora") @map("template_id")
+  craftState         Json?    @map("craft_state")
+  themeJson          Json?    @map("theme_json")
+  formJson           Json?    @map("form_json")
+  publishedVersionId String?  @unique @map("published_version_id")
+  autosaveAt         DateTime? @map("autosave_at")
+  thankYouEnabled         Boolean  @default(false) @map("thank_you_enabled")
+  thankYouCraftState      Json?    @map("thank_you_craft_state")
+  thankYouThemeJson       Json?    @map("thank_you_theme_json")
+  thankYouPixelHtml       String?  @db.Text @map("thank_you_pixel_html")
+  thankYouUseCampaignPixel Boolean @default(true) @map("thank_you_use_campaign_pixel")
+  isPublished    Boolean  @default(false) @map("is_published")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  versions         OptinFunnelVersion[] @relation("FunnelVersions")
+  publishedVersion OptinFunnelVersion?  @relation("FunnelPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  funnelEvents     FunnelEvent[]
+
+  @@index([advertiserId])
+  @@index([campaignId])
+  @@index([status])
+  @@map("advertiser_optin_pages")
+}
+
+model OptinFunnelVersion {
+  id                 String   @id @default(cuid())
+  funnelId           String   @map("funnel_id")
+  versionNumber      Int      @map("version_number")
+  label              String?
+  craftState         Json     @map("craft_state")
+  themeJson          Json     @map("theme_json")
+  formJson           Json?    @map("form_json")
+  thankYouCraftState Json?    @map("thank_you_craft_state")
+  thankYouThemeJson  Json?    @map("thank_you_theme_json")
+  createdById        String?  @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  funnel       AdvertiserOptinPage  @relation("FunnelVersions", fields: [funnelId], references: [id], onDelete: Cascade)
+  publishedFor AdvertiserOptinPage? @relation("FunnelPublishedVersion")
+
+  @@unique([funnelId, versionNumber])
+  @@index([funnelId])
+  @@map("optin_funnel_versions")
+}
+
+model FunnelEvent {
+  id         String          @id @default(cuid())
+  funnelId   String          @map("funnel_id")
+  campaignId String          @map("campaign_id")
+  leadId     String?         @map("lead_id")
+  eventType  FunnelEventType @map("event_type")
+  step       String          @default("optin")
+  ip         String?
+  userAgent  String?         @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  funnel   AdvertiserOptinPage @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  campaign Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead     Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([funnelId])
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("funnel_events")
+}
+
+model PlatformSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+
+  @@map("platform_settings")
+}
+
+model IpBlocklist {
+  id        String   @id @default(cuid())
+  ip        String   @unique
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ip_blocklist")
+}
+
+model AdvertiserAutoresponder {
+  id           String               @id @default(cuid())
+  advertiserId String               @map("advertiser_id")
+  name         String
+  provider     AutoresponderProvider
+  trigger      AutoresponderTrigger
+  campaignId   String?              @map("campaign_id")
+  isEnabled    Boolean              @default(true) @map("is_enabled")
+  config       Json
+  fieldMapping Json?                @map("field_mapping")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  advertiser User                    @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  deliveries AutoresponderDelivery[]
+
+  @@index([advertiserId])
+  @@index([advertiserId, isEnabled])
+  @@map("advertiser_autoresponders")
+}
+
+model AutoresponderDelivery {
+  id           String                      @id @default(cuid())
+  connectionId String                      @map("connection_id")
+  leadId       String                      @map("lead_id")
+  event        AutoresponderTrigger
+  status       AutoresponderDeliveryStatus @default(PENDING)
+  attemptCount Int                         @default(0) @map("attempt_count")
+  httpStatus   Int?                        @map("http_status")
+  error        String?                     @db.Text
+  createdAt    DateTime                    @default(now()) @map("created_at")
+
+  connection AdvertiserAutoresponder @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  lead       Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, leadId, event])
+  @@index([connectionId])
+  @@index([leadId])
+  @@map("autoresponder_deliveries")
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  template  String
+  subject   String
+  status    String
+  error     String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("email_logs")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model EmailContact {
+  id             String             @id @default(cuid())
+  advertiserId   String             @map("advertiser_id")
+  email          String
+  firstName      String?            @map("first_name")
+  lastName       String?            @map("last_name")
+  phone          String?
+  status         EmailContactStatus @default(SUBSCRIBED)
+  consentSource  String?            @map("consent_source")
+  sourceLeadId   String?            @map("source_lead_id")
+  sourceCampaignId String?          @map("source_campaign_id")
+  metadata       Json?
+  unsubscribeToken String           @unique @map("unsubscribe_token")
+  unsubscribedAt DateTime?          @map("unsubscribed_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  advertiser User        @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  sourceLead Lead?       @relation(fields: [sourceLeadId], references: [id], onDelete: SetNull)
+  sends      EmailSend[]
+
+  @@unique([advertiserId, email])
+  @@index([advertiserId])
+  @@index([status])
+  @@map("email_contacts")
+}
+
+model EmailTemplate {
+  id           String   @id @default(cuid())
+  advertiserId String   @map("advertiser_id")
+  name         String
+  subject      String
+  htmlBody     String   @map("html_body") @db.Text
+  textBody     String?  @map("text_body") @db.Text
+  previewText  String?  @map("preview_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  advertiser User                  @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  steps      EmailAutomationStep[]
+  sends      EmailSend[]
+
+  @@index([advertiserId])
+  @@map("email_templates")
+}
+
+model EmailAutomation {
+  id           String                @id @default(cuid())
+  advertiserId String                @map("advertiser_id")
+  name         String
+  trigger      AutoresponderTrigger
+  campaignId   String?               @map("campaign_id")
+  status       EmailAutomationStatus @default(DRAFT)
+  fromName     String                @map("from_name")
+  replyTo      String?               @map("reply_to")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  advertiser User                  @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  steps      EmailAutomationStep[]
+  sends      EmailSend[]
+
+  @@index([advertiserId])
+  @@index([advertiserId, status])
+  @@map("email_automations")
+}
+
+model EmailAutomationStep {
+  id           String   @id @default(cuid())
+  automationId String   @map("automation_id")
+  order        Int
+  delayMinutes Int      @default(0) @map("delay_minutes")
+  templateId   String   @map("template_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  automation EmailAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  template   EmailTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  sends      EmailSend[]
+
+  @@unique([automationId, order])
+  @@index([automationId])
+  @@map("email_automation_steps")
+}
+
+model EmailSend {
+  id           String          @id @default(cuid())
+  advertiserId String          @map("advertiser_id")
+  contactId    String          @map("contact_id")
+  automationId String?         @map("automation_id")
+  stepId       String?         @map("step_id")
+  leadId       String?         @map("lead_id")
+  templateId   String          @map("template_id")
+  status       EmailSendStatus @default(QUEUED)
+  scheduledAt  DateTime        @map("scheduled_at")
+  sentAt       DateTime?       @map("sent_at")
+  sesMessageId String?         @map("ses_message_id")
+  error        String?         @db.Text
+  attemptCount Int             @default(0) @map("attempt_count")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  advertiser User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  contact    EmailContact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  automation EmailAutomation?     @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  step       EmailAutomationStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  lead       Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  template   EmailTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  events     EmailEvent[]
+
+  @@unique([automationId, stepId, leadId])
+  @@index([advertiserId])
+  @@index([status, scheduledAt])
+  @@index([contactId])
+  @@map("email_sends")
+}
+
+model EmailEvent {
+  id        String         @id @default(cuid())
+  sendId    String         @map("send_id")
+  type      EmailEventType
+  metadata  Json?
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  send EmailSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@index([sendId])
+  @@index([sendId, type])
+  @@map("email_events")
+}
+
+model AdvertiserEmailSettings {
+  id           String   @id @default(cuid())
+  advertiserId String   @unique @map("advertiser_id")
+  fromName     String?  @map("from_name")
+  replyTo      String?  @map("reply_to")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  advertiser User @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@map("advertiser_email_settings")
+}
+
+model AdvertiserSendingIdentity {
+  id                 String                @id @default(cuid())
+  advertiserId       String                @map("advertiser_id")
+  domain             String
+  fromEmail          String                @map("from_email")
+  fromName           String                @map("from_name")
+  verificationStatus SendingIdentityStatus @default(PENDING) @map("verification_status")
+  dkimTokens         Json?                 @map("dkim_tokens")
+  isDefault          Boolean               @default(false) @map("is_default")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  advertiser User @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@unique([advertiserId, domain])
+  @@index([advertiserId])
+  @@map("advertiser_sending_identities")
+}
+
+model LandingPage {
+  id                 String            @id @default(cuid())
+  advertiserId       String            @map("advertiser_id")
+  campaignId         String?           @map("campaign_id")
+  slug               String            @unique
+  name               String
+  status             LandingPageStatus @default(DRAFT)
+  craftState         Json              @map("craft_state")
+  themeJson          Json              @default("{}") @map("theme_json")
+  formJson           Json?             @map("form_json")
+  publishedVersionId String?           @unique @map("published_version_id")
+  autosaveAt         DateTime?         @map("autosave_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  versions         LandingPageVersion[] @relation("PageVersions")
+  publishedVersion LandingPageVersion?  @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  assets           LandingPageAsset[]
+
+  @@index([advertiserId])
+  @@index([campaignId])
+  @@index([status])
+  @@map("landing_pages")
+}
+
+model LandingPageVersion {
+  id            String   @id @default(cuid())
+  landingPageId String   @map("landing_page_id")
+  versionNumber Int      @map("version_number")
+  label         String?
+  craftState    Json     @map("craft_state")
+  themeJson     Json     @map("theme_json")
+  formJson      Json?    @map("form_json")
+  createdById   String?  @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage  LandingPage  @relation("PageVersions", fields: [landingPageId], references: [id], onDelete: Cascade)
+  publishedFor LandingPage? @relation("PublishedVersion")
+
+  @@unique([landingPageId, versionNumber])
+  @@index([landingPageId])
+  @@map("landing_page_versions")
+}
+
+model PageTemplate {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  category      String
+  thumbnailUrl  String?  @map("thumbnail_url")
+  craftState    Json     @map("craft_state")
+  themeJson     Json     @map("theme_json")
+  isSystem      Boolean  @default(true) @map("is_system")
+  advertiserId  String?  @map("advertiser_id")
+  favoriteCount Int      @default(0) @map("favorite_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  favorites PageTemplateFavorite[]
+
+  @@index([category])
+  @@index([advertiserId])
+  @@map("page_templates")
+}
+
+model PageTemplateFavorite {
+  advertiserId String @map("advertiser_id")
+  templateId   String @map("template_id")
+
+  advertiser User         @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  template   PageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([advertiserId, templateId])
+  @@map("page_template_favorites")
+}
+
+model LandingPageAsset {
+  id            String   @id @default(cuid())
+  landingPageId String   @map("landing_page_id")
+  advertiserId  String   @map("advertiser_id")
+  fileName      String   @map("file_name")
+  mimeType      String   @map("mime_type")
+  sizeBytes     Int      @map("size_bytes")
+  storageKey    String   @map("storage_key")
+  url           String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  @@index([landingPageId])
+  @@index([advertiserId])
+  @@map("landing_page_assets")
+}

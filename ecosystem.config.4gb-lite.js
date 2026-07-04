@@ -1,7 +1,7 @@
 const path = require("node:path");
 const root = path.join(__dirname);
 
-/** PM2 config tuned for 4GB RAM EC2 (MySQL ~512MB + platform ~900MB + tracking ~280MB). */
+/** 4GB fallback: tracking (production) + lightweight platform internal API only. */
 module.exports = {
   apps: [
     {
@@ -12,23 +12,26 @@ module.exports = {
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
-      watch: false,
       max_memory_restart: "320M",
       node_args: "--max-old-space-size=224",
       env: { NODE_ENV: "production", PORT: 3001 },
     },
     {
-      name: "cpl-platform",
-      script: "node_modules/next/dist/bin/next",
-      args: "start --port 3000",
+      name: "cpl-platform-api",
+      script: "npx",
+      args: "tsx scripts/internal-api-server.ts",
       cwd: path.join(root, "apps/platform"),
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
-      watch: false,
-      max_memory_restart: "1024M",
-      node_args: "--max-old-space-size=640",
-      env: { NODE_ENV: "production", PORT: 3000 },
+      max_memory_restart: "384M",
+      node_args: "--max-old-space-size=256",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3000,
+        INTERNAL_API_PORT: 3000,
+        INTERNAL_API_HOST: "0.0.0.0",
+      },
     },
   ],
 };

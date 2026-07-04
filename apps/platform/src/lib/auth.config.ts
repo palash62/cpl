@@ -1,0 +1,153 @@
+import type { NextAuthConfig } from "next-auth";
+import type { UserRole } from "@prisma/client";
+import { parseViewAsCookie, VIEW_AS_COOKIE } from "@/lib/view-as";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: UserRole;
+    };
+    impersonatorId?: string;
+    viewAsMode?: boolean;
+  }
+  interface User {
+    role: UserRole;
+    impersonatorId?: string;
+  }
+}
+
+export const ROLE_ROUTES: Record<UserRole, string> = {
+  ADMIN: "/admin",
+  ADVERTISER: "/advertiser",
+  PUBLISHER: "/publisher",
+};
+
+export function getDashboardPath(role: UserRole): string {
+  return ROLE_ROUTES[role];
+}
+
+const publicPaths = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/api/v1/auth/register",
+  "/api/v1/auth/forgot-password",
+  "/api/v1/auth/reset-password",
+  "/api/v1/auth/verify-email",
+  "/o/",
+  "/api/v1/leads/submit-optin",
+  "/api/v1/leads/submit-landing",
+  "/api/v1/funnel-events",
+  "/api/internal/",
+  "/api/v1/email/track/",
+  "/api/v1/webhooks/ses",
+  "/unsubscribe/",
+  "/api/v1/admin/impersonate/start",
+  "/api/v1/admin/impersonate/stop",
+  "/api/auth",
+];
+
+export const authConfig = {
+  trustHost: true,
+  pages: { signIn: "/login" },
+  session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.id = user.id!;
+        token.role = user.role;
+        token.email = user.email;
+        token.name = user.name;
+        if (user.impersonatorId) {
+          token.impersonatorId = user.impersonatorId;
+        } else {
+          delete token.impersonatorId;
+        }
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as UserRole;
+        session.user.email = (token.email as string) ?? session.user.email;
+        session.user.name = (token.name as string) ?? session.user.name;
+        if (token.impersonatorId) {
+          session.impersonatorId = token.impersonatorId as string;
+        } else {
+          delete session.impersonatorId;
+        }
+      }
+      return session;
+    },
+    async authorized({ auth, request }) {
+      const { pathname } = request.nextUrl;
+      const viewAs = await parseViewAsCookie(request.cookies.get(VIEW_AS_COOKIE)?.value);
+
+      if (
+        publicPaths.some((p) => pathname.startsWith(p)) ||
+        pathname === "/" ||
+        pathname.startsWith("/_next") ||
+        pathname.includes(".")
+      ) {
+        return true;
+      }
+
+      const viewAsPublisher =
+        viewAs?.role === "PUBLISHER" &&
+        (pathname.startsWith("/publisher") ||
+          (pathname.startsWith("/api/v1/") &&
+            (request.headers.get("referer")?.includes("/publisher") ?? false)));
+      const viewAsAdvertiser =
+        viewAs?.role === "ADVERTISER" &&
+        (pathname.startsWith("/advertiser") ||
+          (pathname.startsWith("/api/v1/") &&
+            (request.headers.get("referer")?.includes("/advertiser") ?? false)));
+
+      if (!auth?.user && !viewAsPublisher && !viewAsAdvertiser) {
+        return false;
+      }
+
+      if (pathname.startsWith("/admin")) {
+        if (auth?.user?.role !== "ADMIN") {
+          const role = auth?.user?.role ?? viewAs?.role ?? "ADVERTISER";
+          return Response.redirect(new URL(ROLE_ROUTES[role as UserRole], request.nextUrl));
+        }
+        return true;
+      }
+
+      if (pathname.startsWith("/advertiser")) {
+        if (viewAs?.role === "ADVERTISER" || auth?.user?.role === "ADVERTISER") {
+          return true;
+        }
+        if (auth?.user?.role) {
+          return Response.redirect(new URL(ROLE_ROUTES[auth.user.role], request.nextUrl));
+        }
+        return false;
+      }
+
+      if (pathname.startsWith("/publisher")) {
+        if (viewAs?.role === "PUBLISHER" || auth?.user?.role === "PUBLISHER") {
+          return true;
+        }
+        if (auth?.user?.role) {
+          return Response.redirect(new URL(ROLE_ROUTES[auth.user.role], request.nextUrl));
+        }
+        return false;
+      }
+
+      if (pathname === "/dashboard") {
+        const role = viewAs?.role ?? auth?.user?.role ?? "ADVERTISER";
+        return Response.redirect(new URL(ROLE_ROUTES[role as UserRole], request.nextUrl));
+      }
+
+      return true;
+    },
+  },
+  providers: [],
+} satisfies NextAuthConfig;
