@@ -755,10 +755,11 @@ export async function sendAdminBulkEmail(input: {
   }
 
   const { getResolvedEmailConfig } = await import("@/services/smtp-settings.service");
-  const { sendEmail } = await import("@/services/email.service");
+  const { sendEmail, getSupportEmail } = await import("@/services/email.service");
   const { renderGenericEmail } = await import("@/lib/email/templates");
 
   const config = await getResolvedEmailConfig();
+  const supportEmail = await getSupportEmail();
   const htmlMessage = input.message
     .split("\n")
     .map((line) => line.trim())
@@ -783,6 +784,7 @@ export async function sendAdminBulkEmail(input: {
       html: rendered.html,
       text: rendered.text,
       template: "generic",
+      replyTo: supportEmail ?? undefined,
       metadata: {
         kind: "admin_bulk_email",
         userId: user.id,

@@ -1,3 +1,5 @@
+import { PLATFORM_EMAILS } from "@/lib/email/addresses";
+
 export const SMTP_SETTINGS_KEY = "smtp_config";
 
 export type SmtpConfigStored = {
@@ -8,6 +10,7 @@ export type SmtpConfigStored = {
   pass?: string;
   from?: string;
   adminAlertEmail?: string;
+  supportEmail?: string;
   appUrl?: string;
 };
 
@@ -20,6 +23,7 @@ export type EmailConfig = {
   pass?: string;
   from: string;
   adminAlertEmail?: string;
+  supportEmail?: string;
   appUrl: string;
   source: "database" | "environment" | "none";
 };
@@ -33,6 +37,7 @@ export type SmtpSettingsApi = {
   passConfigured: boolean;
   from: string;
   adminAlertEmail: string;
+  supportEmail: string;
   appUrl: string;
   enabled: boolean;
   source: EmailConfig["source"];
@@ -44,8 +49,9 @@ function envConfig(): Omit<EmailConfig, "source"> {
   const secure = process.env.SMTP_SECURE === "true";
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM?.trim() || "CPL Platform <noreply@localhost>";
-  const adminAlertEmail = process.env.ADMIN_ALERT_EMAIL?.trim();
+  const from = process.env.SMTP_FROM?.trim() || PLATFORM_EMAILS.fromDisplay;
+  const adminAlertEmail = process.env.ADMIN_ALERT_EMAIL?.trim() || PLATFORM_EMAILS.admin;
+  const supportEmail = process.env.SUPPORT_EMAIL?.trim() || PLATFORM_EMAILS.support;
   const appUrl =
     process.env.APP_URL?.trim() || process.env.AUTH_URL?.trim() || "http://localhost:3000";
 
@@ -58,6 +64,7 @@ function envConfig(): Omit<EmailConfig, "source"> {
     pass,
     from,
     adminAlertEmail,
+    supportEmail,
     appUrl,
   };
 }
@@ -75,6 +82,8 @@ export function parseSmtpConfigStored(value: unknown): SmtpConfigStored | null {
     from: typeof raw.from === "string" ? raw.from.trim() : undefined,
     adminAlertEmail:
       typeof raw.adminAlertEmail === "string" ? raw.adminAlertEmail.trim() : undefined,
+    supportEmail:
+      typeof raw.supportEmail === "string" ? raw.supportEmail.trim() : undefined,
     appUrl: typeof raw.appUrl === "string" ? raw.appUrl.trim() : undefined,
   };
 }
@@ -92,6 +101,7 @@ export function mergeEmailConfig(stored: SmtpConfigStored | null): EmailConfig {
       pass: stored.pass,
       from: stored.from || env.from,
       adminAlertEmail: stored.adminAlertEmail || env.adminAlertEmail,
+      supportEmail: stored.supportEmail || env.supportEmail,
       appUrl: stored.appUrl || env.appUrl,
       source: "database",
     };
@@ -114,6 +124,7 @@ export function smtpConfigToApi(config: EmailConfig, passConfigured: boolean): S
     passConfigured,
     from: config.from,
     adminAlertEmail: config.adminAlertEmail ?? "",
+    supportEmail: config.supportEmail ?? "",
     appUrl: config.appUrl,
     enabled: config.enabled,
     source: config.source,
@@ -128,6 +139,7 @@ export function normalizeSmtpInput(data: {
   pass?: string;
   from?: string;
   adminAlertEmail?: string;
+  supportEmail?: string;
   appUrl?: string;
 }): SmtpConfigStored {
   return {
@@ -138,6 +150,7 @@ export function normalizeSmtpInput(data: {
     pass: data.pass?.length ? data.pass : undefined,
     from: data.from?.trim() || undefined,
     adminAlertEmail: data.adminAlertEmail?.trim() || undefined,
+    supportEmail: data.supportEmail?.trim() || undefined,
     appUrl: data.appUrl?.trim() || undefined,
   };
 }

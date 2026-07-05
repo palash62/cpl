@@ -26,6 +26,7 @@ async function deliver(params: {
   text: string;
   template: EmailTemplateId;
   metadata?: Record<string, unknown>;
+  replyTo?: string;
   userId?: string;
   notificationType?: string;
   notificationTitle?: string;
@@ -39,6 +40,7 @@ async function deliver(params: {
       text: params.text,
       template: params.template,
       metadata: params.metadata,
+      replyTo: params.replyTo,
     }),
   ];
 
@@ -241,6 +243,7 @@ export async function notifyGeneric(
     actionPath?: string;
     actionLabel?: string;
     notificationType: string;
+    replyTo?: string;
   },
 ) {
   const config = await getResolvedEmailConfig();
@@ -255,6 +258,7 @@ export async function notifyGeneric(
     to: user.email,
     ...rendered,
     template: "generic",
+    replyTo: params.replyTo,
     userId: user.id,
     notificationType: params.notificationType,
     notificationTitle: params.title,
@@ -290,6 +294,7 @@ export async function notifyUserById(
     actionPath?: string;
     actionLabel?: string;
     notificationType: string;
+    replyTo?: string;
   },
 ) {
   const user = await loadUser(userId);

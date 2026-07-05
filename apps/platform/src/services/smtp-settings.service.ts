@@ -36,6 +36,7 @@ export async function updateSmtpSettings(
     pass?: string;
     from?: string;
     adminAlertEmail?: string;
+    supportEmail?: string;
     appUrl?: string;
   },
   adminId: string,
@@ -51,6 +52,7 @@ export async function updateSmtpSettings(
     pass: normalized.pass ?? existing?.pass,
     from: normalized.from,
     adminAlertEmail: normalized.adminAlertEmail,
+    supportEmail: normalized.supportEmail,
     appUrl: normalized.appUrl,
   };
 
@@ -77,6 +79,7 @@ export async function updateSmtpSettings(
         user: next.user,
         from: next.from,
         adminAlertEmail: next.adminAlertEmail,
+        supportEmail: next.supportEmail,
         appUrl: next.appUrl,
         passUpdated: Boolean(normalized.pass),
       },

@@ -25,6 +25,7 @@
     "db:studio": "npm run db:studio --workspace @cpl/database",
     "worker:email": "npm run worker:email --workspace @cpl/platform",
     "test:smoke": "tsx scripts/smoke-deploy.ts",
+    "test:emails": "npm run test:emails --workspace @cpl/platform",
     "build:production": "bash deploy/build-production.sh",
     "deploy:env": "bash deploy/env-production.sh",
     "deploy:push": "bash deploy/push-to-server.sh",

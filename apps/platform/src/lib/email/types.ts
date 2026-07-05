@@ -17,4 +17,5 @@ export type SendEmailInput = {
   text: string;
   template?: EmailTemplateId;
   metadata?: Record<string, unknown>;
+  replyTo?: string;
 };

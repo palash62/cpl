@@ -17,6 +17,7 @@ type SmtpSettings = {
   passConfigured: boolean;
   from: string;
   adminAlertEmail: string;
+  supportEmail: string;
   appUrl: string;
   enabled: boolean;
   source: "database" | "environment" | "none";
@@ -60,6 +61,7 @@ export function SmtpSettingsForm() {
         pass: settings.pass || undefined,
         from: settings.from,
         adminAlertEmail: settings.adminAlertEmail || undefined,
+        supportEmail: settings.supportEmail || undefined,
         appUrl: settings.appUrl || undefined,
       }),
     });
@@ -169,7 +171,7 @@ export function SmtpSettingsForm() {
               id="smtpFrom"
               value={settings.from}
               onChange={(e) => setSettings({ ...settings, from: e.target.value })}
-              placeholder='CPL Platform <noreply@yourdomain.com>'
+              placeholder='Leadvix <noreply@leadvix.io>'
             />
           </div>
           <div className="space-y-2">
@@ -179,7 +181,17 @@ export function SmtpSettingsForm() {
               type="email"
               value={settings.adminAlertEmail}
               onChange={(e) => setSettings({ ...settings, adminAlertEmail: e.target.value })}
-              placeholder="admin@yourdomain.com"
+              placeholder="admin@leadvix.io"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="smtpSupport">Support email (Reply-To)</Label>
+            <Input
+              id="smtpSupport"
+              type="email"
+              value={settings.supportEmail}
+              onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+              placeholder="support@leadvix.io"
             />
           </div>
           <div className="space-y-2">
@@ -189,7 +201,7 @@ export function SmtpSettingsForm() {
               type="url"
               value={settings.appUrl}
               onChange={(e) => setSettings({ ...settings, appUrl: e.target.value })}
-              placeholder="https://yourdomain.com"
+              placeholder="http://leadvix.io"
             />
           </div>
         </div>

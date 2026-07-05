@@ -1,3 +1,5 @@
+import { PLATFORM_EMAILS } from "@/lib/email/addresses";
+
 export const SES_SETTINGS_KEY = "ses_config";
 export const EMAIL_MARKETING_CONFIG_KEY = "email_marketing_config";
 
@@ -52,10 +54,10 @@ function envSesConfig(): Omit<SesConfig, "source"> {
   const region = process.env.AWS_REGION?.trim() || "us-east-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  const fromDomain = process.env.SES_FROM_DOMAIN?.trim() || "";
+  const fromDomain = process.env.SES_FROM_DOMAIN?.trim() || "leadvix.io";
   const fromEmail =
     process.env.SES_FROM_EMAIL?.trim() ||
-    (fromDomain ? `noreply@${fromDomain}` : "noreply@localhost");
+    (fromDomain ? `noreply@${fromDomain}` : PLATFORM_EMAILS.noreply);
   const configurationSet = process.env.SES_CONFIGURATION_SET?.trim();
   const appUrl =
     process.env.APP_URL?.trim() || process.env.AUTH_URL?.trim() || "http://localhost:3000";

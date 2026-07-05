@@ -12,6 +12,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:smoke": "tsx ../../scripts/smoke-deploy.ts",
+    "test:emails": "npx tsx scripts/test-platform-emails.ts",
     "worker:email": "tsx src/workers/email.worker.ts"
   },
   "dependencies": {

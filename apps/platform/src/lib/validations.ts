@@ -179,6 +179,13 @@ export const smtpSettingsSchema = z
         message: "Enter a valid admin alert email",
       })
       .optional(),
+    supportEmail: z
+      .string()
+      .trim()
+      .refine((v) => !v || z.string().email().safeParse(v).success, {
+        message: "Enter a valid support email",
+      })
+      .optional(),
     appUrl: z
       .string()
       .trim()

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { TicketCategory } from "@prisma/client";
 import { notifyAdminAlert, notifyGeneric } from "@/services/notify.service";
+import { getSupportEmail } from "@/services/email.service";
 
 const TICKET_CATEGORIES: TicketCategory[] = [
   "GENERAL",
@@ -138,6 +139,7 @@ export async function addTicketMessage(
     if (sender?.role === "ADMIN") {
       const supportPath =
         ticket.user.role === "ADVERTISER" ? "/advertiser/support" : "/publisher/support";
+      const supportEmail = await getSupportEmail();
       void notifyGeneric(
         { id: ticket.user.id, email: ticket.user.email, name: ticket.user.name },
         {
@@ -145,6 +147,7 @@ export async function addTicketMessage(
           message: `Admin replied to your ticket "${ticket.subject}".`,
           actionPath: supportPath,
           notificationType: "support.reply",
+          replyTo: supportEmail ?? undefined,
         },
       );
     } else {

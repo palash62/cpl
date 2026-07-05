@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PLATFORM_EMAILS } from "@/lib/email/addresses";
 import { getResolvedSesConfig } from "@/services/ses-settings.service";
 import {
   appendUnsubscribeFooter,
@@ -92,7 +93,8 @@ export async function processEmailSend(sendId: string) {
     advertiser?.name ??
     "Team";
 
-  const replyTo = send.automation?.replyTo ?? settings?.replyTo ?? advertiser?.email;
+  const replyTo =
+    send.automation?.replyTo ?? settings?.replyTo ?? PLATFORM_EMAILS.support ?? advertiser?.email;
 
   const result = await sendMarketingEmail({
     to: send.contact.email,
@@ -178,7 +180,7 @@ export async function sendTestEmail(
       advertiser?.name ??
       "Team",
     fromEmail: sesConfig.fromEmail,
-    replyTo: advertiser?.email,
+    replyTo: PLATFORM_EMAILS.support,
     subject,
     html,
     text: template.textBody ? renderTemplate(template.textBody, mergeData) : undefined,

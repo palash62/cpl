@@ -1,5 +1,6 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
+import { PLATFORM_EMAILS } from "@/lib/email/addresses";
 import { sesSettingsSchema } from "@/lib/validations";
 import { getSesSettingsForAdmin, updateSesSettings } from "@/services/ses-settings.service";
 import { sendMarketingEmail } from "@/modules/email-marketing/services/ses-sender.service";
@@ -39,10 +40,11 @@ export async function POST(request: Request) {
       const config = await getResolvedSesConfig();
       const result = await sendMarketingEmail({
         to,
-        fromName: "CPL Platform",
+        fromName: "Leadvix",
         fromEmail: config.fromEmail,
+        replyTo: PLATFORM_EMAILS.support,
         subject: "SES test email",
-        html: "<p>SES configuration is working.</p>",
+        html: "<p>SES configuration is working. Reply to this message to reach support.</p>",
         listUnsubscribeUrl: `${config.appUrl}/unsubscribe/test`,
       });
       if (!result.ok) {

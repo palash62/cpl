@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PLATFORM_EMAILS } from "@/lib/email/addresses";
 
 export async function getAdvertiserEmailSettings(advertiserId: string) {
   const [settings, user] = await Promise.all([
@@ -11,7 +12,7 @@ export async function getAdvertiserEmailSettings(advertiserId: string) {
 
   return {
     fromName: settings?.fromName ?? user?.advertiserProfile?.company ?? user?.name ?? "",
-    replyTo: settings?.replyTo ?? user?.email ?? "",
+    replyTo: settings?.replyTo ?? PLATFORM_EMAILS.support,
   };
 }
 

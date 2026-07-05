@@ -49,6 +49,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ sent: boolean;
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     });
     await logEmail(input, "sent");
     return { sent: true };
@@ -71,6 +72,11 @@ export async function getAdminAlertEmail() {
   });
 
   return admin?.email ?? null;
+}
+
+export async function getSupportEmail() {
+  const config = await getResolvedEmailConfig();
+  return config.supportEmail || null;
 }
 
 export async function testSmtpConnection(testTo?: string) {
