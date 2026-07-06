@@ -2,6 +2,7 @@
 
 import { Monitor, Tablet, Smartphone } from "lucide-react";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import type { Breakpoint } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +15,10 @@ const DEVICES: Array<{ id: Breakpoint; icon: typeof Monitor; label: string }> = 
 export function DeviceSwitcher() {
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const setBreakpoint = useBuilderStore((s) => s.setBreakpoint);
+  const chrome = getBuilderChrome(useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark"));
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/5 p-0.5">
+    <div className={cn("flex items-center gap-0.5 rounded-lg border p-0.5", chrome.deviceSwitcher)}>
       {DEVICES.map(({ id, icon: Icon, label }) => (
         <button
           key={id}
@@ -25,9 +27,7 @@ export function DeviceSwitcher() {
           onClick={() => setBreakpoint(id)}
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-md transition-all",
-            breakpoint === id
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "text-slate-400 hover:bg-white/10 hover:text-white",
+            breakpoint === id ? chrome.deviceActive : chrome.deviceInactive,
           )}
         >
           <Icon className="h-3.5 w-3.5" />

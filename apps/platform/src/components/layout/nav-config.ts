@@ -51,7 +51,7 @@ export const ADMIN_NAV: NavItem[] = [
 
 export const ADVERTISER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/advertiser", icon: LayoutDashboard },
-  { label: "Optin Funnel", href: "/advertiser/optin-funnels", icon: LayoutTemplate },
+  { label: "Funnels", href: "/advertiser/optin-funnels", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },

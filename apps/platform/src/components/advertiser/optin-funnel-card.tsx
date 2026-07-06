@@ -116,7 +116,7 @@ export function OptinFunnelCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <ButtonLink href={`/advertiser/optin-funnels/${funnel.id}/edit`} size="sm" variant="outline">
+          <ButtonLink href={`/advertiser/optin-funnels/${funnel.id}`} size="sm" variant="outline">
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
           </ButtonLink>

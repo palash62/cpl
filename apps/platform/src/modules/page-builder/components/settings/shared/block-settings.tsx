@@ -11,7 +11,12 @@ import {
   BUILDER_FIELD_LABEL,
   BUILDER_FIELD_INPUT,
   BUILDER_CHECKBOX_LABEL,
+  GHL_TAB_LIST,
+  GHL_TAB_TRIGGER,
+  GHL_FIELD_LABEL,
+  GHL_FIELD_INPUT,
 } from "@/modules/page-builder/lib/builder-panel-styles";
+import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
 import { cn } from "@/lib/utils";
 
 function setNestedProp(
@@ -28,11 +33,20 @@ function setNestedProp(
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <Label className={BUILDER_FIELD_LABEL}>{children}</Label>;
+  const layout = useBuilderSettingsLayout();
+  return (
+    <Label className={layout === "ghl" ? GHL_FIELD_LABEL : BUILDER_FIELD_LABEL}>{children}</Label>
+  );
 }
 
 function FieldInput({ className, ...props }: React.ComponentProps<typeof Input>) {
-  return <Input className={cn(BUILDER_FIELD_INPUT, className)} {...props} />;
+  const layout = useBuilderSettingsLayout();
+  return (
+    <Input
+      className={cn(layout === "ghl" ? GHL_FIELD_INPUT : BUILDER_FIELD_INPUT, className)}
+      {...props}
+    />
+  );
 }
 
 export function GeneralFields() {
@@ -250,6 +264,9 @@ export function ResponsiveFields() {
 }
 
 export function StandardSettings() {
+  const layout = useBuilderSettingsLayout();
+  if (layout === "ghl") return null;
+
   return (
     <Tabs defaultValue="general">
       <TabsList className={BUILDER_TAB_LIST}>

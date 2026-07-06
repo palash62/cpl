@@ -23,3 +23,19 @@ export const BUILDER_FIELD_INPUT =
   "h-8 border-white/20 bg-white/10 text-sm text-white placeholder:text-slate-400";
 
 export const BUILDER_CHECKBOX_LABEL = "flex items-center gap-2 text-sm text-slate-200";
+
+/** GHL light theme field styles */
+export const GHL_FIELD_LABEL = "text-xs font-medium text-slate-600";
+
+export const GHL_FIELD_INPUT =
+  "h-9 border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400";
+
+export const GHL_TAB_LIST =
+  "h-auto w-full gap-0 rounded-none border-b border-slate-200 bg-transparent p-0";
+
+export const GHL_TAB_TRIGGER =
+  "flex-1 rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 " +
+  "data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none";
+
+export const GHL_PROPERTIES_PANEL =
+  "text-slate-900 [&_label]:text-slate-600 [&_input]:border-slate-200 [&_input]:bg-white [&_textarea]:border-slate-200 [&_select]:border-slate-200";

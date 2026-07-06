@@ -9,13 +9,20 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 export type BuilderConfig = {
   apiBasePath: string;
   listPath: string;
+  detailPath?: string;
   publicPathPrefix: string;
   label: string;
+  chromeTheme?: "light" | "dark";
+  mode?: "landing" | "funnel";
+  thankYouEnabled?: boolean;
 };
 
 type BuilderUIState = {
   breakpoint: Breakpoint;
   leftTab: "components" | "layers" | "theme";
+  leftPanelSection: "quick-add" | "sections" | "rows" | "elements" | "forms" | "layers" | "theme";
+  leftPanelOpen: boolean;
+  propertiesTab: "general" | "styles" | "animations";
   previewOpen: boolean;
   versionHistoryOpen: boolean;
   saveStatus: SaveStatus;
@@ -31,6 +38,9 @@ type BuilderUIState = {
   craftSavedListener: ((step: "optin" | "thankYou", craft: CraftSerializedState) => void) | null;
   setBreakpoint: (bp: Breakpoint) => void;
   setLeftTab: (tab: BuilderUIState["leftTab"]) => void;
+  setLeftPanelSection: (section: BuilderUIState["leftPanelSection"]) => void;
+  setLeftPanelOpen: (open: boolean) => void;
+  setPropertiesTab: (tab: BuilderUIState["propertiesTab"]) => void;
   setPreviewOpen: (open: boolean) => void;
   setVersionHistoryOpen: (open: boolean) => void;
   setSaveStatus: (status: SaveStatus) => void;
@@ -54,6 +64,9 @@ type BuilderUIState = {
 export const useBuilderStore = create<BuilderUIState>((set) => ({
   breakpoint: "desktop",
   leftTab: "components",
+  leftPanelSection: "quick-add",
+  leftPanelOpen: true,
+  propertiesTab: "general",
   previewOpen: false,
   versionHistoryOpen: false,
   saveStatus: "idle",
@@ -74,6 +87,9 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
   craftSavedListener: null,
   setBreakpoint: (breakpoint) => set({ breakpoint }),
   setLeftTab: (leftTab) => set({ leftTab }),
+  setLeftPanelSection: (leftPanelSection) => set({ leftPanelSection }),
+  setLeftPanelOpen: (leftPanelOpen) => set({ leftPanelOpen }),
+  setPropertiesTab: (propertiesTab) => set({ propertiesTab }),
   setPreviewOpen: (previewOpen) => set({ previewOpen }),
   setVersionHistoryOpen: (versionHistoryOpen) => set({ versionHistoryOpen }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),

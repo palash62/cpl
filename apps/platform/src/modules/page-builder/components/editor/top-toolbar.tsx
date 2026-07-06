@@ -7,7 +7,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeviceSwitcher } from "@/modules/page-builder/components/editor/device-switcher";
+import { FunnelStepsPopover } from "@/components/advertiser/funnel/funnel-steps-popover";
+import { buildFunnelSteps } from "@/components/advertiser/funnel/funnel-types";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { savePageCraft } from "@/modules/page-builder/lib/save-page";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,6 +28,16 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
   const setVersionHistoryOpen = useBuilderStore((s) => s.setVersionHistoryOpen);
   const builderConfig = useBuilderStore((s) => s.builderConfig);
   const funnelStep = useBuilderStore((s) => s.funnelStep);
+  const chrome = getBuilderChrome(builderConfig.chromeTheme ?? "dark");
+
+  const backHref =
+    builderConfig.mode === "funnel" && builderConfig.detailPath
+      ? builderConfig.detailPath
+      : builderConfig.listPath;
+
+  const stepLabel = funnelStep === "thankYou" ? "thank you" : "optin page";
+  const isFunnel = builderConfig.mode === "funnel";
+  const isGhl = isFunnel && builderConfig.chromeTheme === "light";
 
   async function handleSave() {
     const json = query.serialize();
@@ -51,55 +64,68 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.08] bg-[#12141c] px-4">
+    <header className={cn("flex h-14 shrink-0 items-center gap-2 px-4", chrome.toolbar)}>
       <Link
-        href={builderConfig.listPath}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+        href={backHref}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+          chrome.toolbarLink,
+        )}
       >
         <ArrowLeft className="h-4 w-4" />
-        <span className="hidden sm:inline">Exit</span>
+        <span className="hidden sm:inline">Back</span>
       </Link>
 
-      <div className="mx-2 h-6 w-px bg-white/10" />
+      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
 
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-white">{pageName}</p>
-        <p className="text-[10px] text-slate-500">
-          {builderConfig.label}
-          {funnelStep === "thankYou" ? " · Thank You" : ""}
-        </p>
-      </div>
+      {isFunnel ? (
+        <FunnelStepsPopover
+          funnelId={pageId}
+          steps={buildFunnelSteps(builderConfig.thankYouEnabled ?? false)}
+          currentStepId={funnelStep}
+          currentStepLabel={stepLabel}
+        />
+      ) : (
+        <div className="min-w-0">
+          <p className={cn("truncate text-sm font-semibold", chrome.toolbarTitle)}>{pageName}</p>
+          <p className={cn("text-[10px]", chrome.toolbarSubtitle)}>{builderConfig.label}</p>
+        </div>
+      )}
 
-      <div className="mx-2 hidden h-6 w-px bg-white/10 md:block" />
+      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
 
-      <div className="hidden items-center gap-0.5 md:flex">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={!canUndo}
-          onClick={() => actions.history.undo()}
-          className="h-8 w-8 text-slate-400 hover:bg-white/10 hover:text-white"
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={!canRedo}
-          onClick={() => actions.history.redo()}
-          className="h-8 w-8 text-slate-400 hover:bg-white/10 hover:text-white"
-        >
-          <Redo2 className="h-4 w-4" />
-        </Button>
-      </div>
+      {!isGhl && (
+        <>
+          <div className="hidden items-center gap-0.5 md:flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!canUndo}
+              onClick={() => actions.history.undo()}
+              className={cn("h-8 w-8", chrome.toolbarGhost)}
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!canRedo}
+              onClick={() => actions.history.redo()}
+              className={cn("h-8 w-8", chrome.toolbarGhost)}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
 
-      <div className="mx-2 hidden h-6 w-px bg-white/10 md:block" />
+          <div className={cn("mx-2 hidden h-6 w-px md:block", chrome.toolbarDivider)} />
+        </>
+      )}
 
       <DeviceSwitcher />
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+      <div className={cn("flex items-center gap-1.5 text-xs", chrome.toolbarSubtitle)}>
         {saveStatus === "saving" && (
           <>
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -108,22 +134,17 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
         )}
         {saveStatus === "saved" && (
           <>
-            <Check className="h-3 w-3 text-emerald-400" />
-            <span className="text-emerald-400">Saved</span>
+            <Check className="h-3 w-3 text-emerald-500" />
+            <span className="text-emerald-600">Saved</span>
           </>
         )}
-        {saveStatus === "idle" && "Auto-save on"}
-        {saveStatus === "error" && <span className="text-red-400">Save failed</span>}
+        {saveStatus === "idle" && (isFunnel ? "Autosave on" : "Auto-save on")}
+        {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
       </div>
 
-      <div className="mx-2 h-6 w-px bg-white/10" />
+      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setPreviewOpen(true)}
-        className="text-slate-300 hover:bg-white/10 hover:text-white"
-      >
+      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className={chrome.toolbarGhost}>
         <Eye className="mr-1.5 h-4 w-4" />
         Preview
       </Button>
@@ -131,25 +152,16 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
         variant="ghost"
         size="sm"
         onClick={() => setVersionHistoryOpen(true)}
-        className="hidden text-slate-300 hover:bg-white/10 hover:text-white sm:flex"
+        className={cn("hidden sm:flex", chrome.toolbarGhost, isGhl && "!hidden")}
       >
         <History className="mr-1.5 h-4 w-4" />
         Versions
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSave}
-        className="border-white/10 bg-transparent text-slate-200 hover:bg-white/10"
-      >
+      <Button variant="outline" size="sm" onClick={handleSave} className={chrome.toolbarOutline}>
         <Save className="mr-1.5 h-4 w-4" />
         Save
       </Button>
-      <Button
-        size="sm"
-        onClick={handlePublish}
-        className={cn("bg-indigo-600 text-white hover:bg-indigo-500")}
-      >
+      <Button size="sm" onClick={handlePublish} className={chrome.toolbarPublish}>
         <Upload className="mr-1.5 h-4 w-4" />
         Publish
       </Button>
