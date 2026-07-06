@@ -14,9 +14,6 @@
     "build:platform": "NODE_OPTIONS='--max-old-space-size=2048' npm run build --workspace @cpl/platform",
     "build:tracking": "NODE_OPTIONS='--max-old-space-size=1024' npm run build --workspace @cpl/tracking",
     "start": "npm run start --workspace @cpl/platform & npm run start --workspace @cpl/tracking",
-    "start:4gb": "bash deploy/run-4gb.sh",
-    "start:domains": "bash deploy/run-domains.sh",
-    "start:ports": "bash deploy/start-open-ports.sh",
     "lint": "npm run lint --workspace @cpl/platform && npm run lint --workspace @cpl/tracking",
     "typecheck": "npm run typecheck --workspace @cpl/platform && npm run typecheck --workspace @cpl/tracking",
     "test": "npm run test --workspace @cpl/platform",
@@ -26,9 +23,8 @@
     "worker:email": "npm run worker:email --workspace @cpl/platform",
     "test:smoke": "tsx scripts/smoke-deploy.ts",
     "test:emails": "npm run test:emails --workspace @cpl/platform",
-    "build:production": "bash deploy/build-production.sh",
-    "deploy:env": "bash deploy/env-production.sh",
-    "deploy:push": "bash deploy/push-to-server.sh",
+    "build:production": "npm run build:tracking && npm run build:platform",
+    "env:local": "bash scripts/env-local.sh",
     "postinstall": "npm run generate --workspace @cpl/database"
   },
   "devDependencies": {

@@ -37,7 +37,13 @@ async function resolveViewAsSession(session: Session): Promise<AppSession> {
 
 /** Deduplicates auth() within a single server request (layout + page). */
 export const getSession = cache(async (): Promise<AppSession | null> => {
-  const session = await auth();
+  let session: AppSession | null = null;
+  try {
+    session = (await auth()) as AppSession | null;
+  } catch {
+    // Stale or invalid JWT (e.g. AUTH_SECRET changed) — treat as logged out.
+    return null;
+  }
   if (!session?.user) return session;
   return resolveViewAsSession(session);
 });
@@ -75,7 +81,12 @@ export function getActorId(session: { user: { id: string; role: UserRole }; impe
 }
 
 export async function requireRealAdmin() {
-  const session = await auth();
+  let session: Session | null = null;
+  try {
+    session = await auth();
+  } catch {
+    throw Errors.invalidCredentials();
+  }
   if (!session?.user) {
     throw Errors.invalidCredentials();
   }

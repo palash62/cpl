@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { getAdminControlCenterData } from "@/services/admin-dashboard.service";
 import {
@@ -23,10 +24,15 @@ import {
   AdminRevenueTrendChart,
 } from "@/components/admin/admin-dashboard-charts";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const session = await getSession();
-  const data = await getAdminControlCenterData(session!.user.id);
-  const firstName = session?.user?.name?.split(" ")[0] ?? "Admin";
+  if (!session?.user || session.user.role !== "ADMIN") {
+    redirect("/login");
+  }
+  const data = await getAdminControlCenterData(session.user.id);
+  const firstName = session.user.name?.split(" ")[0] ?? "Admin";
 
   return (
     <div className="space-y-7">

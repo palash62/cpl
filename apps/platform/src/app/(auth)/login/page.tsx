@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,23 +24,34 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
 
-    setLoading(false);
+      if (!result?.ok || result.error) {
+        setError("Invalid email or password");
+        return;
+      }
 
-    if (result?.error) {
-      setError("Invalid email or password");
-      return;
+      router.refresh();
+      const session = await getSession();
+      const role = session?.user?.role as UserRole | undefined;
+
+      if (role) {
+        router.push(getDashboardPath(role));
+        return;
+      }
+
+      // Full reload if client session lags behind the auth cookie
+      window.location.href = "/";
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const res = await fetch("/api/auth/session");
-    const session = await res.json();
-    const role = session?.user?.role as UserRole;
-    router.push(role ? getDashboardPath(role) : "/");
   }
 
   return (
@@ -86,6 +97,9 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
+      <p className="mt-4 text-center text-xs text-slate-400">
+        Demo: admin@cpl.local / password123
+      </p>
       <p className="mt-4 text-center text-sm text-slate-500">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="font-medium text-[var(--theme-primary)] hover:underline">

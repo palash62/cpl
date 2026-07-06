@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Info, RefreshCw, Save } from "lucide-react";
-import { EmailSubNav } from "./email-sub-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,8 +75,6 @@ export function EmailSettingsPanel() {
 
   return (
     <div className="space-y-8">
-      <EmailSubNav />
-
       <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4 max-w-xl">
         <h3 className="font-semibold text-slate-900">Sender details</h3>
         <div>

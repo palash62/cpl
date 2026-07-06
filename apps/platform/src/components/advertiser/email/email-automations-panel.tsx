@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pause, Play, Trash2, Zap } from "lucide-react";
-import { EmailSubNav } from "./email-sub-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -66,12 +65,6 @@ export function EmailAutomationsPanel() {
 
   return (
     <div className="space-y-6">
-      <EmailSubNav />
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">Automated drip sequences triggered when leads are captured or approved.</p>
-        <ButtonLink href="/advertiser/email/automations/new">Create automation</ButtonLink>
-      </div>
-
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />

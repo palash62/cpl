@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { FileText, Loader2, Plus, Trash2 } from "lucide-react";
-import { EmailSubNav } from "./email-sub-nav";
+import { FileText, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 
@@ -38,15 +36,6 @@ export function EmailTemplatesPanel() {
 
   return (
     <div className="space-y-6">
-      <EmailSubNav />
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">Reusable email content with merge tags like {"{{first_name}}"}.</p>
-        <ButtonLink href="/advertiser/email/templates/new">
-          <Plus className="mr-2 h-4 w-4" />
-          New template
-        </ButtonLink>
-      </div>
-
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
