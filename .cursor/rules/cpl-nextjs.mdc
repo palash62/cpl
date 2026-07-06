@@ -1,0 +1,32 @@
+---
+description: Next.js 16 App Router and RSC boundaries for CPL apps
+globs: apps/**/*
+alwaysApply: false
+---
+
+# Next.js 16 (CPL)
+
+This is **not** stock Next.js — read `node_modules/next/dist/docs/` before changing routing, data fetching, or config. Heed deprecation notices.
+
+## Server vs client
+
+- Do **not** pass Lucide icon components, functions, or non-serializable props from Server Components to Client Components.
+- Pattern: thin `page.tsx` (server) → `*-page-panel.tsx` or panel in `components/...` marked `"use client"` that owns icons and interactivity.
+
+## Auth and sessions
+
+- Auth: NextAuth v5 in `apps/platform/src/lib/auth.ts`, session helpers in `session.ts`.
+- Invalid JWT: `getSession()` returns `null`; pages must redirect or guard — do not throw `JWTSessionError` to the user.
+- Login flow: verify `result.ok`, then `getSession()`, `router.refresh()`, fallback `window.location.href = "/"`.
+
+## Dynamic routes
+
+- Pages using session or request-specific data: `export const dynamic = "force-dynamic"` when build-time prerender fails.
+
+## Tracking app
+
+- `apps/tracking` uses webpack (not turbopack) for the JS tracking script bundle — check existing config before changing build setup.
+
+## Internal API
+
+Tracking → platform lead submit: `leadgenlink.site` proxies to `leadvix.io/api/internal/v1/leads/submit` with `X-Service-Token` (`INTERNAL_SERVICE_TOKEN`).

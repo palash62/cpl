@@ -1,0 +1,34 @@
+---
+description: Platform UI patterns — layouts, nav, advertiser email module
+globs: apps/platform/**/*
+alwaysApply: false
+---
+
+# Platform UI
+
+## Layout and nav
+
+- Role layouts: `apps/platform/src/app/(admin|advertiser|publisher)/`
+- Sidebar config: `src/components/layout/nav-config.ts`
+- Reuse shared primitives: `PageSection`, role heroes, Shadcn UI, Tailwind v4.
+
+## Advertiser autoresponder (`/advertiser/email`)
+
+Module layout: `app/(advertiser)/advertiser/email/layout.tsx` + `autoresponder-sub-nav.tsx`.
+
+| Piece | Path |
+|-------|------|
+| Shell | `components/advertiser/email/email-module-shell.tsx` |
+| Toolbar / stats / empty | `email-module-toolbar.tsx`, `email-module-stats.tsx`, `email-empty-state.tsx` |
+| Mock data (UI-only) | `email-mock-data.ts` |
+| Panels | `components/advertiser/email/panels/*-panel.tsx` |
+
+Routes: dashboard, subscribers, lists, segments, tags, templates, campaigns, automations, sequences, forms, analytics, logs, suppression, settings.
+
+Redirects: `/contacts` → `/subscribers`, `/activity` → `/logs`, `/smtp` → `/advertiser/email` (SMTP is admin-only at `/admin/settings`).
+
+New email screens: wrap content in `EmailModuleShell`, add panel + page route, register in `autoresponder-sub-nav.tsx`. Use mock data until backend exists; do not add advertiser SMTP UI.
+
+## Design tokens
+
+Primary `#2563EB`, secondary `#14B8A6`, background `#F8FAFC`, cards `#FFFFFF`. Details in `docs/DESIGN-SYSTEM.md`.

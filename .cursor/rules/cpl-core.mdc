@@ -1,0 +1,39 @@
+---
+description: CPL monorepo layout, local dev, env, and deployment guardrails
+alwaysApply: true
+---
+
+# CPL Core
+
+## Monorepo
+
+| App | Path | Port | Domain (prod) |
+|-----|------|------|---------------|
+| Platform | `apps/platform` | 3000 | leadvix.io |
+| Tracking | `apps/tracking` | 3001 | leadgenlink.site |
+
+Shared: `packages/database` (Prisma), `packages/shared`, `packages/tracking-core`.
+
+Run from repo root: `npm run dev:platform`, `npm run dev:tracking`, `npm run db:push`, `npm run db:seed`.
+
+## Local development
+
+- Use localhost URLs. Run `npm run env:local` to rewrite `.env` files under `apps/platform`, `apps/tracking`, and `packages/database`.
+- After `npm run build:production`, run `npm run env:local` before starting dev servers again.
+- Demo users (after seed): `admin@cpl.local`, `advertiser@cpl.local`, `publisher@cpl.local` / `password123`.
+
+## Deployment guardrails
+
+- **Never** SSH, deploy, restart PM2, or push to production servers unless the user explicitly asks.
+- "Push" means **git push to GitHub** unless the user clearly means server deploy.
+- Do not recreate `deploy/`, GitHub deploy workflows, or production env scripts without explicit request.
+- `build:production` is a local build only (`build:tracking` then `build:platform`).
+
+## Git
+
+- Commit and push only when the user asks.
+- Never commit `.env` files or secrets.
+
+## Scope
+
+- Prefer minimal, focused diffs. Match existing patterns before introducing new abstractions.

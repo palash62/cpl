@@ -1,0 +1,30 @@
+---
+description: Feature planning workflow for CPL — plan large work, ship small fixes
+alwaysApply: true
+---
+
+# CPL Feature Workflow
+
+## When to plan first
+
+For new modules, schema changes, auth/security, or multi-file features:
+
+1. Business objective and affected roles (admin / advertiser / publisher)
+2. Affected apps (`platform` vs `tracking`) and packages
+3. Prisma entities and migrations (`packages/database`)
+4. API routes vs server actions
+5. UI routes under `apps/platform/src/app/(admin|advertiser|publisher)/`
+6. Security: role checks, session, internal service token for cross-app calls
+7. Short implementation plan, then code
+
+## When to implement directly
+
+Bug fixes, copy/styling tweaks, single-file changes, and follow-ups to an approved plan — implement without waiting for approval.
+
+## Product context
+
+LeadFlow CPL: advertisers buy leads, publishers generate them, admin operates the platform. See `.cursor/skills/cpl-platform/SKILL.md` and `docs/PRD.md` for module inventory.
+
+## UI standards
+
+Stripe/HubSpot-inspired SaaS: light theme, Inter, primary `#2563EB`. See `docs/DESIGN-SYSTEM.md`.

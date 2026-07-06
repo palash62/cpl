@@ -5,7 +5,7 @@
 **Last Updated:** June 2026  
 **Status:** Approved for Development
 
-**AI Guardrails:** See [`.cursor/rules/guardrail.md`](../.cursor/rules/guardrail.md) and [`.cursor/rules/skill.md`](../.cursor/rules/skill.md)
+**AI Guardrails:** See [`.cursor/rules/`](../.cursor/rules/) (`cpl-*.mdc`) and [`.cursor/skills/cpl-platform/SKILL.md`](../.cursor/skills/cpl-platform/SKILL.md)
 
 ---
 
@@ -19,7 +19,7 @@
 | 4 — Database | MySQL entities via Prisma | [DATABASE-SCHEMA.md](./DATABASE-SCHEMA.md) |
 | 5 — UI/UX | Design system, navigation, screens | [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md), [SCREENS.md](./SCREENS.md) |
 | 6 — API Design | REST modules, auth, errors | [API-SPEC.md](./API-SPEC.md) |
-| 7 — Implementation | Code after plan approval | `src/` (per guardrail 8-step workflow) |
+| 7 — Implementation | Code after plan approval | `src/` (per `cpl-workflow.mdc`) |
 
 **Hosting target:** GoDaddy VPS · MySQL 8+ · Node.js · Nginx · PM2
 

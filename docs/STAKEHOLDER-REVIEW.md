@@ -9,8 +9,8 @@
 
 ### Phase 2 — Planning & Guardrails
 
-- [x] [`.cursor/rules/guardrail.md`](../.cursor/rules/guardrail.md) — 8-step workflow, no jump-to-code
-- [x] [`.cursor/rules/skill.md`](../.cursor/rules/skill.md) — Product context, 15 modules, stack
+- [x] [`.cursor/rules/cpl-*.mdc`](../.cursor/rules/) — Core guardrails, workflow, Next.js, platform UI
+- [x] [`.cursor/skills/cpl-platform/SKILL.md`](../.cursor/skills/cpl-platform/SKILL.md) — Product context, modules, stack
 - [x] [PRD.md](./PRD.md) — LeadFlow branding, 7-phase methodology, stakeholder sections
 - [x] [SCREENS.md](./SCREENS.md) — 61-screen inventory with implementation status
 - [x] [API-SPEC.md](./API-SPEC.md) — Endpoints with implementation status

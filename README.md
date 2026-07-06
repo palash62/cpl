@@ -14,12 +14,15 @@ A premium, enterprise-ready **Cost Per Lead (CPL)** marketplace connecting Adver
 
 ## AI Guardrails
 
-Development follows a structured 7-phase process. Before implementing features, review:
+Cursor rules and project skill for agents working in this repo:
 
 | File | Purpose |
 |------|---------|
-| [`.cursor/rules/guardrail.md`](.cursor/rules/guardrail.md) | 8-step feature workflow — no code before approval |
-| [`.cursor/rules/skill.md`](.cursor/rules/skill.md) | Product context, modules, stack, design tokens |
+| [`.cursor/rules/cpl-core.mdc`](.cursor/rules/cpl-core.mdc) | Monorepo, local dev, env, deployment guardrails |
+| [`.cursor/rules/cpl-workflow.mdc`](.cursor/rules/cpl-workflow.mdc) | Feature planning workflow |
+| [`.cursor/rules/cpl-nextjs.mdc`](.cursor/rules/cpl-nextjs.mdc) | Next.js 16, RSC, auth |
+| [`.cursor/rules/cpl-platform-ui.mdc`](.cursor/rules/cpl-platform-ui.mdc) | Platform UI and email module |
+| [`.cursor/skills/cpl-platform/SKILL.md`](.cursor/skills/cpl-platform/SKILL.md) | Architecture, commands, module map |
 
 ## Monorepo Structure
 
