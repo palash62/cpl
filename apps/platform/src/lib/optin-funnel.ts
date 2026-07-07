@@ -11,6 +11,18 @@ import {
   serializePublicOptinPage,
 } from "@/lib/optin-page";
 
+export function hasStoredBuilderCraft(craftState: PageDocument | null | undefined): boolean {
+  const craft = craftState?.craft;
+  return !!craft && Object.keys(craft).length > 1;
+}
+
+export function usesBuilderRenderer(page: {
+  editorType: OptinFunnelEditorType;
+  craftState?: PageDocument | null;
+}): boolean {
+  return page.editorType === "BUILDER" || hasStoredBuilderCraft(page.craftState);
+}
+
 export type SerializedOptinFunnel = OptinPageContent & {
   advertiserId: string;
   name: string;

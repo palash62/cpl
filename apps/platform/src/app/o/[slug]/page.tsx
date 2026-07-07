@@ -9,6 +9,8 @@ import {
   getPublicOptinFunnel,
   getPublishedBuilderFunnel,
 } from "@/services/optin-funnel.service";
+import { usesBuilderRenderer } from "@/lib/optin-funnel";
+import { createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
 import { recordFunnelEvent } from "@/services/funnel-analytics.service";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
@@ -72,11 +74,11 @@ export default async function PublicOptinFunnelPage({
     const draft = await getAdvertiserOptinFunnelPreview(slug, session.user.id);
     if (!draft) notFound();
 
-    if (draft.editorType === "BUILDER" && draft.craftState) {
+    if (usesBuilderRenderer(draft)) {
       return (
         <PublishedOptinFunnel
           slug={slug}
-          craftState={draft.craftState.craft}
+          craftState={draft.craftState?.craft ?? createEmptyCraftState()}
           theme={draft.themeJson ?? DEFAULT_THEME}
           formJson={draft.formJson ?? null}
           thankYouEnabled={draft.thankYouEnabled}

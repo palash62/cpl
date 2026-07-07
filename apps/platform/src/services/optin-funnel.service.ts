@@ -9,6 +9,7 @@ import {
   buildPublicOptinFunnel,
   serializeOptinFunnel,
   serializePublicOptinFunnel,
+  usesBuilderRenderer,
   type PublicThankYouFunnel,
   type SerializedOptinFunnel,
 } from "@/lib/optin-funnel";
@@ -483,6 +484,7 @@ export async function updateOptinFunnel(
       ...(input.thankYouUseCampaignPixel !== undefined
         ? { thankYouUseCampaignPixel: input.thankYouUseCampaignPixel }
         : {}),
+      ...(craftEnvelope || thankYouCraftEnvelope ? { editorType: "BUILDER" as const } : {}),
       autosaveAt: new Date(),
     },
   });
@@ -642,7 +644,7 @@ export async function publishOptinFunnel(id: string, advertiserId: string) {
     throw Errors.validation("Link an active campaign before publishing.");
   }
 
-  if (page.editorType === "BUILDER") {
+  if (usesBuilderRenderer({ editorType: page.editorType, craftState: parseStoredCraftState(page.craftState) })) {
     const doc = parseStoredCraftState(page.craftState);
     const formJson = extractFormJson(doc.craft, page.campaignId);
     if (!formJson?.fields.length) {
@@ -665,6 +667,7 @@ export async function publishOptinFunnel(id: string, advertiserId: string) {
     const updated = await prisma.advertiserOptinPage.update({
       where: { id },
       data: {
+        editorType: "BUILDER",
         status: "PUBLISHED",
         isPublished: true,
         publishedVersionId: version.id,
@@ -692,7 +695,6 @@ export async function getPublishedBuilderFunnel(slug: string) {
 
   if (
     !page ||
-    page.editorType !== "BUILDER" ||
     page.status !== "PUBLISHED" ||
     !page.publishedVersion ||
     !page.campaign ||
@@ -701,7 +703,13 @@ export async function getPublishedBuilderFunnel(slug: string) {
     return null;
   }
 
-  const doc = parseStoredCraftState(page.publishedVersion.craftState);
+  const publishedCraft = parseStoredCraftState(page.publishedVersion.craftState);
+
+  if (!usesBuilderRenderer({ editorType: page.editorType, craftState: publishedCraft })) {
+    return null;
+  }
+
+  const doc = publishedCraft;
   const thankYouDoc = page.thankYouEnabled && page.publishedVersion.thankYouCraftState
     ? parseStoredCraftState(page.publishedVersion.thankYouCraftState)
     : null;
