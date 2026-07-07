@@ -24,6 +24,8 @@
     "test:smoke": "tsx scripts/smoke-deploy.ts",
     "test:emails": "npm run test:emails --workspace @cpl/platform",
     "build:production": "npm run build:tracking && npm run build:platform",
+    "build:production:full": "bash deploy/build-production.sh",
+    "deploy:server": "bash deploy/server-deploy.sh",
     "env:local": "bash scripts/env-local.sh",
     "postinstall": "npm run generate --workspace @cpl/database"
   },
