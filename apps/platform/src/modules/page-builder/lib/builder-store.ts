@@ -13,18 +13,23 @@ export type BuilderConfig = {
   publicPathPrefix: string;
   label: string;
   chromeTheme?: "light" | "dark";
-  mode?: "landing" | "funnel";
+  mode?: "landing" | "funnel" | "template" | "page";
+  ui?: "ghl" | "classic";
   thankYouEnabled?: boolean;
 };
 
 type BuilderUIState = {
   breakpoint: Breakpoint;
+  styleBreakpoint: Breakpoint;
   leftTab: "components" | "layers" | "theme";
   leftPanelSection: "quick-add" | "sections" | "rows" | "elements" | "forms" | "layers" | "theme";
   leftPanelOpen: boolean;
   propertiesTab: "general" | "styles" | "animations";
   previewOpen: boolean;
   versionHistoryOpen: boolean;
+  pageSettingsOpen: boolean;
+  assetPickerOpen: boolean;
+  insertTargetNodeId: string | null;
   saveStatus: SaveStatus;
   theme: ThemeJson;
   thankYouTheme: ThemeJson;
@@ -43,6 +48,10 @@ type BuilderUIState = {
   setPropertiesTab: (tab: BuilderUIState["propertiesTab"]) => void;
   setPreviewOpen: (open: boolean) => void;
   setVersionHistoryOpen: (open: boolean) => void;
+  setPageSettingsOpen: (open: boolean) => void;
+  setAssetPickerOpen: (open: boolean) => void;
+  setInsertTargetNodeId: (id: string | null) => void;
+  setStyleBreakpoint: (bp: Breakpoint) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setTheme: (theme: ThemeJson) => void;
   setThankYouTheme: (theme: ThemeJson) => void;
@@ -63,12 +72,16 @@ type BuilderUIState = {
 
 export const useBuilderStore = create<BuilderUIState>((set) => ({
   breakpoint: "desktop",
+  styleBreakpoint: "desktop",
   leftTab: "components",
   leftPanelSection: "quick-add",
   leftPanelOpen: true,
   propertiesTab: "general",
   previewOpen: false,
   versionHistoryOpen: false,
+  pageSettingsOpen: false,
+  assetPickerOpen: false,
+  insertTargetNodeId: null,
   saveStatus: "idle",
   theme: DEFAULT_THEME,
   thankYouTheme: DEFAULT_THEME,
@@ -92,6 +105,10 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
   setPropertiesTab: (propertiesTab) => set({ propertiesTab }),
   setPreviewOpen: (previewOpen) => set({ previewOpen }),
   setVersionHistoryOpen: (versionHistoryOpen) => set({ versionHistoryOpen }),
+  setPageSettingsOpen: (pageSettingsOpen) => set({ pageSettingsOpen }),
+  setAssetPickerOpen: (assetPickerOpen) => set({ assetPickerOpen }),
+  setInsertTargetNodeId: (insertTargetNodeId) => set({ insertTargetNodeId }),
+  setStyleBreakpoint: (styleBreakpoint) => set({ styleBreakpoint }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),
   setTheme: (theme) => set({ theme }),
   setThankYouTheme: (thankYouTheme) => set({ thankYouTheme }),

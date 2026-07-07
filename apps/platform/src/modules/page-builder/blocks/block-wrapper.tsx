@@ -5,6 +5,8 @@ import { useEditor, useNode } from "@craftjs/core";
 import { cn } from "@/lib/utils";
 import { mergeBlockStyles } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
+import { usePublishedBreakpoint } from "@/modules/page-builder/hooks/use-published-breakpoint";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 
 type BlockWrapperProps = BlockProps & {
@@ -23,11 +25,15 @@ export function BlockWrapper({
   extraStyle,
   ...blockProps
 }: BlockWrapperProps) {
-  const { connectors: { connect, drag }, selected } = useNode((node) => ({
+  const { connectors: { connect, drag }, selected, hovered } = useNode((node) => ({
     selected: node.events.selected,
+    hovered: node.events.hovered,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
-  const breakpoint = useBuilderStore((s) => s.breakpoint);
+  const editorBreakpoint = useBuilderStore((s) => s.breakpoint);
+  const publishedBreakpoint = usePublishedBreakpoint();
+  const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
+  const breakpoint = enabled ? editorBreakpoint : publishedBreakpoint;
 
   if (blockProps.visible === false && !enabled) return null;
 
@@ -35,6 +41,10 @@ export function BlockWrapper({
     ...mergeBlockStyles(blockProps, breakpoint),
     ...extraStyle,
   };
+
+  if (!("color" in style) || !style.color) {
+    style.color = "var(--pb-page-text, #0f172a)";
+  }
 
   const animation = blockProps.animation;
   if (animation?.type && animation.type !== "none") {
@@ -44,10 +54,40 @@ export function BlockWrapper({
   if (!enabled) {
     return (
       <Tag style={style} className={className}>
-        {children}
+        {blockProps.style?.backgroundVideo ? (
+          <div className="relative overflow-hidden">
+            <video
+              src={String(blockProps.style.backgroundVideo)}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="relative">{children}</div>
+          </div>
+        ) : (
+          children
+        )}
       </Tag>
     );
   }
+
+  const inner = blockProps.style?.backgroundVideo ? (
+    <div className="relative overflow-hidden">
+      <video
+        src={String(blockProps.style.backgroundVideo)}
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="relative">{children}</div>
+    </div>
+  ) : (
+    children
+  );
 
   return (
     <Tag
@@ -60,11 +100,12 @@ export function BlockWrapper({
       style={style}
       className={cn(
         className,
-        selected && "ring-2 ring-indigo-500 ring-offset-1",
-        !selected && "hover:ring-1 hover:ring-indigo-400/40",
+        !isGhl && selected && "ring-2 ring-indigo-500 ring-offset-1",
+        !isGhl && !selected && "hover:ring-1 hover:ring-indigo-400/40",
+        isGhl && hovered && !selected && "outline outline-1 outline-dashed outline-orange-200/80",
       )}
     >
-      {children}
+      {inner}
     </Tag>
   );
 }

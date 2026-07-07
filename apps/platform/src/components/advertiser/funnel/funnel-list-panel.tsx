@@ -54,7 +54,7 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
   async function createFunnel(input: {
     name: string;
     editorType: "BUILDER";
-    templateId?: string;
+    pageTemplateId?: string;
   }) {
     setLoading(true);
     const res = await fetch("/api/v1/advertiser/optin-funnels", {

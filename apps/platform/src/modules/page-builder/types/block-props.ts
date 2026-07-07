@@ -33,6 +33,12 @@ export type StyleProps = {
   backgroundColor?: string;
   backgroundImage?: string;
   backgroundGradient?: string;
+  backgroundSize?: string;
+  backgroundPosition?: string;
+  backgroundRepeat?: string;
+  backgroundVideo?: string;
+  backdropFilter?: string;
+  filter?: string;
   border?: string;
   borderTop?: string;
   borderRadius?: string;

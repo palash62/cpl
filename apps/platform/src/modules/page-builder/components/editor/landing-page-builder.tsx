@@ -1,7 +1,6 @@
 "use client";
 
 import { Editor, Frame, Element } from "@craftjs/core";
-import { Plus } from "lucide-react";
 import { craftResolver } from "@/modules/page-builder/blocks";
 import { CanvasRoot } from "@/modules/page-builder/blocks/basic";
 import { TopToolbar } from "@/modules/page-builder/components/editor/top-toolbar";
@@ -11,11 +10,15 @@ import { RightPropertiesPanel } from "@/modules/page-builder/components/editor/r
 import { BottomStatusBar } from "@/modules/page-builder/components/editor/bottom-status-bar";
 import { PreviewModal } from "@/modules/page-builder/components/editor/preview-modal";
 import { VersionHistoryDrawer } from "@/modules/page-builder/components/editor/version-history-drawer";
+import { PageSettingsDrawer } from "@/modules/page-builder/components/editor/page-settings-drawer";
+import { AssetPickerModal } from "@/modules/page-builder/components/editor/asset-picker-modal";
 import { useAutosave } from "@/modules/page-builder/hooks/use-autosave";
 import { useBuilderKeyboard } from "@/modules/page-builder/hooks/use-builder-keyboard";
-import { themeToCssVars } from "@/modules/page-builder/lib/theme";
+import { isDarkBackground, themeToCssVars } from "@/modules/page-builder/lib/theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
+import { ensureEditorCraftState } from "@/modules/page-builder/lib/serialize";
 import { BuilderSettingsLayoutProvider } from "@/modules/page-builder/lib/builder-settings-context";
 import { BREAKPOINT_WIDTHS } from "@/modules/page-builder/lib/responsive";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
@@ -48,16 +51,19 @@ export function LandingPageBuilder({
   const builderConfig = useBuilderStore((s) => s.builderConfig);
   const chromeTheme = builderConfig.chromeTheme ?? "dark";
   const chrome = getBuilderChrome(chromeTheme);
-  const isGhl = chromeTheme === "light" && builderConfig.mode === "funnel";
+  const isGhl = isGhlBuilderMode(builderConfig);
   const isDesktop = breakpoint === "desktop";
   const canvasWidth = isDesktop ? undefined : BREAKPOINT_WIDTHS[breakpoint];
+  const darkCanvas = isDarkBackground(theme.backgroundColor);
+
+  const resolvedCraftState = ensureEditorCraftState(initialCraftState);
 
   return (
     <BuilderSettingsLayoutProvider layout={isGhl ? "ghl" : "classic"}>
       <Editor resolver={craftResolver} enabled onRender={RenderNode}>
         <EditorEffects pageId={pageId} />
         <div className="flex h-full min-h-0 flex-col">
-          <TopToolbar pageId={pageId} pageName={pageName} />
+          <TopToolbar pageId={pageId} pageName={pageName} pageSlug={pageSlug} />
           {isGhl && <BuilderSubToolbar />}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <LeftComponentPanel />
@@ -79,6 +85,7 @@ export function LandingPageBuilder({
                     chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
                     !isGhl && "ring-1 ring-white/10",
                     !isDesktop && "overflow-hidden rounded-xl",
+                    darkCanvas ? "text-slate-100" : "text-slate-900",
                   )}
                   style={{
                     maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
@@ -86,14 +93,9 @@ export function LandingPageBuilder({
                     ...themeToCssVars(theme),
                   }}
                 >
-                  <Frame data={initialCraftState as never}>
+                  <Frame data={resolvedCraftState as never}>
                     <Element is={CanvasRoot} canvas />
                   </Frame>
-                  {isGhl && (
-                    <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 text-slate-300">
-                      <Plus className="h-5 w-5" />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -109,6 +111,8 @@ export function LandingPageBuilder({
           )}
           <PreviewModal pageSlug={pageSlug} />
           <VersionHistoryDrawer pageId={pageId} />
+          <PageSettingsDrawer />
+          <AssetPickerModal />
         </div>
       </Editor>
     </BuilderSettingsLayoutProvider>

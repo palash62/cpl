@@ -2,19 +2,40 @@
 
 import type { ReactNode } from "react";
 import { useEditor, useNode } from "@craftjs/core";
-import { ArrowUp, Settings2, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Settings2, Trash2 } from "lucide-react";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { cn } from "@/lib/utils";
 
 function GhlNodeChrome({ children }: { children: ReactNode }) {
-  const { id, selected, hovered, displayName } = useNode((node) => ({
+  const { id, selected, hovered, displayName, parent } = useNode((node) => ({
     selected: node.events.selected,
     hovered: node.events.hovered,
-    displayName: String(node.data.displayName ?? node.data.type ?? "Element"),
+    displayName: String(node.data.displayName ?? node.data.name ?? node.data.type ?? "Element"),
+    parent: node.data.parent as string | null,
   }));
 
-  const { actions } = useEditor();
+  const { actions, query } = useEditor();
   const setPropertiesTab = useBuilderStore((s) => s.setPropertiesTab);
+
+  function moveSibling(direction: -1 | 1) {
+    if (!parent) return;
+    const siblings = query.node(parent).childNodes();
+    const index = siblings.indexOf(id);
+    const next = index + direction;
+    if (next < 0 || next >= siblings.length) return;
+    actions.move(id, parent, next);
+  }
+
+  function duplicateNode() {
+    if (!parent) return;
+    const siblings = query.node(parent).childNodes();
+    const index = siblings.indexOf(id);
+    const tree = query.node(id).toNodeTree();
+    actions.addNodeTree(tree, parent, index + 1);
+  }
+
+  const label = displayName;
 
   return (
     <div
@@ -27,8 +48,21 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
     >
       {selected && (
         <div className="absolute -top-8 left-0 z-30 flex items-center gap-0.5 rounded-md border border-slate-200 bg-white p-0.5 shadow-md">
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100" title="Move up">
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100"
+            title="Move up"
+            onClick={() => moveSibling(-1)}
+          >
             <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100"
+            title="Move down"
+            onClick={() => moveSibling(1)}
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -37,6 +71,14 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
             onClick={() => setPropertiesTab("general")}
           >
             <Settings2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-slate-100"
+            title="Duplicate"
+            onClick={duplicateNode}
+          >
+            <Copy className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -50,8 +92,8 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
       )}
       {children}
       {selected && (
-        <span className="absolute -bottom-5 right-0 z-30 rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          {displayName}
+        <span className="pointer-events-none absolute -bottom-6 right-0 z-30 whitespace-nowrap rounded bg-orange-500 px-2 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
+          {label}
         </span>
       )}
     </div>
@@ -59,9 +101,7 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
 }
 
 export function RenderNode({ render }: { render: ReactNode }) {
-  const isGhl = useBuilderStore(
-    (s) => s.builderConfig.chromeTheme === "light" && s.builderConfig.mode === "funnel",
-  );
+  const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
 
   const { id, selected, hovered } = useNode((node) => ({
     selected: node.events.selected,

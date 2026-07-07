@@ -1,12 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { LayoutTemplate, Sparkles } from "lucide-react";
-import { listOptinTemplates } from "@/lib/optin-templates";
-import { OptinPageLayout } from "@/components/optin/optin-page-layout";
-import { PREVIEW_FALLBACK_FIELDS } from "@/lib/optin-page";
-import type { OptinTemplateDefinition } from "@/lib/optin-templates";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { LayoutTemplate } from "lucide-react";
+import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,48 +12,39 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import { cn } from "@/lib/utils";
 
-type CreateMode = "blank" | "ai" | "templates";
+type CreateMode = "blank" | "templates";
 
 type FunnelCreateDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loading: boolean;
-  onCreate: (input: { name: string; editorType: "BUILDER"; templateId?: string }) => void;
+  onCreate: (input: { name: string; editorType: "BUILDER"; pageTemplateId?: string }) => void;
 };
 
-function templatePreview(template: OptinTemplateDefinition) {
-  return {
-    id: "preview",
-    slug: "preview",
-    title: template.name,
-    destinationUrl: null,
-    campaignId: null,
-    templateId: template.id,
-    headline: template.headline,
-    subheadline: template.subheadline,
-    description: "Instant access to proven strategies that turn visitors into customers.",
-    ctaText: "Get Instant Access — It's Free",
-    successTitle: "You're In!",
-    successMessage: "Check your inbox — your free playbook is on its way.",
-    badgeText: template.badgeText,
-    bulletPoints: ["Proven playbook you can use today"],
-    primaryColor: template.primaryColor,
-    accentColor: template.accentColor,
-    isPublished: false,
-    campaignName: template.name,
-    displayTitle: template.name,
-    fields: PREVIEW_FALLBACK_FIELDS,
-    previewMode: true,
-  };
-}
+type FunnelTemplate = {
+  id: string;
+  name: string;
+  craftState: CraftSerializedState;
+  themeJson: ThemeJson;
+};
 
 export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: FunnelCreateDialogProps) {
   const [mode, setMode] = useState<CreateMode>("blank");
   const [name, setName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const templates = listOptinTemplates();
+  const [templates, setTemplates] = useState<FunnelTemplate[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/v1/advertiser/optin-funnels/templates")
+      .then((r) => r.json())
+      .then((body) => setTemplates(body.data ?? []))
+      .catch(() => setTemplates([]));
+  }, [open]);
 
   function reset() {
     setMode("blank");
@@ -82,17 +69,12 @@ export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: Fu
       onCreate({
         name: template?.name ?? "Template Funnel",
         editorType: "BUILDER",
-        templateId: selectedTemplate,
+        pageTemplateId: selectedTemplate,
       });
     }
   }
 
-  const canCreate =
-    mode === "blank"
-      ? name.trim().length > 0
-      : mode === "templates"
-        ? Boolean(selectedTemplate)
-        : false;
+  const canCreate = mode === "blank" ? name.trim().length > 0 : Boolean(selectedTemplate);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -101,7 +83,7 @@ export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: Fu
           <DialogTitle>Create new funnel</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => setMode("blank")}
@@ -129,23 +111,6 @@ export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: Fu
 
           <button
             type="button"
-            disabled
-            className="relative rounded-xl border-2 border-slate-200 p-4 text-left opacity-60"
-          >
-            <div className="mb-3 flex h-24 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100">
-              <Sparkles className="h-8 w-8 text-violet-500" />
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="font-semibold text-slate-900">Build with AI</p>
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                Beta
-              </Badge>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">Coming soon</p>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setMode("templates")}
             className={cn(
               "rounded-xl border-2 p-4 text-left transition",
@@ -164,38 +129,44 @@ export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: Fu
 
         {mode === "templates" && (
           <div className="grid max-h-64 gap-3 overflow-y-auto sm:grid-cols-2">
+            {templates.length === 0 && (
+              <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                No templates available yet. Ask admin to create templates.
+              </div>
+            )}
             {templates.map((template) => (
-              <button
+              <div
                 key={template.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedTemplate(template.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedTemplate(template.id);
+                  }
+                }}
                 className={cn(
-                  "flex gap-3 rounded-lg border p-3 text-left transition",
+                  "flex cursor-pointer gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
                   selectedTemplate === template.id
                     ? "border-blue-600 bg-blue-50"
                     : "border-slate-200 hover:border-slate-300",
                 )}
               >
                 <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
-                  <div className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[480px] origin-top -translate-x-1/2 scale-[0.18]">
-                    <OptinPageLayout
-                      page={templatePreview(template)}
-                      thumbnail
-                      data={{}}
-                      setData={() => {}}
-                      honeypot=""
-                      setHoneypot={() => {}}
-                      error=""
-                      status="idle"
-                      onSubmit={(e) => e.preventDefault()}
+                  <div className="pointer-events-none absolute left-1/2 top-0 w-[480px] origin-top -translate-x-1/2 scale-[0.18]">
+                    <OptinFunnelCraftThumbnail
+                      craftState={{ craft: template.craftState, meta: { schemaVersion: 1, editorBreakPoint: "desktop" } }}
+                      themeJson={template.themeJson}
+                      scale={1}
                     />
                   </div>
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-900">{template.name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{template.description}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">Existing template</p>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

@@ -13,14 +13,57 @@ import { cn } from "@/lib/utils";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import type { FunnelStepId } from "@/components/advertiser/funnel/funnel-types";
 
+const DEMO_FONT_STACK = "Montserrat, Inter, Segoe UI, system-ui, sans-serif";
+
+function applyDemoTypography(craft: CraftSerializedState): CraftSerializedState {
+  const next = { ...craft };
+
+  const heading = next.heading_main;
+  if (heading && typeof heading === "object") {
+    const headingProps = (heading.props ?? {}) as Record<string, unknown>;
+    const headingTypography = (headingProps.typography ?? {}) as Record<string, string>;
+    next.heading_main = {
+      ...heading,
+      props: {
+        ...headingProps,
+        typography: {
+          ...headingTypography,
+          fontFamily: DEMO_FONT_STACK,
+          lineHeight: headingTypography.lineHeight ?? "1.15",
+          letterSpacing: headingTypography.letterSpacing ?? "-0.02em",
+        },
+      },
+    };
+  }
+
+  const paragraph = next.paragraph_main;
+  if (paragraph && typeof paragraph === "object") {
+    const paragraphProps = (paragraph.props ?? {}) as Record<string, unknown>;
+    const paragraphTypography = (paragraphProps.typography ?? {}) as Record<string, string>;
+    next.paragraph_main = {
+      ...paragraph,
+      props: {
+        ...paragraphProps,
+        typography: {
+          ...paragraphTypography,
+          fontFamily: DEMO_FONT_STACK,
+          lineHeight: paragraphTypography.lineHeight ?? "1.6",
+        },
+      },
+    };
+  }
+
+  return next;
+}
+
 function resolveOptinCraft(funnel: SerializedOptinFunnel): CraftSerializedState {
   if (funnel.craftState?.craft && Object.keys(funnel.craftState.craft).length > 1) {
-    return funnel.craftState.craft;
+    return applyDemoTypography(funnel.craftState.craft);
   }
   if (funnel.templateId && isOptinTemplateId(funnel.templateId)) {
-    return buildCraftFromOptinTemplate(funnel.templateId);
+    return applyDemoTypography(buildCraftFromOptinTemplate(funnel.templateId));
   }
-  return createEmptyCraftState();
+  return applyDemoTypography(createEmptyCraftState());
 }
 
 function resolveThankYouCraft(funnel: SerializedOptinFunnel): CraftSerializedState {
@@ -59,13 +102,10 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
       label: "Optin Funnel Builder",
       chromeTheme: "light",
       mode: "funnel",
+      ui: "ghl",
       thankYouEnabled: funnel?.thankYouEnabled ?? false,
     });
   }, [funnelId, funnel?.thankYouEnabled, setBuilderConfig]);
-
-  useEffect(() => {
-    setFunnelStep(stepParam);
-  }, [stepParam, setFunnelStep]);
 
   useEffect(() => {
     setCraftSavedListener((step, craft) => {
@@ -128,6 +168,7 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           label: "Optin Funnel Builder",
           chromeTheme: "light",
           mode: "funnel",
+          ui: "ghl",
           thankYouEnabled: page.thankYouEnabled,
         });
       });

@@ -30,7 +30,15 @@ export function useBuilderKeyboard() {
       }
       if (meta && e.key === "d") {
         e.preventDefault();
-        // Duplicate via Craft clone is version-specific; use toolbar duplicate page instead
+        const selected = query.getEvent("selected").first();
+        if (!selected || selected === "ROOT") return;
+        const node = query.node(selected).get();
+        const parent = node.data.parent;
+        if (!parent) return;
+        const siblings = query.node(parent).childNodes();
+        const index = siblings.indexOf(selected);
+        const tree = query.node(selected).toNodeTree();
+        actions.addNodeTree(tree, parent, index + 1);
       }
     }
 

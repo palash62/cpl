@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link2, Monitor } from "lucide-react";
+import Link from "next/link";
+import { Link2, Monitor, PlusCircle } from "lucide-react";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { cn } from "@/lib/utils";
@@ -13,12 +14,13 @@ type BottomStatusBarProps = {
   campaignId: string | null;
 };
 
-type Campaign = { id: string; name: string };
+type Campaign = { id: string; name: string; status?: string };
 
 export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBarProps) {
   const saveStatus = useBuilderStore((s) => s.saveStatus);
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const setPageMeta = useBuilderStore((s) => s.setPageMeta);
+  const setSaveStatus = useBuilderStore((s) => s.setSaveStatus);
   const builderConfig = useBuilderStore((s) => s.builderConfig);
   const funnelStep = useBuilderStore((s) => s.funnelStep);
   const chrome = getBuilderChrome(builderConfig.chromeTheme ?? "dark");
@@ -37,13 +39,23 @@ export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBa
 
   async function linkCampaign(id: string) {
     setSelected(id);
-    await fetch(`${builderConfig.apiBasePath}/${pageId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId: id || null }),
-    });
-    setPageMeta({ campaignId: id || null });
+    const prev = selected;
+    try {
+      const res = await fetch(`${builderConfig.apiBasePath}/${pageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId: id || null }),
+      });
+      if (!res.ok) throw new Error("campaign-link-failed");
+      setPageMeta({ campaignId: id || null });
+      setSaveStatus("saved");
+    } catch {
+      setSelected(prev);
+      setSaveStatus("error");
+    }
   }
+
+  const selectedCampaign = campaigns.find((c) => c.id === selected);
 
   const isLight = builderConfig.chromeTheme === "light";
 
@@ -80,14 +92,30 @@ export function BottomStatusBar({ pageId, pageSlug, campaignId }: BottomStatusBa
           <option value="">Select campaign to publish...</option>
           {campaigns.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {c.name} {c.status ? `(${c.status})` : ""}
             </option>
           ))}
         </select>
+        <Link
+          href={`/advertiser/campaigns/new?optinPageId=${encodeURIComponent(pageId)}&returnTo=${encodeURIComponent(`/advertiser/optin-funnels/${pageId}/edit`)}`}
+          className={cn(
+            "inline-flex h-6 items-center gap-1 rounded-md border px-2 font-medium",
+            isLight
+              ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
+          )}
+        >
+          <PlusCircle className="h-3 w-3" />
+          New
+        </Link>
       </div>
       <span className="ml-auto">
         {saveStatus === "saving" && "Saving changes..."}
         {saveStatus === "saved" && "All changes saved"}
+        {saveStatus === "error" && "Save failed, retrying..."}
+        {selectedCampaign?.status && selectedCampaign.status !== "ACTIVE" && (
+          <span className="ml-3 text-amber-500">Linked campaign is {selectedCampaign.status.toLowerCase()}</span>
+        )}
       </span>
     </footer>
   );

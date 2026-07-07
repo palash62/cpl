@@ -84,6 +84,8 @@ type CreateCampaignFormProps = {
   mode?: "advertiser" | "admin";
   payoutTiers: PayoutTiersDisplay;
   editCampaign?: CampaignEditInitial;
+  initialOptinPageId?: string;
+  returnTo?: string;
 };
 
 const SECTION_ACCENTS = [
@@ -217,6 +219,8 @@ export function CreateCampaignForm({
   mode = "advertiser",
   payoutTiers,
   editCampaign,
+  initialOptinPageId,
+  returnTo,
 }: CreateCampaignFormProps) {
   const isAdmin = mode === "admin";
   const isEdit = Boolean(editCampaign);
@@ -225,7 +229,7 @@ export function CreateCampaignForm({
     ? `/admin/campaigns/${editCampaign!.id}`
     : isAdmin
       ? "/admin/campaigns"
-      : "/advertiser/campaigns";
+      : returnTo || "/advertiser/campaigns";
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -316,13 +320,15 @@ export function CreateCampaignForm({
       .then((data) => {
         const pages = (data.pages ?? []) as OptinPageOption[];
         setOptinPages(pages);
-        if (pages.length === 1) {
+        if (initialOptinPageId && pages.some((p) => p.id === initialOptinPageId)) {
+          setOptinPageId(initialOptinPageId);
+        } else if (pages.length === 1) {
           setOptinPageId(pages[0].id);
         }
       })
       .catch(() => setOptinPages([]))
       .finally(() => setLoadingOptinPages(false));
-  }, [isAdmin]);
+  }, [isAdmin, initialOptinPageId]);
 
   useEffect(() => {
     if (!isAdmin || !advertiserId) {

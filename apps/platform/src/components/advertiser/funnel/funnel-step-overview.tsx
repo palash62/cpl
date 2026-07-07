@@ -6,8 +6,6 @@ import {
   Copy,
   ExternalLink,
   Eye,
-  GitBranch,
-  Plus,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -117,11 +115,11 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
           </a>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto_1fr]">
+        <div className="space-y-3">
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Control</p>
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              <div className="relative aspect-[4/3] bg-white">
+              <div className="relative aspect-4/3 bg-white">
                 {templatePage ? (
                   <div className="pointer-events-none absolute left-1/2 top-0 h-[720px] w-[960px] origin-top -translate-x-1/2 scale-[0.28]">
                     <OptinPageLayout
@@ -175,27 +173,6 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          </div>
-
-          <div className="hidden flex-col items-center justify-center px-2 text-center lg:flex">
-            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <GitBranch className="h-8 w-8 text-blue-600" />
-            </div>
-            <p className="text-sm font-medium text-slate-900">Start split test</p>
-            <p className="mt-1 max-w-[180px] text-xs text-slate-500">
-              Optimize your lead and sales generation with split tests.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Variation</p>
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
-              <Button variant="outline" size="sm" disabled>
-                <Plus className="mr-1.5 h-4 w-4" />
-                Create variation
-              </Button>
-              <p className="mt-2 text-xs text-slate-400">A/B testing coming soon</p>
             </div>
           </div>
         </div>

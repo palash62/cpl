@@ -434,7 +434,7 @@ export const landingPageCreateSchema = z.object({
 export const optinFunnelCreateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   editorType: z.enum(["TEMPLATE", "BUILDER"]),
-  templateId: z.enum(["aurora", "sunrise", "ocean", "minimal", "bold", "neon"]).optional(),
+  templateId: z.string().optional(),
   pageTemplateId: z.string().optional(),
 });
 
@@ -452,7 +452,7 @@ export const optinFunnelUpdateSchema = z.object({
     .refine((value) => !value || z.string().url().safeParse(value).success, {
       message: "Enter a valid destination URL",
     }),
-  templateId: z.enum(["aurora", "sunrise", "ocean", "minimal", "bold", "neon"]).optional(),
+  templateId: z.string().optional(),
   headline: z.string().trim().min(3).max(120).optional(),
   subheadline: z.string().trim().min(3).max(200).optional(),
   description: z.string().trim().max(1000).nullable().optional(),

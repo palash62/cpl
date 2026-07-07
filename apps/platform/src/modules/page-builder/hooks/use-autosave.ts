@@ -22,6 +22,7 @@ export function useAutosave(pageId: string) {
       return result.ok;
     }
 
+    lastSavedRef.current = query.serialize();
     setFlushSave(flushSave);
 
     const interval = setInterval(() => {

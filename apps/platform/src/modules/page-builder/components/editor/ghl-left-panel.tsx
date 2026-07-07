@@ -15,21 +15,24 @@ import {
   FileText,
   Image,
   Code,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { COMPONENT_LIBRARY, craftResolver, type CraftBlockName } from "@/modules/page-builder/blocks";
+import { buildRowElement } from "@/modules/page-builder/lib/build-row-element";
+import { useInsertBlock } from "@/modules/page-builder/hooks/use-insert-block";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { BLOCK_ICONS } from "@/modules/page-builder/lib/block-icons";
 import { cn } from "@/lib/utils";
 
-const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "LeadForm"]);
+const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
 
 const RAIL_ITEMS = [
   { id: "quick-add" as const, label: "Quick Add", icon: LayoutGrid },
   { id: "sections" as const, label: "Sections", icon: Box },
   { id: "rows" as const, label: "Rows", icon: Rows3 },
   { id: "elements" as const, label: "Elements", icon: Type },
-  { id: "forms" as const, label: "Forms", icon: FormInput },
+  { id: "forms" as const, label: "Forms & Surveys", icon: FormInput },
   { id: "layers" as const, label: "Layers", icon: Layers },
   { id: "theme" as const, label: "Theme", icon: Palette },
 ];
@@ -45,6 +48,29 @@ const QUICK_ADD_ITEMS: Array<{ name: CraftBlockName; label: string; group: strin
   { name: "List", label: "Bullet list", group: "Text" },
   { name: "CtaButton", label: "Button", group: "Form" },
   { name: "LeadForm", label: "Form", group: "Form" },
+  { name: "BlogPosts", label: "Blog Posts", group: "Blog" },
+  { name: "CategoryNavigation", label: "Category Navigation", group: "Blog" },
+  { name: "SocialShare", label: "Social Share", group: "Blog" },
+  { name: "SubscribeToMailingList", label: "Subscribe to Mailing List", group: "Blog" },
+  { name: "ImageSlider", label: "Image Slider", group: "Media" },
+  { name: "Video", label: "Video", group: "Media" },
+  { name: "Image", label: "Image", group: "Media" },
+  { name: "Faq", label: "FAQ", group: "Elements" },
+  { name: "PhotoGallery", label: "Photo Gallery", group: "Elements" },
+  { name: "LogoShowcase", label: "Logo Showcase", group: "Elements" },
+  { name: "Testimonials", label: "Testimonials", group: "Elements" },
+  { name: "ProgressBar", label: "Progress Bar", group: "Elements" },
+  { name: "SocialIconsGroup", label: "Social Icons", group: "Elements" },
+  { name: "Survey", label: "Survey", group: "Custom" },
+  { name: "MapBlock", label: "Map", group: "Elements" },
+  { name: "Reviews", label: "Reviews", group: "Custom" },
+  { name: "NavigationMenu", label: "Navigation Menu", group: "Blocks" },
+  { name: "Divider", label: "Divider", group: "Blocks" },
+  { name: "CalendarBlock", label: "Calendar", group: "Elements" },
+  { name: "Countdown", label: "Countdown", group: "Timer" },
+  { name: "MinuteTimer", label: "Minute Timer", group: "Timer" },
+  { name: "DayTimer", label: "Day Timer", group: "Timer" },
+  { name: "ImageFeature", label: "Image Feature", group: "Blocks" },
   { name: "Section", label: "Section", group: "Layout" },
   { name: "HtmlBlock", label: "Custom HTML", group: "Advanced" },
 ];
@@ -63,23 +89,33 @@ function GridTile({
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   const { connectors } = useEditor();
+  const { insertBlock, insertTargetNodeId } = useInsertBlock();
   const Component = craftResolver[name];
   const BlockIcon = Icon ?? BLOCK_ICONS[name];
+
+  function buildElement() {
+    if (name === "Columns" && columns) {
+      return buildRowElement(columns);
+    }
+    return <Element is={Component} canvas={CANVAS_BLOCKS.has(name)} />;
+  }
 
   return (
     <div
       ref={(ref) => {
-        if (ref && Component) {
-          const element =
-            name === "Columns" && columns ? (
-              <Element is={Component} columns={columns} canvas />
-            ) : (
-              <Element is={Component} canvas={CANVAS_BLOCKS.has(name)} />
-            );
-          connectors.create(ref, element);
+        if (ref && name in craftResolver && !insertTargetNodeId) {
+          connectors.create(ref, buildElement());
         }
       }}
-      className="group flex cursor-grab flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white p-3 text-center transition hover:border-blue-300 hover:bg-blue-50/50 active:cursor-grabbing"
+      onClick={() => {
+        if (insertTargetNodeId) {
+          insertBlock(name, columns ? { columns } : undefined);
+        }
+      }}
+      className={cn(
+        "group flex min-h-[88px] cursor-grab flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-center transition hover:border-blue-300 hover:bg-blue-50/50 active:cursor-grabbing",
+        insertTargetNodeId && "cursor-pointer ring-2 ring-orange-200",
+      )}
     >
       <div className="flex h-10 w-full items-center justify-center rounded-md bg-slate-50 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600">
         {name === "Columns" && columns ? (
@@ -92,35 +128,15 @@ function GridTile({
           <BlockIcon className="h-5 w-5" />
         )}
       </div>
-      <span className="text-[11px] font-medium leading-tight text-slate-600 group-hover:text-slate-900">
+      <span className="line-clamp-2 min-h-[2.5em] text-[10px] font-medium leading-tight text-slate-600 group-hover:text-slate-900">
         {label}
       </span>
     </div>
   );
 }
 
-function ListDraggable({ name, label }: { name: CraftBlockName; label: string }) {
-  const { connectors } = useEditor();
-  const Component = craftResolver[name];
-  const Icon = BLOCK_ICONS[name];
-
-  return (
-    <div
-      ref={(ref) => {
-        if (ref && Component) {
-          connectors.create(ref, <Element is={Component} canvas={CANVAS_BLOCKS.has(name)} />);
-        }
-      }}
-      className="flex cursor-grab items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-blue-300 hover:bg-blue-50/50 active:cursor-grabbing"
-    >
-      <Icon className="h-4 w-4 text-blue-600" />
-      <span className="text-sm text-slate-700">{label}</span>
-    </div>
-  );
-}
-
 function LayersTree() {
-  const { nodes, selectedId } = useEditor((state, query) => ({
+  const { nodes, selectedId, actions } = useEditor((state, query) => ({
     nodes: state.nodes,
     selectedId: query.getEvent("selected").first(),
   }));
@@ -133,15 +149,17 @@ function LayersTree() {
 
     return (
       <div key={id}>
-        <div
+        <button
+          type="button"
+          onClick={() => actions.selectNode(id)}
           className={cn(
-            "truncate py-1.5 pr-3 text-xs",
+            "block w-full truncate py-1.5 pr-3 text-left text-xs",
             isSelected ? "bg-blue-50 font-medium text-blue-800" : "text-slate-600 hover:bg-slate-50",
           )}
           style={{ paddingLeft: 12 + depth * 14 }}
         >
           {name}
-        </div>
+        </button>
         {node.data.nodes?.map((childId: string) => renderNode(childId, depth + 1))}
       </div>
     );
@@ -189,7 +207,7 @@ export function GhlLeftPanel() {
     }
     if (section === "elements") {
       return COMPONENT_LIBRARY.flatMap((g) => g.items).filter((i) =>
-        !["Section", "Container", "Columns", "LeadForm", "FormInput", "FormTextarea", "FormCheckbox", "FormRadio", "FormSelect", "SubmitButton"].includes(i.name),
+        !["Section", "Container", "Columns", "LeadForm", "FormInput", "FormTextarea", "FormCheckbox", "FormRadio", "FormSelect", "SubmitButton", "CustomCss"].includes(i.name),
       );
     }
     if (section === "forms") {
@@ -246,7 +264,7 @@ export function GhlLeftPanel() {
 
   return (
     <div className="flex shrink-0 border-r border-slate-200 bg-white">
-      <div className="flex w-12 flex-col border-r border-slate-100 bg-slate-50">
+      <div className="flex w-[108px] flex-col border-r border-slate-100 bg-slate-50">
         {RAIL_ITEMS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -254,17 +272,31 @@ export function GhlLeftPanel() {
             title={label}
             onClick={() => setSection(id)}
             className={cn(
-              "flex h-11 w-full items-center justify-center text-slate-500 hover:bg-white hover:text-blue-600",
+              "flex h-10 w-full items-center gap-2 px-3 text-left text-slate-600 hover:bg-white hover:text-blue-600",
               section === id && "bg-white text-blue-600 shadow-sm",
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate text-xs font-medium">{label}</span>
           </button>
         ))}
       </div>
 
-      <aside className="flex w-[300px] flex-col">
+      <aside className="flex w-[320px] flex-col">
         <div className="border-b border-slate-100 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">
+              {section === "quick-add" ? "Quick Add" : RAIL_ITEMS.find((i) => i.id === section)?.label}
+            </p>
+            <button
+              type="button"
+              onClick={() => useBuilderStore.getState().setLeftPanelOpen(false)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              title="Close panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
@@ -281,8 +313,8 @@ export function GhlLeftPanel() {
             <div className="space-y-5">
               {Array.from(quickAddGroups.entries()).map(([group, items]) => (
                 <div key={group}>
-                  <p className="mb-2 text-xs font-semibold text-slate-500">{group}</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{group}</p>
+                  <div className="grid grid-cols-3 gap-2.5">
                     {items.map((item, idx) => (
                       <GridTile
                         key={`${item.name}-${item.label}-${idx}`}
@@ -328,10 +360,20 @@ export function GhlLeftPanel() {
           )}
 
           {(section === "sections" || section === "elements" || section === "forms") && (
-            <div className="space-y-2">
-              {filteredSectionItems.map((item) => (
-                <ListDraggable key={item.name + item.label} name={item.name} label={item.label} />
-              ))}
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {section === "sections" ? "Section Blocks" : section === "forms" ? "Form Elements" : "Elements"}
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {filteredSectionItems.map((item) => (
+                  <GridTile key={item.name + item.label} name={item.name} label={item.label} />
+                ))}
+              </div>
+              {filteredSectionItems.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                  No elements match your search.
+                </div>
+              )}
             </div>
           )}
 

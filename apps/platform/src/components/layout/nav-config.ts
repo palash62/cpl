@@ -47,6 +47,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },
   { label: "Themes", href: "/admin/themes", icon: Palette },
+  { label: "Funnel Templates", href: "/admin/funnel-templates", icon: FileStack },
 ];
 
 export const ADVERTISER_NAV: NavItem[] = [

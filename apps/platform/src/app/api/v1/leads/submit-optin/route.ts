@@ -35,16 +35,20 @@ export async function POST(request: Request) {
       select: { id: true, campaignId: true },
     });
     if (optinPage?.campaignId) {
-      const { recordFunnelEvent } = await import("@/services/funnel-analytics.service");
-      await recordFunnelEvent({
-        funnelId: optinPage.id,
-        campaignId: optinPage.campaignId,
-        leadId: lead.id,
-        eventType: "SUBMIT",
-        step: "optin",
-        ip,
-        userAgent: request.headers.get("user-agent") ?? undefined,
-      });
+      try {
+        const { recordFunnelEvent } = await import("@/services/funnel-analytics.service");
+        await recordFunnelEvent({
+          funnelId: optinPage.id,
+          campaignId: optinPage.campaignId,
+          leadId: lead.id,
+          eventType: "SUBMIT",
+          step: "optin",
+          ip,
+          userAgent: request.headers.get("user-agent") ?? undefined,
+        });
+      } catch (eventError) {
+        console.error("Failed to record funnel submit event", eventError);
+      }
     }
 
     return Response.json({ lead: { id: lead.id, status: lead.status } }, { status: 201 });

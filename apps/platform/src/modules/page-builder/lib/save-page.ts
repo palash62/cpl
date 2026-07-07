@@ -1,4 +1,5 @@
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { isAdminTemplateBuilder } from "@/modules/page-builder/lib/builder-mode";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 
 export async function savePageCraft(
@@ -8,6 +9,7 @@ export async function savePageCraft(
 ): Promise<{ ok: boolean; errorMessage?: string }> {
   const store = useBuilderStore.getState();
   const { builderConfig, funnelStep } = store;
+  const isAdminTemplate = isAdminTemplateBuilder(builderConfig);
   const isThankYou = funnelStep === "thankYou";
   const craft = JSON.parse(serialized) as CraftSerializedState;
 
@@ -17,20 +19,28 @@ export async function savePageCraft(
     const res = await fetch(`${builderConfig.apiBasePath}/${pageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(isThankYou
+      body: JSON.stringify(
+        isAdminTemplate
           ? {
-              thankYouCraftState: craft,
-              thankYouThemeJson: store.thankYouTheme,
-              step: "thankYou",
-            }
-          : {
               craftState: craft,
               themeJson: store.theme,
-              step: "optin",
-            }),
-        autosave: options?.autosave ?? false,
-      }),
+              autosave: options?.autosave ?? false,
+            }
+          : {
+              ...(isThankYou
+                ? {
+                    thankYouCraftState: craft,
+                    thankYouThemeJson: store.thankYouTheme,
+                    step: "thankYou",
+                  }
+                : {
+                    craftState: craft,
+                    themeJson: store.theme,
+                    step: "optin",
+                  }),
+              autosave: options?.autosave ?? false,
+            },
+      ),
     });
 
     if (!res.ok) {

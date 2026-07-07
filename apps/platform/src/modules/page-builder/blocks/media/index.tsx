@@ -4,6 +4,7 @@ import { useNode } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 
 type ImageProps = BlockProps & { src?: string; alt?: string };
 
@@ -12,11 +13,21 @@ function ImageSettings() {
     src: node.data.props.src as string,
     alt: node.data.props.alt as string,
   }));
+  const setAssetPickerOpen = useBuilderStore((s) => s.setAssetPickerOpen);
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <FieldLabel>Image URL</FieldLabel>
-        <FieldInput value={src ?? ""} onChange={(e) => setProp((p: ImageProps) => { p.src = e.target.value; })} />
+        <div className="flex gap-2">
+          <FieldInput value={src ?? ""} onChange={(e) => setProp((p: ImageProps) => { p.src = e.target.value; })} />
+          <button
+            type="button"
+            className="shrink-0 rounded-md border border-slate-200 px-2 text-xs text-slate-600 hover:bg-slate-50"
+            onClick={() => setAssetPickerOpen(true)}
+          >
+            Browse
+          </button>
+        </div>
       </div>
       <div className="space-y-1.5">
         <FieldLabel>Alt text</FieldLabel>
@@ -77,6 +88,26 @@ VideoBlock.craft = {
 
 type IconProps = BlockProps & { icon?: string; size?: string };
 
+function IconSettings() {
+  const { icon, size, actions: { setProp } } = useNode((node) => ({
+    icon: node.data.props.icon as string,
+    size: node.data.props.size as string,
+  }));
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <FieldLabel>Icon character</FieldLabel>
+        <FieldInput value={icon ?? "★"} onChange={(e) => setProp((p: IconProps) => { p.icon = e.target.value; })} />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel>Size</FieldLabel>
+        <FieldInput value={size ?? "2rem"} onChange={(e) => setProp((p: IconProps) => { p.size = e.target.value; })} />
+      </div>
+      <StandardSettings />
+    </div>
+  );
+}
+
 export function IconBlock({ icon = "★", size = "2rem", ...props }: IconProps) {
   return (
     <BlockWrapper {...props} typography={{ fontSize: size, textAlign: "center", ...props.typography }}>
@@ -88,5 +119,5 @@ export function IconBlock({ icon = "★", size = "2rem", ...props }: IconProps) 
 IconBlock.craft = {
   displayName: "Icon",
   props: { icon: "★", size: "2rem", typography: { textAlign: "center" } },
-  related: { settings: StandardSettings },
+  related: { settings: IconSettings },
 };

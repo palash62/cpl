@@ -26,6 +26,9 @@ export default function LandingPageEditPage() {
       listPath: "/advertiser/landing-pages",
       publicPathPrefix: "/p/",
       label: "Landing Page Builder",
+      chromeTheme: "light",
+      mode: "page",
+      ui: "ghl",
     });
     useBuilderStore.getState().setFunnelStep("optin");
   }, []);

@@ -13,17 +13,11 @@ import {
   type SerializedOptinFunnel,
 } from "@/lib/optin-funnel";
 import {
-  buildCraftFromOptinTemplate,
   buildThankYouCraftState,
-  themeFromOptinTemplate,
 } from "@/lib/optin-funnel-craft-templates";
 import {
-  getOptinTemplate,
-  isOptinTemplateId,
-  type OptinTemplateId,
-} from "@/lib/optin-templates";
-import {
   createEmptyCraftState,
+  createBlankCraftState,
   normalizeCraftState,
   parseStoredCraftState,
   toPrismaJson,
@@ -42,6 +36,17 @@ export type OptinFunnelOption = {
   slug: string;
   editorType: OptinFunnelEditorType;
   isPublished: boolean;
+};
+
+export type OptinFunnelTemplate = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  craftState: CraftSerializedState;
+  themeJson: ThemeJson;
+  isSystem: boolean;
+  createdAt: string;
 };
 
 async function createUniqueSlug(advertiserId: string, seed: string, excludeFunnelId?: string) {
@@ -69,6 +74,147 @@ export async function listOptinFunnels(advertiserId: string) {
     orderBy: { updatedAt: "desc" },
   });
   return pages.map(serializeOptinFunnel);
+}
+
+export async function listOptinFunnelTemplatesForAdvertiser(): Promise<OptinFunnelTemplate[]> {
+  const templates = await prisma.pageTemplate.findMany({
+    where: { category: "optin_funnel", isSystem: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return templates.map((template) => ({
+    id: template.id,
+    slug: template.slug,
+    name: template.name,
+    category: template.category,
+    craftState: parseStoredCraftState(template.craftState).craft,
+    themeJson: (template.themeJson as ThemeJson) ?? DEFAULT_THEME,
+    isSystem: template.isSystem,
+    createdAt: template.createdAt.toISOString(),
+  }));
+}
+
+export async function listOptinFunnelTemplatesForAdmin(): Promise<OptinFunnelTemplate[]> {
+  return listOptinFunnelTemplatesForAdvertiser();
+}
+
+export async function createOptinFunnelTemplateByAdmin(input: {
+  name: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+}) {
+  const name = input.name.trim();
+  const slugBase = slugifyOptinAddress(name) || "optin-template";
+  let slug = `optin-template-${slugBase}`;
+  let suffix = 1;
+
+  while (await prisma.pageTemplate.findUnique({ where: { slug } })) {
+    slug = `optin-template-${slugBase}-${suffix}`;
+    suffix += 1;
+  }
+
+  const craftState = createBlankCraftState();
+  const themeJson: ThemeJson = {
+    ...DEFAULT_THEME,
+    ...(input.primaryColor ? { primaryColor: input.primaryColor } : {}),
+    ...(input.secondaryColor ? { secondaryColor: input.secondaryColor } : {}),
+  };
+
+  const created = await prisma.pageTemplate.create({
+    data: {
+      slug,
+      name,
+      category: "optin_funnel",
+      craftState: toPrismaJson({
+        craft: normalizeCraftState(craftState),
+        meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
+      }),
+      themeJson: toPrismaJson(themeJson),
+      isSystem: true,
+      advertiserId: null,
+    },
+  });
+
+  return {
+    id: created.id,
+    slug: created.slug,
+    name: created.name,
+    category: created.category,
+    craftState: parseStoredCraftState(created.craftState).craft,
+    themeJson: (created.themeJson as ThemeJson) ?? DEFAULT_THEME,
+    isSystem: created.isSystem,
+    createdAt: created.createdAt.toISOString(),
+  } satisfies OptinFunnelTemplate;
+}
+
+export async function getOptinFunnelTemplateByAdmin(id: string): Promise<OptinFunnelTemplate> {
+  const template = await prisma.pageTemplate.findFirst({
+    where: { id, category: "optin_funnel", isSystem: true },
+  });
+  if (!template) throw Errors.notFound("Funnel template");
+
+  return {
+    id: template.id,
+    slug: template.slug,
+    name: template.name,
+    category: template.category,
+    craftState: parseStoredCraftState(template.craftState).craft,
+    themeJson: (template.themeJson as ThemeJson) ?? DEFAULT_THEME,
+    isSystem: template.isSystem,
+    createdAt: template.createdAt.toISOString(),
+  };
+}
+
+export async function updateOptinFunnelTemplateByAdmin(
+  id: string,
+  input: {
+    name?: string;
+    craftState?: CraftSerializedState;
+    themeJson?: ThemeJson;
+    autosave?: boolean;
+  },
+) {
+  const existing = await prisma.pageTemplate.findFirst({
+    where: { id, category: "optin_funnel", isSystem: true },
+  });
+  if (!existing) throw Errors.notFound("Funnel template");
+
+  const craftEnvelope = input.craftState
+    ? toPrismaJson({
+        craft: normalizeCraftState(input.craftState),
+        meta: { schemaVersion: 1 as const, editorBreakPoint: "desktop" as const },
+      })
+    : undefined;
+
+  const updated = await prisma.pageTemplate.update({
+    where: { id },
+    data: {
+      ...(input.name ? { name: input.name.trim() } : {}),
+      ...(craftEnvelope ? { craftState: craftEnvelope } : {}),
+      ...(input.themeJson ? { themeJson: toPrismaJson(input.themeJson) } : {}),
+    },
+  });
+
+  return {
+    id: updated.id,
+    slug: updated.slug,
+    name: updated.name,
+    category: updated.category,
+    craftState: parseStoredCraftState(updated.craftState).craft,
+    themeJson: (updated.themeJson as ThemeJson) ?? DEFAULT_THEME,
+    isSystem: updated.isSystem,
+    createdAt: updated.createdAt.toISOString(),
+  } satisfies OptinFunnelTemplate;
+}
+
+export async function deleteOptinFunnelTemplateByAdmin(id: string) {
+  const template = await prisma.pageTemplate.findFirst({
+    where: { id, category: "optin_funnel", isSystem: true },
+  });
+  if (!template) throw Errors.notFound("Funnel template");
+
+  await prisma.pageTemplate.delete({ where: { id } });
+  return { deleted: true };
 }
 
 export async function getOptinFunnel(id: string, advertiserId: string) {
@@ -121,28 +267,26 @@ export async function createOptinFunnel(
   let craftState: CraftSerializedState = createEmptyCraftState();
   let themeJson: ThemeJson = DEFAULT_THEME;
   let thankYouCraft = buildThankYouCraftState();
-  let templateId: OptinTemplateId | undefined;
-  let templateMeta: ReturnType<typeof getOptinTemplate> | undefined;
+  let templateId: string | undefined;
+  let templateName: string | undefined;
 
-  if (input.templateId && isOptinTemplateId(input.templateId)) {
-    templateId = input.templateId;
-    templateMeta = getOptinTemplate(templateId);
-    craftState = buildCraftFromOptinTemplate(templateId);
-    themeJson = themeFromOptinTemplate(templateId);
-    thankYouCraft = buildThankYouCraftState();
-  } else if (input.pageTemplateId) {
-    const pageTemplate = await prisma.pageTemplate.findUnique({
-      where: { id: input.pageTemplateId },
+  const selectedTemplateId = input.pageTemplateId ?? input.templateId;
+  if (selectedTemplateId) {
+    const pageTemplate = await prisma.pageTemplate.findFirst({
+      where: { id: selectedTemplateId, category: "optin_funnel", isSystem: true },
     });
     if (pageTemplate) {
+      templateId = pageTemplate.id;
+      templateName = pageTemplate.name;
       craftState = parseStoredCraftState(pageTemplate.craftState).craft;
       themeJson = (pageTemplate.themeJson as ThemeJson) ?? DEFAULT_THEME;
+      thankYouCraft = buildThankYouCraftState();
     }
   }
 
   const title =
     input.name.trim() ||
-    templateMeta?.name ||
+    templateName ||
     user?.advertiserProfile?.company ||
     "New Optin Funnel";
 
@@ -154,16 +298,16 @@ export async function createOptinFunnel(
       title,
       editorType: "BUILDER",
       templateId: templateId,
-      headline: templateMeta?.headline ?? DEFAULT_OPTIN_PAGE.headline,
-      subheadline: templateMeta?.subheadline ?? DEFAULT_OPTIN_PAGE.subheadline,
+      headline: DEFAULT_OPTIN_PAGE.headline,
+      subheadline: DEFAULT_OPTIN_PAGE.subheadline,
       description: DEFAULT_OPTIN_PAGE.description,
       ctaText: DEFAULT_OPTIN_PAGE.ctaText,
       successTitle: DEFAULT_OPTIN_PAGE.successTitle,
       successMessage: DEFAULT_OPTIN_PAGE.successMessage,
-      badgeText: templateMeta?.badgeText ?? null,
+      badgeText: null,
       bulletPoints: DEFAULT_OPTIN_PAGE.bulletPoints,
-      primaryColor: templateMeta?.primaryColor ?? DEFAULT_OPTIN_PAGE.primaryColor,
-      accentColor: templateMeta?.accentColor ?? DEFAULT_OPTIN_PAGE.accentColor,
+      primaryColor: themeJson.primaryColor ?? DEFAULT_OPTIN_PAGE.primaryColor,
+      accentColor: themeJson.secondaryColor ?? DEFAULT_OPTIN_PAGE.accentColor,
       craftState: toPrismaJson({
         craft: normalizeCraftState(craftState),
         meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
@@ -255,6 +399,16 @@ export async function updateOptinFunnel(
   const existing = await prisma.advertiserOptinPage.findFirst({ where: { id, advertiserId } });
   if (!existing) throw Errors.notFound("Optin funnel");
 
+  if (input.campaignId !== undefined && input.campaignId !== null) {
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: input.campaignId, advertiserId },
+      select: { id: true },
+    });
+    if (!campaign) {
+      throw Errors.validation("Selected campaign is invalid for this advertiser.");
+    }
+  }
+
   let slug = existing.slug;
   if (input.slug) {
     slug = slugifyOptinAddress(input.slug);
@@ -333,7 +487,10 @@ export async function updateOptinFunnel(
     },
   });
 
-  if (!input.autosave) {
+  const isAutosave = Boolean(input.autosave);
+  const shouldSnapshot = !isAutosave || (await prisma.optinFunnelVersion.count({ where: { funnelId: id } })) === 0;
+
+  if (shouldSnapshot) {
     if (input.step === "thankYou" && input.thankYouCraftState) {
       await createFunnelVersionSnapshot(id, advertiserId, {
         craftState: parseStoredCraftState(page.craftState).craft,
@@ -341,7 +498,7 @@ export async function updateOptinFunnel(
         formJson,
         thankYouCraftState: input.thankYouCraftState,
         thankYouThemeJson: (input.thankYouThemeJson ?? page.thankYouThemeJson) as ThemeJson,
-        label: "Thank you save",
+        label: isAutosave ? "Initial autosave" : "Thank you save",
       });
     } else if (input.craftState) {
       await createFunnelVersionSnapshot(id, advertiserId, {
@@ -350,7 +507,7 @@ export async function updateOptinFunnel(
         formJson,
         thankYouCraftState: input.thankYouCraftState ?? null,
         thankYouThemeJson: (input.thankYouThemeJson ?? page.thankYouThemeJson) as ThemeJson,
-        label: "Manual save",
+        label: isAutosave ? "Initial autosave" : "Manual save",
       });
     }
   }
@@ -658,6 +815,12 @@ export async function linkOptinFunnelToCampaign(
     select: { id: true },
   });
   if (!page) throw Errors.notFound("Optin funnel");
+
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, advertiserId },
+    select: { id: true },
+  });
+  if (!campaign) throw Errors.validation("Selected campaign is invalid for this advertiser.");
 
   await prisma.advertiserOptinPage.update({
     where: { id: page.id },

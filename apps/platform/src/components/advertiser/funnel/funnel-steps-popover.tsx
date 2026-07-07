@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { FunnelStepId } from "@/components/advertiser/funnel/funnel-types";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 
 type StepOption = {
   id: FunnelStepId;
@@ -40,8 +41,9 @@ export function FunnelStepsPopover({
     (s) => s.enabled && s.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
-  function goToStep(stepId: FunnelStepId) {
+  async function goToStep(stepId: FunnelStepId) {
     setOpen(false);
+    await useBuilderStore.getState().flushSave?.();
     router.push(`/advertiser/optin-funnels/${funnelId}/edit?step=${stepId}`);
   }
 
@@ -75,7 +77,7 @@ export function FunnelStepsPopover({
             <button
               key={step.id}
               type="button"
-              onClick={() => goToStep(step.id)}
+              onClick={() => void goToStep(step.id)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
                 currentStepId === step.id ? "bg-blue-50 text-blue-900" : "text-slate-700 hover:bg-slate-50",
@@ -93,6 +95,7 @@ export function FunnelStepsPopover({
             className="w-full justify-start text-blue-600"
             onClick={() => {
               setOpen(false);
+              void useBuilderStore.getState().flushSave?.();
               router.push(`/advertiser/optin-funnels/${funnelId}`);
             }}
           >

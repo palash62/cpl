@@ -83,6 +83,7 @@ export function TypographyFields() {
   return (
     <div className="space-y-2.5 pt-2">
       {[
+        ["fontFamily", "Font family", "Inter, sans-serif"],
         ["fontSize", "Font size", "1rem"],
         ["fontWeight", "Weight", "400"],
         ["color", "Color", "#000000"],

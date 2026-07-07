@@ -1,35 +1,182 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { NodeProvider, useEditor } from "@craftjs/core";
+import { NodeProvider, useEditor, useNode } from "@craftjs/core";
 import { MousePointer2, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AnimationFields,
   GeneralFields,
-  LayoutFields,
-  StyleFields,
   TypographyFields,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
+import {
+  AlignControl,
+  BackgroundPanel,
+  BlurControl,
+  normalizeAlignValue,
+  SpacingControl,
+  WidthControl,
+} from "@/modules/page-builder/components/settings/ghl/controls";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { GHL_PROPERTIES_PANEL, GHL_TAB_LIST, GHL_TAB_TRIGGER } from "@/modules/page-builder/lib/builder-panel-styles";
+import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
 
 function GhlStylesPanel() {
+  const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
+  const setStyleBreakpoint = useBuilderStore((s) => s.setStyleBreakpoint);
+  const {
+    layout,
+    style,
+    typography,
+    responsive,
+    visible,
+    mobileVisible,
+    actions: { setProp },
+  } = useNode((node) => ({
+    layout: node.data.props.layout as BlockProps["layout"],
+    style: node.data.props.style as BlockProps["style"],
+    typography: node.data.props.typography as BlockProps["typography"],
+    responsive: node.data.props.responsive as BlockProps["responsive"],
+    visible: node.data.props.visible as boolean | undefined,
+    mobileVisible: (node.data.props.responsive as BlockProps["responsive"])?.mobile?.visible,
+  }));
+
+  const breakpointOverride = styleBreakpoint === "desktop" ? undefined : responsive?.[styleBreakpoint];
+  const layoutSafe = { ...(layout ?? {}), ...(breakpointOverride?.layout ?? {}) };
+  const styleSafe = { ...(style ?? {}), ...(breakpointOverride?.style ?? {}) };
+  const typographySafe = { ...(typography ?? {}), ...(breakpointOverride?.typography ?? {}) };
+
+  function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
+    setProp((props: BlockProps) => {
+      if (styleBreakpoint === "desktop") {
+        props.layout = { ...(props.layout ?? {}), [key]: value };
+        return;
+      }
+      props.responsive = {
+        ...(props.responsive ?? {}),
+        [styleBreakpoint]: {
+          ...(props.responsive?.[styleBreakpoint] ?? {}),
+          layout: { ...(props.responsive?.[styleBreakpoint]?.layout ?? {}), [key]: value },
+        },
+      };
+    });
+  }
+
+  function setStyleProp(key: string, value: string) {
+    setProp((props: BlockProps) => {
+      if (styleBreakpoint === "desktop") {
+        props.style = { ...(props.style ?? {}), [key]: value };
+        return;
+      }
+      props.responsive = {
+        ...(props.responsive ?? {}),
+        [styleBreakpoint]: {
+          ...(props.responsive?.[styleBreakpoint] ?? {}),
+          style: { ...(props.responsive?.[styleBreakpoint]?.style ?? {}), [key]: value },
+        },
+      };
+    });
+  }
+
+  function setDesktopVisible(next: boolean) {
+    setProp((props: BlockProps) => {
+      props.visible = next;
+    });
+  }
+
+  function setMobileVisible(next: boolean) {
+    setProp((props: BlockProps) => {
+      props.responsive = {
+        ...(props.responsive ?? {}),
+        mobile: { ...(props.responsive?.mobile ?? {}), visible: next },
+      };
+    });
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-4">
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        {(["desktop", "tablet", "mobile"] as Breakpoint[]).map((bp) => (
+          <button
+            key={bp}
+            type="button"
+            onClick={() => setStyleBreakpoint(bp)}
+            className={cn(
+              "flex-1 rounded-md py-1.5 text-xs font-medium capitalize",
+              styleBreakpoint === bp ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+            )}
+          >
+            {bp}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Spacing</p>
+        <div className="space-y-3">
+          <SpacingControl label="Margin" value={String(layoutSafe.margin ?? "")} onChange={(v) => setLayoutProp("margin", v)} />
+          <SpacingControl label="Padding" value={String(layoutSafe.padding ?? "")} onChange={(v) => setLayoutProp("padding", v)} />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Container Size</p>
+        <div className="space-y-3">
+          <WidthControl label="Width" value={String(layoutSafe.width ?? "100%")} onChange={(v) => setLayoutProp("width", v)} />
+          <WidthControl label="Height" value={String(layoutSafe.height ?? "auto")} onChange={(v) => setLayoutProp("height", v)} />
+          <AlignControl
+            label="Align"
+            value={normalizeAlignValue(
+              layoutSafe.textAlign ?? layoutSafe.justifyContent ?? typographySafe.textAlign ?? "left",
+            )}
+            onChange={(v) => setLayoutProp("textAlign", v)}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Visibility</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setDesktopVisible(visible === false)}
+            className={cn(
+              "h-10 rounded-md border text-xs font-medium transition",
+              visible !== false ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500",
+            )}
+          >
+            Desktop
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileVisible(mobileVisible === false)}
+            className={cn(
+              "h-10 rounded-md border text-xs font-medium transition",
+              mobileVisible !== false ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500",
+            )}
+          >
+            Mobile
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Background</p>
+        <BackgroundPanel style={styleSafe as Record<string, string | number | undefined>} onChange={setStyleProp} />
+        <div className="mt-3">
+          <BlurControl
+            value={String(styleSafe?.backdropFilter ?? "").replace("blur(", "").replace(")", "") || "0px"}
+            onChange={(v) => setStyleProp("backdropFilter", v === "0px" ? "" : `blur(${v})`)}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Typography</p>
         <TypographyFields />
-      </div>
-      <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Margin & padding</p>
-        <LayoutFields />
-      </div>
-      <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Border & background</p>
-        <StyleFields />
       </div>
     </div>
   );
@@ -92,16 +239,16 @@ function GhlPropertiesBody({ Settings, displayName }: { Settings: ComponentType 
 }
 
 export function RightPropertiesPanel() {
-  const chromeTheme = useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark");
-  const mode = useBuilderStore((s) => s.builderConfig.mode);
+  const builderConfig = useBuilderStore((s) => s.builderConfig);
+  const chromeTheme = builderConfig.chromeTheme ?? "dark";
   const chrome = getBuilderChrome(chromeTheme);
-  const isGhl = chromeTheme === "light" && mode === "funnel";
+  const isGhl = isGhlBuilderMode(builderConfig);
 
   const { selected, Settings, displayName } = useEditor((state, query) => {
     const currentNodeId = query.getEvent("selected").first();
     let settingsPanel: ComponentType | null = null;
     let name: string | null = null;
-    if (currentNodeId) {
+    if (currentNodeId && state.nodes[currentNodeId]) {
       const node = query.node(currentNodeId).get();
       settingsPanel = (node?.related?.settings as ComponentType) ?? null;
       name = String(node?.data.displayName ?? node?.data.type ?? "Element");

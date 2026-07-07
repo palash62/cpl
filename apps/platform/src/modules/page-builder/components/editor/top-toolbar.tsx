@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEditor } from "@craftjs/core";
 import {
   Undo2, Redo2, Save, Eye, Upload, History, ArrowLeft, Loader2, Check,
@@ -11,13 +11,15 @@ import { FunnelStepsPopover } from "@/components/advertiser/funnel/funnel-steps-
 import { buildFunnelSteps } from "@/components/advertiser/funnel/funnel-types";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
+import { isAdminTemplateBuilder, isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { savePageCraft } from "@/modules/page-builder/lib/save-page";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type TopToolbarProps = { pageId: string; pageName: string };
+type TopToolbarProps = { pageId: string; pageName: string; pageSlug: string };
 
-export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
+export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
+  const router = useRouter();
   const { actions, query, canUndo, canRedo } = useEditor((state, query) => ({
     canUndo: query.history.canUndo(),
     canRedo: query.history.canRedo(),
@@ -37,20 +39,23 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
 
   const stepLabel = funnelStep === "thankYou" ? "thank you" : "optin page";
   const isFunnel = builderConfig.mode === "funnel";
-  const isGhl = isFunnel && builderConfig.chromeTheme === "light";
+  const isAdminTemplate = isAdminTemplateBuilder(builderConfig);
+  const isGhl = isGhlBuilderMode(builderConfig);
 
   async function handleSave() {
     const json = query.serialize();
     const result = await savePageCraft(pageId, json, { autosave: false });
     if (!result.ok) {
       toast.error(result.errorMessage ?? "Failed to save page");
-      return;
+      return false;
     }
     toast.success("Page saved");
+    return true;
   }
 
   async function handlePublish() {
-    await handleSave();
+    const ok = await handleSave();
+    if (!ok) return;
     try {
       const res = await fetch(`${builderConfig.apiBasePath}/${pageId}/publish`, { method: "POST" });
       if (!res.ok) {
@@ -63,10 +68,30 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
     }
   }
 
+  async function handleBack() {
+    await useBuilderStore.getState().flushSave?.();
+    router.push(backHref);
+  }
+
+  async function handlePreview() {
+    if (isAdminTemplate) {
+      await useBuilderStore.getState().flushSave?.();
+      window.open(`/admin/funnel-templates/${pageId}/preview`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (isFunnel) {
+      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}?preview=1`;
+      window.open(previewPath, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setPreviewOpen(true);
+  }
+
   return (
-    <header className={cn("flex h-14 shrink-0 items-center gap-2 px-4", chrome.toolbar)}>
-      <Link
-        href={backHref}
+    <header className={cn("flex h-12 shrink-0 items-center gap-2 px-3", chrome.toolbar)}>
+      <button
+        type="button"
+        onClick={handleBack}
         className={cn(
           "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
           chrome.toolbarLink,
@@ -74,11 +99,11 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
       >
         <ArrowLeft className="h-4 w-4" />
         <span className="hidden sm:inline">Back</span>
-      </Link>
+      </button>
 
-      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
+      <div className={cn("mx-1.5 h-5 w-px", chrome.toolbarDivider)} />
 
-      {isFunnel ? (
+      {isFunnel && !isAdminTemplate ? (
         <FunnelStepsPopover
           funnelId={pageId}
           steps={buildFunnelSteps(builderConfig.thankYouEnabled ?? false)}
@@ -88,11 +113,13 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
       ) : (
         <div className="min-w-0">
           <p className={cn("truncate text-sm font-semibold", chrome.toolbarTitle)}>{pageName}</p>
-          <p className={cn("text-[10px]", chrome.toolbarSubtitle)}>{builderConfig.label}</p>
+          <p className={cn("text-[10px]", chrome.toolbarSubtitle)}>
+            {isAdminTemplate ? "Funnel template" : builderConfig.label}
+          </p>
         </div>
       )}
 
-      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
+      <div className={cn("mx-1.5 h-5 w-px", chrome.toolbarDivider)} />
 
       {!isGhl && (
         <>
@@ -138,33 +165,37 @@ export function TopToolbar({ pageId, pageName }: TopToolbarProps) {
             <span className="text-emerald-600">Saved</span>
           </>
         )}
-        {saveStatus === "idle" && (isFunnel ? "Autosave on" : "Auto-save on")}
+        {saveStatus === "idle" && (isFunnel || isAdminTemplate ? "Autosave on" : "Auto-save on")}
         {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
       </div>
 
-      <div className={cn("mx-2 h-6 w-px", chrome.toolbarDivider)} />
+      <div className={cn("mx-1.5 h-5 w-px", chrome.toolbarDivider)} />
 
-      <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(true)} className={chrome.toolbarGhost}>
+      <Button variant="ghost" size="sm" onClick={() => void handlePreview()} className={chrome.toolbarGhost}>
         <Eye className="mr-1.5 h-4 w-4" />
         Preview
       </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setVersionHistoryOpen(true)}
-        className={cn("hidden sm:flex", chrome.toolbarGhost, isGhl && "!hidden")}
-      >
-        <History className="mr-1.5 h-4 w-4" />
-        Versions
-      </Button>
+      {!isAdminTemplate && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setVersionHistoryOpen(true)}
+          className={cn("hidden sm:flex", chrome.toolbarGhost, isGhl && "!hidden")}
+        >
+          <History className="mr-1.5 h-4 w-4" />
+          Versions
+        </Button>
+      )}
       <Button variant="outline" size="sm" onClick={handleSave} className={chrome.toolbarOutline}>
         <Save className="mr-1.5 h-4 w-4" />
         Save
       </Button>
-      <Button size="sm" onClick={handlePublish} className={chrome.toolbarPublish}>
-        <Upload className="mr-1.5 h-4 w-4" />
-        Publish
-      </Button>
+      {!isAdminTemplate && (
+        <Button size="sm" onClick={handlePublish} className={chrome.toolbarPublish}>
+          <Upload className="mr-1.5 h-4 w-4" />
+          Publish
+        </Button>
+      )}
     </header>
   );
 }

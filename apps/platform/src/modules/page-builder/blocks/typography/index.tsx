@@ -1,7 +1,7 @@
 "use client";
 
 import type { ElementType } from "react";
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import {
   StandardSettings,
@@ -43,9 +43,19 @@ function HeadingSettings() {
 
 export function Heading({ text = "Heading", level = 2, ...props }: HeadingProps) {
   const Tag = `h${level}` as ElementType;
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const { actions: { setProp } } = useNode();
+
   return (
     <BlockWrapper {...props} as={Tag}>
-      {text}
+      <span
+        contentEditable={enabled}
+        suppressContentEditableWarning
+        onBlur={(e) => setProp((p: HeadingProps) => { p.text = e.currentTarget.textContent ?? ""; })}
+        className={enabled ? "outline-none" : undefined}
+      >
+        {text}
+      </span>
     </BlockWrapper>
   );
 }
@@ -82,9 +92,18 @@ function ParagraphSettings() {
 }
 
 export function Paragraph({ text = "Paragraph text", ...props }: ParagraphProps) {
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const { actions: { setProp } } = useNode();
   return (
     <BlockWrapper {...props} as="p">
-      {text}
+      <span
+        contentEditable={enabled}
+        suppressContentEditableWarning
+        onBlur={(e) => setProp((p: ParagraphProps) => { p.text = e.currentTarget.textContent ?? ""; })}
+        className={enabled ? "outline-none" : undefined}
+      >
+        {text}
+      </span>
     </BlockWrapper>
   );
 }
@@ -135,6 +154,10 @@ export function List({ items = ["Item one", "Item two"], ordered = false, ...pro
 
 List.craft = {
   displayName: "List",
-  props: { items: ["Benefit one", "Benefit two", "Benefit three"], ordered: false },
+  props: {
+    items: ["Benefit one", "Benefit two", "Benefit three"],
+    ordered: false,
+    typography: { color: "#334155", lineHeight: "1.5" },
+  },
   related: { settings: ListSettings },
 };

@@ -25,6 +25,46 @@ type LeadFormProps = BlockProps & {
   onSubmit?: (data: Record<string, string>) => Promise<void>;
 };
 
+function LeadFormSettings() {
+  const {
+    successTitle,
+    successMessage,
+    actions: { setProp },
+  } = useNode((node) => ({
+    successTitle: node.data.props.successTitle as string,
+    successMessage: node.data.props.successMessage as string,
+  }));
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <FieldLabel>Success title</FieldLabel>
+        <FieldInput
+          value={successTitle ?? ""}
+          onChange={(e) =>
+            setProp((p: LeadFormProps) => {
+              p.successTitle = e.target.value;
+            })
+          }
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel>Success message</FieldLabel>
+        <textarea
+          className={cn("w-full min-h-[90px] rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
+          value={successMessage ?? ""}
+          onChange={(e) =>
+            setProp((p: LeadFormProps) => {
+              p.successMessage = e.target.value;
+            })
+          }
+        />
+      </div>
+      <StandardSettings />
+    </div>
+  );
+}
+
 export function LeadForm({
   children,
   successTitle = "Thank you!",
@@ -116,7 +156,7 @@ LeadForm.craft = {
         ["FormInput", "FormTextarea", "FormCheckbox", "FormRadio", "FormSelect", "SubmitButton"].includes(n.name),
       ),
   },
-  related: { settings: StandardSettings },
+  related: { settings: LeadFormSettings },
 };
 
 type FormFieldProps = BlockProps & {
@@ -129,8 +169,31 @@ type FormFieldProps = BlockProps & {
 };
 
 function FormFieldSettings() {
-  const p = useNode((node) => node.data.props as FormFieldProps);
-  const { actions: { setProp } } = useNode();
+  const { p, displayName, actions: { setProp } } = useNode((node) => ({
+    p: node.data.props as FormFieldProps,
+    displayName: String(node.data.displayName ?? ""),
+  }));
+  const isInputLike = displayName === "Form Input" || displayName === "Textarea";
+  const supportsOptions = displayName === "Radio" || displayName === "Dropdown";
+  const supportsRequired = displayName !== "Checkbox";
+  const optionsText = (p.options ?? []).map((opt) => `${opt.label}:${opt.value}`).join("\n");
+
+  function updateOptions(raw: string) {
+    const options = raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [label, value] = line.includes(":")
+          ? line.split(":")
+          : [line, line.toLowerCase().replace(/\s+/g, "-")];
+        return { label: label.trim(), value: value.trim() };
+      });
+    setProp((x: FormFieldProps) => {
+      x.options = options;
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
@@ -141,22 +204,49 @@ function FormFieldSettings() {
         <FieldLabel>Label</FieldLabel>
         <FieldInput value={String(p.label ?? "")} onChange={(e) => setProp((x: FormFieldProps) => { x.label = e.target.value; })} />
       </div>
-      <div className="space-y-1.5">
-        <FieldLabel>Type</FieldLabel>
-        <select
-          className={cn("w-full rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
-          value={String(p.fieldType ?? "text")}
-          onChange={(e) => setProp((x: FormFieldProps) => { x.fieldType = e.target.value; })}
-        >
-          {["text", "email", "phone", "number", "date", "address", "city", "state", "country"].map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </div>
-      <label className={BUILDER_CHECKBOX_LABEL}>
-        <input type="checkbox" className="accent-indigo-500" checked={!!p.required} onChange={(e) => setProp((x: FormFieldProps) => { x.required = e.target.checked; })} />
-        Required
-      </label>
+      {isInputLike && (
+        <>
+          <div className="space-y-1.5">
+            <FieldLabel>Type</FieldLabel>
+            <select
+              className={cn("w-full rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
+              value={String(p.fieldType ?? "text")}
+              onChange={(e) => setProp((x: FormFieldProps) => { x.fieldType = e.target.value; })}
+            >
+              {["text", "email", "phone", "number", "date", "address", "city", "state", "country"].map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Placeholder</FieldLabel>
+            <FieldInput
+              value={String(p.placeholder ?? "")}
+              onChange={(e) =>
+                setProp((x: FormFieldProps) => {
+                  x.placeholder = e.target.value;
+                })
+              }
+            />
+          </div>
+        </>
+      )}
+      {supportsOptions && (
+        <div className="space-y-1.5">
+          <FieldLabel>Options (label:value per line)</FieldLabel>
+          <textarea
+            className={cn("w-full min-h-[100px] rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
+            value={optionsText}
+            onChange={(e) => updateOptions(e.target.value)}
+          />
+        </div>
+      )}
+      {supportsRequired && (
+        <label className={BUILDER_CHECKBOX_LABEL}>
+          <input type="checkbox" className="accent-indigo-500" checked={!!p.required} onChange={(e) => setProp((x: FormFieldProps) => { x.required = e.target.checked; })} />
+          Required
+        </label>
+      )}
       <StandardSettings />
     </div>
   );
@@ -277,6 +367,32 @@ FormSelect.craft = {
 
 type SubmitProps = BlockProps & { text?: string };
 
+function SubmitButtonSettings() {
+  const {
+    text,
+    actions: { setProp },
+  } = useNode((node) => ({
+    text: node.data.props.text as string,
+  }));
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <FieldLabel>Button text</FieldLabel>
+        <FieldInput
+          value={text ?? ""}
+          onChange={(e) =>
+            setProp((p: SubmitProps) => {
+              p.text = e.target.value;
+            })
+          }
+        />
+      </div>
+      <StandardSettings />
+    </div>
+  );
+}
+
 export function SubmitButton({ text = "Submit", ...props }: SubmitProps) {
   const theme = useBuilderStore((s) => s.theme);
   return (
@@ -291,5 +407,5 @@ export function SubmitButton({ text = "Submit", ...props }: SubmitProps) {
 SubmitButton.craft = {
   displayName: "Submit Button",
   props: { text: "Get Instant Access" },
-  related: { settings: StandardSettings },
+  related: { settings: SubmitButtonSettings },
 };

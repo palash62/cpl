@@ -8,7 +8,6 @@ import {
 } from "@/services/optin-funnel.service";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
-import type { OptinTemplateId } from "@/lib/optin-templates";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -40,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
       const data = await updateOptinFunnel(id, session.user.id, {
         ...parsed.data,
-        templateId: parsed.data.templateId as OptinTemplateId | undefined,
+        templateId: parsed.data.templateId as string | undefined,
         craftState: parsed.data.craftState as CraftSerializedState | undefined,
         themeJson: parsed.data.themeJson as ThemeJson | undefined,
         thankYouCraftState: parsed.data.thankYouCraftState as CraftSerializedState | undefined,

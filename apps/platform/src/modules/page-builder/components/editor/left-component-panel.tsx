@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { COMPONENT_LIBRARY, craftResolver, type CraftBlockName } from "@/modules/page-builder/blocks";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { DEFAULT_THEME, type ThemeJson } from "@/modules/page-builder/lib/theme";
 import { BLOCK_ICONS, CATEGORY_ICONS } from "@/modules/page-builder/lib/block-icons";
 import { GhlLeftPanel } from "@/modules/page-builder/components/editor/ghl-left-panel";
 import { cn } from "@/lib/utils";
 
-const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "LeadForm"]);
+const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
 
 function ThemeManager({ isLight }: { isLight: boolean }) {
   const theme = useBuilderStore((s) => s.theme);
@@ -164,10 +165,9 @@ function DraggableItem({
 }
 
 export function LeftComponentPanel() {
-  const chromeTheme = useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark");
-  const mode = useBuilderStore((s) => s.builderConfig.mode);
+  const builderConfig = useBuilderStore((s) => s.builderConfig);
 
-  if (chromeTheme === "light" && mode === "funnel") {
+  if (isGhlBuilderMode(builderConfig)) {
     return <GhlLeftPanel />;
   }
 

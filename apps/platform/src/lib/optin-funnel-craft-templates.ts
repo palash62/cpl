@@ -22,6 +22,7 @@ const TEMPLATE_TEXT_COLORS: Record<OptinTemplateId, { heading: string; paragraph
 };
 
 const DARK_TEMPLATES = new Set<OptinTemplateId>(["aurora", "bold", "neon"]);
+const DEMO_FONT_STACK = "Montserrat, Inter, Segoe UI, system-ui, sans-serif";
 
 export function themeFromOptinTemplate(templateId: OptinTemplateId): ThemeJson {
   const template = getOptinTemplate(templateId);
@@ -101,9 +102,12 @@ function applySplitDarkLayout(
       text: template.headline,
       typography: {
         ...(craft.heading_main.props.typography as object),
+        fontFamily: DEMO_FONT_STACK,
         color: textColors.heading,
         fontSize: "2.5rem",
         fontWeight: "800",
+        lineHeight: "1.15",
+        letterSpacing: "-0.02em",
       },
     },
   };
@@ -116,8 +120,10 @@ function applySplitDarkLayout(
       text: template.subheadline,
       typography: {
         ...(craft.paragraph_main.props.typography as object),
+        fontFamily: DEMO_FONT_STACK,
         color: textColors.paragraph,
         fontSize: "1.125rem",
+        lineHeight: "1.6",
       },
     },
   };
@@ -159,7 +165,9 @@ export function buildCraftFromOptinTemplate(templateId: OptinTemplateId): CraftS
       text: template.headline,
       typography: {
         ...(craft.heading_main.props.typography as object),
+        fontFamily: DEMO_FONT_STACK,
         color: textColors.heading,
+        lineHeight: "1.2",
       },
     },
   };
@@ -171,7 +179,9 @@ export function buildCraftFromOptinTemplate(templateId: OptinTemplateId): CraftS
       text: template.subheadline,
       typography: {
         ...(craft.paragraph_main.props.typography as object),
+        fontFamily: DEMO_FONT_STACK,
         color: textColors.paragraph,
+        lineHeight: "1.6",
       },
     },
   };

@@ -1,4 +1,5 @@
 import type { CraftSerializedState, PageDocument } from "@/modules/page-builder/types/page-document";
+import { buildBlankPageWithRow, normalizeRowColumnState } from "@/modules/page-builder/lib/row-column";
 
 function isNodeMap(value: unknown): value is CraftSerializedState {
   return !!value && typeof value === "object" && "ROOT" in (value as object);
@@ -29,7 +30,7 @@ export function parseStoredCraftState(raw: unknown): PageDocument {
   const doc = raw as Partial<PageDocument>;
   if (doc.craft && isNodeMap(doc.craft)) {
     return {
-      craft: normalizeCraftState(doc.craft),
+      craft: normalizeRowColumnState(normalizeCraftState(doc.craft)),
       meta: doc.meta ?? { schemaVersion: 1, editorBreakPoint: "desktop" },
     };
   }
@@ -41,6 +42,18 @@ export function parseStoredCraftState(raw: unknown): PageDocument {
     return wrapPageDocument(withNodes.nodes);
   }
   return wrapPageDocument(createEmptyCraftState());
+}
+
+export function ensureEditorCraftState(state: CraftSerializedState): CraftSerializedState {
+  const normalized = normalizeRowColumnState(normalizeCraftState(state));
+  if (normalized.container_main?.isCanvas || normalized.row_main) {
+    return normalized;
+  }
+  return createBlankCraftState();
+}
+
+export function createBlankCraftState(): CraftSerializedState {
+  return buildBlankPageWithRow();
 }
 
 export function createEmptyCraftState(): CraftSerializedState {
