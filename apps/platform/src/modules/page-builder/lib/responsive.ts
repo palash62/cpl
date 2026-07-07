@@ -48,6 +48,16 @@ function shouldApplyBlockAlignment(width?: string): boolean {
   return w !== "100%" && w !== "auto";
 }
 
+function toHorizontalBlockAlign(
+  align: CSSProperties["textAlign"] | undefined,
+): "left" | "center" | "right" | undefined {
+  if (!align) return undefined;
+  if (align === "center") return "center";
+  if (align === "right" || align === "end") return "right";
+  if (align === "left" || align === "start") return "left";
+  return undefined;
+}
+
 function applyHorizontalBlockAlignment(
   style: CSSProperties,
   align: "left" | "center" | "right",
@@ -112,6 +122,7 @@ export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
 
   const textAlign = resolveTextAlign(l, t);
   if (textAlign) style.textAlign = textAlign;
+  const blockAlign = toHorizontalBlockAlign(textAlign);
 
   if (l?.width) style.width = l.width;
   if (l?.height) style.height = l.height;
@@ -130,8 +141,8 @@ export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
   const normalizedPadding = l?.padding ? normalizeSpacing(l.padding) : undefined;
 
   if (normalizedMargin) {
-    if (shouldApplyBlockAlignment(l?.width) && textAlign) {
-      applyHorizontalBlockAlignment(style, textAlign, normalizedMargin);
+    if (shouldApplyBlockAlignment(l?.width) && blockAlign) {
+      applyHorizontalBlockAlignment(style, blockAlign, normalizedMargin);
     } else {
       style.margin = normalizedMargin;
     }

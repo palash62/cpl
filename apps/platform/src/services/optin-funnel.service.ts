@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
 import { slugifyOptinAddress, isValidOptinSlug } from "@/lib/optin-slug";
+import type { OptinTemplateId } from "@/lib/optin-templates";
 import {
   DEFAULT_OPTIN_PAGE,
   serializeOptinPage,
