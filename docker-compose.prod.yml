@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  platform:
+    build:
+      context: .
+      dockerfile: Dockerfile.platform
+    container_name: cpl-platform
+    restart: unless-stopped
+    env_file:
+      - ./apps/platform/.env
+    ports:
+      - "3000:3000"
+
+  tracking:
+    build:
+      context: .
+      dockerfile: Dockerfile.tracking
+    container_name: cpl-tracking
+    restart: unless-stopped
+    env_file:
+      - ./apps/tracking/.env
+    ports:
+      - "3001:3001"

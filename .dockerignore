@@ -1,0 +1,12 @@
+.git
+.github
+.cursor
+.next
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.DS_Store
+*.log
+deploy/.build-ready
