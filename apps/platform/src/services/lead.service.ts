@@ -371,7 +371,8 @@ export async function submitOptinLead(input: {
 
       if (
         optinPage?.isPublished &&
-        (!optinPage.campaignId || optinPage.campaignId === trackingLink.campaignId)
+        optinPage.campaignId &&
+        optinPage.campaignId === trackingLink.campaignId
       ) {
         return createAndProcessLead({
           campaignId: trackingLink.campaignId,
