@@ -11,7 +11,7 @@ ENV NODE_OPTIONS=--max-old-space-size=384
 
 COPY apps/tracking/.next/standalone ./
 COPY apps/tracking/.next/static ./apps/tracking/.next/static
-COPY apps/tracking/public ./apps/tracking/public
+# tracking has no public/ folder in this repo
 
 EXPOSE 3001
 

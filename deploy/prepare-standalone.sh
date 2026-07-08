@@ -24,6 +24,8 @@ prepare_app() {
   if [ -d "$app_dir/public" ]; then
     rm -rf "$standalone/apps/$app_name/public"
     cp -R "$app_dir/public" "$standalone/apps/$app_name/public"
+  else
+    mkdir -p "$standalone/apps/$app_name/public"
   fi
 
   echo "Prepared standalone: $app_name"
