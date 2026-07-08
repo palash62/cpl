@@ -43,7 +43,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         templateId: parsed.data.templateId as OptinTemplateId | undefined,
         craftState: parsed.data.craftState as CraftSerializedState | undefined,
         themeJson: parsed.data.themeJson as ThemeJson | undefined,
-        thankYouCraftState: parsed.data.thankYouCraftState as CraftSerializedState | undefined,
+        thankYouCraftState: parsed.data.thankYouCraftState as
+          | CraftSerializedState
+          | null
+          | undefined,
         thankYouThemeJson: parsed.data.thankYouThemeJson as ThemeJson | undefined,
       });
       return Response.json({ data });

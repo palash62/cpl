@@ -1,7 +1,11 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ThankYouFunnelPage } from "@/components/optin/thank-you-funnel-page";
-import { getPublicThankYouFunnel } from "@/services/optin-funnel.service";
+import { getSession } from "@/lib/session";
+import {
+  getAdvertiserThankYouFunnelPreview,
+  getPublicThankYouFunnel,
+} from "@/services/optin-funnel.service";
 
 async function getOrigin() {
   const headerStore = await headers();
@@ -16,17 +20,26 @@ export default async function OptinThankYouPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lead_id?: string }>;
+  searchParams: Promise<{ lead_id?: string; preview?: string }>;
 }) {
   const { slug } = await params;
-  const { lead_id: leadId } = await searchParams;
+  const { lead_id: leadId, preview } = await searchParams;
+  const origin = await getOrigin();
+
+  if (preview === "1") {
+    const session = await getSession();
+    if (!session || session.user.role !== "ADVERTISER") notFound();
+
+    const draft = await getAdvertiserThankYouFunnelPreview(slug, session.user.id);
+    if (!draft) notFound();
+
+    return <ThankYouFunnelPage page={draft} origin={origin} />;
+  }
 
   if (!leadId) notFound();
 
   const page = await getPublicThankYouFunnel(slug, leadId);
   if (!page) notFound();
-
-  const origin = await getOrigin();
 
   return <ThankYouFunnelPage page={page} origin={origin} />;
 }

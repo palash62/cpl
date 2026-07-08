@@ -80,7 +80,9 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
       return;
     }
     if (isFunnel) {
-      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}?preview=1`;
+      await useBuilderStore.getState().flushSave?.();
+      const thankYouSuffix = funnelStep === "thankYou" ? "/thank-you" : "";
+      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1`;
       window.open(previewPath, "_blank", "noopener,noreferrer");
       return;
     }

@@ -45,6 +45,16 @@ export type SerializedOptinFunnel = OptinPageContent & {
 function parseCraft(value: unknown): PageDocument | null {
   if (!value) return null;
   try {
+    // Invalid / empty JSON must not silently become the optin empty skeleton
+    // (createEmptyCraftState has a LeadForm) — that makes thank-you thumbnails look like optin.
+    if (typeof value === "object") {
+      const doc = value as Partial<PageDocument> & { ROOT?: unknown; nodes?: unknown };
+      const hasCraftMap =
+        !!(doc.craft && typeof doc.craft === "object" && "ROOT" in (doc.craft as object)) ||
+        "ROOT" in doc ||
+        !!(doc.nodes && typeof doc.nodes === "object" && "ROOT" in (doc.nodes as object));
+      if (!hasCraftMap) return null;
+    }
     return parseStoredCraftState(value);
   } catch {
     return null;
@@ -176,5 +186,6 @@ export type PublicThankYouFunnel = {
   thankYouPixelHtml: string | null;
   thankYouCraftState: PageDocument | null;
   thankYouThemeJson: ThemeJson;
-  leadId: string;
+  leadId: string | null;
+  previewMode?: boolean;
 };

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
+import { Prisma } from "@prisma/client";
 import { slugifyOptinAddress, isValidOptinSlug } from "@/lib/optin-slug";
 import type { OptinTemplateId } from "@/lib/optin-templates";
 import {
@@ -14,9 +15,6 @@ import {
   type PublicThankYouFunnel,
   type SerializedOptinFunnel,
 } from "@/lib/optin-funnel";
-import {
-  buildThankYouCraftState,
-} from "@/lib/optin-funnel-craft-templates";
 import {
   createEmptyCraftState,
   createBlankCraftState,
@@ -268,7 +266,6 @@ export async function createOptinFunnel(
 
   let craftState: CraftSerializedState = createEmptyCraftState();
   let themeJson: ThemeJson = DEFAULT_THEME;
-  let thankYouCraft = buildThankYouCraftState();
   let templateId: string | undefined;
   let templateName: string | undefined;
 
@@ -282,7 +279,6 @@ export async function createOptinFunnel(
       templateName = pageTemplate.name;
       craftState = parseStoredCraftState(pageTemplate.craftState).craft;
       themeJson = (pageTemplate.themeJson as ThemeJson) ?? DEFAULT_THEME;
-      thankYouCraft = buildThankYouCraftState();
     }
   }
 
@@ -315,10 +311,6 @@ export async function createOptinFunnel(
         meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
       }),
       themeJson: toPrismaJson(themeJson),
-      thankYouCraftState: toPrismaJson({
-        craft: normalizeCraftState(thankYouCraft),
-        meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
-      }),
       thankYouThemeJson: toPrismaJson(themeJson),
     },
   });
@@ -390,7 +382,7 @@ export async function updateOptinFunnel(
     craftState?: CraftSerializedState;
     themeJson?: ThemeJson;
     thankYouEnabled?: boolean;
-    thankYouCraftState?: CraftSerializedState;
+    thankYouCraftState?: CraftSerializedState | null;
     thankYouThemeJson?: ThemeJson;
     thankYouPixelHtml?: string | null;
     thankYouUseCampaignPixel?: boolean;
@@ -439,12 +431,14 @@ export async function updateOptinFunnel(
       })
     : undefined;
 
-  const thankYouCraftEnvelope = input.thankYouCraftState
-    ? toPrismaJson({
-        craft: normalizeCraftState(input.thankYouCraftState),
-        meta: { schemaVersion: 1 as const, editorBreakPoint: "desktop" as const },
-      })
-    : undefined;
+  const clearThankYouCraft = input.thankYouCraftState === null;
+  const thankYouCraftEnvelope =
+    input.thankYouCraftState && !clearThankYouCraft
+      ? toPrismaJson({
+          craft: normalizeCraftState(input.thankYouCraftState),
+          meta: { schemaVersion: 1 as const, editorBreakPoint: "desktop" as const },
+        })
+      : undefined;
 
   const publishFlags =
     input.isPublished !== undefined ? syncPublishFlags(input.isPublished) : {};
@@ -477,7 +471,11 @@ export async function updateOptinFunnel(
       ...(input.themeJson ? { themeJson: toPrismaJson(input.themeJson) } : {}),
       ...(formJson !== undefined ? { formJson: formJson ? toPrismaJson(formJson) : undefined } : {}),
       ...(input.thankYouEnabled !== undefined ? { thankYouEnabled: input.thankYouEnabled } : {}),
-      ...(thankYouCraftEnvelope ? { thankYouCraftState: thankYouCraftEnvelope } : {}),
+      ...(clearThankYouCraft
+        ? { thankYouCraftState: Prisma.DbNull }
+        : thankYouCraftEnvelope
+          ? { thankYouCraftState: thankYouCraftEnvelope }
+          : {}),
       ...(input.thankYouThemeJson ? { thankYouThemeJson: toPrismaJson(input.thankYouThemeJson) } : {}),
       ...(input.thankYouPixelHtml !== undefined
         ? { thankYouPixelHtml: input.thankYouPixelHtml ? sanitizeHtml(input.thankYouPixelHtml) : null }
@@ -763,6 +761,51 @@ export async function getAdvertiserOptinFunnelPreview(slug: string, advertiserId
   return buildPublicOptinFunnel(page, page.campaign, { previewMode: true });
 }
 
+function buildThankYouFunnelPayload(
+  page: {
+    id: string;
+    slug: string;
+    campaignId: string | null;
+    thankYouCraftState: unknown;
+    thankYouThemeJson: unknown;
+    thankYouPixelHtml: string | null;
+    thankYouUseCampaignPixel: boolean;
+    campaign: { pixelToken: string | null } | null;
+  },
+  options: { leadId: string | null; previewMode: boolean },
+): PublicThankYouFunnel {
+  return {
+    funnelId: page.id,
+    slug: page.slug,
+    campaignId: page.campaignId ?? "",
+    pixelToken: page.campaign?.pixelToken ?? null,
+    thankYouUseCampaignPixel: page.thankYouUseCampaignPixel,
+    thankYouPixelHtml: page.thankYouPixelHtml,
+    thankYouCraftState: page.thankYouCraftState
+      ? parseStoredCraftState(page.thankYouCraftState)
+      : null,
+    thankYouThemeJson: (page.thankYouThemeJson as ThemeJson) ?? DEFAULT_THEME,
+    leadId: options.leadId,
+    previewMode: options.previewMode,
+  };
+}
+
+export async function getAdvertiserThankYouFunnelPreview(
+  slug: string,
+  advertiserId: string,
+): Promise<PublicThankYouFunnel | null> {
+  const page = await prisma.advertiserOptinPage.findFirst({
+    where: { slug, advertiserId },
+    include: { campaign: true },
+  });
+  if (!page) return null;
+
+  return buildThankYouFunnelPayload(page, {
+    leadId: null,
+    previewMode: true,
+  });
+}
+
 export async function getPublicThankYouFunnel(
   slug: string,
   leadId: string,
@@ -811,6 +854,7 @@ export async function getPublicThankYouFunnel(
     thankYouCraftState: thankYouCraftState ? parseStoredCraftState(thankYouCraftState) : null,
     thankYouThemeJson: (thankYouThemeJson as ThemeJson) ?? DEFAULT_THEME,
     leadId: lead.id,
+    previewMode: false,
   };
 }
 

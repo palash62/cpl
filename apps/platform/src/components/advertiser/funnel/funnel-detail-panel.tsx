@@ -97,6 +97,13 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
               stepId={activeStepId}
               appUrl={appUrl}
               onSettingsClick={() => setSettingsOpen(true)}
+              onFunnelUpdated={(saved) => {
+                setFunnel(saved);
+                setThankYouEnabled(saved.thankYouEnabled);
+                setDestinationUrl(saved.destinationUrl ?? "");
+                setThankYouPixelHtml(saved.thankYouPixelHtml ?? "");
+              }}
+              onStepDeleted={() => setActiveStepId("optin")}
             />
           </div>
         </TabsContent>

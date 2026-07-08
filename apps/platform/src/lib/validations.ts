@@ -467,7 +467,7 @@ export const optinFunnelUpdateSchema = z.object({
   craftState: z.record(z.string(), z.unknown()).optional(),
   themeJson: z.record(z.string(), z.unknown()).optional(),
   thankYouEnabled: z.boolean().optional(),
-  thankYouCraftState: z.record(z.string(), z.unknown()).optional(),
+  thankYouCraftState: z.record(z.string(), z.unknown()).nullable().optional(),
   thankYouThemeJson: z.record(z.string(), z.unknown()).optional(),
   thankYouPixelHtml: z.string().trim().max(10000).nullable().optional(),
   thankYouUseCampaignPixel: z.boolean().optional(),

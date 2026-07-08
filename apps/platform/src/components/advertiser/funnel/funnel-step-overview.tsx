@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   ChevronDown,
   ExternalLink,
@@ -15,6 +16,7 @@ import { getOptinTemplate, isOptinTemplateId } from "@/lib/optin-templates";
 import { OptinPageLayout } from "@/components/optin/optin-page-layout";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
+import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -34,12 +36,47 @@ type FunnelStepOverviewProps = {
   stepId: FunnelStepId;
   appUrl: string;
   onSettingsClick: () => void;
+  onFunnelUpdated?: (funnel: SerializedOptinFunnel) => void;
+  onStepDeleted?: () => void;
 };
 
 function resolveThumbnail(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
   const craftState = stepId === "thankYou" ? funnel.thankYouCraftState : funnel.craftState;
   const themeJson = stepId === "thankYou" ? funnel.thankYouThemeJson : funnel.themeJson;
   return { craftState, themeJson: themeJson ?? DEFAULT_THEME };
+}
+
+function craftNodeName(node: unknown): string | null {
+  if (!node || typeof node !== "object") return null;
+  return (node as { type?: { resolvedName?: string } }).type?.resolvedName ?? null;
+}
+
+/** True when craft is only a blank shell (row/column canvas) or missing. */
+function isBlankOrStructuralCraft(craftState: SerializedOptinFunnel["thankYouCraftState"]): boolean {
+  const craft = craftState?.craft;
+  if (!craft || Object.keys(craft).length <= 1) return true;
+
+  const structural = new Set(["CanvasRoot", "Section", "Container", "Row", "Column"]);
+  return !Object.values(craft).some((node) => {
+    const name = craftNodeName(node);
+    return !!name && !structural.has(name);
+  });
+}
+
+/**
+ * Old thank-you rows were seeded from the optin empty state (heading + form).
+ * Those must not count as a thank-you design in the overview thumbnail.
+ */
+function looksLikeOptinSkeleton(craftState: SerializedOptinFunnel["thankYouCraftState"]): boolean {
+  const craft = craftState?.craft;
+  if (!craft) return false;
+  return Object.values(craft).some((node) => craftNodeName(node) === "LeadForm");
+}
+
+function hasThankYouDesign(funnel: SerializedOptinFunnel): boolean {
+  if (isBlankOrStructuralCraft(funnel.thankYouCraftState)) return false;
+  if (looksLikeOptinSkeleton(funnel.thankYouCraftState)) return false;
+  return true;
 }
 
 function templatePreview(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
@@ -72,8 +109,17 @@ function templatePreview(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
   };
 }
 
-export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: FunnelStepOverviewProps) {
+export function FunnelStepOverview({
+  funnel,
+  stepId,
+  appUrl,
+  onSettingsClick,
+  onFunnelUpdated,
+  onStepDeleted,
+}: FunnelStepOverviewProps) {
   const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const stepName = stepId === "thankYou" ? "thank you" : "optin page";
   const publicPath = stepId === "thankYou" ? `/o/${funnel.slug}/thank-you` : `/o/${funnel.slug}`;
   const previewPath = `${publicPath}?preview=1`;
@@ -81,11 +127,72 @@ export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: 
   const editHref = `/advertiser/optin-funnels/${funnel.id}/edit?step=${stepId}`;
   const { craftState, themeJson } = resolveThumbnail(funnel, stepId);
   const templatePage = templatePreview(funnel, stepId);
-  const showCraft = usesBuilderRenderer({
-    editorType: funnel.editorType,
-    craftState: stepId === "thankYou" ? funnel.thankYouCraftState : funnel.craftState,
-  });
+
+  const showCraft =
+    stepId === "thankYou"
+      ? hasThankYouDesign(funnel)
+      : usesBuilderRenderer({
+          editorType: funnel.editorType,
+          craftState: funnel.craftState,
+        });
   const showTemplate = !showCraft && !!templatePage;
+  const isBlankThankYou = stepId === "thankYou" && !hasThankYouDesign(funnel);
+
+  async function patchFunnel(body: Record<string, unknown>) {
+    const res = await fetch(`/api/v1/advertiser/optin-funnels/${funnel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error?.message ?? "Unable to update funnel");
+    }
+    return data.data as SerializedOptinFunnel;
+  }
+
+  async function handleCreateFromBlank() {
+    if (stepId !== "thankYou") {
+      router.push(editHref);
+      return;
+    }
+    setResetting(true);
+    try {
+      const blank = createBlankCraftState();
+      const saved = await patchFunnel({
+        thankYouEnabled: true,
+        thankYouCraftState: blank,
+        step: "thankYou",
+      });
+      onFunnelUpdated?.(saved);
+      toast.success("Thank you page reset to blank");
+      router.push(editHref);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unable to reset thank you page");
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  async function handleDeleteStep() {
+    if (stepId !== "thankYou") return;
+    if (!window.confirm("Delete the thank you step? This removes its page design.")) return;
+
+    setDeleting(true);
+    try {
+      const saved = await patchFunnel({
+        thankYouEnabled: false,
+        thankYouCraftState: null,
+      });
+      onFunnelUpdated?.(saved);
+      onStepDeleted?.();
+      toast.success("Thank you step deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unable to delete step");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -125,8 +232,14 @@ export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="bg-slate-50 p-4">
               <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
-                {showCraft ? (
-                  <OptinFunnelCraftThumbnail craftState={craftState} themeJson={themeJson} scale={0.28} />
+                {showCraft && !isBlankThankYou ? (
+                  <OptinFunnelCraftThumbnail
+                    key={`${stepId}-${funnel.updatedAt}`}
+                    craftState={craftState}
+                    themeJson={themeJson}
+                    scale={0.28}
+                    emptyFallback="blank"
+                  />
                 ) : showTemplate && templatePage ? (
                   <div className="pointer-events-none absolute left-1/2 top-0 h-[720px] w-[960px] origin-top -translate-x-1/2 scale-[0.28]">
                     <OptinPageLayout
@@ -161,7 +274,10 @@ export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: 
                   <DropdownMenuItem onClick={() => router.push(editHref)}>
                     Use existing
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push(editHref)}>
+                  <DropdownMenuItem
+                    disabled={resetting}
+                    onClick={() => void handleCreateFromBlank()}
+                  >
                     Create from blank
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -189,11 +305,11 @@ export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: 
           variant="outline"
           size="sm"
           className="text-red-600 hover:bg-red-50 hover:text-red-700"
-          disabled={stepId === "optin"}
-          onClick={() => toast.info("Step deletion coming in the next phase")}
+          disabled={stepId === "optin" || deleting}
+          onClick={() => void handleDeleteStep()}
         >
           <Trash2 className="mr-1.5 h-4 w-4" />
-          Delete funnel step
+          {deleting ? "Deleting..." : "Delete funnel step"}
         </Button>
       </div>
     </div>

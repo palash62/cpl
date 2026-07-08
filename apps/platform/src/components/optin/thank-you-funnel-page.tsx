@@ -13,6 +13,8 @@ export function ThankYouFunnelPage({
   origin: string;
 }) {
   useEffect(() => {
+    if (page.previewMode || !page.leadId) return;
+
     async function track() {
       await fetch("/api/v1/funnel-events", {
         method: "POST",
@@ -26,7 +28,7 @@ export function ThankYouFunnelPage({
         }),
       });
 
-      if (page.thankYouUseCampaignPixel && page.pixelToken) {
+      if (page.thankYouUseCampaignPixel && page.pixelToken && page.leadId) {
         const pixelUrl = buildPixelUrl(page.pixelToken);
         const img = new Image();
         img.src = `${pixelUrl.split("?")[0]}?lead_id=${encodeURIComponent(page.leadId)}&txn_id=${encodeURIComponent(page.leadId)}`;

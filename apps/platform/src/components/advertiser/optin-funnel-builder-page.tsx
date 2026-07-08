@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LandingPageBuilder } from "@/modules/page-builder";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
-import { createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
+import { createBlankCraftState, createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import { buildCraftFromOptinTemplate } from "@/lib/optin-funnel-craft-templates";
@@ -70,7 +70,7 @@ function resolveThankYouCraft(funnel: SerializedOptinFunnel): CraftSerializedSta
   if (funnel.thankYouCraftState?.craft && Object.keys(funnel.thankYouCraftState.craft).length > 1) {
     return funnel.thankYouCraftState.craft;
   }
-  return createEmptyCraftState();
+  return createBlankCraftState();
 }
 
 function parseStepParam(value: string | null): FunnelStepId {

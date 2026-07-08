@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageRenderer } from "@/modules/page-builder/components/renderer/page-renderer";
-import { createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
+import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import { DEFAULT_THEME, type ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { PageDocument } from "@/modules/page-builder/types/page-document";
 
@@ -10,13 +10,18 @@ export function OptinFunnelCraftThumbnail({
   craftState,
   themeJson,
   scale = 0.28,
+  emptyFallback = "blank",
 }: {
   craftState: PageDocument | null;
   themeJson?: ThemeJson;
   scale?: number;
+  /** Prefer blank canvas when craft is missing — never the optin skeleton with a lead form. */
+  emptyFallback?: "blank" | "none";
 }) {
   const [mounted, setMounted] = useState(false);
-  const craft = craftState?.craft ?? createEmptyCraftState();
+  const craft =
+    craftState?.craft ??
+    (emptyFallback === "blank" ? createBlankCraftState() : null);
   const theme = themeJson ?? DEFAULT_THEME;
 
   useEffect(() => {
@@ -26,6 +31,14 @@ export function OptinFunnelCraftThumbnail({
   if (!mounted) {
     return (
       <div className="absolute inset-0 animate-pulse bg-slate-200/80" aria-hidden />
+    );
+  }
+
+  if (!craft) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-sm text-slate-500">
+        No preview
+      </div>
     );
   }
 
