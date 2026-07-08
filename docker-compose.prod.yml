@@ -1,24 +1,48 @@
-version: "3.9"
+# Runtime-only for low-RAM servers (~2GB).
+# NEVER build on the VPS — images are packaged on a machine with enough RAM.
+#
+# On your laptop / CI:
+#   bash deploy/docker-build-images.sh
+#   scp deploy/cpl-docker-images.tar user@server:/path/to/cpl/deploy/
+#
+# On the 2GB server:
+#   bash deploy/docker-run.sh
+#
+# Budget (~2GB host, MySQL native outside Docker):
+#   platform  ~900MB | tracking ~500MB | OS+MySQL ~600MB+
+#
+# network_mode: host so DATABASE_URL host=localhost reaches MySQL on the VPS
+# (Linux only — the production target).
 
 services:
   platform:
-    build:
-      context: .
-      dockerfile: Dockerfile.platform
+    image: cpl-platform:latest
     container_name: cpl-platform
     restart: unless-stopped
+    network_mode: host
     env_file:
       - ./apps/platform/.env
-    ports:
-      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NODE_OPTIONS: "--max-old-space-size=768"
+    mem_limit: 900m
+    memswap_limit: 900m
+    cpus: 1.0
 
   tracking:
-    build:
-      context: .
-      dockerfile: Dockerfile.tracking
+    image: cpl-tracking:latest
     container_name: cpl-tracking
     restart: unless-stopped
+    network_mode: host
     env_file:
       - ./apps/tracking/.env
-    ports:
-      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      HOSTNAME: "0.0.0.0"
+      NODE_OPTIONS: "--max-old-space-size=384"
+    mem_limit: 500m
+    memswap_limit: 500m
+    cpus: 0.5

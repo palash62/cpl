@@ -1,27 +1,17 @@
-FROM node:22-bookworm-slim AS builder
-
-WORKDIR /app
-
-COPY . .
-
-# Install all workspace deps and generate Prisma client before build
-RUN npm ci
-RUN npm run generate --workspace @cpl/database
-
-# Build only the tracking app for production
-RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build --workspace @cpl/tracking
-
-FROM node:22-bookworm-slim AS runner
+# Package-only image — Next.js must already be built on a machine with enough RAM.
+# On a 2GB VPS: load this image and run; do NOT docker build here for compile.
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
+ENV NODE_OPTIONS=--max-old-space-size=384
 
-# Next standalone output
-COPY --from=builder /app/apps/tracking/.next/standalone ./
-COPY --from=builder /app/apps/tracking/.next/static ./apps/tracking/.next/static
-COPY --from=builder /app/apps/tracking/public ./apps/tracking/public
+COPY apps/tracking/.next/standalone ./
+COPY apps/tracking/.next/static ./apps/tracking/.next/static
+COPY apps/tracking/public ./apps/tracking/public
 
 EXPOSE 3001
 

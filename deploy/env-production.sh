@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 PLATFORM_URL="${PLATFORM_URL:-http://leadvix.io}"
 TRACKING_URL="${TRACKING_URL:-http://leadgenlink.site}"
+# With docker-compose.prod.yml network_mode: host, localhost is the VPS (MySQL on host).
 DATABASE_URL="${DATABASE_URL:-mysql://cpl:cpl_dev_pass@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-change-me-to-a-random-64-char-secret}"
 AUTH_SECRET="${AUTH_SECRET:-change-me-auth-secret-min-32-characters}"
