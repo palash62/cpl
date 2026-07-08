@@ -346,9 +346,49 @@ export async function submitOptinLead(input: {
   userAgent?: string;
   deviceFingerprint?: string;
   submissionMeta?: SubmissionMeta;
+  trackingSlug?: string;
+  source?: string;
+  subId?: string;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
+  }
+
+  const trackingSlug = input.trackingSlug?.trim();
+  if (trackingSlug) {
+    const trackingLink = await prisma.trackingLink.findUnique({
+      where: { slug: trackingSlug },
+      include: {
+        campaign: { include: { fields: true } },
+      },
+    });
+
+    if (trackingLink && trackingLink.campaign.status === "ACTIVE") {
+      const optinPage = await prisma.advertiserOptinPage.findUnique({
+        where: { slug: input.optinSlug },
+        select: { campaignId: true, isPublished: true },
+      });
+
+      if (
+        optinPage?.isPublished &&
+        (!optinPage.campaignId || optinPage.campaignId === trackingLink.campaignId)
+      ) {
+        return createAndProcessLead({
+          campaignId: trackingLink.campaignId,
+          publisherId: trackingLink.publisherId,
+          trackingLinkId: trackingLink.id,
+          campaign: trackingLink.campaign,
+          data: input.data,
+          honeypot: input.honeypot,
+          ip: input.ip,
+          userAgent: input.userAgent,
+          source: input.source ?? "optin",
+          subId: input.subId,
+          deviceFingerprint: input.deviceFingerprint,
+          submissionMeta: input.submissionMeta,
+        });
+      }
+    }
   }
 
   const optinPage = await prisma.advertiserOptinPage.findUnique({
@@ -376,7 +416,8 @@ export async function submitOptinLead(input: {
     honeypot: input.honeypot,
     ip: input.ip,
     userAgent: input.userAgent,
-    source: "optin",
+    source: input.source ?? "optin",
+    subId: input.subId,
     deviceFingerprint: input.deviceFingerprint,
     submissionMeta: input.submissionMeta,
   });

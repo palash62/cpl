@@ -1,4 +1,5 @@
 import { prisma } from "@cpl/database";
+import { resolveCampaignLandingUrl } from "@cpl/shared";
 import { parsePlatformSettings, calculatePublisherPayout } from "@/lib/platform-settings";
 import {
   campaignExcludesBlockedPublishers,
@@ -127,7 +128,8 @@ export async function pickNextCampaign(
   if (!smartLink) {
     return {
       smartLink: null as PublisherSmartLink | null,
-      trackingSlug: null,
+      trackingSlug: null as string | null,
+      campaignLandingUrl: null as string | null,
       globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
     };
   }
@@ -138,7 +140,8 @@ export async function pickNextCampaign(
   if (countryEligible.length === 0) {
     return {
       smartLink,
-      trackingSlug: null,
+      trackingSlug: null as string | null,
+      campaignLandingUrl: null as string | null,
       globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
     };
   }
@@ -153,7 +156,8 @@ export async function pickNextCampaign(
   if (!campaign) {
     return {
       smartLink,
-      trackingSlug: null,
+      trackingSlug: null as string | null,
+      campaignLandingUrl: null as string | null,
       globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
     };
   }
@@ -185,6 +189,9 @@ export async function pickNextCampaign(
   return {
     smartLink: updatedSmartLink,
     trackingSlug: trackingLink.slug,
+    campaignLandingUrl: resolveCampaignLandingUrl(campaign.targeting, {
+      trackingSlug: trackingLink.slug,
+    }),
     globalLinkUrl: null,
   };
 }

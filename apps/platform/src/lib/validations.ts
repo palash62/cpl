@@ -80,6 +80,16 @@ export const optinSubmitSchema = z.object({
   honeypot: z.string().optional(),
   deviceFingerprint: z.string().max(128).optional(),
   submissionMeta: submissionMetaSchema,
+  /** Publisher tracking link from smart-link redirect (?tracking_slug=). */
+  trackingSlug: z.string().min(1).max(120).optional(),
+  source: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,32}$/)
+    .optional(),
+  subId: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,32}$/)
+    .optional(),
 });
 
 export const optinPageUpdateSchema = z.object({

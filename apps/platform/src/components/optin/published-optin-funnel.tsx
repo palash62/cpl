@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { PageRenderer } from "@/modules/page-builder/components/renderer/page-renderer";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
@@ -10,7 +10,7 @@ import {
   collectSubmissionSignals,
   createSignalCollector,
 } from "@/modules/fraud/client/collect-signals";
-import { useEffect, useRef } from "react";
+import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
 
 type PublishedOptinFunnelProps = {
   slug: string;
@@ -42,6 +42,7 @@ export function PublishedOptinFunnel({
       if (previewMode) return;
 
       const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
+      const { trackingSlug, source, subId } = readOptinTrackingParams();
 
       const res = await fetch("/api/v1/leads/submit-optin", {
         method: "POST",
@@ -52,6 +53,9 @@ export function PublishedOptinFunnel({
           honeypot: data.honeypot ?? "",
           submissionMeta,
           deviceFingerprint,
+          trackingSlug,
+          source,
+          subId,
         }),
       });
 

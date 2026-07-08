@@ -8,6 +8,7 @@ import {
   collectSubmissionSignals,
   createSignalCollector,
 } from "@/modules/fraud/client/collect-signals";
+import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
 
 export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
   const [data, setData] = useState<Record<string, string>>({});
@@ -36,11 +37,21 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
     setError("");
 
     const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
+    const { trackingSlug, source, subId } = readOptinTrackingParams();
 
     const res = await fetch("/api/v1/leads/submit-optin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ optinSlug: page.slug, data, honeypot, submissionMeta, deviceFingerprint }),
+      body: JSON.stringify({
+        optinSlug: page.slug,
+        data,
+        honeypot,
+        submissionMeta,
+        deviceFingerprint,
+        trackingSlug,
+        source,
+        subId,
+      }),
     });
 
     const result = await res.json();

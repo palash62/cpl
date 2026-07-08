@@ -29,8 +29,9 @@ export function campaignAcceptsCountry(targeting: unknown, countryCode?: string)
   const country = countryCode?.trim().toUpperCase();
 
   if (!country) {
-    if (trafficMode === "block") return true;
-    return countries.length === 0;
+    // Unknown geo (missing IP lookup / private IP): do not drop country-targeted
+    // campaigns, or smart links fall through to the global fallback URL.
+    return true;
   }
 
   if (trafficMode === "block") {

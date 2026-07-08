@@ -28,6 +28,9 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent") ?? undefined,
       deviceFingerprint: parsed.data.deviceFingerprint,
       submissionMeta: parsed.data.submissionMeta,
+      trackingSlug: parsed.data.trackingSlug,
+      source: parsed.data.source,
+      subId: parsed.data.subId,
     });
 
     const optinPage = await prisma.advertiserOptinPage.findUnique({

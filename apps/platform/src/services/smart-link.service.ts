@@ -11,6 +11,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { notifyGeneric, notifyUserById } from "@/services/notify.service";
 import { createTrackingLink } from "@/services/campaign.service";
+import { resolveCampaignLandingUrl } from "@cpl/shared";
 import type { Campaign, PublisherSmartLink, User } from "@prisma/client";
 
 export type EligibleCampaign = Campaign & {
@@ -152,6 +153,7 @@ export async function pickNextCampaign(
       eligible,
       campaign: null,
       trackingSlug: null,
+      campaignLandingUrl: null,
       globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
       visitorCountry: options.countryCode ?? null,
     };
@@ -170,6 +172,7 @@ export async function pickNextCampaign(
       eligible: countryEligible,
       campaign: null,
       trackingSlug: null,
+      campaignLandingUrl: null,
       globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
       visitorCountry: options.countryCode ?? null,
     };
@@ -204,6 +207,9 @@ export async function pickNextCampaign(
     eligible: countryEligible,
     campaign,
     trackingSlug: trackingLink.slug,
+    campaignLandingUrl: resolveCampaignLandingUrl(campaign.targeting, {
+      trackingSlug: trackingLink.slug,
+    }),
     globalLinkUrl: null,
     visitorCountry: options.countryCode ?? null,
   };
