@@ -46,6 +46,8 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# Docker image archive (built locally, scp to server)
+# Docker image archive (built locally, optional offline fallback)
 deploy/cpl-docker-images.tar
 deploy/cpl-docker-images.tar.gz
+# Server/local registry overrides (contains no secrets by default, still local-only)
+deploy/docker-registry.env

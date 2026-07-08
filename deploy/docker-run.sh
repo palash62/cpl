@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# Server-side only: load prebuilt images and start containers.
+# Server-side only: pull prebuilt images from GHCR and start containers.
 # Does NOT build Next.js or Docker images (safe for ~2GB RAM).
+#
+# Fallback offline: IMAGE_SOURCE=tar bash deploy/docker-run.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=deploy/docker-registry.sh
+source "$ROOT/deploy/docker-registry.sh"
+
+IMAGE_SOURCE="${IMAGE_SOURCE:-registry}"
 IMAGE_TAR="${IMAGE_TAR:-$ROOT/deploy/cpl-docker-images.tar}"
+COMPOSE=(docker compose -f docker-compose.prod.yml)
 
 if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   echo "Missing .env files for production."
@@ -15,41 +22,38 @@ if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   exit 1
 fi
 
-# Prefer loading a transferred archive; skip if images already exist locally.
-need_load=0
-if ! docker image inspect cpl-platform:latest >/dev/null 2>&1; then
-  need_load=1
-fi
-if ! docker image inspect cpl-tracking:latest >/dev/null 2>&1; then
-  need_load=1
-fi
-
-if [ "$need_load" -eq 1 ]; then
+if [ "$IMAGE_SOURCE" = "tar" ]; then
   if [ ! -f "$IMAGE_TAR" ]; then
-    echo "Docker images not found on this server."
-    echo "Build on a machine with enough RAM, then copy the archive here:"
-    echo "  bash deploy/docker-build-images.sh"
-    echo "  scp deploy/cpl-docker-images.tar user@server:$ROOT/deploy/"
+    echo "IMAGE_SOURCE=tar but missing $IMAGE_TAR"
     exit 1
   fi
-  echo "==> Loading images from $IMAGE_TAR (no build)..."
+  echo "==> Loading images from $IMAGE_TAR (offline)..."
   docker load -i "$IMAGE_TAR"
 else
-  echo "==> Images already present (cpl-platform, cpl-tracking)"
-  if [ -f "$IMAGE_TAR" ]; then
-    echo "==> Reloading $IMAGE_TAR to pick up latest transfer..."
-    docker load -i "$IMAGE_TAR"
+  echo "==> Pulling from registry (no build)..."
+  echo "  $CPL_PLATFORM_IMAGE"
+  echo "  $CPL_TRACKING_IMAGE"
+  if ! "${COMPOSE[@]}" pull; then
+    echo ""
+    echo "Pull failed. If packages are private, login once on this server:"
+    echo "  echo YOUR_GITHUB_PAT | docker login ghcr.io -u ${GHCR_OWNER} --password-stdin"
+    echo "PAT needs read:packages. Or make packages public in GitHub Packages settings."
+    echo ""
+    echo "Offline fallback after scp of the tar:"
+    echo "  IMAGE_SOURCE=tar bash deploy/docker-run.sh"
+    exit 1
   fi
 fi
 
 echo "==> Starting containers (runtime only, no --build)..."
-docker compose -f docker-compose.prod.yml up -d --no-build --pull never
+"${COMPOSE[@]}" up -d --no-build --pull never
 
 echo "==> Running containers:"
-docker compose -f docker-compose.prod.yml ps
+"${COMPOSE[@]}" ps
 
 echo ""
 echo "Platform:  http://localhost:3000"
 echo "Tracking:  http://localhost:3001"
 echo ""
+echo "Images: $CPL_PLATFORM_IMAGE | $CPL_TRACKING_IMAGE"
 echo "Memory caps: platform 900m | tracking 500m"

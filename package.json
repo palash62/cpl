@@ -25,6 +25,7 @@
     "test:emails": "npm run test:emails --workspace @cpl/platform",
     "build:production": "npm run build:tracking && npm run build:platform",
     "docker:package": "bash deploy/docker-build-images.sh",
+    "docker:push": "bash deploy/docker-push.sh",
     "docker:run": "bash deploy/docker-run.sh",
     "env:local": "bash scripts/env-local.sh",
     "postinstall": "npm run generate --workspace @cpl/database"

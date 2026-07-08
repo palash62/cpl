@@ -1,11 +1,14 @@
 # Runtime-only for low-RAM servers (~2GB).
-# NEVER build on the VPS — images are packaged on a machine with enough RAM.
+# NEVER compile Next.js on the VPS — pull prebuilt images from GHCR.
 #
-# On your laptop / CI:
+# Laptop / CI (enough RAM):
 #   bash deploy/docker-build-images.sh
-#   scp deploy/cpl-docker-images.tar user@server:/path/to/cpl/deploy/
+#   bash deploy/docker-push.sh
+#   # or: push to master → GitHub Action builds & pushes
 #
-# On the 2GB server:
+# 2GB server (once):
+#   cp deploy/docker-registry.env.example deploy/docker-registry.env
+#   # edit GHCR_OWNER if needed; docker login ghcr.io (PAT with read:packages)
 #   bash deploy/docker-run.sh
 #
 # Budget (~2GB host, MySQL native outside Docker):
@@ -16,7 +19,7 @@
 
 services:
   platform:
-    image: cpl-platform:latest
+    image: ${CPL_PLATFORM_IMAGE:-ghcr.io/palash62/cpl-platform:latest}
     container_name: cpl-platform
     restart: unless-stopped
     network_mode: host
@@ -32,7 +35,7 @@ services:
     cpus: 1.0
 
   tracking:
-    image: cpl-tracking:latest
+    image: ${CPL_TRACKING_IMAGE:-ghcr.io/palash62/cpl-tracking:latest}
     container_name: cpl-tracking
     restart: unless-stopped
     network_mode: host
