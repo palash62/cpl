@@ -17,7 +17,7 @@ type Connection = {
   trigger: AutoresponderTrigger;
   campaignId: string | null;
   isEnabled: boolean;
-  config?: Record<string, unknown>;
+  config: Record<string, unknown>;
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
