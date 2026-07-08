@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { getTrackingUrl } from "@cpl/shared";
 import { getSession } from "@/lib/session";
 import { getPublisherSmartLinkDashboard } from "@/services/smart-link.service";
 import { RoleHero } from "@/components/layout/role-hero";
@@ -33,6 +34,7 @@ export default async function PublisherSmartLinkPage() {
 
       <PublisherSmartLinkPanel
         slug={smartLink.slug}
+        trackingBaseUrl={getTrackingUrl()}
         eligible={eligibleCampaigns}
         sourceBreakdown={sourceBreakdown}
         globalLinkUrl={globalLinkUrl}

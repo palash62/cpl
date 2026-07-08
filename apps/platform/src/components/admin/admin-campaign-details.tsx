@@ -47,8 +47,6 @@ export type AdminCampaignDetailsProps = {
     dailyCap: number | null;
     monthlyCap: number | null;
     status: CampaignStatus;
-    publisherAccess: string;
-    autoApprove: boolean;
     targeting: unknown;
     pixelToken: string | null;
     rejectionReason: string | null;
@@ -162,14 +160,6 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
       <PageSection title="Publisher settings" icon={Users} gradient="leads">
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
           <DetailCell label="Status" value={<CampaignStatusBadge status={campaign.status} />} />
-          <DetailCell
-            label="Lead approval"
-            value={campaign.autoApprove ? "Auto-approve" : "Manual review"}
-          />
-          <DetailCell
-            label="Publisher access"
-            value={campaign.publisherAccess.replace(/_/g, " ")}
-          />
           <DetailCell
             label="Blacklisted publishers"
             value={

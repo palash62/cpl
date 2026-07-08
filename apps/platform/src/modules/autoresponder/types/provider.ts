@@ -20,7 +20,10 @@ export type AweberConfig = {
 
 export type GetResponseConfig = {
   apiKey: string;
+  /** GetResponse list token (API name: campaignId) */
   campaignId: string;
+  /** Alias accepted from forms / older configs */
+  listId?: string;
 };
 
 export type ConnectionConfig =

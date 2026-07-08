@@ -74,6 +74,19 @@ const emptyForm = (): FormState => ({
   getResponseListId: "",
 });
 
+function clearProviderCredentials(form: FormState): FormState {
+  return {
+    ...form,
+    url: "",
+    secret: "",
+    apiKey: "",
+    serverPrefix: "",
+    listId: "",
+    accessToken: "",
+    accountId: "",
+    getResponseListId: "",
+  };
+}
 
 function buildConfig(form: FormState): Record<string, unknown> {
   switch (form.provider) {
@@ -104,6 +117,13 @@ function buildConfig(form: FormState): Record<string, unknown> {
   }
 }
 
+function formatApiError(data: unknown, fallback: string): string {
+  if (!data || typeof data !== "object") return fallback;
+  const error = (data as { error?: { message?: string } }).error;
+  if (typeof error?.message === "string" && error.message.trim()) return error.message;
+  return fallback;
+}
+
 export function AutoresponderConnectionForm({
   campaigns,
   onCreated,
@@ -123,6 +143,14 @@ export function AutoresponderConnectionForm({
     setSaving(true);
     setError(null);
 
+    if (form.provider === "GETRESPONSE" && /^\d+$/.test(form.getResponseListId.trim())) {
+      setSaving(false);
+      setError(
+        "GetResponse list ID must be the alphanumeric campaign token from GetResponse, not the numeric list number.",
+      );
+      return;
+    }
+
     const res = await fetch("/api/v1/advertiser/autoresponders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,11 +162,11 @@ export function AutoresponderConnectionForm({
         config: buildConfig(form),
       }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
     setSaving(false);
 
     if (!res.ok) {
-      setError(data?.error?.message ?? "Failed to create connection");
+      setError(formatApiError(data, "Failed to create connection"));
       return;
     }
 
@@ -173,7 +201,11 @@ export function AutoresponderConnectionForm({
             onValueChange={(v) => setForm({ ...form, campaignId: v ?? "all" })}
           >
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
-              <SelectValue placeholder="All campaigns" />
+              <SelectValue placeholder="All campaigns">
+                {form.campaignId === "all"
+                  ? "All campaigns"
+                  : campaigns.find((c) => c.id === form.campaignId)?.name ?? "Select campaign"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent
               align="start"
@@ -194,10 +226,20 @@ export function AutoresponderConnectionForm({
           <Label>Provider</Label>
           <Select
             value={form.provider}
-            onValueChange={(v) => setForm({ ...form, provider: v as AutoresponderProvider })}
+            onValueChange={(v) => {
+              if (!v) return;
+              setForm(
+                clearProviderCredentials({
+                  ...form,
+                  provider: v as AutoresponderProvider,
+                }),
+              );
+            }}
           >
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
-              <SelectValue placeholder="Select provider" />
+              <SelectValue placeholder="Select provider">
+                {selectedProvider?.label ?? "Select provider"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_CLASS}>
               {PROVIDERS.map((p) => (
@@ -215,10 +257,15 @@ export function AutoresponderConnectionForm({
           <Label>When to send</Label>
           <Select
             value={form.trigger}
-            onValueChange={(v) => setForm({ ...form, trigger: v as AutoresponderTrigger })}
+            onValueChange={(v) => {
+              if (!v) return;
+              setForm({ ...form, trigger: v as AutoresponderTrigger });
+            }}
           >
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
-              <SelectValue placeholder="Select trigger" />
+              <SelectValue placeholder="Select trigger">
+                {selectedTrigger?.label ?? "Select trigger"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_WIDE_CLASS}>
               {TRIGGERS.map((t) => (
@@ -352,10 +399,14 @@ export function AutoresponderConnectionForm({
               <Input
                 value={form.getResponseListId}
                 onChange={(e) => setForm({ ...form, getResponseListId: e.target.value })}
+                placeholder="e.g. p86zQ"
                 required
                 className="bg-white"
               />
-              <p className="text-xs text-slate-500">Your campaign/list ID in GetResponse</p>
+              <p className="text-xs text-slate-500">
+                Alphanumeric campaign token from GetResponse Lists (not the numeric ID). Find it via
+                API GET /campaigns or under the list name.
+              </p>
             </div>
           </div>
         )}

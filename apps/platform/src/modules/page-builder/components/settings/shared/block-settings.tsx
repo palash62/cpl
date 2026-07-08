@@ -90,6 +90,67 @@ export function GeneralFields() {
   );
 }
 
+const FONT_FAMILY_OPTIONS = [
+  { label: "Inter", value: "Inter, system-ui, sans-serif" },
+  { label: "System UI", value: "system-ui, -apple-system, sans-serif" },
+  { label: "Arial", value: "Arial, Helvetica, sans-serif" },
+  { label: "Helvetica", value: "Helvetica, Arial, sans-serif" },
+  { label: "Georgia", value: "Georgia, Times New Roman, serif" },
+  { label: "Times New Roman", value: "\"Times New Roman\", Times, serif" },
+  { label: "Courier New", value: "\"Courier New\", Courier, monospace" },
+  { label: "Montserrat", value: "Montserrat, Inter, sans-serif" },
+  { label: "Roboto", value: "Roboto, Inter, sans-serif" },
+  { label: "Open Sans", value: "\"Open Sans\", Inter, sans-serif" },
+] as const;
+
+const TEXT_ALIGN_OPTIONS = [
+  { label: "Left", value: "left" },
+  { label: "Center", value: "center" },
+  { label: "Right", value: "right" },
+  { label: "Justify", value: "justify" },
+] as const;
+
+function parseFontSizePx(value: string | undefined): number {
+  if (!value) return 16;
+  const trimmed = value.trim();
+  if (trimmed.endsWith("rem")) {
+    const n = parseFloat(trimmed);
+    return Number.isFinite(n) ? Math.round(n * 16) : 16;
+  }
+  if (trimmed.endsWith("px")) {
+    const n = parseFloat(trimmed);
+    return Number.isFinite(n) ? Math.round(n) : 16;
+  }
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? Math.round(n) : 16;
+}
+
+/** Native color inputs need a #rrggbb value. */
+function normalizeHexColor(value: string | undefined): string {
+  if (!value) return "#000000";
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const [, r, g, b] = trimmed;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return "#000000";
+}
+
+function FieldSelect({ className, ...props }: React.ComponentProps<"select">) {
+  const layout = useBuilderSettingsLayout();
+  return (
+    <select
+      className={cn(
+        "w-full rounded-md border px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
+        layout === "ghl" ? "h-8 border-slate-200 bg-white text-xs text-slate-900" : BUILDER_FIELD_INPUT,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function TypographyFields() {
   const layout = useBuilderSettingsLayout();
   const isGhl = layout === "ghl";
@@ -102,15 +163,102 @@ export function TypographyFields() {
   const override =
     activeBreakpoint === "desktop" ? undefined : responsive?.[activeBreakpoint]?.typography;
   const t = { ...(typography ?? {}), ...(override ?? {}) };
+  const fontSizePx = parseFontSizePx(t.fontSize);
+  const fontFamilyValue = t.fontFamily ?? "";
+  const knownFamily = FONT_FAMILY_OPTIONS.some((opt) => opt.value === fontFamilyValue);
 
   return (
     <div className={cn(isGhl ? "space-y-2" : "space-y-2.5 pt-2")}>
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
+        <FieldLabel>Font family</FieldLabel>
+        <FieldSelect
+          value={knownFamily ? fontFamilyValue : FONT_FAMILY_OPTIONS[0].value}
+          onChange={(e) =>
+            setNestedProp(setProp, "typography", "fontFamily", e.target.value, activeBreakpoint)
+          }
+        >
+          {!knownFamily && fontFamilyValue ? (
+            <option value={fontFamilyValue}>{fontFamilyValue}</option>
+          ) : null}
+          {FONT_FAMILY_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </FieldSelect>
+      </div>
+
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>Font size</FieldLabel>
+          <span className={cn("text-[11px]", isGhl ? "text-slate-500" : "text-slate-400")}>
+            {fontSizePx}px
+          </span>
+        </div>
+        <input
+          type="range"
+          min={10}
+          max={96}
+          step={1}
+          value={fontSizePx}
+          onChange={(e) =>
+            setNestedProp(setProp, "typography", "fontSize", `${e.target.value}px`, activeBreakpoint)
+          }
+          className="h-1.5 w-full accent-blue-600"
+        />
+      </div>
+
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
+        <FieldLabel>Text align</FieldLabel>
+        <FieldSelect
+          value={t.textAlign ?? "left"}
+          onChange={(e) =>
+            setNestedProp(setProp, "typography", "textAlign", e.target.value, activeBreakpoint)
+          }
+        >
+          {TEXT_ALIGN_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </FieldSelect>
+      </div>
+
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
+        <FieldLabel>Weight</FieldLabel>
+        <FieldInput
+          value={String(t.fontWeight ?? "")}
+          placeholder="400"
+          onChange={(e) =>
+            setNestedProp(setProp, "typography", "fontWeight", e.target.value, activeBreakpoint)
+          }
+        />
+      </div>
+
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
+        <FieldLabel>Color</FieldLabel>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="color"
+            value={normalizeHexColor(t.color)}
+            onChange={(e) =>
+              setNestedProp(setProp, "typography", "color", e.target.value, activeBreakpoint)
+            }
+            className="h-8 w-8 shrink-0 cursor-pointer rounded border border-slate-200 bg-transparent p-0.5"
+            title="Pick color"
+          />
+          <FieldInput
+            value={String(t.color ?? "")}
+            placeholder="#000000"
+            onChange={(e) =>
+              setNestedProp(setProp, "typography", "color", e.target.value, activeBreakpoint)
+            }
+            className="flex-1"
+          />
+        </div>
+      </div>
+
       {[
-        ["fontFamily", "Font family", "Inter, sans-serif"],
-        ["fontSize", "Font size", "1rem"],
-        ["fontWeight", "Weight", "400"],
-        ["color", "Color", "#000000"],
-        ["textAlign", "Align", "left"],
         ["lineHeight", "Line height", "1.5"],
         ["letterSpacing", "Letter spacing", "normal"],
       ].map(([key, label, placeholder]) => (

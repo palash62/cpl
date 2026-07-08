@@ -266,7 +266,7 @@ async function createAndProcessLead(input: {
   const { status: nextStatus, reason } = await resolveNextStatus({
     qualityPassed: validation.passed,
     qualityScore: validation.score,
-    autoApprove: input.campaign.autoApprove,
+    autoApprove: true,
     fraudDecision: fraud.fraudDecision,
     hardReject: fraud.hardReject,
     rejectReason: fraud.rejectReason,

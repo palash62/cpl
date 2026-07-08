@@ -46,7 +46,10 @@ export function parseStoredCraftState(raw: unknown): PageDocument {
 
 export function ensureEditorCraftState(state: CraftSerializedState): CraftSerializedState {
   const normalized = normalizeRowColumnState(normalizeCraftState(state));
-  if (normalized.container_main?.isCanvas || normalized.row_main) {
+  // Keep any real page document. Do not require hardcoded ids like `container_main` /
+  // `row_main` — Craft regenerates node ids after edits, which previously wiped
+  // template content and showed a blank canvas on edit.
+  if (normalized.ROOT && Object.keys(normalized).length > 1) {
     return normalized;
   }
   return createBlankCraftState();

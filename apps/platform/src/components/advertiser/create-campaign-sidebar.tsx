@@ -46,11 +46,8 @@ interface CampaignSummaryPanelProps {
   mode?: "advertiser" | "admin";
   status?: CampaignStatusChoice;
   onStatusChange?: (status: CampaignStatusChoice) => void;
-  autoApprove?: boolean;
-  onAutoApproveChange?: (value: boolean) => void;
   statusOptions?: string[];
   statusDisabled?: boolean;
-  autoApproveDisabled?: boolean;
 }
 
 export function CampaignSummaryPanel({
@@ -68,11 +65,8 @@ export function CampaignSummaryPanel({
   mode = "advertiser",
   status = "ACTIVE",
   onStatusChange,
-  autoApprove = false,
-  onAutoApproveChange,
   statusOptions,
   statusDisabled = false,
-  autoApproveDisabled = false,
 }: CampaignSummaryPanelProps) {
   const rows = [
     {
@@ -159,31 +153,10 @@ export function CampaignSummaryPanel({
                 ))}
               </SelectContent>
             </Select>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={autoApprove}
-                onChange={(e) => onAutoApproveChange?.(e.target.checked)}
-                disabled={autoApproveDisabled}
-                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)] disabled:cursor-not-allowed"
-              />
-              Auto-approve leads
-            </label>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-              Your campaign will be submitted for admin review. Once approved, it goes live as Active.
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={autoApprove}
-                onChange={(e) => onAutoApproveChange?.(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 accent-[var(--theme-primary)]"
-              />
-              Auto-approve leads
-            </label>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+            Your campaign will be submitted for admin review. Once approved, it goes live as Active.
           </div>
         )}
       </div>
@@ -212,19 +185,19 @@ export function BidRecommendationPanel({
     {
       key: "minimum",
       label: "Conservative",
-      sub: `Publisher payout from ${formatUsd(bids.payoutMin)}`,
+      sub: "Lower bid range",
       amount: bids.minimum,
     },
     {
       key: "optimal",
       label: "Balanced",
-      sub: "Mid-tier payout target",
+      sub: "Recommended mid-range",
       amount: bids.optimal,
     },
     {
       key: "maximum",
       label: "Aggressive",
-      sub: `Publisher payout up to ${formatUsd(bids.payoutMax)}`,
+      sub: "Higher bid range",
       amount: bids.maximum,
     },
   ] as const;
@@ -238,7 +211,7 @@ export function BidRecommendationPanel({
             <h3 className="text-sm font-semibold text-slate-900">Bid Recommendation</h3>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Suggested CPL bids based on tier payout ranges ({payoutTiers.publisherPayoutPercent}% publisher share)
+            Suggested CPL bids based on your selected targeting
           </p>
         </div>
         {hasBid && (

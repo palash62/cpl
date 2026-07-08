@@ -16,7 +16,6 @@ import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser
 import { AdvertiserCampaignsSortHeader } from "@/components/advertiser/advertiser-campaigns-sort-header";
 import { ButtonLink } from "@/components/ui/button-link";
 import { CampaignPixelButton } from "@/components/advertiser/campaign-pixel-button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -81,7 +80,7 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
       <RoleHero
         eyebrow="Advertiser Portal"
         title="All Campaigns"
-        description="Manage your lead generation campaigns, track CPL performance, and control lead approval."
+        description="Manage your lead generation campaigns and track CPL performance."
         action={{ label: "Create Campaign", href: "/advertiser/campaigns/new", icon: Megaphone }}
       />
 
@@ -95,7 +94,8 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
           Create a campaign to start collecting leads from publishers. New campaigns are reviewed by
-          admin before going live. Verified leads are billed only when they meet your criteria.
+          admin before going live. Active campaigns are public to publishers unless you enable the
+          blacklist.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                       <AdvertiserCampaignsSortHeader field="spent" label="Cost" align="right" />
                     </Suspense>
                   </TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Approval</TableHead>
+                  <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
                   <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -200,12 +200,7 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                     </TableCell>
                     <TableCell className="px-4 py-4">
                       <div className="flex flex-col gap-1.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <CampaignStatusBadge status={c.status} />
-                          <Badge variant="outline" className="text-xs font-normal">
-                            {c.autoApprove ? "Auto" : "Manual"}
-                          </Badge>
-                        </div>
+                        <CampaignStatusBadge status={c.status} />
                         {c.rejectionReason && (
                           <p className="max-w-xs text-xs text-red-600">{c.rejectionReason}</p>
                         )}

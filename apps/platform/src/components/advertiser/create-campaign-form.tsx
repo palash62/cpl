@@ -248,7 +248,6 @@ export function CreateCampaignForm({
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatusChoice>(
     (editDefaults?.campaignStatus as CampaignStatusChoice) ?? "ACTIVE",
   );
-  const [autoApprove, setAutoApprove] = useState(editDefaults?.autoApprove ?? false);
 
   const [name, setName] = useState(editDefaults?.name ?? "");
   const [optinPageId, setOptinPageId] = useState(editDefaults?.optinPageId ?? "");
@@ -437,7 +436,6 @@ export function CreateCampaignForm({
 
     if (isEdit && editCampaign) {
       const patchBody: Record<string, unknown> = {
-        autoApprove,
         targeting,
       };
 
@@ -492,7 +490,6 @@ export function CreateCampaignForm({
           budget: totalBudgetValue ?? undefined,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           status: campaignStatus,
-          autoApprove,
           description: selectedOptinPage
             ? `Optin funnel: ${selectedOptinPage.title}`
             : undefined,
@@ -509,7 +506,6 @@ export function CreateCampaignForm({
           cpl: cplValue,
           budget: totalBudgetValue ?? undefined,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
-          autoApprove: autoApprove,
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
         };
@@ -582,7 +578,7 @@ export function CreateCampaignForm({
                   : "Running campaigns allow limited edits. CPL and budget cannot be changed while active."
                 : isAdmin
                   ? "Create a full campaign on behalf of an advertiser with the same targeting and budget options."
-                  : "Set up targeting, tier payouts, budget, scheduling, and tracking for your next lead campaign. Submissions are reviewed by admin before going live."}
+                  : "Set up targeting, budget, scheduling, and tracking for your next lead campaign. Submissions are reviewed by admin before going live."}
             </p>
           </div>
           <Link
@@ -962,11 +958,8 @@ export function CreateCampaignForm({
             mode={mode}
             status={campaignStatus}
             onStatusChange={setCampaignStatus}
-            autoApprove={autoApprove}
-            onAutoApproveChange={setAutoApprove}
             statusOptions={statusOptions}
             statusDisabled={!canEditField("status")}
-            autoApproveDisabled={!canEditField("autoApprove")}
           />
 
           <BidRecommendationPanel

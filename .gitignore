@@ -51,3 +51,6 @@ deploy/cpl-docker-images.tar
 deploy/cpl-docker-images.tar.gz
 # Server/local registry overrides (contains no secrets by default, still local-only)
 deploy/docker-registry.env
+
+# User-uploaded builder assets (local/runtime only)
+apps/platform/public/uploads/

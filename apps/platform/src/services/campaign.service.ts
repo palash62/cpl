@@ -50,8 +50,8 @@ export async function createCampaign(input: CreateCampaignInput) {
       budget: input.budget ?? 999999999,
       dailyCap: input.dailyCap,
       monthlyCap: input.monthlyCap,
-      publisherAccess: input.publisherAccess ?? "APPROVAL_REQUIRED",
-      autoApprove: input.autoApprove ?? false,
+      publisherAccess: "OPEN",
+      autoApprove: true,
       status: input.status ?? "DRAFT",
       targeting: (input.targeting ?? {}) as Prisma.InputJsonValue,
       pixelToken: createPixelToken(),
@@ -254,7 +254,10 @@ export async function updateCampaignByAdmin(
     throw Errors.campaignReadOnly();
   }
 
-  const data: Prisma.CampaignUpdateInput = {};
+  const data: Prisma.CampaignUpdateInput = {
+    publisherAccess: "OPEN",
+    autoApprove: true,
+  };
   const scalarFields = [
     "name",
     "description",
@@ -262,8 +265,6 @@ export async function updateCampaignByAdmin(
     "budget",
     "dailyCap",
     "monthlyCap",
-    "autoApprove",
-    "publisherAccess",
     "category",
   ] as const;
 
@@ -429,16 +430,13 @@ export async function joinCampaign(publisherId: string, campaignId: string) {
   const [campaign, publisher] = await Promise.all([
     prisma.campaign.findUniqueOrThrow({
       where: { id: campaignId },
-      include: { advertiser: { select: { id: true, email: true, name: true } } },
+      select: { id: true, name: true },
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: publisherId },
       select: { id: true, email: true, name: true },
     }),
   ]);
-
-  const status =
-    campaign.publisherAccess === "OPEN" ? "APPROVED" : "PENDING";
 
   const join = await prisma.publisherCampaign.upsert({
     where: {
@@ -447,27 +445,18 @@ export async function joinCampaign(publisherId: string, campaignId: string) {
     create: {
       publisherId,
       campaignId,
-      status,
-      approvedAt: status === "APPROVED" ? new Date() : undefined,
+      status: "APPROVED",
+      approvedAt: new Date(),
     },
     update: {},
   });
 
-  if (status === "PENDING") {
-    void notifyGeneric(campaign.advertiser, {
-      title: "Publisher join request",
-      message: `${publisher.name} requested to join your campaign "${campaign.name}".`,
-      actionPath: "/advertiser/campaigns",
-      notificationType: "campaign.publisher_join_pending",
-    });
-  } else {
-    void notifyApproved(
-      publisher,
-      "Campaign access",
-      `You can now promote "${campaign.name}".`,
-      "campaign.join_approved",
-    );
-  }
+  void notifyApproved(
+    publisher,
+    "Campaign access",
+    `You can now promote "${campaign.name}".`,
+    "campaign.join_approved",
+  );
 
   return join;
 }

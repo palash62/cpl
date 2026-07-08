@@ -36,12 +36,14 @@ type SourceStat = {
 
 export function PublisherSmartLinkPanel({
   slug,
+  trackingBaseUrl,
   eligible,
   sourceBreakdown,
   globalLinkUrl: initialGlobalLinkUrl,
   platformGlobalLinkUrl,
 }: {
   slug: string;
+  trackingBaseUrl: string;
   eligible: EligibleCampaign[];
   sourceBreakdown: SourceStat[];
   globalLinkUrl: string | null;
@@ -54,7 +56,7 @@ export function PublisherSmartLinkPanel({
   const [savingGlobalLink, setSavingGlobalLink] = useState(false);
   const [globalLinkMessage, setGlobalLinkMessage] = useState<string | null>(null);
 
-  const baseUrl = buildSmartLinkUrl(slug);
+  const baseUrl = buildSmartLinkUrl(slug, undefined, trackingBaseUrl);
 
   async function copyUrl(key: string, url: string) {
     await navigator.clipboard.writeText(url);
@@ -66,7 +68,7 @@ export function PublisherSmartLinkPanel({
   const customSubIdSafe = sanitizeTrackingParam(customSubId);
   const customUrl =
     customSrcSafe || customSubIdSafe
-      ? buildSmartLinkUrl(slug, { src: customSrcSafe, subId: customSubIdSafe })
+      ? buildSmartLinkUrl(slug, { src: customSrcSafe, subId: customSubIdSafe }, trackingBaseUrl)
       : baseUrl;
 
   async function saveGlobalLink(e: React.FormEvent) {
@@ -213,7 +215,7 @@ export function PublisherSmartLinkPanel({
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SMART_LINK_PLATFORMS.map((platform) => {
-            const url = buildSmartLinkUrl(slug, { src: platform.id });
+            const url = buildSmartLinkUrl(slug, { src: platform.id }, trackingBaseUrl);
             const key = `platform-${platform.id}`;
             return (
               <button

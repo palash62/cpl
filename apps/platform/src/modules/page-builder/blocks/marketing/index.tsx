@@ -11,13 +11,43 @@ import { usePublishedPage } from "@/modules/page-builder/lib/published-page-cont
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
 
-type CtaProps = BlockProps & { text?: string; href?: string };
+type CtaProps = BlockProps & {
+  text?: string;
+  href?: string;
+  openInNewTab?: boolean;
+  fullWidth?: boolean;
+  /** @deprecated Prefer typography.fontSize + fullWidth; kept for older craft JSON. */
+  buttonSize?: "small" | "medium" | "large" | "full";
+};
+
+function parseCtaFontSizePx(value: string | undefined, legacySize?: CtaProps["buttonSize"]): number {
+  if (value) {
+    const trimmed = value.trim();
+    if (trimmed.endsWith("rem")) {
+      const n = parseFloat(trimmed);
+      if (Number.isFinite(n)) return Math.min(48, Math.max(12, Math.round(n * 16)));
+    }
+    const n = parseFloat(trimmed);
+    if (Number.isFinite(n)) return Math.min(48, Math.max(12, Math.round(n)));
+  }
+  if (legacySize === "small") return 14;
+  if (legacySize === "large") return 20;
+  return 16;
+}
 
 function CtaSettings() {
-  const { text, href, actions: { setProp } } = useNode((node) => ({
+  const { text, href, openInNewTab, fullWidth, typography, buttonSize, actions: { setProp } } = useNode((node) => ({
     text: node.data.props.text as string,
     href: node.data.props.href as string,
+    openInNewTab: Boolean(node.data.props.openInNewTab),
+    fullWidth:
+      Boolean(node.data.props.fullWidth) ||
+      node.data.props.buttonSize === "full",
+    typography: node.data.props.typography as BlockProps["typography"],
+    buttonSize: node.data.props.buttonSize as CtaProps["buttonSize"],
   }));
+  const fontSizePx = parseCtaFontSizePx(typography?.fontSize, buttonSize);
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
@@ -25,44 +55,123 @@ function CtaSettings() {
         <FieldInput value={text ?? ""} onChange={(e) => setProp((p: CtaProps) => { p.text = e.target.value; })} />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel>Link URL</FieldLabel>
-        <FieldInput value={href ?? ""} onChange={(e) => setProp((p: CtaProps) => { p.href = e.target.value; })} />
+        <FieldLabel>External link URL</FieldLabel>
+        <FieldInput
+          value={href ?? ""}
+          placeholder="https://example.com"
+          onChange={(e) => setProp((p: CtaProps) => { p.href = e.target.value; })}
+        />
+        <p className="text-[11px] text-slate-500">
+          Use a full URL for external links. Use `#form` only when this button should submit the optin form.
+        </p>
       </div>
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          className="accent-blue-600"
+          checked={openInNewTab}
+          onChange={(e) => setProp((p: CtaProps) => { p.openInNewTab = e.target.checked; })}
+        />
+        Open link in new tab
+      </label>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>Button size</FieldLabel>
+          <span className="text-[11px] text-slate-500">{fontSizePx}px</span>
+        </div>
+        <input
+          type="range"
+          min={12}
+          max={48}
+          step={1}
+          value={fontSizePx}
+          onChange={(e) =>
+            setProp((p: CtaProps) => {
+              p.typography = { ...(p.typography ?? {}), fontSize: `${e.target.value}px` };
+              if (p.buttonSize && p.buttonSize !== "full") p.buttonSize = undefined;
+            })
+          }
+          className="h-1.5 w-full accent-blue-600"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          className="accent-blue-600"
+          checked={fullWidth}
+          onChange={(e) =>
+            setProp((p: CtaProps) => {
+              p.fullWidth = e.target.checked;
+              if (p.buttonSize === "full") p.buttonSize = undefined;
+            })
+          }
+        />
+        Full width
+      </label>
       <StandardSettings />
     </div>
   );
 }
 
-export function CtaButton({ text = "Get Started", href = "#", ...props }: CtaProps) {
+export function CtaButton({
+  text = "Get Started",
+  href = "#",
+  openInNewTab = false,
+  fullWidth = false,
+  buttonSize,
+  ...props
+}: CtaProps) {
   const theme = useBuilderStore((s) => s.theme);
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   const published = usePublishedPage();
   const normalizedHref = (href ?? "").trim();
+  const isFullWidth = fullWidth || buttonSize === "full";
+  const fontSizePx = parseCtaFontSizePx(props.typography?.fontSize, buttonSize);
+  const padY = Math.max(8, Math.round(fontSizePx * 0.55));
+  const padX = Math.max(12, Math.round(fontSizePx * 1.35));
+  const isExternalHttp =
+    /^https?:\/\//i.test(normalizedHref) || normalizedHref.startsWith("//");
   const actsAsOptinSubmit =
     !enabled &&
     !!published.onLeadSubmit &&
+    !isExternalHttp &&
     (!normalizedHref ||
       normalizedHref === "#" ||
       normalizedHref === "#form" ||
       normalizedHref === "#pb-optin-form");
 
+  // Size styles live on the control itself so the scrollbar works with or without full width.
+  const buttonStyle = {
+    ...buttonStyleFromTheme(theme, "primary", props.typography?.color),
+    fontSize: `${fontSizePx}px`,
+    lineHeight: 1.25,
+    padding: `${padY}px ${padX}px`,
+    display: isFullWidth ? "flex" : "inline-flex",
+    width: isFullWidth ? "100%" : "auto",
+    maxWidth: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box" as const,
+    textDecoration: "none",
+  };
+
   return (
-    <BlockWrapper {...props} layout={{ textAlign: "center", ...props.layout }}>
+    <BlockWrapper
+      {...props}
+      typography={{ ...props.typography, fontSize: `${fontSizePx}px` }}
+      layout={{ textAlign: "center", ...props.layout }}
+    >
       {actsAsOptinSubmit ? (
-        <button
-          type="submit"
-          form="pb-optin-form"
-          style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
-          className="inline-block px-6 py-3"
-        >
+        <button type="submit" form="pb-optin-form" style={buttonStyle}>
           {text}
         </button>
       ) : (
         <a
-          href={href}
-          style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
-          className="inline-block px-6 py-3 no-underline"
+          href={href || "#"}
+          target={openInNewTab || isExternalHttp ? "_blank" : undefined}
+          rel={openInNewTab || isExternalHttp ? "noopener noreferrer" : undefined}
+          style={buttonStyle}
         >
           <span
             contentEditable={enabled}
@@ -80,7 +189,13 @@ export function CtaButton({ text = "Get Started", href = "#", ...props }: CtaPro
 
 CtaButton.craft = {
   displayName: "CTA Button",
-  props: { text: "Get Started", href: "#form" },
+  props: {
+    text: "Get Started",
+    href: "#form",
+    openInNewTab: false,
+    fullWidth: false,
+    typography: { fontSize: "16px" },
+  },
   related: { settings: CtaSettings },
 };
 

@@ -314,10 +314,26 @@ const aweberConfigSchema = z.object({
   listId: z.string().min(1, "List ID is required"),
 });
 
-const getResponseConfigSchema = z.object({
-  apiKey: z.string().min(1, "API key is required"),
-  campaignId: z.string().min(1, "Campaign ID is required"),
-});
+const getResponseConfigSchema = z
+  .object({
+    apiKey: z.string().min(1, "API key is required"),
+    campaignId: z.string().optional(),
+    listId: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const listToken = (value.campaignId ?? value.listId ?? "").trim();
+    if (!listToken) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["campaignId"],
+        message: "GetResponse list ID is required",
+      });
+    }
+  })
+  .transform((value) => ({
+    apiKey: value.apiKey.trim(),
+    campaignId: (value.campaignId ?? value.listId ?? "").trim(),
+  }));
 
 const autoresponderBaseSchema = z.object({
   name: z.string().trim().min(2).max(80),

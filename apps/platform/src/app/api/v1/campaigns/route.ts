@@ -36,6 +36,8 @@ async function createCampaignWithOptinPage(input: {
   const campaign = await createCampaign({
     ...input.campaignData,
     advertiserId: input.advertiserId,
+    publisherAccess: "OPEN",
+    autoApprove: true,
     description: input.campaignData.description ?? `Optin page: ${page.title}`,
     targeting: {
       ...(input.campaignData.targeting ?? {}),

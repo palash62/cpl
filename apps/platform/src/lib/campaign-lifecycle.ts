@@ -12,8 +12,6 @@ const LIMITED_EDIT_FIELDS = new Set([
   "dailyCap",
   "monthlyCap",
   "targeting",
-  "publisherAccess",
-  "autoApprove",
   "status",
 ]);
 

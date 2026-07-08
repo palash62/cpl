@@ -68,7 +68,13 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
     setMessage(
       res.ok
         ? { type: "ok", text: "Test payload sent successfully." }
-        : { type: "err", text: json?.error?.message ?? "Test failed. Check your credentials." },
+        : {
+            type: "err",
+            text:
+              (typeof json?.error?.message === "string" && json.error.message) ||
+              (typeof json?.data?.error === "string" && json.data.error) ||
+              "Test failed. Check your credentials.",
+          },
     );
   }
 

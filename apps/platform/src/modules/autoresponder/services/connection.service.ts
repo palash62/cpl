@@ -14,8 +14,9 @@ import {
   encryptConfigSecrets,
   maskConfigForApi,
 } from "../lib/encrypt-secrets";
+import { verifyGetResponseConfig } from "../providers/getresponse.provider";
 import type { ConnectionInput, ConnectionPublic } from "../types/connection";
-import type { ConnectionConfig } from "../types/provider";
+import type { ConnectionConfig, GetResponseConfig } from "../types/provider";
 
 function toPublic(row: Awaited<ReturnType<typeof listConnectionsByAdvertiser>>[number]): ConnectionPublic {
   const config = row.config as Record<string, unknown>;
@@ -49,6 +50,26 @@ async function assertCampaignOwnedByAdvertiser(campaignId: string, advertiserId:
   }
 }
 
+async function assertProviderConfig(provider: ConnectionInput["provider"], config: ConnectionConfig) {
+  if (provider === "GETRESPONSE") {
+    const result = await verifyGetResponseConfig(config as GetResponseConfig);
+    if (!result.ok) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        result.error ?? "GetResponse credentials are invalid",
+        422,
+      );
+    }
+  }
+
+  if (provider === "WEBHOOK") {
+    const url = (config as { url?: string }).url?.trim() ?? "";
+    if (!url) {
+      throw new AppError("VALIDATION_ERROR", "Webhook URL is required", 422);
+    }
+  }
+}
+
 export async function listConnections(advertiserId: string) {
   const rows = await listConnectionsByAdvertiser(advertiserId);
   return rows.map(toPublic);
@@ -73,6 +94,8 @@ export async function createAdvertiserConnection(advertiserId: string, input: Co
   if (input.campaignId) {
     await assertCampaignOwnedByAdvertiser(input.campaignId, advertiserId);
   }
+
+  await assertProviderConfig(input.provider, input.config);
 
   const encrypted = encryptConfigSecrets(input.config as Record<string, unknown>);
   const row = await createConnection({
@@ -104,6 +127,13 @@ export async function updateAdvertiserConnection(
   const nextConfig = input.config
     ? encryptConfigSecrets(mergeConfig(existingConfig, input.config))
     : undefined;
+
+  if (nextConfig) {
+    await assertProviderConfig(
+      existing.provider,
+      decryptConfigSecrets(nextConfig) as ConnectionConfig,
+    );
+  }
 
   await updateConnection(id, advertiserId, {
     ...(input.name !== undefined && { name: input.name }),

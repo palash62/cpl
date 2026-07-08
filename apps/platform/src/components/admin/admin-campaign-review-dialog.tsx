@@ -28,8 +28,6 @@ type CampaignRow = {
   dailyCap?: number | null;
   monthlyCap?: number | null;
   status: string;
-  publisherAccess: string;
-  autoApprove: boolean;
   targeting: unknown;
   rejectionReason?: string | null;
   rejectedAt?: string | Date | null;
@@ -151,18 +149,6 @@ export function AdminCampaignReviewDialog({ campaign }: { campaign: CampaignRow 
               <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
                 <p className="text-xs text-slate-500">Vertical</p>
                 <p className="text-sm font-medium text-slate-900">{vertical || "—"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Publisher access</p>
-                <p className="text-sm font-medium capitalize text-slate-900">
-                  {campaign.publisherAccess.toLowerCase().replace(/_/g, " ")}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
-                <p className="text-xs text-slate-500">Lead approval</p>
-                <p className="text-sm font-medium text-slate-900">
-                  {campaign.autoApprove ? "Auto-approve" : "Manual review"}
-                </p>
               </div>
             </div>
             {campaign.description && (

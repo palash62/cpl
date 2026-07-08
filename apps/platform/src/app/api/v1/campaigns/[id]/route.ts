@@ -5,9 +5,7 @@ import {
   deleteCampaignByAdmin,
   getCampaignById,
   updateCampaignByAdmin,
-  updateCampaignStatus,
 } from "@/services/campaign.service";
-import { prisma } from "@/lib/prisma";
 
 function resolveRequestBaseUrl(request: Request) {
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
@@ -46,44 +44,14 @@ export async function PATCH(
       const campaign = await getCampaignById(id);
       if (!campaign) return errorResponse(Errors.notFound("Campaign"));
 
-      if (
-        session.user.role === "ADVERTISER" &&
-        campaign.advertiserId !== session.user.id
-      ) {
-        return errorResponse(Errors.forbidden());
-      }
-
-      if (session.user.role === "ADMIN") {
-        const updated = await updateCampaignByAdmin(id, body, getActorId(session), {
-          baseUrl: resolveRequestBaseUrl(request),
-        });
-        return Response.json({ data: updated });
-      }
-
-      if (body.status) {
-        const updated = await updateCampaignStatus(id, body.status);
-        return Response.json({ data: updated });
-      }
-
-      const updated = await prisma.campaign.update({
-        where: { id },
-        data: {
-          name: body.name,
-          description: body.description,
-          cpl: body.cpl,
-          budget: body.budget,
-          dailyCap: body.dailyCap,
-          monthlyCap: body.monthlyCap,
-          autoApprove: body.autoApprove,
-          targeting: body.targeting,
-        },
+      const updated = await updateCampaignByAdmin(id, body, getActorId(session), {
+        baseUrl: resolveRequestBaseUrl(request),
       });
-
       return Response.json({ data: updated });
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADVERTISER", "ADMIN"]);
+  }, ["ADMIN"]);
 }
 
 export async function DELETE(

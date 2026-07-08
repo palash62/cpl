@@ -14,20 +14,26 @@ function ImageSettings() {
     alt: node.data.props.alt as string,
   }));
   const setAssetPickerOpen = useBuilderStore((s) => s.setAssetPickerOpen);
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <FieldLabel>Image URL</FieldLabel>
-        <div className="flex gap-2">
-          <FieldInput value={src ?? ""} onChange={(e) => setProp((p: ImageProps) => { p.src = e.target.value; })} />
-          <button
-            type="button"
-            className="shrink-0 rounded-md border border-slate-200 px-2 text-xs text-slate-600 hover:bg-slate-50"
-            onClick={() => setAssetPickerOpen(true)}
-          >
-            Browse
-          </button>
-        </div>
+        <FieldLabel>Image</FieldLabel>
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt || ""}
+            className="mb-1.5 max-h-28 w-full rounded-md border border-slate-200 object-contain"
+          />
+        ) : null}
+        <button
+          type="button"
+          className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          onClick={() => setAssetPickerOpen(true)}
+        >
+          {src ? "Change image" : "Choose image"}
+        </button>
       </div>
       <div className="space-y-1.5">
         <FieldLabel>Alt text</FieldLabel>
