@@ -358,12 +358,14 @@ export async function submitOptinLead(input: {
     },
   });
 
-  if (
-    !optinPage?.isPublished ||
-    !optinPage.campaign ||
-    optinPage.campaign.status !== "ACTIVE"
-  ) {
+  if (!optinPage?.isPublished) {
     throw Errors.notFound("Optin page");
+  }
+
+  if (!optinPage.campaign || optinPage.campaign.status !== "ACTIVE") {
+    throw Errors.validation(
+      "This funnel is published but not linked to an active campaign yet. Create a campaign and select this funnel.",
+    );
   }
 
   return createAndProcessLead({

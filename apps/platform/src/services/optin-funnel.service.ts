@@ -393,6 +393,27 @@ export async function updateOptinFunnel(
   const existing = await prisma.advertiserOptinPage.findFirst({ where: { id, advertiserId } });
   if (!existing) throw Errors.notFound("Optin funnel");
 
+  const nextThankYouEnabled =
+    input.thankYouEnabled !== undefined ? input.thankYouEnabled : existing.thankYouEnabled;
+  const nextDestinationUrl =
+    input.destinationUrl !== undefined
+      ? input.destinationUrl?.trim() || null
+      : existing.destinationUrl?.trim() || null;
+
+  if (!nextThankYouEnabled && !nextDestinationUrl) {
+    throw Errors.validation("Destination URL is required when thank-you redirect is off.");
+  }
+  if (!nextThankYouEnabled && nextDestinationUrl) {
+    try {
+      const parsed = new URL(nextDestinationUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("invalid");
+      }
+    } catch {
+      throw Errors.validation("Enter a valid destination URL (https://...).");
+    }
+  }
+
   if (input.campaignId !== undefined && input.campaignId !== null) {
     const campaign = await prisma.campaign.findFirst({
       where: { id: input.campaignId, advertiserId },
@@ -635,17 +656,19 @@ export async function duplicateOptinFunnel(id: string, advertiserId: string) {
 export async function publishOptinFunnel(id: string, advertiserId: string) {
   const page = await prisma.advertiserOptinPage.findFirst({
     where: { id, advertiserId },
-    include: { campaign: true },
   });
   if (!page) throw Errors.notFound("Optin funnel");
 
-  if (!page.campaignId || !page.campaign || page.campaign.status !== "ACTIVE") {
-    throw Errors.validation("Link an active campaign before publishing.");
+  // Campaign is linked when the advertiser creates/attaches a campaign — not required to publish the funnel.
+  if (!page.thankYouEnabled && !page.destinationUrl?.trim()) {
+    throw Errors.validation(
+      "Set a destination URL or enable thank-you redirect in funnel settings before publishing.",
+    );
   }
 
   if (usesBuilderRenderer({ editorType: page.editorType, craftState: parseStoredCraftState(page.craftState) })) {
     const doc = parseStoredCraftState(page.craftState);
-    const formJson = extractFormJson(doc.craft, page.campaignId);
+    const formJson = extractFormJson(doc.craft, page.campaignId ?? "");
     if (!formJson?.fields.length) {
       throw Errors.validation("Add at least one form field before publishing.");
     }
@@ -692,13 +715,7 @@ export async function getPublishedBuilderFunnel(slug: string) {
     },
   });
 
-  if (
-    !page ||
-    page.status !== "PUBLISHED" ||
-    !page.publishedVersion ||
-    !page.campaign ||
-    page.campaign.status !== "ACTIVE"
-  ) {
+  if (!page || page.status !== "PUBLISHED" || !page.publishedVersion) {
     return null;
   }
 
@@ -716,13 +733,13 @@ export async function getPublishedBuilderFunnel(slug: string) {
   return {
     funnel: serializeOptinFunnel(page),
     slug: page.slug,
-    campaignId: page.campaignId!,
+    campaignId: page.campaignId,
     craftState: doc.craft,
     themeJson: (page.publishedVersion.themeJson as ThemeJson) ?? DEFAULT_THEME,
     formJson: page.publishedVersion.formJson as FormJson | null,
     thankYouCraftState: thankYouDoc?.craft ?? null,
     thankYouThemeJson: (page.publishedVersion.thankYouThemeJson as ThemeJson) ?? DEFAULT_THEME,
-    pixelToken: page.campaign.pixelToken,
+    pixelToken: page.campaign?.pixelToken ?? null,
   };
 }
 
@@ -736,18 +753,24 @@ export async function getPublicOptinFunnel(slug: string) {
     },
   });
 
-  if (!page?.isPublished || !page.campaign || page.campaign.status !== "ACTIVE") {
+  if (!page?.isPublished) {
     return null;
   }
 
-  return serializePublicOptinFunnel({
-    ...page,
-    campaign: {
-      name: page.campaign.name,
-      pixelToken: page.campaign.pixelToken,
-      fields: page.campaign.fields,
-    },
-  });
+  // Published funnel pages are viewable without a campaign; lead submit still requires
+  // an ACTIVE campaign (linked when creating the campaign).
+  if (page.campaign) {
+    return serializePublicOptinFunnel({
+      ...page,
+      campaign: {
+        name: page.campaign.name,
+        pixelToken: page.campaign.pixelToken,
+        fields: page.campaign.fields,
+      },
+    });
+  }
+
+  return buildPublicOptinFunnel(page, null);
 }
 
 export async function getAdvertiserOptinFunnelPreview(slug: string, advertiserId: string) {
@@ -865,7 +888,7 @@ export async function linkOptinFunnelToCampaign(
 ) {
   const page = await prisma.advertiserOptinPage.findFirst({
     where: { id: funnelId, advertiserId },
-    select: { id: true },
+    select: { id: true, formJson: true },
   });
   if (!page) throw Errors.notFound("Optin funnel");
 
@@ -875,9 +898,18 @@ export async function linkOptinFunnelToCampaign(
   });
   if (!campaign) throw Errors.validation("Selected campaign is invalid for this advertiser.");
 
+  const existingForm = (page.formJson as FormJson | null) ?? null;
+  const nextFormJson =
+    existingForm && Array.isArray(existingForm.fields)
+      ? toPrismaJson({ ...existingForm, campaignId })
+      : undefined;
+
   await prisma.advertiserOptinPage.update({
     where: { id: page.id },
-    data: { campaignId },
+    data: {
+      campaignId,
+      ...(nextFormJson ? { formJson: nextFormJson } : {}),
+    },
   });
 }
 

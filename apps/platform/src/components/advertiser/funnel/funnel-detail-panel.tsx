@@ -29,18 +29,41 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
   const steps = buildFunnelSteps(thankYouEnabled);
 
+  function isValidHttpUrl(value: string) {
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
   async function saveSettings(patch?: Partial<{
     thankYouEnabled: boolean;
     destinationUrl: string;
     thankYouPixelHtml: string;
     thankYouUseCampaignPixel: boolean;
   }>) {
+    const nextThankYouEnabled = patch?.thankYouEnabled ?? thankYouEnabled;
+    const nextDestinationUrl = (patch?.destinationUrl ?? destinationUrl).trim();
+
+    if (!nextThankYouEnabled) {
+      if (!nextDestinationUrl) {
+        setSettingsMessage("Destination URL is required when thank-you redirect is off.");
+        return false;
+      }
+      if (!isValidHttpUrl(nextDestinationUrl)) {
+        setSettingsMessage("Enter a valid destination URL (https://...).");
+        return false;
+      }
+    }
+
     setSavingSettings(true);
     setSettingsMessage(null);
 
     const body = {
-      thankYouEnabled: patch?.thankYouEnabled ?? thankYouEnabled,
-      destinationUrl: (patch?.destinationUrl ?? destinationUrl).trim() || null,
+      thankYouEnabled: nextThankYouEnabled,
+      destinationUrl: nextDestinationUrl || null,
       thankYouPixelHtml: patch?.thankYouPixelHtml ?? thankYouPixelHtml,
       thankYouUseCampaignPixel: patch?.thankYouUseCampaignPixel ?? thankYouUseCampaignPixel,
     };
@@ -55,18 +78,30 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
     if (!res.ok) {
       setSettingsMessage(data?.error?.message ?? "Unable to save settings");
-      return;
+      return false;
     }
 
     const saved = data.data as SerializedOptinFunnel;
     setFunnel(saved);
+    setThankYouEnabled(saved.thankYouEnabled);
     setDestinationUrl(saved.destinationUrl ?? "");
     setSettingsMessage("Settings saved.");
+    return true;
   }
 
   async function handleThankYouToggle(enabled: boolean) {
-    setThankYouEnabled(enabled);
-    await saveSettings({ thankYouEnabled: enabled });
+    if (!enabled && !destinationUrl.trim()) {
+      setThankYouEnabled(false);
+      setSettingsOpen(true);
+      setSettingsMessage("Destination URL is required when thank-you redirect is off.");
+      return;
+    }
+
+    const ok = await saveSettings({ thankYouEnabled: enabled });
+    if (!ok) {
+      setThankYouEnabled(funnel.thankYouEnabled);
+      return;
+    }
     if (enabled) setActiveStepId("thankYou");
   }
 

@@ -79,16 +79,19 @@ export function FunnelSettingsSheet({
 
             {!thankYouEnabled && (
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-600">Destination URL (optional)</Label>
+                <Label className="text-xs font-medium text-slate-600">
+                  Destination URL <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   type="url"
+                  required
                   value={destinationUrl}
                   onChange={(e) => onDestinationUrlChange(e.target.value)}
                   placeholder="https://example.com/thank-you"
                   className="h-9 border-slate-200 text-sm"
                 />
                 <p className="text-xs text-slate-500">
-                  Leave empty to show an on-page success message.
+                  Required when thank-you redirect is off. Users go here after form submit.
                 </p>
               </div>
             )}

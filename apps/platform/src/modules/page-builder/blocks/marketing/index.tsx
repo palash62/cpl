@@ -7,6 +7,7 @@ import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder
 import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
 
@@ -36,22 +37,43 @@ export function CtaButton({ text = "Get Started", href = "#", ...props }: CtaPro
   const theme = useBuilderStore((s) => s.theme);
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
+  const published = usePublishedPage();
+  const normalizedHref = (href ?? "").trim();
+  const actsAsOptinSubmit =
+    !enabled &&
+    !!published.onLeadSubmit &&
+    (!normalizedHref ||
+      normalizedHref === "#" ||
+      normalizedHref === "#form" ||
+      normalizedHref === "#pb-optin-form");
+
   return (
     <BlockWrapper {...props} layout={{ textAlign: "center", ...props.layout }}>
-      <a
-        href={href}
-        style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
-        className="inline-block px-6 py-3 no-underline"
-      >
-        <span
-          contentEditable={enabled}
-          suppressContentEditableWarning
-          onBlur={(e) => setProp((p: CtaProps) => { p.text = e.currentTarget.textContent ?? ""; })}
-          className={enabled ? "outline-none" : undefined}
+      {actsAsOptinSubmit ? (
+        <button
+          type="submit"
+          form="pb-optin-form"
+          style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
+          className="inline-block px-6 py-3"
         >
           {text}
-        </span>
-      </a>
+        </button>
+      ) : (
+        <a
+          href={href}
+          style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
+          className="inline-block px-6 py-3 no-underline"
+        >
+          <span
+            contentEditable={enabled}
+            suppressContentEditableWarning
+            onBlur={(e) => setProp((p: CtaProps) => { p.text = e.currentTarget.textContent ?? ""; })}
+            className={enabled ? "outline-none" : undefined}
+          >
+            {text}
+          </span>
+        </a>
+      )}
     </BlockWrapper>
   );
 }
