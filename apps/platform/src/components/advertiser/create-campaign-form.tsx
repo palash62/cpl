@@ -238,8 +238,8 @@ export function CreateCampaignForm({
   const lifecycle = editCampaign
     ? { status: editCampaign.status, leadCount: editCampaign.leadCount }
     : null;
-  const editableFields = lifecycle ? getEditableFields(lifecycle) : null;
-  const fullEdit = !lifecycle || isFullEditCampaign(lifecycle);
+  const editableFields = lifecycle && isAdmin ? getEditableFields(lifecycle) : null;
+  const fullEdit = !lifecycle || !isAdmin || isFullEditCampaign(lifecycle);
   const canEditField = (field: string) => !editableFields || editableFields.has(field);
 
   const [advertisers, setAdvertisers] = useState<AdvertiserOption[]>([]);

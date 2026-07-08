@@ -5,11 +5,8 @@ import type { CampaignCategory, CampaignStatus, PublisherAccess } from "@prisma/
 import { notifyAdminAlert, notifyApproved, notifyGeneric } from "@/services/notify.service";
 import { Errors } from "@/lib/errors";
 import {
-  assertFieldEditable,
   canAdminDeleteCampaign,
   canTransitionStatus,
-  getEditableFields,
-  isFullEditCampaign,
 } from "@/lib/campaign-lifecycle";
 import {
   linkOptinPageToCampaign,
@@ -248,11 +245,6 @@ export async function updateCampaignByAdmin(
   }
 
   const lifecycle = { status: campaign.status, leadCount: campaign._count.leads };
-  const editable = getEditableFields(lifecycle);
-
-  if (editable.size === 0) {
-    throw Errors.campaignReadOnly();
-  }
 
   const data: Prisma.CampaignUpdateInput = {
     publisherAccess: "OPEN",
@@ -270,24 +262,15 @@ export async function updateCampaignByAdmin(
 
   for (const field of scalarFields) {
     if (body[field] !== undefined) {
-      if (!assertFieldEditable(lifecycle, field)) {
-        throw Errors.campaignReadOnly();
-      }
       (data as Record<string, unknown>)[field] = body[field];
     }
   }
 
   if (body.targeting !== undefined) {
-    if (!assertFieldEditable(lifecycle, "targeting")) {
-      throw Errors.campaignReadOnly();
-    }
     data.targeting = body.targeting as Prisma.InputJsonValue;
   }
 
   if (body.optinPageId !== undefined && typeof body.optinPageId === "string") {
-    if (!isFullEditCampaign(lifecycle)) {
-      throw Errors.campaignReadOnly();
-    }
     if (!options?.baseUrl) {
       options = { baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000" };
     }
@@ -318,10 +301,6 @@ export async function updateCampaignByAdmin(
   }
 
   if (body.fields !== undefined) {
-    if (!assertFieldEditable(lifecycle, "fields")) {
-      throw Errors.campaignReadOnly();
-    }
-
     const fields = body.fields as Array<{
       fieldName: string;
       label: string;
@@ -349,9 +328,6 @@ export async function updateCampaignByAdmin(
 
   if (body.status !== undefined) {
     const nextStatus = body.status as CampaignStatus;
-    if (!assertFieldEditable(lifecycle, "status")) {
-      throw Errors.campaignReadOnly();
-    }
     if (!canTransitionStatus(campaign.status, nextStatus)) {
       throw Errors.campaignInvalidTransition(
         `Cannot change status from ${campaign.status} to ${nextStatus}`,
@@ -374,7 +350,7 @@ export async function updateCampaignByAdmin(
       entityId: id,
       metadata: {
         status: updated.status,
-        limitedEdit: !isFullEditCampaign(lifecycle),
+        limitedEdit: false,
       },
     },
   });

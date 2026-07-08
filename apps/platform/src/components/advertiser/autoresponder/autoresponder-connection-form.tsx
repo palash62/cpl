@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
-import { Plus } from "lucide-react";
+import { Plus, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,15 @@ const TRIGGERS: { value: AutoresponderTrigger; label: string; description: strin
 ];
 
 type CampaignOption = { id: string; name: string };
+
+type EditableConnection = {
+  id: string;
+  name: string;
+  provider: AutoresponderProvider;
+  trigger: AutoresponderTrigger;
+  campaignId: string | null;
+  config: Record<string, unknown>;
+};
 
 const SELECT_TRIGGER_CLASS =
   "h-10 !w-full min-w-0 bg-white *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:whitespace-normal";
@@ -126,14 +135,41 @@ function formatApiError(data: unknown, fallback: string): string {
 
 export function AutoresponderConnectionForm({
   campaigns,
-  onCreated,
+  onSaved,
+  initialConnection,
+  onCancelEdit,
 }: {
   campaigns: CampaignOption[];
-  onCreated: () => void;
+  onSaved: () => void;
+  initialConnection?: EditableConnection | null;
+  onCancelEdit?: () => void;
 }) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isEditMode = Boolean(initialConnection);
+
+  useEffect(() => {
+    if (!initialConnection) {
+      setForm(emptyForm());
+      return;
+    }
+    const cfg = initialConnection.config ?? {};
+    setForm({
+      name: initialConnection.name ?? "",
+      provider: initialConnection.provider,
+      trigger: initialConnection.trigger,
+      campaignId: initialConnection.campaignId ?? "all",
+      url: String(cfg.url ?? ""),
+      secret: String(cfg.secret ?? ""),
+      apiKey: String(cfg.apiKey ?? ""),
+      serverPrefix: String(cfg.serverPrefix ?? ""),
+      listId: String(cfg.listId ?? ""),
+      accessToken: String(cfg.accessToken ?? ""),
+      accountId: String(cfg.accountId ?? ""),
+      getResponseListId: String(cfg.campaignId ?? cfg.listId ?? ""),
+    });
+  }, [initialConnection]);
 
   const selectedProvider = PROVIDERS.find((p) => p.value === form.provider);
   const selectedTrigger = TRIGGERS.find((t) => t.value === form.trigger);
@@ -151,12 +187,16 @@ export function AutoresponderConnectionForm({
       return;
     }
 
-    const res = await fetch("/api/v1/advertiser/autoresponders", {
-      method: "POST",
+    const endpoint = isEditMode
+      ? `/api/v1/advertiser/autoresponders/${initialConnection!.id}`
+      : "/api/v1/advertiser/autoresponders";
+    const method = isEditMode ? "PATCH" : "POST";
+    const res = await fetch(endpoint, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name.trim(),
-        provider: form.provider,
+        ...(isEditMode ? {} : { provider: form.provider }),
         trigger: form.trigger,
         campaignId: form.campaignId === "all" ? null : form.campaignId,
         config: buildConfig(form),
@@ -166,12 +206,13 @@ export function AutoresponderConnectionForm({
     setSaving(false);
 
     if (!res.ok) {
-      setError(formatApiError(data, "Failed to create connection"));
+      setError(formatApiError(data, isEditMode ? "Failed to update connection" : "Failed to create connection"));
       return;
     }
 
     setForm(emptyForm());
-    onCreated();
+    onSaved();
+    if (isEditMode) onCancelEdit?.();
   }
 
   return (
@@ -226,6 +267,7 @@ export function AutoresponderConnectionForm({
           <Label>Provider</Label>
           <Select
             value={form.provider}
+            disabled={isEditMode}
             onValueChange={(v) => {
               if (!v) return;
               setForm(
@@ -413,9 +455,15 @@ export function AutoresponderConnectionForm({
       </div>
 
       <div className="flex justify-end">
+        {isEditMode && onCancelEdit ? (
+          <Button type="button" variant="outline" className="mr-2" onClick={onCancelEdit}>
+            <X className="mr-2 h-4 w-4" />
+            Cancel
+          </Button>
+        ) : null}
         <Button type="submit" disabled={saving} className="min-w-[160px]">
-          <Plus className="mr-2 h-4 w-4" />
-          {saving ? "Adding…" : "Add connection"}
+          {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+          {saving ? (isEditMode ? "Saving…" : "Adding…") : (isEditMode ? "Save changes" : "Add connection")}
         </Button>
       </div>
     </form>

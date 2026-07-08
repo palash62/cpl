@@ -1,0 +1,71 @@
+import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { getSession } from "@/lib/session";
+import { getCampaignById } from "@/services/campaign.service";
+import { PageHero } from "@/components/admin/page-hero";
+import { AdminCampaignDetails } from "@/components/admin/admin-campaign-details";
+import { ButtonLink } from "@/components/ui/button-link";
+import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function AdvertiserCampaignDetailPage({ params }: PageProps) {
+  const [{ id }, session] = await Promise.all([params, getSession()]);
+  const campaign = await getCampaignById(id);
+
+  if (!campaign || campaign.advertiserId !== session?.user.id) {
+    notFound();
+  }
+
+  const leadCount = campaign._count?.leads ?? 0;
+
+  return (
+    <div className="space-y-7">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ButtonLink href="/advertiser/campaigns" variant="outline" size="sm" className="h-9 gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Back to campaigns
+        </ButtonLink>
+        <AdvertiserCampaignActions
+          campaign={{
+            id: campaign.id,
+            name: campaign.name,
+            status: campaign.status,
+            leadCount,
+          }}
+        />
+      </div>
+
+      <PageHero eyebrow="Campaign" title={campaign.name} description="Advertiser Campaign" badge={campaign.status} />
+
+      <AdminCampaignDetails
+        campaign={{
+          id: campaign.id,
+          name: campaign.name,
+          description: campaign.description,
+          category: campaign.category,
+          cpl: Number(campaign.cpl),
+          budget: Number(campaign.budget),
+          spent: Number(campaign.spent),
+          dailyCap: campaign.dailyCap,
+          monthlyCap: campaign.monthlyCap,
+          status: campaign.status,
+          targeting: campaign.targeting,
+          pixelToken: campaign.pixelToken,
+          rejectionReason: campaign.rejectionReason,
+          rejectedAt: campaign.rejectedAt,
+          createdAt: campaign.createdAt,
+          updatedAt: campaign.updatedAt,
+          advertiser: campaign.advertiser,
+          fields: campaign.fields,
+          publisherCampaigns: campaign.publisherCampaigns,
+          leadCount,
+        }}
+      />
+    </div>
+  );
+}

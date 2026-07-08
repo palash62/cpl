@@ -1,0 +1,103 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2 } from "lucide-react";
+import type { CampaignStatus } from "@prisma/client";
+import { canAdminDeleteCampaign } from "@/lib/campaign-lifecycle";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button-link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+export function AdvertiserCampaignActions({
+  campaign,
+}: {
+  campaign: { id: string; name: string; status: CampaignStatus; leadCount: number };
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const lifecycle = { status: campaign.status, leadCount: campaign.leadCount };
+  const canDelete = canAdminDeleteCampaign(lifecycle);
+
+  async function handleDelete() {
+    setLoading(true);
+    setError(null);
+    const res = await fetch(`/api/v1/campaigns/${campaign.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => null);
+    setLoading(false);
+    if (!res.ok) {
+      setError(data?.error?.message ?? "Unable to delete campaign");
+      return;
+    }
+    setDeleteOpen(false);
+    router.refresh();
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <ButtonLink href={`/advertiser/campaigns/${campaign.id}`} variant="outline" size="sm" className="h-8">
+        View
+      </ButtonLink>
+      <ButtonLink
+        href={`/advertiser/campaigns/${campaign.id}/edit`}
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+        Edit
+      </ButtonLink>
+
+      {canDelete ? (
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogTrigger
+            render={
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-red-600 hover:text-red-700" />
+            }
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete campaign</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600">
+              Permanently delete <strong>{campaign.name}</strong>? This cannot be undone.
+            </p>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" disabled={loading} onClick={handleDelete}>
+                {loading ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1 text-red-400 hover:text-red-400"
+          disabled
+          title="Only draft/pending campaigns with no leads can be deleted"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </Button>
+      )}
+    </div>
+  );
+}

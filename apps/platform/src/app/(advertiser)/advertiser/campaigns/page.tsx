@@ -16,6 +16,7 @@ import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser
 import { AdvertiserCampaignsSortHeader } from "@/components/advertiser/advertiser-campaigns-sort-header";
 import { ButtonLink } from "@/components/ui/button-link";
 import { CampaignPixelButton } from "@/components/advertiser/campaign-pixel-button";
+import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
 import {
   Table,
   TableBody,
@@ -213,14 +214,14 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                           campaignName={c.name}
                           pixelToken={c.pixelToken}
                         />
-                        <ButtonLink
-                          href={`/advertiser/lead-details?campaignId=${c.id}`}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 rounded-md border-slate-200 text-xs"
-                        >
-                          View Leads
-                        </ButtonLink>
+                        <AdvertiserCampaignActions
+                          campaign={{
+                            id: c.id,
+                            name: c.name,
+                            status: c.status,
+                            leadCount: c._count.leads,
+                          }}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>

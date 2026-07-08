@@ -44,6 +44,13 @@ export async function PATCH(
       const campaign = await getCampaignById(id);
       if (!campaign) return errorResponse(Errors.notFound("Campaign"));
 
+      if (
+        session.user.role === "ADVERTISER" &&
+        campaign.advertiserId !== session.user.id
+      ) {
+        return errorResponse(Errors.forbidden());
+      }
+
       const updated = await updateCampaignByAdmin(id, body, getActorId(session), {
         baseUrl: resolveRequestBaseUrl(request),
       });
@@ -51,7 +58,7 @@ export async function PATCH(
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADMIN"]);
+  }, ["ADVERTISER", "ADMIN"]);
 }
 
 export async function DELETE(
@@ -60,15 +67,23 @@ export async function DELETE(
 ) {
   const { id } = await params;
   return withAuth(async (session) => {
-    if (session.user.role !== "ADMIN" || session.impersonatorId) {
+    if (session.impersonatorId) {
       return errorResponse(Errors.forbidden());
     }
 
     try {
+      const campaign = await getCampaignById(id);
+      if (!campaign) return errorResponse(Errors.notFound("Campaign"));
+      if (
+        session.user.role === "ADVERTISER" &&
+        campaign.advertiserId !== session.user.id
+      ) {
+        return errorResponse(Errors.forbidden());
+      }
       await deleteCampaignByAdmin(id, session.user.id);
       return Response.json({ data: { deleted: true } });
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADMIN"]);
+  }, ["ADVERTISER", "ADMIN"]);
 }

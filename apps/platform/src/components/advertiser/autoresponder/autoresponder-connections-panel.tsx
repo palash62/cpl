@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Megaphone, Plug, Trash2, Zap } from "lucide-react";
+import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
+import { CheckCircle2, Loader2, Megaphone, Pencil, Plug, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AutoresponderConnectionForm } from "@/components/advertiser/autoresponder/autoresponder-connection-form";
@@ -12,10 +13,11 @@ type CampaignOption = { id: string; name: string };
 type Connection = {
   id: string;
   name: string;
-  provider: string;
-  trigger: string;
+  provider: AutoresponderProvider;
+  trigger: AutoresponderTrigger;
   campaignId: string | null;
   isEnabled: boolean;
+  config?: Record<string, unknown>;
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -34,6 +36,7 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Connection | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const campaignNames = Object.fromEntries(campaigns.map((c) => [c.id, c.name]));
@@ -84,6 +87,18 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
     void load();
   }
 
+  async function handleEdit(id: string) {
+    setMessage(null);
+    const res = await fetch(`/api/v1/advertiser/autoresponders/${id}`);
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.data) {
+      setMessage({ type: "err", text: "Unable to load connection details for editing." });
+      return;
+    }
+    setEditing(json.data as Connection);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
     <div className="space-y-8">
       <div
@@ -123,11 +138,23 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
       <div className="premium-card">
         <div className="h-1" style={{ background: "var(--theme-gradient-leads)" }} />
         <div className="p-6">
-          <h3 className="mb-1 text-lg font-semibold text-slate-900">Add integration</h3>
+          <h3 className="mb-1 text-lg font-semibold text-slate-900">
+            {editing ? "Edit integration" : "Add integration"}
+          </h3>
           <p className="mb-6 text-sm text-slate-500">
-            Connect Mailchimp, AWeber, GetResponse, or a custom webhook.
+            {editing
+              ? "Update connection settings, then save changes."
+              : "Connect Mailchimp, AWeber, GetResponse, or a custom webhook."}
           </p>
-          <AutoresponderConnectionForm campaigns={campaigns} onCreated={() => void load()} />
+          <AutoresponderConnectionForm
+            campaigns={campaigns}
+            initialConnection={editing}
+            onCancelEdit={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              void load();
+            }}
+          />
         </div>
       </div>
 
@@ -215,6 +242,15 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
                         Test
                       </>
                     )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleEdit(conn.id)}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
                   </Button>
                   <Button
                     type="button"
