@@ -23,7 +23,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   const [thankYouEnabled, setThankYouEnabled] = useState(funnel.thankYouEnabled);
   const [destinationUrl, setDestinationUrl] = useState(funnel.destinationUrl ?? "");
   const [thankYouPixelHtml, setThankYouPixelHtml] = useState(funnel.thankYouPixelHtml ?? "");
-  const [thankYouUseCampaignPixel, setThankYouUseCampaignPixel] = useState(funnel.thankYouUseCampaignPixel);
+  const [thankYouUseCampaignPixel] = useState(funnel.thankYouUseCampaignPixel);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
   return (
     <div className="space-y-6">
-      <FunnelDetailHeader funnelName={funnel.name} onSettingsClick={() => setSettingsOpen(true)} />
+      <FunnelDetailHeader funnelName={funnel.name} />
 
       <Tabs value="steps">
         <TabsList className="h-auto w-full justify-start rounded-none border-b border-slate-200 bg-transparent p-0">
@@ -92,7 +92,12 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
               onSelectStep={setActiveStepId}
               onAddStep={() => setAddStepOpen(true)}
             />
-            <FunnelStepOverview funnel={funnel} stepId={activeStepId} appUrl={appUrl} />
+            <FunnelStepOverview
+              funnel={funnel}
+              stepId={activeStepId}
+              appUrl={appUrl}
+              onSettingsClick={() => setSettingsOpen(true)}
+            />
           </div>
         </TabsContent>
       </Tabs>
@@ -106,13 +111,11 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
         thankYouEnabled={thankYouEnabled}
         destinationUrl={destinationUrl}
         thankYouPixelHtml={thankYouPixelHtml}
-        thankYouUseCampaignPixel={thankYouUseCampaignPixel}
         saving={savingSettings}
         message={settingsMessage}
         onThankYouEnabledChange={(enabled) => void handleThankYouToggle(enabled)}
         onDestinationUrlChange={setDestinationUrl}
         onThankYouPixelHtmlChange={setThankYouPixelHtml}
-        onThankYouUseCampaignPixelChange={setThankYouUseCampaignPixel}
         onSave={() => void saveSettings()}
       />
     </div>

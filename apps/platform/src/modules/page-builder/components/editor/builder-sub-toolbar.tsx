@@ -12,7 +12,6 @@ import {
   Undo2,
   Redo2,
   History,
-  Link2,
   Settings,
   Check,
   Loader2,
@@ -20,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isAdminTemplateBuilder } from "@/modules/page-builder/lib/builder-mode";
-import { useCampaignLinking } from "@/modules/page-builder/components/editor/use-campaign-linking";
 import { cn } from "@/lib/utils";
 
 export function BuilderSubToolbar() {
@@ -39,9 +37,6 @@ export function BuilderSubToolbar() {
   const setVersionHistoryOpen = useBuilderStore((s) => s.setVersionHistoryOpen);
   const setPageSettingsOpen = useBuilderStore((s) => s.setPageSettingsOpen);
   const saveStatus = useBuilderStore((s) => s.saveStatus);
-  const pageId = useBuilderStore((s) => s.pageId);
-  const campaignId = useBuilderStore((s) => s.campaignId);
-  const { campaigns, selectedCampaignId, linkCampaign } = useCampaignLinking(pageId, campaignId);
 
   const publicPath = `${builderConfig.publicPathPrefix}${pageSlug}${funnelStep === "thankYou" ? "/thank-you" : ""}`;
 
@@ -137,24 +132,6 @@ export function BuilderSubToolbar() {
             </button>
           )}
         </div>
-        {!isAdminTemplate && (
-          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 shadow-sm">
-            <Link2 className="h-4 w-4 text-blue-600" />
-            <span className="text-[12px] font-semibold text-slate-700">Campaign</span>
-            <select
-              className="h-8 min-w-[230px] rounded-md border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-medium text-slate-800 focus:border-blue-400 focus:outline-none"
-              value={selectedCampaignId}
-              onChange={(e) => void linkCampaign(e.target.value)}
-            >
-              <option value="">Select campaign...</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.status ? `(${c.status})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div className="flex-1" />
       </div>
     </div>

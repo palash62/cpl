@@ -73,17 +73,6 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
     router.push(`/advertiser/optin-funnels/${data.id}`);
   }
 
-  async function duplicateFunnel(id: string) {
-    const res = await fetch(`/api/v1/advertiser/optin-funnels/${id}/duplicate`, { method: "POST" });
-    if (!res.ok) {
-      toast.error("Duplicate failed");
-      return;
-    }
-    const { data } = await res.json();
-    setFunnels((prev) => [data, ...prev]);
-    toast.success("Funnel duplicated");
-  }
-
   async function archiveFunnel(id: string) {
     if (!confirm("Archive this funnel?")) return;
     const res = await fetch(`/api/v1/advertiser/optin-funnels/${id}`, { method: "DELETE" });
@@ -170,7 +159,6 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
                       funnelId={funnel.id}
                       slug={funnel.slug}
                       isPublished={funnel.isPublished}
-                      onDuplicate={() => void duplicateFunnel(funnel.id)}
                       onArchive={() => void archiveFunnel(funnel.id)}
                     />
                   </TableCell>

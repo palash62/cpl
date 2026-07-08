@@ -103,10 +103,8 @@ export function LandingPageBuilder({
           </div>
           {!isGhl && (
             <BottomStatusBar
-              pageId={pageId}
               pageName={pageName}
               pageSlug={pageSlug}
-              campaignId={campaignId}
             />
           )}
           <PreviewModal pageSlug={pageSlug} />

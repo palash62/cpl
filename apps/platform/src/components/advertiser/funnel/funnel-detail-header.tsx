@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Settings, Share2 } from "lucide-react";
+import { ArrowLeft, Share2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
   Tooltip,
@@ -11,10 +11,9 @@ import {
 
 type FunnelDetailHeaderProps = {
   funnelName: string;
-  onSettingsClick: () => void;
 };
 
-export function FunnelDetailHeader({ funnelName, onSettingsClick }: FunnelDetailHeaderProps) {
+export function FunnelDetailHeader({ funnelName }: FunnelDetailHeaderProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -25,26 +24,15 @@ export function FunnelDetailHeader({ funnelName, onSettingsClick }: FunnelDetail
         <h1 className="truncate text-xl font-semibold text-slate-900">{funnelName}</h1>
       </div>
       <TooltipProvider>
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 opacity-50"
-              disabled
-            >
-              <Share2 className="h-4 w-4" />
-            </TooltipTrigger>
-            <TooltipContent>Coming soon</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
-              onClick={onSettingsClick}
-            >
-              <Settings className="h-4 w-4" />
-            </TooltipTrigger>
-            <TooltipContent>Funnel settings</TooltipContent>
-          </Tooltip>
-        </div>
+        <Tooltip>
+          <TooltipTrigger
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 opacity-50"
+            disabled
+          >
+            <Share2 className="h-4 w-4" />
+          </TooltipTrigger>
+          <TooltipContent>Coming soon</TooltipContent>
+        </Tooltip>
       </TooltipProvider>
     </div>
   );

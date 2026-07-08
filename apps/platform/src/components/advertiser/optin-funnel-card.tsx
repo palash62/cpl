@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { PREVIEW_FALLBACK_FIELDS } from "@/lib/optin-page";
 import type { PublicOptinPage } from "@/lib/optin-page";
@@ -62,11 +62,9 @@ function resolveCraftThumbnail(funnel: SerializedOptinFunnel) {
 
 export function OptinFunnelCard({
   funnel,
-  onDuplicate,
   onArchive,
 }: {
   funnel: SerializedOptinFunnel;
-  onDuplicate: (id: string) => void;
   onArchive: (id: string) => void;
 }) {
   const templatePreview = funnelToTemplatePreviewPage(funnel);
@@ -129,10 +127,6 @@ export function OptinFunnelCard({
             <Eye className="h-3.5 w-3.5" />
             Preview
           </a>
-          <Button size="sm" variant="outline" onClick={() => onDuplicate(funnel.id)}>
-            <Copy className="mr-1.5 h-3.5 w-3.5" />
-            Duplicate
-          </Button>
           <Button size="sm" variant="outline" className="text-red-600" onClick={() => onArchive(funnel.id)}>
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
             Archive

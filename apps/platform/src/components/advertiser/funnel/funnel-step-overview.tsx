@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
-  Copy,
   ExternalLink,
   Eye,
   Settings,
@@ -34,6 +33,7 @@ type FunnelStepOverviewProps = {
   funnel: SerializedOptinFunnel;
   stepId: FunnelStepId;
   appUrl: string;
+  onSettingsClick: () => void;
 };
 
 function resolveThumbnail(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
@@ -72,11 +72,12 @@ function templatePreview(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
   };
 }
 
-export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOverviewProps) {
+export function FunnelStepOverview({ funnel, stepId, appUrl, onSettingsClick }: FunnelStepOverviewProps) {
   const router = useRouter();
   const stepName = stepId === "thankYou" ? "thank you" : "optin page";
   const publicPath = stepId === "thankYou" ? `/o/${funnel.slug}/thank-you` : `/o/${funnel.slug}`;
-  const publicUrl = `${appUrl}${publicPath}`;
+  const previewPath = `${publicPath}?preview=1`;
+  const publicUrl = `${appUrl}${previewPath}`;
   const editHref = `/advertiser/optin-funnels/${funnel.id}/edit?step=${stepId}`;
   const { craftState, themeJson } = resolveThumbnail(funnel, stepId);
   const templatePage = templatePreview(funnel, stepId);
@@ -110,7 +111,7 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
             <Input readOnly value={publicUrl} className="h-10 border-slate-200 bg-slate-50 pl-9 pr-10 font-mono text-xs" />
           </div>
           <a
-            href={publicPath}
+            href={previewPath}
             target="_blank"
             rel="noreferrer"
             className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-10 w-10 shrink-0")}
@@ -166,7 +167,7 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
                 </DropdownMenuContent>
               </DropdownMenu>
               <a
-                href={publicPath}
+                href={previewPath}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
@@ -174,8 +175,9 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
                 <Eye className="mr-1.5 h-4 w-4" />
                 Preview
               </a>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                <Settings className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-8" onClick={onSettingsClick}>
+                <Settings className="mr-1.5 h-4 w-4" />
+                Funnel settings
               </Button>
             </div>
           </div>
@@ -192,14 +194,6 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
         >
           <Trash2 className="mr-1.5 h-4 w-4" />
           Delete funnel step
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => toast.info("Step cloning coming in the next phase")}
-        >
-          <Copy className="mr-1.5 h-4 w-4" />
-          Clone funnel step
         </Button>
       </div>
     </div>

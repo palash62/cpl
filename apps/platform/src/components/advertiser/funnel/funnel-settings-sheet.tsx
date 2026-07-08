@@ -1,6 +1,7 @@
 "use client";
 
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +20,11 @@ type FunnelSettingsSheetProps = {
   thankYouEnabled: boolean;
   destinationUrl: string;
   thankYouPixelHtml: string;
-  thankYouUseCampaignPixel: boolean;
   saving: boolean;
   message: string | null;
   onThankYouEnabledChange: (enabled: boolean) => void;
   onDestinationUrlChange: (url: string) => void;
   onThankYouPixelHtmlChange: (html: string) => void;
-  onThankYouUseCampaignPixelChange: (enabled: boolean) => void;
   onSave: () => void;
 };
 
@@ -36,83 +35,86 @@ export function FunnelSettingsSheet({
   thankYouEnabled,
   destinationUrl,
   thankYouPixelHtml,
-  thankYouUseCampaignPixel,
   saving,
   message,
   onThankYouEnabledChange,
   onDestinationUrlChange,
   onThankYouPixelHtmlChange,
-  onThankYouUseCampaignPixelChange,
   onSave,
 }: FunnelSettingsSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Funnel settings</SheetTitle>
-          <SheetDescription>Configure thank-you redirect, tracking, and post-submit behavior.</SheetDescription>
+      <SheetContent className="w-full overflow-y-auto border-l border-slate-200 bg-white sm:max-w-md">
+        <SheetHeader className="border-b border-slate-100 pb-4">
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <Settings2 className="h-4 w-4 text-blue-600" />
+            Funnel settings
+          </SheetTitle>
+          <SheetDescription>Configure submit behavior and tracking for this funnel.</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-5">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-            <p className="font-medium text-slate-900">{funnel.name}</p>
-            <p className="mt-1 font-mono text-xs">/o/{funnel.slug}</p>
+        <div className="mt-5 space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-900">{funnel.name}</p>
+            <p className="mt-1 font-mono text-xs text-slate-500">/o/{funnel.slug}</p>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={thankYouEnabled}
-              disabled={saving}
-              onChange={(e) => onThankYouEnabledChange(e.target.checked)}
-            />
-            Redirect after submit to thank-you page
-          </label>
-
-          {!thankYouEnabled && (
-            <div className="space-y-2">
-              <Label>Destination URL (after submit)</Label>
-              <Input
-                type="url"
-                value={destinationUrl}
-                onChange={(e) => onDestinationUrlChange(e.target.value)}
-                placeholder="https://example.com/thank-you"
+          <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">After submit</p>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={thankYouEnabled}
+                disabled={saving}
+                onChange={(e) => onThankYouEnabledChange(e.target.checked)}
+                className="mt-0.5 accent-blue-600"
               />
+              <span>
+                Redirect to thank-you page
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  Enable this if you want users to land on your thank-you step after form submit.
+                </span>
+              </span>
+            </label>
+
+            {!thankYouEnabled && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-600">Destination URL (optional)</Label>
+                <Input
+                  type="url"
+                  value={destinationUrl}
+                  onChange={(e) => onDestinationUrlChange(e.target.value)}
+                  placeholder="https://example.com/thank-you"
+                  className="h-9 border-slate-200 text-sm"
+                />
+                <p className="text-xs text-slate-500">
+                  Leave empty to show an on-page success message.
+                </p>
+              </div>
+            )}
+
+            {thankYouEnabled && (
               <p className="text-xs text-slate-500">
-                Used when thank-you page is off. Leave empty for an on-page success message.
+                Users will go to `/o/{funnel.slug}/thank-you` after submit.
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
-          {thankYouEnabled && (
-            <p className="text-xs text-slate-500">
-              With thank-you enabled, visitors go to your thank-you step after submit.
-            </p>
-          )}
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={thankYouUseCampaignPixel}
-              onChange={(e) => onThankYouUseCampaignPixelChange(e.target.checked)}
-            />
-            Fire campaign conversion pixel on thank-you page
-          </label>
-
-          <div className="space-y-2">
-            <Label>Custom pixel / tracking code (HTML)</Label>
+          <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Tracking code</p>
+            <Label className="text-xs font-medium text-slate-600">Custom pixel / HTML</Label>
             <textarea
               value={thankYouPixelHtml}
               onChange={(e) => onThankYouPixelHtmlChange(e.target.value)}
-              rows={4}
+              rows={5}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
               placeholder="<script>...</script>"
             />
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button disabled={saving} onClick={onSave}>
-              Save settings
+          <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
+            <Button className="h-9" disabled={saving} onClick={onSave}>
+              {saving ? "Saving..." : "Save settings"}
             </Button>
             {message && (
               <p className={`text-sm ${message.includes("Unable") ? "text-red-600" : "text-emerald-600"}`}>

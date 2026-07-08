@@ -77,31 +77,6 @@ export function OptinFunnelsGallery({
     router.push(`/advertiser/optin-funnels/${data.id}/edit`);
 
   }
-
-
-
-  async function duplicateFunnel(id: string) {
-
-    const res = await fetch(`/api/v1/advertiser/optin-funnels/${id}/duplicate`, { method: "POST" });
-
-    if (!res.ok) {
-
-      toast.error("Duplicate failed");
-
-      return;
-
-    }
-
-    const { data } = await res.json();
-
-    setFunnels((prev) => [data, ...prev]);
-
-    toast.success("Funnel duplicated");
-
-  }
-
-
-
   async function archiveFunnel(id: string) {
 
     if (!confirm("Archive this optin funnel?")) return;
@@ -177,8 +152,6 @@ export function OptinFunnelsGallery({
                 key={funnel.id}
 
                 funnel={funnel}
-
-                onDuplicate={duplicateFunnel}
 
                 onArchive={archiveFunnel}
 
