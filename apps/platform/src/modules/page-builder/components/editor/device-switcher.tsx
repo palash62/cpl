@@ -15,6 +15,7 @@ const DEVICES: Array<{ id: Breakpoint; icon: typeof Monitor; label: string }> = 
 export function DeviceSwitcher() {
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const setBreakpoint = useBuilderStore((s) => s.setBreakpoint);
+  const setStyleBreakpoint = useBuilderStore((s) => s.setStyleBreakpoint);
   const chrome = getBuilderChrome(useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark"));
 
   return (
@@ -24,7 +25,10 @@ export function DeviceSwitcher() {
           key={id}
           type="button"
           title={label}
-          onClick={() => setBreakpoint(id)}
+          onClick={() => {
+            setBreakpoint(id);
+            setStyleBreakpoint(id);
+          }}
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-md transition-all",
             breakpoint === id ? chrome.deviceActive : chrome.deviceInactive,

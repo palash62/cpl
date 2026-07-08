@@ -84,7 +84,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="steps" className="mt-6">
+        <TabsContent value="steps" className="mt-6 flex-none">
           <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
             <FunnelStepsSidebar
               steps={steps}

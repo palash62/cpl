@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
+import { cloneNodeTree } from "@/modules/page-builder/lib/clone-node-tree";
 
 export function useBuilderKeyboard() {
   const { actions, query } = useEditor();
@@ -25,7 +26,9 @@ export function useBuilderKeyboard() {
         const selected = query.getEvent("selected").all();
         if (selected.length && !selected.includes("ROOT")) {
           e.preventDefault();
-          selected.forEach((id) => actions.delete(id));
+          selected.forEach((id) => {
+            if (!query.node(id).isTopLevelNode()) actions.delete(id);
+          });
         }
       }
       if (meta && e.key === "d") {
@@ -35,10 +38,12 @@ export function useBuilderKeyboard() {
         const node = query.node(selected).get();
         const parent = node.data.parent;
         if (!parent) return;
-        const siblings = query.node(parent).childNodes();
+        const siblings = query.node(parent).get().data.nodes ?? [];
         const index = siblings.indexOf(selected);
-        const tree = query.node(selected).toNodeTree();
+        if (index < 0) return;
+        const tree = cloneNodeTree(query.node(selected).toNodeTree());
         actions.addNodeTree(tree, parent, index + 1);
+        actions.selectNode(tree.rootNodeId);
       }
     }
 

@@ -36,12 +36,13 @@ export function themeToCssVars(theme: ThemeJson): CSSProperties {
 export function buttonStyleFromTheme(
   theme: ThemeJson,
   variant: "primary" | "secondary" = "primary",
+  textColor?: string,
 ): CSSProperties {
   const color = variant === "primary" ? theme.primaryColor : theme.secondaryColor;
   if (theme.buttonStyle === "outline") {
     return {
       backgroundColor: "transparent",
-      color,
+      color: textColor ?? color,
       border: `2px solid ${color}`,
       borderRadius: theme.borderRadius,
     };
@@ -49,14 +50,14 @@ export function buttonStyleFromTheme(
   if (theme.buttonStyle === "ghost") {
     return {
       backgroundColor: "transparent",
-      color,
+      color: textColor ?? color,
       border: "none",
       borderRadius: theme.borderRadius,
     };
   }
   return {
     backgroundColor: color,
-    color: "#ffffff",
+    color: textColor ?? "#ffffff",
     border: "none",
     borderRadius: theme.borderRadius,
   };

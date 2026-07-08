@@ -25,17 +25,26 @@ export const BUILDER_FIELD_INPUT =
 export const BUILDER_CHECKBOX_LABEL = "flex items-center gap-2 text-sm text-slate-200";
 
 /** GHL light theme field styles */
-export const GHL_FIELD_LABEL = "text-xs font-medium text-slate-600";
+export const GHL_FIELD_LABEL = "text-[11px] font-medium leading-none text-slate-600";
 
 export const GHL_FIELD_INPUT =
-  "h-9 border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400";
+  "h-8 border-slate-200 bg-white text-xs text-slate-900 placeholder:text-slate-400";
 
 export const GHL_TAB_LIST =
   "h-auto w-full gap-0 rounded-none border-b border-slate-200 bg-transparent p-0";
 
 export const GHL_TAB_TRIGGER =
-  "flex-1 rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500 " +
+  "flex-1 rounded-none border-b-2 border-transparent px-2.5 py-2 text-xs font-medium text-slate-500 " +
   "data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none";
 
 export const GHL_PROPERTIES_PANEL =
-  "text-slate-900 [&_label]:text-slate-600 [&_input]:border-slate-200 [&_input]:bg-white [&_textarea]:border-slate-200 [&_select]:border-slate-200";
+  "text-slate-900 [&_label]:text-[11px] [&_label]:font-medium [&_label]:text-slate-600 [&_input]:border-slate-200 [&_input]:bg-white [&_textarea]:border-slate-200 [&_select]:border-slate-200";
+
+/** Shared GHL panel section chrome */
+export const GHL_SECTION_TITLE =
+  "mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500";
+
+export const GHL_SECTION_CARD = "rounded-lg border border-slate-200 bg-white p-2.5";
+
+export const GHL_GROUP_TITLE =
+  "mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500";

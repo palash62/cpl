@@ -10,11 +10,11 @@ import {
   Trash2,
 } from "lucide-react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { usesBuilderRenderer } from "@/lib/optin-funnel";
 import { PREVIEW_FALLBACK_FIELDS } from "@/lib/optin-page";
 import { getOptinTemplate, isOptinTemplateId } from "@/lib/optin-templates";
 import { OptinPageLayout } from "@/components/optin/optin-page-layout";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
-import { createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -80,10 +80,14 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
   const editHref = `/advertiser/optin-funnels/${funnel.id}/edit?step=${stepId}`;
   const { craftState, themeJson } = resolveThumbnail(funnel, stepId);
   const templatePage = templatePreview(funnel, stepId);
-  const hasCraft = craftState?.craft && Object.keys(craftState.craft).length > 1;
+  const showCraft = usesBuilderRenderer({
+    editorType: funnel.editorType,
+    craftState: stepId === "thankYou" ? funnel.thankYouCraftState : funnel.craftState,
+  });
+  const showTemplate = !showCraft && !!templatePage;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <h2 className="text-lg font-semibold capitalize text-slate-900">{stepName}</h2>
         <div className="flex items-center gap-2">
@@ -93,7 +97,7 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
         </div>
       </div>
 
-      <div className="flex-1 space-y-6 p-5">
+      <div className="space-y-6 p-5">
         {!funnel.isPublished && (
           <p className="text-sm text-amber-700">
             Please publish your funnel to see it live. Visitors can preview drafts from the editor.
@@ -116,11 +120,13 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
         </div>
 
         <div className="space-y-3">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Control</p>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              <div className="relative aspect-4/3 bg-white">
-                {templatePage ? (
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Control</p>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="bg-slate-50 p-4">
+              <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
+                {showCraft ? (
+                  <OptinFunnelCraftThumbnail craftState={craftState} themeJson={themeJson} scale={0.28} />
+                ) : showTemplate && templatePage ? (
                   <div className="pointer-events-none absolute left-1/2 top-0 h-[720px] w-[960px] origin-top -translate-x-1/2 scale-[0.28]">
                     <OptinPageLayout
                       page={templatePage}
@@ -134,8 +140,6 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
                       onSubmit={(e) => e.preventDefault()}
                     />
                   </div>
-                ) : hasCraft ? (
-                  <OptinFunnelCraftThumbnail craftState={craftState} themeJson={themeJson} scale={0.32} />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                     <p className="text-sm text-slate-500">No page design yet</p>
@@ -145,34 +149,34 @@ export function FunnelStepOverview({ funnel, stepId, appUrl }: FunnelStepOvervie
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-white p-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className={cn(buttonVariants({ size: "sm" }))}>
-                    Edit
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => router.push(editHref)}>
-                      Use existing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(editHref)}>
-                      Create from blank
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <a
-                  href={publicPath}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                >
-                  <Eye className="mr-1.5 h-4 w-4" />
-                  Preview
-                </a>
-                <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger className={cn(buttonVariants({ size: "sm" }))}>
+                  Edit
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => router.push(editHref)}>
+                    Use existing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(editHref)}>
+                    Create from blank
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <a
+                href={publicPath}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <Eye className="mr-1.5 h-4 w-4" />
+                Preview
+              </a>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>

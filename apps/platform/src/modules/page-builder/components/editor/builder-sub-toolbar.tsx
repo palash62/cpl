@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import {
   Plus,
@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isAdminTemplateBuilder } from "@/modules/page-builder/lib/builder-mode";
+import { useCampaignLinking } from "@/modules/page-builder/components/editor/use-campaign-linking";
 import { cn } from "@/lib/utils";
 
 export function BuilderSubToolbar() {
@@ -39,36 +40,10 @@ export function BuilderSubToolbar() {
   const setPageSettingsOpen = useBuilderStore((s) => s.setPageSettingsOpen);
   const saveStatus = useBuilderStore((s) => s.saveStatus);
   const pageId = useBuilderStore((s) => s.pageId);
-  const setPageMeta = useBuilderStore((s) => s.setPageMeta);
   const campaignId = useBuilderStore((s) => s.campaignId);
-  const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string; status?: string }>>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const { campaigns, selectedCampaignId, linkCampaign } = useCampaignLinking(pageId, campaignId);
 
   const publicPath = `${builderConfig.publicPathPrefix}${pageSlug}${funnelStep === "thankYou" ? "/thank-you" : ""}`;
-
-  useEffect(() => {
-    fetch("/api/v1/campaigns?limit=100")
-      .then((r) => r.json())
-      .then((body) => setCampaigns(body.data ?? []))
-      .catch(() => setCampaigns([]));
-  }, []);
-
-  useEffect(() => {
-    setSelectedCampaignId(campaignId ?? "");
-  }, [campaignId]);
-
-  async function linkCampaign(campaignId: string) {
-    if (!pageId) return;
-    setSelectedCampaignId(campaignId);
-    const res = await fetch(`${builderConfig.apiBasePath}/${pageId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId: campaignId || null }),
-    });
-    if (res.ok) {
-      setPageMeta({ campaignId: campaignId || null });
-    }
-  }
 
   const tools = [
     { icon: Plus, label: "Add", onClick: () => { setLeftPanelSection("quick-add"); setLeftPanelOpen(true); } },
@@ -169,7 +144,7 @@ export function BuilderSubToolbar() {
             <select
               className="h-8 min-w-[230px] rounded-md border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-medium text-slate-800 focus:border-blue-400 focus:outline-none"
               value={selectedCampaignId}
-              onChange={(e) => linkCampaign(e.target.value)}
+              onChange={(e) => void linkCampaign(e.target.value)}
             >
               <option value="">Select campaign...</option>
               {campaigns.map((c) => (

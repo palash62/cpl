@@ -21,7 +21,7 @@ export function FunnelStepsSidebar({
   const enabledCount = steps.filter((s) => s.enabled).length;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
         <span className="text-sm font-medium text-slate-900">Funnel steps</span>

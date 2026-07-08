@@ -38,7 +38,11 @@ export function CtaButton({ text = "Get Started", href = "#", ...props }: CtaPro
   const { actions: { setProp } } = useNode();
   return (
     <BlockWrapper {...props} layout={{ textAlign: "center", ...props.layout }}>
-      <a href={href} style={buttonStyleFromTheme(theme)} className="inline-block px-6 py-3 font-medium no-underline">
+      <a
+        href={href}
+        style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
+        className="inline-block px-6 py-3 no-underline"
+      >
         <span
           contentEditable={enabled}
           suppressContentEditableWarning
@@ -147,8 +151,11 @@ export function Testimonials({
     <BlockWrapper {...props} layout={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", ...props.layout }}>
       {items.map((item, i) => (
         <blockquote key={i} className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-sm italic">&ldquo;{item.quote}&rdquo;</p>
-          <footer className="mt-2 text-xs font-medium">{item.author}{item.role && <span className="text-muted-foreground"> — {item.role}</span>}</footer>
+          <p className="italic">&ldquo;{item.quote}&rdquo;</p>
+          <footer className="mt-2 opacity-80">
+            {item.author}
+            {item.role && <span> — {item.role}</span>}
+          </footer>
         </blockquote>
       ))}
     </BlockWrapper>
@@ -195,8 +202,8 @@ export function Faq({ items = [{ question: "How does it work?", answer: "Simply 
       <div className="space-y-3">
         {items.map((item, i) => (
           <details key={i} className="rounded-lg border p-3">
-            <summary className="cursor-pointer font-medium">{item.question}</summary>
-            <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
+            <summary className="cursor-pointer">{item.question}</summary>
+            <p className="mt-2 opacity-80">{item.answer}</p>
           </details>
         ))}
       </div>
@@ -248,9 +255,9 @@ export function PricingTable({ plans = [{ name: "Basic", price: "$29/mo", featur
     <BlockWrapper {...props} layout={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", ...props.layout }}>
       {plans.map((plan) => (
         <div key={plan.name} className="rounded-lg border p-4 text-center">
-          <h4 className="font-semibold">{plan.name}</h4>
-          <p className="my-2 text-2xl font-bold" style={{ color: theme.primaryColor }}>{plan.price}</p>
-          <ul className="space-y-1 text-sm text-left">
+          <h4>{plan.name}</h4>
+          <p className="my-2" style={{ color: theme.primaryColor, fontSize: "1.5em", fontWeight: 700 }}>{plan.price}</p>
+          <ul className="space-y-1 text-left">
             {plan.features.map((f) => <li key={f}>✓ {f}</li>)}
           </ul>
         </div>
@@ -272,8 +279,8 @@ export function FeatureCards({ features = [{ title: "Fast Setup", description: "
     <BlockWrapper {...props} layout={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", ...props.layout }}>
       {features.map((f) => (
         <div key={f.title} className="rounded-lg border p-4">
-          <h4 className="font-semibold">{f.title}</h4>
-          <p className="mt-1 text-sm text-muted-foreground">{f.description}</p>
+          <h4>{f.title}</h4>
+          <p className="mt-1 opacity-80">{f.description}</p>
         </div>
       ))}
     </BlockWrapper>
@@ -290,7 +297,7 @@ export function TrustBadges({ badges = ["SSL Secured", "GDPR Compliant", "24/7 S
   return (
     <BlockWrapper {...props} layout={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "center", ...props.layout }}>
       {badges.map((b) => (
-        <span key={b} className="rounded-full border bg-muted px-3 py-1 text-xs font-medium">{b}</span>
+        <span key={b} className="rounded-full border bg-muted px-3 py-1">{b}</span>
       ))}
     </BlockWrapper>
   );
@@ -375,9 +382,9 @@ export function ProgressBar({
   return (
     <BlockWrapper {...props} layout={{ ...props.layout }}>
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between">
           <span>{label}</span>
-          {showValue && <span className="font-semibold">{percent}%</span>}
+          {showValue && <span style={{ fontWeight: 600 }}>{percent}%</span>}
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
           <div
@@ -610,8 +617,8 @@ export function Survey(props: BlockProps) {
   return (
     <BlockWrapper {...props}>
       <div className="space-y-2 rounded-lg border p-4">
-        <p className="text-sm font-medium">Quick survey</p>
-        <p className="text-xs text-slate-500">What is your biggest challenge right now?</p>
+        <p>Quick survey</p>
+        <p className="opacity-70">What is your biggest challenge right now?</p>
       </div>
     </BlockWrapper>
   );
@@ -658,7 +665,7 @@ DayTimer.craft = {
 export function NavigationMenu(props: BlockProps) {
   return (
     <BlockWrapper {...props}>
-      <div className="flex flex-wrap gap-4 text-sm font-medium">
+      <div className="flex flex-wrap gap-4">
         {["Home", "Features", "Pricing", "Contact"].map((item) => (
           <a key={item} href="#" className="hover:underline">
             {item}
@@ -679,8 +686,8 @@ export function ImageFeature(props: BlockProps) {
       <div className="grid grid-cols-1 gap-3 rounded-lg border p-4 sm:grid-cols-[96px,1fr]">
         <div className="h-24 rounded-md bg-slate-200" />
         <div>
-          <p className="text-sm font-semibold">Feature headline</p>
-          <p className="mt-1 text-xs text-slate-500">Highlight your strongest benefit with supporting text.</p>
+          <p>Feature headline</p>
+          <p className="mt-1 opacity-70">Highlight your strongest benefit with supporting text.</p>
         </div>
       </div>
     </BlockWrapper>

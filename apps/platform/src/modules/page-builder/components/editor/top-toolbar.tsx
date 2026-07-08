@@ -165,7 +165,7 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
             <span className="text-emerald-600">Saved</span>
           </>
         )}
-        {saveStatus === "idle" && (isFunnel || isAdminTemplate ? "Autosave on" : "Auto-save on")}
+        {saveStatus === "idle" && "Autosave on"}
         {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
       </div>
 

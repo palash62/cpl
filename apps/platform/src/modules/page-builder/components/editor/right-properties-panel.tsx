@@ -20,25 +20,32 @@ import {
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
-import { GHL_PROPERTIES_PANEL, GHL_TAB_LIST, GHL_TAB_TRIGGER } from "@/modules/page-builder/lib/builder-panel-styles";
+import {
+  GHL_PROPERTIES_PANEL,
+  GHL_SECTION_CARD,
+  GHL_SECTION_TITLE,
+  GHL_TAB_LIST,
+  GHL_TAB_TRIGGER,
+} from "@/modules/page-builder/lib/builder-panel-styles";
 import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
 
 function GhlStylesPanel() {
   const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
   const setStyleBreakpoint = useBuilderStore((s) => s.setStyleBreakpoint);
+  const setBreakpoint = useBuilderStore((s) => s.setBreakpoint);
   const {
+    displayName,
     layout,
     style,
-    typography,
     responsive,
     visible,
     mobileVisible,
     actions: { setProp },
   } = useNode((node) => ({
+    displayName: String(node.data.displayName ?? node.data.type ?? "Element"),
     layout: node.data.props.layout as BlockProps["layout"],
     style: node.data.props.style as BlockProps["style"],
-    typography: node.data.props.typography as BlockProps["typography"],
     responsive: node.data.props.responsive as BlockProps["responsive"],
     visible: node.data.props.visible as boolean | undefined,
     mobileVisible: (node.data.props.responsive as BlockProps["responsive"])?.mobile?.visible,
@@ -47,7 +54,7 @@ function GhlStylesPanel() {
   const breakpointOverride = styleBreakpoint === "desktop" ? undefined : responsive?.[styleBreakpoint];
   const layoutSafe = { ...(layout ?? {}), ...(breakpointOverride?.layout ?? {}) };
   const styleSafe = { ...(style ?? {}), ...(breakpointOverride?.style ?? {}) };
-  const typographySafe = { ...(typography ?? {}), ...(breakpointOverride?.typography ?? {}) };
+  const isSection = displayName === "Section";
 
   function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
     setProp((props: BlockProps) => {
@@ -97,15 +104,18 @@ function GhlStylesPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+    <div className="space-y-3">
+      <div className="flex gap-0.5 rounded-md bg-slate-100 p-0.5">
         {(["desktop", "tablet", "mobile"] as Breakpoint[]).map((bp) => (
           <button
             key={bp}
             type="button"
-            onClick={() => setStyleBreakpoint(bp)}
+            onClick={() => {
+              setStyleBreakpoint(bp);
+              setBreakpoint(bp);
+            }}
             className={cn(
-              "flex-1 rounded-md py-1.5 text-xs font-medium capitalize",
+              "flex-1 rounded py-1 text-[11px] font-medium capitalize",
               styleBreakpoint === bp ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
             )}
           >
@@ -114,37 +124,41 @@ function GhlStylesPanel() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Spacing</p>
-        <div className="space-y-3">
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>Spacing</p>
+        <div className="space-y-2.5">
           <SpacingControl label="Margin" value={String(layoutSafe.margin ?? "")} onChange={(v) => setLayoutProp("margin", v)} />
           <SpacingControl label="Padding" value={String(layoutSafe.padding ?? "")} onChange={(v) => setLayoutProp("padding", v)} />
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Container Size</p>
-        <div className="space-y-3">
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>
+          {isSection ? "Section Size" : "Container Size"}
+        </p>
+        <div className="space-y-2.5">
           <WidthControl label="Width" value={String(layoutSafe.width ?? "100%")} onChange={(v) => setLayoutProp("width", v)} />
-          <WidthControl label="Height" value={String(layoutSafe.height ?? "auto")} onChange={(v) => setLayoutProp("height", v)} />
+          <WidthControl
+            label={isSection ? "Min Height" : "Height"}
+            value={String(isSection ? (layoutSafe.minHeight ?? "auto") : (layoutSafe.height ?? "auto"))}
+            onChange={(v) => setLayoutProp(isSection ? "minHeight" : "height", v)}
+          />
           <AlignControl
             label="Align"
-            value={normalizeAlignValue(
-              layoutSafe.textAlign ?? layoutSafe.justifyContent ?? typographySafe.textAlign ?? "left",
-            )}
-            onChange={(v) => setLayoutProp("textAlign", v)}
+            value={normalizeAlignValue(String(layoutSafe.blockAlign ?? "left"))}
+            onChange={(v) => setLayoutProp("blockAlign", v)}
           />
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Visibility</p>
-        <div className="grid grid-cols-2 gap-2">
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>Visibility</p>
+        <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={() => setDesktopVisible(visible === false)}
             className={cn(
-              "h-10 rounded-md border text-xs font-medium transition",
+              "h-8 rounded-md border text-[11px] font-medium transition",
               visible !== false ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500",
             )}
           >
@@ -154,7 +168,7 @@ function GhlStylesPanel() {
             type="button"
             onClick={() => setMobileVisible(mobileVisible === false)}
             className={cn(
-              "h-10 rounded-md border text-xs font-medium transition",
+              "h-8 rounded-md border text-[11px] font-medium transition",
               mobileVisible !== false ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500",
             )}
           >
@@ -163,10 +177,10 @@ function GhlStylesPanel() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Background</p>
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>Background</p>
         <BackgroundPanel style={styleSafe as Record<string, string | number | undefined>} onChange={setStyleProp} />
-        <div className="mt-3">
+        <div className="mt-2.5">
           <BlurControl
             value={String(styleSafe?.backdropFilter ?? "").replace("blur(", "").replace(")", "") || "0px"}
             onChange={(v) => setStyleProp("backdropFilter", v === "0px" ? "" : `blur(${v})`)}
@@ -174,8 +188,8 @@ function GhlStylesPanel() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Typography</p>
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>Typography</p>
         <TypographyFields />
       </div>
     </div>
@@ -189,14 +203,14 @@ function GhlPropertiesBody({ Settings, displayName }: { Settings: ComponentType 
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">{displayName}</h3>
+      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
+        <h3 className="text-[13px] font-semibold leading-none text-slate-900">{displayName}</h3>
         <button
           type="button"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           onClick={() => actions.selectNode()}
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -213,14 +227,14 @@ function GhlPropertiesBody({ Settings, displayName }: { Settings: ComponentType 
           </TabsTrigger>
         </TabsList>
 
-        <div className={cn("max-h-[calc(100vh-220px)] overflow-y-auto p-4", GHL_PROPERTIES_PANEL)}>
-          <TabsContent value="general" className="mt-0 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Element name</label>
+        <div className={cn("max-h-[calc(100vh-200px)] overflow-y-auto p-3", GHL_PROPERTIES_PANEL)}>
+          <TabsContent value="general" className="mt-0 space-y-3">
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-600">Element name</label>
               <input
                 readOnly
                 value={displayName}
-                className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700"
+                className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-700"
               />
             </div>
             <GeneralFields />
@@ -262,18 +276,18 @@ export function RightPropertiesPanel() {
 
   if (isGhl) {
     return (
-      <aside className="flex w-[320px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-[-4px_0_24px_rgba(15,23,42,0.04)]">
+      <aside className="flex w-[300px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-[-4px_0_24px_rgba(15,23,42,0.04)]">
         {selected ? (
           <NodeProvider id={selected} related>
             <GhlPropertiesBody Settings={Settings} displayName={displayName ?? "Element"} />
           </NodeProvider>
         ) : (
-          <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-              <MousePointer2 className="h-5 w-5 text-slate-400" />
+          <div className="flex flex-col items-center justify-center px-5 py-16 text-center">
+            <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+              <MousePointer2 className="h-4 w-4 text-slate-400" />
             </div>
-            <p className="text-sm font-medium text-slate-900">Select an element</p>
-            <p className="mt-1 text-xs text-slate-500">Click any block on the canvas to edit properties.</p>
+            <p className="text-[13px] font-medium text-slate-900">Select an element</p>
+            <p className="mt-1 text-[11px] leading-snug text-slate-500">Click any block on the canvas to edit properties.</p>
           </div>
         )}
       </aside>

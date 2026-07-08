@@ -11,6 +11,7 @@ export type TypographyProps = {
 };
 
 export type LayoutProps = {
+  blockAlign?: "left" | "center" | "right";
   width?: string;
   height?: string;
   margin?: string;

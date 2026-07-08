@@ -12,12 +12,12 @@ export function RowSettings() {
   }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <GeneralFields />
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-slate-600">Columns</label>
+      <div className="space-y-1">
+        <label className="text-[11px] font-medium text-slate-600">Columns</label>
         <select
-          className="h-9 w-full rounded-md border border-slate-200 px-2.5 text-sm"
+          className="h-8 w-full rounded-md border border-slate-200 px-2 text-xs"
           value={columns ?? 2}
           onChange={(e) => setProp((p: BlockProps & { columns?: number }) => {
             const count = parseInt(e.target.value, 10);

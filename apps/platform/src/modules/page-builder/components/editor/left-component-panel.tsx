@@ -81,6 +81,7 @@ function ThemeManager({ isLight }: { isLight: boolean }) {
 }
 
 function LayersTree({ isLight }: { isLight: boolean }) {
+  const { actions } = useEditor();
   const { nodes, selectedId } = useEditor((state, query) => ({
     nodes: state.nodes,
     selectedId: query.getEvent("selected").first(),
@@ -99,9 +100,11 @@ function LayersTree({ isLight }: { isLight: boolean }) {
 
     return (
       <div key={id}>
-        <div
+        <button
+          type="button"
+          onClick={() => actions.selectNode(id)}
           className={cn(
-            "flex items-center gap-1.5 truncate py-1.5 pr-3 text-xs transition-colors",
+            "flex w-full items-center gap-1.5 truncate py-1.5 pr-3 text-left text-xs transition-colors",
             isSelected
               ? isLight
                 ? "bg-blue-50 text-blue-800"
@@ -114,7 +117,7 @@ function LayersTree({ isLight }: { isLight: boolean }) {
         >
           <span className="h-1 w-1 shrink-0 rounded-full bg-current opacity-60" />
           {name}
-        </div>
+        </button>
         {node.data.nodes?.map((childId: string) => renderNode(childId, depth + 1))}
       </div>
     );

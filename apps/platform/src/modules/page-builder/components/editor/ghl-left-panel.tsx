@@ -23,6 +23,7 @@ import { buildRowElement } from "@/modules/page-builder/lib/build-row-element";
 import { useInsertBlock } from "@/modules/page-builder/hooks/use-insert-block";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { BLOCK_ICONS } from "@/modules/page-builder/lib/block-icons";
+import { GHL_GROUP_TITLE } from "@/modules/page-builder/lib/builder-panel-styles";
 import { cn } from "@/lib/utils";
 
 const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
@@ -113,22 +114,22 @@ function GridTile({
         }
       }}
       className={cn(
-        "group flex min-h-[88px] cursor-grab flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-center transition hover:border-blue-300 hover:bg-blue-50/50 active:cursor-grabbing",
+        "group flex min-h-[76px] cursor-grab flex-col items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white p-2 text-center transition hover:border-blue-300 hover:bg-blue-50/50 active:cursor-grabbing",
         insertTargetNodeId && "cursor-pointer ring-2 ring-orange-200",
       )}
     >
-      <div className="flex h-10 w-full items-center justify-center rounded-md bg-slate-50 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600">
+      <div className="flex h-8 w-full items-center justify-center rounded-md bg-slate-50 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600">
         {name === "Columns" && columns ? (
-          <div className="flex h-6 w-full max-w-[48px] gap-0.5 px-1">
+          <div className="flex h-5 w-full max-w-[44px] gap-0.5 px-1">
             {Array.from({ length: columns }).map((_, i) => (
               <div key={i} className="flex-1 rounded-sm bg-current opacity-60" />
             ))}
           </div>
         ) : (
-          <BlockIcon className="h-5 w-5" />
+          <BlockIcon className="h-4 w-4" />
         )}
       </div>
-      <span className="line-clamp-2 min-h-[2.5em] text-[10px] font-medium leading-tight text-slate-600 group-hover:text-slate-900">
+      <span className="line-clamp-2 min-h-[2.25em] text-[10px] font-medium leading-tight text-slate-600 group-hover:text-slate-900">
         {label}
       </span>
     </div>
@@ -153,10 +154,10 @@ function LayersTree() {
           type="button"
           onClick={() => actions.selectNode(id)}
           className={cn(
-            "block w-full truncate py-1.5 pr-3 text-left text-xs",
+            "block w-full truncate py-1 pr-2.5 text-left text-[11px] leading-snug",
             isSelected ? "bg-blue-50 font-medium text-blue-800" : "text-slate-600 hover:bg-slate-50",
           )}
-          style={{ paddingLeft: 12 + depth * 14 }}
+          style={{ paddingLeft: 10 + depth * 12 }}
         >
           {name}
         </button>
@@ -165,7 +166,7 @@ function LayersTree() {
     );
   }
 
-  return <div className="py-2">{renderNode("ROOT")}</div>;
+  return <div className="py-1">{renderNode("ROOT")}</div>;
 }
 
 function ThemePanel() {
@@ -173,19 +174,19 @@ function ThemePanel() {
   const setTheme = useBuilderStore((s) => s.setTheme);
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 p-1">
       {[
         { key: "primaryColor" as const, label: "Primary" },
         { key: "secondaryColor" as const, label: "Secondary" },
         { key: "backgroundColor" as const, label: "Background" },
       ].map(({ key, label }) => (
-        <div key={key} className="flex items-center justify-between gap-3">
-          <span className="text-xs font-medium text-slate-600">{label}</span>
+        <div key={key} className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-medium text-slate-600">{label}</span>
           <input
             type="color"
             value={theme[key]}
             onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
-            className="h-8 w-8 cursor-pointer rounded border border-slate-200"
+            className="h-7 w-7 cursor-pointer rounded border border-slate-200"
           />
         </div>
       ))}
@@ -240,7 +241,7 @@ export function GhlLeftPanel() {
 
   if (!open) {
     return (
-      <div className="flex w-12 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
+      <div className="flex w-11 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
         {RAIL_ITEMS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -251,11 +252,11 @@ export function GhlLeftPanel() {
               useBuilderStore.getState().setLeftPanelOpen(true);
             }}
             className={cn(
-              "flex h-11 w-full items-center justify-center text-slate-500 hover:bg-white hover:text-blue-600",
+              "flex h-10 w-full items-center justify-center text-slate-500 hover:bg-white hover:text-blue-600",
               section === id && "bg-white text-blue-600 shadow-sm",
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-3.5 w-3.5" />
           </button>
         ))}
       </div>
@@ -264,7 +265,7 @@ export function GhlLeftPanel() {
 
   return (
     <div className="flex shrink-0 border-r border-slate-200 bg-white">
-      <div className="flex w-[108px] flex-col border-r border-slate-100 bg-slate-50">
+      <div className="flex w-[100px] flex-col border-r border-slate-100 bg-slate-50">
         {RAIL_ITEMS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -272,49 +273,49 @@ export function GhlLeftPanel() {
             title={label}
             onClick={() => setSection(id)}
             className={cn(
-              "flex h-10 w-full items-center gap-2 px-3 text-left text-slate-600 hover:bg-white hover:text-blue-600",
+              "flex h-9 w-full items-center gap-1.5 px-2.5 text-left text-slate-600 hover:bg-white hover:text-blue-600",
               section === id && "bg-white text-blue-600 shadow-sm",
             )}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate text-xs font-medium">{label}</span>
+            <span className="truncate text-[11px] font-medium leading-none">{label}</span>
           </button>
         ))}
       </div>
 
-      <aside className="flex w-[320px] flex-col">
-        <div className="border-b border-slate-100 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">
+      <aside className="flex w-[300px] flex-col">
+        <div className="border-b border-slate-100 px-2.5 py-2">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-[13px] font-semibold leading-none text-slate-800">
               {section === "quick-add" ? "Quick Add" : RAIL_ITEMS.find((i) => i.id === section)?.label}
             </p>
             <button
               type="button"
               onClick={() => useBuilderStore.getState().setLeftPanelOpen(false)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
               title="Close panel"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-9 rounded-full border-slate-200 bg-slate-50 pl-9"
+              className="h-8 rounded-full border-slate-200 bg-slate-50 pl-8 text-xs"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto p-2.5">
           {section === "quick-add" && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {Array.from(quickAddGroups.entries()).map(([group, items]) => (
                 <div key={group}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{group}</p>
-                  <div className="grid grid-cols-3 gap-2.5">
+                  <p className={GHL_GROUP_TITLE}>{group}</p>
+                  <div className="grid grid-cols-3 gap-2">
                     {items.map((item, idx) => (
                       <GridTile
                         key={`${item.name}-${item.label}-${idx}`}
@@ -327,11 +328,11 @@ export function GhlLeftPanel() {
                         }
                         icon={
                           item.label === "Headline"
-                            ? () => <span className="text-lg font-bold">H</span>
+                            ? () => <span className="text-base font-bold">H</span>
                             : item.label === "Sub-Headline"
-                              ? () => <span className="text-sm font-bold">T</span>
+                              ? () => <span className="text-xs font-bold">T</span>
                               : item.label === "Paragraph"
-                                ? () => <span className="text-sm">¶</span>
+                                ? () => <span className="text-xs">¶</span>
                                 : item.label === "Custom HTML"
                                   ? Code
                                   : item.label === "Form"
@@ -350,7 +351,7 @@ export function GhlLeftPanel() {
 
           {section === "rows" && (
             <div>
-              <p className="mb-2 text-xs font-semibold text-slate-500">Rows</p>
+              <p className={GHL_GROUP_TITLE}>Rows</p>
               <div className="grid grid-cols-3 gap-2">
                 {ROW_COLUMNS.map((n) => (
                   <GridTile key={n} name="Columns" label={`${n} Column`} columns={n} />
@@ -360,17 +361,17 @@ export function GhlLeftPanel() {
           )}
 
           {(section === "sections" || section === "elements" || section === "forms") && (
-            <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="space-y-2">
+              <p className={GHL_GROUP_TITLE}>
                 {section === "sections" ? "Section Blocks" : section === "forms" ? "Form Elements" : "Elements"}
               </p>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2">
                 {filteredSectionItems.map((item) => (
                   <GridTile key={item.name + item.label} name={item.name} label={item.label} />
                 ))}
               </div>
               {filteredSectionItems.length === 0 && (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2.5 text-[11px] text-slate-500">
                   No elements match your search.
                 </div>
               )}

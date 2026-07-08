@@ -56,6 +56,23 @@ describe("blockPropsToStyle", () => {
     expect(style.padding).toBe("24px 16px 24px 16px");
   });
 
+  it("normalizes bare fontSize numbers to px", () => {
+    const style = blockPropsToStyle({
+      typography: { fontSize: "24", fontWeight: "700", color: "#111" },
+    });
+    expect(style.fontSize).toBe("24px");
+    expect(style.fontWeight).toBe("700");
+    expect(style.color).toBe("#111");
+  });
+
+  it("keeps unitless lineHeight multipliers", () => {
+    const style = blockPropsToStyle({
+      typography: { lineHeight: "1.5", letterSpacing: "1" },
+    });
+    expect(style.lineHeight).toBe("1.5");
+    expect(style.letterSpacing).toBe("1px");
+  });
+
   it("maps layout textAlign to CSS textAlign", () => {
     const style = blockPropsToStyle({
       layout: { textAlign: "center" },
@@ -110,5 +127,21 @@ describe("mergeBlockStyles", () => {
     );
     expect(style.margin).toBe("40px 0 0 0");
     expect(style.textAlign).toBe("center");
+  });
+
+  it("merges responsive typography overrides for the active breakpoint", () => {
+    const style = mergeBlockStyles(
+      {
+        typography: { fontSize: "16px", color: "#111" },
+        responsive: {
+          mobile: {
+            typography: { fontSize: "14", color: "#334155" },
+          },
+        },
+      },
+      "mobile",
+    );
+    expect(style.fontSize).toBe("14px");
+    expect(style.color).toBe("#334155");
   });
 });

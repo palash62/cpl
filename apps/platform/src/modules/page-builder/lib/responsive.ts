@@ -42,6 +42,17 @@ function resolveTextAlign(
   return undefined;
 }
 
+function resolveBlockAlign(layout?: LayoutProps): "left" | "center" | "right" | undefined {
+  if (layout?.blockAlign) return layout.blockAlign;
+  if (layout?.justifyContent === "center") return "center";
+  if (layout?.justifyContent === "flex-end") return "right";
+  if (layout?.justifyContent === "flex-start") return "left";
+  if (layout?.textAlign === "center") return "center";
+  if (layout?.textAlign === "right" || layout?.textAlign === "end") return "right";
+  if (layout?.textAlign === "left" || layout?.textAlign === "start") return "left";
+  return undefined;
+}
+
 function shouldApplyBlockAlignment(width?: string): boolean {
   if (!width) return false;
   const w = width.trim();
@@ -79,7 +90,7 @@ function applyHorizontalBlockAlignment(
     style.marginLeft = "auto";
   } else {
     style.marginTop = top;
-    style.marginRight = "auto";
+    style.marginRight = right;
     style.marginBottom = bottom;
     style.marginLeft = left;
   }
@@ -114,15 +125,22 @@ export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
   const s = props.style;
 
   if (t?.fontFamily) style.fontFamily = t.fontFamily;
-  if (t?.fontSize) style.fontSize = t.fontSize;
+  if (t?.fontSize) style.fontSize = normalizeCssLength(t.fontSize);
   if (t?.fontWeight) style.fontWeight = t.fontWeight;
   if (t?.color) style.color = t.color;
-  if (t?.letterSpacing) style.letterSpacing = t.letterSpacing;
-  if (t?.lineHeight) style.lineHeight = t.lineHeight;
+  if (t?.letterSpacing) {
+    const spacing = t.letterSpacing.trim();
+    style.letterSpacing = spacing === "normal" ? spacing : normalizeCssLength(spacing);
+  }
+  if (t?.lineHeight) {
+    const lh = t.lineHeight.trim();
+    // Unitless multipliers (e.g. 1.5) must stay unitless; lengths get normalized.
+    style.lineHeight = /^-?[\d.]+$/.test(lh) ? lh : normalizeCssLength(lh);
+  }
 
   const textAlign = resolveTextAlign(l, t);
   if (textAlign) style.textAlign = textAlign;
-  const blockAlign = toHorizontalBlockAlign(textAlign);
+  const blockAlign = resolveBlockAlign(l) ?? toHorizontalBlockAlign(textAlign);
 
   if (l?.width) style.width = l.width;
   if (l?.height) style.height = l.height;
@@ -140,12 +158,10 @@ export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
   const normalizedMargin = l?.margin ? normalizeSpacing(l.margin) : undefined;
   const normalizedPadding = l?.padding ? normalizeSpacing(l.padding) : undefined;
 
-  if (normalizedMargin) {
-    if (shouldApplyBlockAlignment(l?.width) && blockAlign) {
-      applyHorizontalBlockAlignment(style, blockAlign, normalizedMargin);
-    } else {
-      style.margin = normalizedMargin;
-    }
+  if (shouldApplyBlockAlignment(l?.width) && blockAlign) {
+    applyHorizontalBlockAlignment(style, blockAlign, normalizedMargin ?? "0");
+  } else if (normalizedMargin) {
+    style.margin = normalizedMargin;
   }
 
   if (normalizedPadding) style.padding = normalizedPadding;

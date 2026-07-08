@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { normalizeCssLength, normalizeSpacing } from "@/modules/page-builder/lib/responsive";
+import { GHL_FIELD_LABEL } from "@/modules/page-builder/lib/builder-panel-styles";
 
 export function WidthControl({
   label,
@@ -14,25 +15,27 @@ export function WidthControl({
   onChange: (value: string) => void;
 }) {
   const numeric = parseInt(value.replace(/[^\d]/g, ""), 10);
-  const percent = Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : 100;
+  const parsed = Number.isFinite(numeric) ? Math.max(0, numeric) : 100;
   const unit = value.includes("px") ? "px" : value === "auto" ? "auto" : "%";
+  const sliderMax = unit === "px" ? 1200 : 100;
+  const sliderValue = unit === "px" ? Math.min(parsed, sliderMax) : Math.min(parsed, 100);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-slate-600">{label}</label>
-        <div className="flex gap-1">
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className={GHL_FIELD_LABEL}>{label}</label>
+        <div className="flex gap-0.5">
           {(["%", "px", "auto"] as const).map((u) => (
             <button
               key={u}
               type="button"
               onClick={() => {
                 if (u === "auto") onChange("auto");
-                else if (u === "%") onChange(`${percent}%`);
-                else onChange(`${percent}px`);
+                else if (u === "%") onChange(`${Math.min(parsed, 100)}%`);
+                else onChange(`${Math.min(parsed, 1200)}px`);
               }}
               className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                "rounded px-1.5 py-0.5 text-[10px] font-medium leading-none",
                 unit === u ? "bg-blue-100 text-blue-700" : "text-slate-500 hover:bg-slate-100",
               )}
             >
@@ -42,20 +45,20 @@ export function WidthControl({
         </div>
       </div>
       {unit !== "auto" && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <input
             type="range"
             min={0}
-            max={100}
-            value={unit === "%" ? percent : Math.min(percent, 1200)}
+            max={sliderMax}
+            value={sliderValue}
             onChange={(e) => onChange(`${e.target.value}${unit}`)}
-            className="flex-1 accent-blue-600"
+            className="h-1.5 flex-1 accent-blue-600"
           />
           <input
             type="number"
-            value={percent}
+            value={parsed}
             onChange={(e) => onChange(`${e.target.value}${unit}`)}
-            className="h-8 w-14 rounded-md border border-slate-200 px-1 text-center text-xs"
+            className="h-7 w-12 rounded-md border border-slate-200 px-1 text-center text-[11px]"
           />
         </div>
       )}
@@ -94,8 +97,8 @@ export function AlignControl({
           { id: "right", label: "Right" },
         ];
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
+    <div className="space-y-1.5">
+      <label className={GHL_FIELD_LABEL}>{label}</label>
       <div className="grid grid-cols-3 gap-1">
         {options.map((opt) => (
           <button
@@ -103,7 +106,7 @@ export function AlignControl({
             type="button"
             onClick={() => onChange(opt.id)}
             className={cn(
-              "h-9 rounded-md border text-xs font-medium transition",
+              "h-7 rounded-md border text-[11px] font-medium transition",
               normalized === opt.id
                 ? "border-blue-200 bg-blue-50 text-blue-700"
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
@@ -141,22 +144,22 @@ export function SpacingControl({
   }
 
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-1.5">
+      <label className={GHL_FIELD_LABEL}>{label}</label>
+      <div className="grid grid-cols-2 gap-1.5">
         {[
           ["Top", 0],
           ["Right", 1],
           ["Bottom", 2],
           ["Left", 3],
         ].map(([side, idx]) => (
-          <div key={side as string} className="space-y-1">
-            <span className="text-[10px] text-slate-500">{side as string}</span>
+          <div key={side as string} className="space-y-0.5">
+            <span className="text-[10px] leading-none text-slate-500">{side as string}</span>
             <input
               value={[top, right, bottom, left][idx as number]}
               onChange={(e) => update(idx as number, e.target.value)}
               placeholder="0"
-              className="h-8 w-full rounded-md border border-slate-200 px-2 text-xs"
+              className="h-7 w-full rounded-md border border-slate-200 px-1.5 text-[11px]"
             />
           </div>
         ))}
@@ -176,15 +179,15 @@ export function BackgroundPanel({
   const gradientEnabled = Boolean(style.backgroundGradient);
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+    <div className="space-y-2.5">
+      <div className="flex gap-0.5 rounded-md bg-slate-100 p-0.5">
         {(["color", "image", "video"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              "flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition",
+              "flex-1 rounded py-1 text-[11px] font-medium capitalize transition",
               tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
             )}
           >
@@ -194,8 +197,8 @@ export function BackgroundPanel({
       </div>
 
       {tab === "color" && (
-        <div className="space-y-3">
-          <label className="flex items-center justify-between text-xs text-slate-600">
+        <div className="space-y-2">
+          <label className="flex items-center justify-between text-[11px] text-slate-600">
             <span>Gradient</span>
             <input
               type="checkbox"
@@ -216,18 +219,18 @@ export function BackgroundPanel({
               onChange={(v) => onChange("backgroundGradient", v)}
             />
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <input
                 type="color"
                 value={String(style.backgroundColor ?? "#ffffff")}
                 onChange={(e) => onChange("backgroundColor", e.target.value)}
-                className="h-9 w-9 cursor-pointer rounded border border-slate-200"
+                className="h-8 w-8 cursor-pointer rounded border border-slate-200"
               />
               <input
                 value={String(style.backgroundColor ?? "")}
                 onChange={(e) => onChange("backgroundColor", e.target.value)}
                 placeholder="#ffffff"
-                className="h-9 flex-1 rounded-md border border-slate-200 px-2 text-xs"
+                className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-[11px]"
               />
             </div>
           )}
@@ -235,17 +238,17 @@ export function BackgroundPanel({
       )}
 
       {tab === "image" && (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <input
             value={String(style.backgroundImage ?? "")}
             onChange={(e) => onChange("backgroundImage", e.target.value)}
             placeholder="Image URL"
-            className="h-9 w-full rounded-md border border-slate-200 px-2 text-xs"
+            className="h-8 w-full rounded-md border border-slate-200 px-2 text-[11px]"
           />
           <select
             value={String(style.backgroundSize ?? "cover")}
             onChange={(e) => onChange("backgroundSize", e.target.value)}
-            className="h-9 w-full rounded-md border border-slate-200 px-2 text-xs"
+            className="h-8 w-full rounded-md border border-slate-200 px-2 text-[11px]"
           >
             <option value="cover">Cover</option>
             <option value="contain">Contain</option>
@@ -259,7 +262,7 @@ export function BackgroundPanel({
           value={String(style.backgroundVideo ?? "")}
           onChange={(e) => onChange("backgroundVideo", e.target.value)}
           placeholder="Video URL (mp4)"
-          className="h-9 w-full rounded-md border border-slate-200 px-2 text-xs"
+          className="h-8 w-full rounded-md border border-slate-200 px-2 text-[11px]"
         />
       )}
     </div>
@@ -277,24 +280,24 @@ function GradientBuilder({ value, onChange }: { value: string; onChange: (v: str
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-500">Angle</span>
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] text-slate-500">Angle</span>
         <input
           type="range"
           min={0}
           max={360}
           value={angle}
           onChange={(ev) => update(ev.target.value, start, end)}
-          className="flex-1 accent-blue-600"
+          className="h-1.5 flex-1 accent-blue-600"
         />
-        <span className="text-xs text-slate-600">{angle}°</span>
+        <span className="text-[11px] tabular-nums text-slate-600">{angle}°</span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <input type="color" value={start} onChange={(e) => update(angle, e.target.value, end)} className="h-9 w-full rounded border" />
-        <input type="color" value={end} onChange={(e) => update(angle, start, e.target.value)} className="h-9 w-full rounded border" />
+      <div className="grid grid-cols-2 gap-1.5">
+        <input type="color" value={start} onChange={(e) => update(angle, e.target.value, end)} className="h-8 w-full rounded border border-slate-200" />
+        <input type="color" value={end} onChange={(e) => update(angle, start, e.target.value)} className="h-8 w-full rounded border border-slate-200" />
       </div>
-      <div className="h-8 rounded-md border border-slate-200" style={{ background: value }} />
+      <div className="h-7 rounded-md border border-slate-200" style={{ background: value }} />
     </div>
   );
 }
@@ -308,10 +311,10 @@ export function BlurControl({
 }) {
   const px = parseInt(value.replace(/[^\d]/g, ""), 10) || 0;
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-slate-600">Background blur</label>
-        <span className="text-xs text-slate-500">{px}px</span>
+        <label className={GHL_FIELD_LABEL}>Background blur</label>
+        <span className="text-[11px] tabular-nums text-slate-500">{px}px</span>
       </div>
       <input
         type="range"
@@ -319,7 +322,7 @@ export function BlurControl({
         max={40}
         value={px}
         onChange={(e) => onChange(`${e.target.value}px`)}
-        className="w-full accent-blue-600"
+        className="h-1.5 w-full accent-blue-600"
       />
     </div>
   );

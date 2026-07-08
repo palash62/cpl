@@ -28,7 +28,7 @@ export function PageRenderer({
     <PublishedPageProvider value={{ landingPageSlug, onLeadSubmit, formJson }}>
       <div
         id="pb-page"
-        className="pb-published-page min-h-full"
+        className="pb-published-page w-full"
         style={{
           ...publishedPageCssVars(theme),
           fontFamily: theme.fontFamily,

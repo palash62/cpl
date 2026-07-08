@@ -31,7 +31,7 @@ function createSocialBlock(platform: string, defaultUrl: string) {
   function SocialLink({ url = defaultUrl, ...props }: SocialProps) {
     return (
       <BlockWrapper {...props} layout={{ display: "inline-block", ...props.layout }}>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium no-underline hover:bg-muted">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 no-underline hover:bg-muted">
           {platform}
         </a>
       </BlockWrapper>
@@ -133,8 +133,8 @@ export function SocialIconsGroup({
           href={item.href}
           target="_blank"
           rel="noopener noreferrer"
-          className={`inline-flex items-center justify-center rounded-md text-xs font-semibold uppercase ${socialIconClass(iconSet)}`}
-          style={{ width: iconSize, height: iconSize }}
+          className={`inline-flex items-center justify-center rounded-md uppercase ${socialIconClass(iconSet)}`}
+          style={{ width: iconSize, height: iconSize, fontSize: "0.75em", fontWeight: 600 }}
         >
           {item.label}
         </a>

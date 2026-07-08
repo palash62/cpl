@@ -29,17 +29,22 @@ export function OptinFunnelCraftThumbnail({
     );
   }
 
+  const frameWidth = 960;
+  const frameHeight = 720;
+
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-100">
       <div
         className="absolute left-1/2 top-0 origin-top"
         style={{
-          width: 960,
-          height: 720,
+          width: frameWidth,
+          height: frameHeight,
           transform: `translateX(-50%) scale(${scale})`,
         }}
       >
-        <PageRenderer craftState={craft} theme={theme} />
+        <div className="h-full w-full overflow-hidden bg-white">
+          <PageRenderer craftState={craft} theme={theme} />
+        </div>
       </div>
     </div>
   );

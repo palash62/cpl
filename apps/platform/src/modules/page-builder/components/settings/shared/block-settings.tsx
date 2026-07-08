@@ -4,7 +4,7 @@ import { useNode } from "@craftjs/core";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BlockProps } from "@/modules/page-builder/types/block-props";
+import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-props";
 import {
   BUILDER_TAB_LIST,
   BUILDER_TAB_TRIGGER,
@@ -17,6 +17,7 @@ import {
   GHL_FIELD_INPUT,
 } from "@/modules/page-builder/lib/builder-panel-styles";
 import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { cn } from "@/lib/utils";
 
 function setNestedProp(
@@ -24,11 +25,24 @@ function setNestedProp(
   bucket: "typography" | "layout" | "style",
   key: string,
   value: string | number,
+  breakpoint: Breakpoint = "desktop",
 ) {
   setProp((props: BlockProps) => {
-    const current = { ...((props[bucket] as Record<string, string | number | undefined>) ?? {}) };
-    current[key] = value;
-    (props as Record<string, unknown>)[bucket] = current;
+    if (breakpoint === "desktop") {
+      const current = { ...((props[bucket] as Record<string, string | number | undefined>) ?? {}) };
+      current[key] = value;
+      (props as Record<string, unknown>)[bucket] = current;
+      return;
+    }
+    const existing = props.responsive?.[breakpoint] ?? {};
+    const bucketCurrent = {
+      ...((existing[bucket] as Record<string, string | number | undefined> | undefined) ?? {}),
+      [key]: value,
+    };
+    props.responsive = {
+      ...(props.responsive ?? {}),
+      [breakpoint]: { ...existing, [bucket]: bucketCurrent },
+    };
   });
 }
 
@@ -50,21 +64,23 @@ function FieldInput({ className, ...props }: React.ComponentProps<typeof Input>)
 }
 
 export function GeneralFields() {
+  const layout = useBuilderSettingsLayout();
+  const isGhl = layout === "ghl";
   const { name, visible, actions: { setProp } } = useNode((node) => ({
     name: node.data.props.name as string | undefined,
     visible: node.data.props.visible as boolean | undefined,
   }));
 
   return (
-    <div className="space-y-3 pt-2">
-      <div className="space-y-1.5">
+    <div className={cn(isGhl ? "space-y-2.5" : "space-y-3 pt-2")}>
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
         <FieldLabel>Name</FieldLabel>
         <FieldInput value={name ?? ""} onChange={(e) => setProp((p: BlockProps) => { p.name = e.target.value; })} />
       </div>
-      <label className={BUILDER_CHECKBOX_LABEL}>
+      <label className={cn(BUILDER_CHECKBOX_LABEL, isGhl && "text-[11px] text-slate-600")}>
         <input
           type="checkbox"
-          className="accent-indigo-500"
+          className={isGhl ? "accent-blue-600" : "accent-indigo-500"}
           checked={visible !== false}
           onChange={(e) => setProp((p: BlockProps) => { p.visible = e.target.checked; })}
         />
@@ -75,13 +91,20 @@ export function GeneralFields() {
 }
 
 export function TypographyFields() {
-  const { typography, actions: { setProp } } = useNode((node) => ({
+  const layout = useBuilderSettingsLayout();
+  const isGhl = layout === "ghl";
+  const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
+  const activeBreakpoint: Breakpoint = isGhl ? styleBreakpoint : "desktop";
+  const { typography, responsive, actions: { setProp } } = useNode((node) => ({
     typography: node.data.props.typography as BlockProps["typography"],
+    responsive: node.data.props.responsive as BlockProps["responsive"],
   }));
-  const t = typography ?? {};
+  const override =
+    activeBreakpoint === "desktop" ? undefined : responsive?.[activeBreakpoint]?.typography;
+  const t = { ...(typography ?? {}), ...(override ?? {}) };
 
   return (
-    <div className="space-y-2.5 pt-2">
+    <div className={cn(isGhl ? "space-y-2" : "space-y-2.5 pt-2")}>
       {[
         ["fontFamily", "Font family", "Inter, sans-serif"],
         ["fontSize", "Font size", "1rem"],
@@ -91,12 +114,14 @@ export function TypographyFields() {
         ["lineHeight", "Line height", "1.5"],
         ["letterSpacing", "Letter spacing", "normal"],
       ].map(([key, label, placeholder]) => (
-        <div key={key} className="space-y-1.5">
+        <div key={key} className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
           <FieldLabel>{label}</FieldLabel>
           <FieldInput
             value={String(t[key as keyof typeof t] ?? "")}
             placeholder={placeholder}
-            onChange={(e) => setNestedProp(setProp, "typography", key, e.target.value)}
+            onChange={(e) =>
+              setNestedProp(setProp, "typography", key, e.target.value, activeBreakpoint)
+            }
           />
         </div>
       ))}
@@ -175,17 +200,22 @@ export function StyleFields() {
 }
 
 export function AnimationFields() {
+  const layout = useBuilderSettingsLayout();
+  const isGhl = layout === "ghl";
   const { animation, actions: { setProp } } = useNode((node) => ({
     animation: node.data.props.animation as BlockProps["animation"],
   }));
   const a = animation ?? {};
 
   return (
-    <div className="space-y-2.5 pt-2">
-      <div className="space-y-1.5">
+    <div className={cn(isGhl ? "space-y-2.5" : "space-y-2.5 pt-2")}>
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
         <FieldLabel>Animation</FieldLabel>
         <select
-          className={cn("w-full rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
+          className={cn(
+            "w-full rounded-md border px-2",
+            isGhl ? "h-8 border-slate-200 bg-white text-xs text-slate-900" : cn("py-1.5 text-sm", BUILDER_FIELD_INPUT),
+          )}
           value={a.type ?? "none"}
           onChange={(e) => setProp((p: BlockProps) => {
             p.animation = { ...a, type: e.target.value as "none" | "fade" | "slide" | "zoom" };
@@ -197,14 +227,14 @@ export function AnimationFields() {
           <option value="zoom">Zoom</option>
         </select>
       </div>
-      <div className="space-y-1.5">
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
         <FieldLabel>Duration</FieldLabel>
         <FieldInput
           value={a.duration ?? "0.5s"}
           onChange={(e) => setProp((p: BlockProps) => { p.animation = { ...a, duration: e.target.value }; })}
         />
       </div>
-      <div className="space-y-1.5">
+      <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
         <FieldLabel>Delay</FieldLabel>
         <FieldInput
           value={a.delay ?? "0s"}

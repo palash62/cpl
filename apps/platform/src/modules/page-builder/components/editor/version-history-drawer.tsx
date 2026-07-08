@@ -9,7 +9,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Version = {
   id: string;
@@ -23,6 +25,7 @@ type VersionHistoryDrawerProps = { pageId: string };
 export function VersionHistoryDrawer({ pageId }: VersionHistoryDrawerProps) {
   const open = useBuilderStore((s) => s.versionHistoryOpen);
   const setOpen = useBuilderStore((s) => s.setVersionHistoryOpen);
+  const chrome = getBuilderChrome(useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark"));
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -51,20 +54,26 @@ export function VersionHistoryDrawer({ pageId }: VersionHistoryDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent>
+      <SheetContent className={cn(chrome.properties.includes("bg-[#12141c]") ? "border-white/10 bg-[#12141c]" : "border-slate-200 bg-white")}>
         <SheetHeader>
-          <SheetTitle>Version History</SheetTitle>
+          <SheetTitle className={cn(chrome.propertiesTitle)}>Version History</SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-2">
-          {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {loading && <p className={cn("text-sm", chrome.propertiesSubtitle)}>Loading...</p>}
           {!loading && versions.length === 0 && (
-            <p className="text-sm text-muted-foreground">No versions yet. Publish or save to create versions.</p>
+            <p className={cn("text-sm", chrome.propertiesSubtitle)}>No versions yet. Publish or save to create versions.</p>
           )}
           {versions.map((v) => (
-            <div key={v.id} className="flex items-center justify-between rounded-lg border p-3">
+            <div
+              key={v.id}
+              className={cn(
+                "flex items-center justify-between rounded-lg border p-3",
+                chrome.properties.includes("bg-[#12141c]") ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50",
+              )}
+            >
               <div>
-                <p className="text-sm font-medium">v{v.versionNumber}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className={cn("text-sm font-medium", chrome.propertiesTitle)}>v{v.versionNumber}</p>
+                <p className={cn("text-xs", chrome.propertiesSubtitle)}>
                   {v.label ?? "Snapshot"} · {new Date(v.createdAt).toLocaleString()}
                 </p>
               </div>
