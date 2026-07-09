@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const PRISMA_CLIENT_VERSION = 15;
 
@@ -29,8 +29,8 @@ export function isStalePrismaClientError(error: unknown) {
   );
 }
 
-export function pageTemplateHasThankYouScalars(client: PrismaClient = getPrisma()) {
-  const pageTemplate = client._runtimeDataModel.models.PageTemplate;
+export function pageTemplateHasThankYouScalars(_client: PrismaClient = getPrisma()) {
+  const pageTemplate = Prisma.dmmf.datamodel.models.find((model) => model.name === "PageTemplate");
   return pageTemplate?.fields?.some(
     (field) => field.name === "thankYouEnabled" || field.name === "destinationUrl",
   );
