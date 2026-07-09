@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-const PRISMA_CLIENT_VERSION = 13;
+const PRISMA_CLIENT_VERSION = 15;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -26,6 +26,13 @@ export function isStalePrismaClientError(error: unknown) {
     error instanceof Error &&
     (/Unknown argument `/.test(error.message) ||
       /Invalid `prisma\..*` invocation/.test(error.message))
+  );
+}
+
+export function pageTemplateHasThankYouScalars(client: PrismaClient = getPrisma()) {
+  const pageTemplate = client._runtimeDataModel.models.PageTemplate;
+  return pageTemplate?.fields?.some(
+    (field) => field.name === "thankYouEnabled" || field.name === "destinationUrl",
   );
 }
 

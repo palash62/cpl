@@ -44,6 +44,19 @@ describe("Error handling", () => {
     expect(res.status).toBe(503);
     expect(body.error.code).toBe("DATABASE_SCHEMA_OUTDATED");
   });
+
+  it("maps unknown Prisma argument errors to DATABASE_SCHEMA_OUTDATED", async () => {
+    const err = new Error(
+      "Invalid `prisma.pageTemplate.create()` invocation:\n\nUnknown argument `destinationUrl`.",
+    );
+
+    const res = errorResponse(err);
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(body.error.code).toBe("DATABASE_SCHEMA_OUTDATED");
+    expect(body.error.message).toContain("db:push");
+  });
 });
 
 describe("Ledger math", () => {

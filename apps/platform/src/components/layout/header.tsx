@@ -44,6 +44,13 @@ const quickActionLinks = [
   { label: "Compare Themes", href: "/admin/themes", icon: Palette },
 ];
 
+async function handleSignOut() {
+  // Stay on the current origin — NextAuth resolves relative callbackUrl against AUTH_URL,
+  // which may still point at production after a production build or env:production run.
+  await signOut({ redirect: false });
+  window.location.assign("/login");
+}
+
 export function Header({ title, breadcrumbs, premium }: HeaderProps) {
   const { data: session } = useSession();
   const initials = session?.user?.name
@@ -175,7 +182,7 @@ export function Header({ title, breadcrumbs, premium }: HeaderProps) {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+            <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>

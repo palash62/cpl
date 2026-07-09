@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { isStalePrismaClientError } from "@cpl/database";
 
 export class AppError extends Error {
   constructor(
@@ -39,6 +40,21 @@ function providerEnumOutdatedResponse(requestId?: string) {
         code: "DATABASE_SCHEMA_OUTDATED",
         message:
           "Systeme.io is not enabled in the database yet. Run npm run db:push (or apply the latest migrations) and try again.",
+        status: 503,
+        requestId,
+      },
+    },
+    { status: 503 },
+  );
+}
+
+function stalePrismaSchemaResponse(requestId?: string) {
+  return Response.json(
+    {
+      error: {
+        code: "DATABASE_SCHEMA_OUTDATED",
+        message:
+          "The server is using an outdated database client. Run npm run db:push, restart the dev server, and try again.",
         status: 503,
         requestId,
       },
@@ -136,6 +152,10 @@ export function errorResponse(error: unknown, requestId?: string) {
 
   if (isProviderEnumOutdated(error)) {
     return providerEnumOutdatedResponse(requestId);
+  }
+
+  if (isStalePrismaClientError(error)) {
+    return stalePrismaSchemaResponse(requestId);
   }
 
   if (error instanceof Error && error.message.trim()) {

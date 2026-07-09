@@ -1,1 +1,6 @@
-export { prisma, resetPrismaClient, isStalePrismaClientError } from "@cpl/database";
+export {
+  prisma,
+  resetPrismaClient,
+  isStalePrismaClientError,
+  pageTemplateHasThankYouScalars,
+} from "@cpl/database";

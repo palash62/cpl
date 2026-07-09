@@ -1,4 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import {
+  prisma,
+  isStalePrismaClientError,
+  resetPrismaClient,
+  pageTemplateHasThankYouScalars,
+} from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
 import { Prisma } from "@prisma/client";
 import { slugifyOptinAddress, isValidOptinSlug } from "@/lib/optin-slug";
@@ -63,7 +68,72 @@ type AdminTemplateCraftDocument = {
 
 type AdminTemplateThemeDocument = ThemeJson & {
   thankYouThemeJson?: ThemeJson | null;
+  funnelSettings?: {
+    thankYouEnabled?: boolean;
+    destinationUrl?: string | null;
+    thankYouPixelHtml?: string | null;
+    thankYouUseCampaignPixel?: boolean;
+  };
 };
+
+type AdminFunnelSettings = {
+  thankYouEnabled: boolean;
+  destinationUrl: string | null;
+  thankYouPixelHtml: string | null;
+  thankYouUseCampaignPixel: boolean;
+};
+
+function resolveAdminFunnelSettings(template: {
+  thankYouEnabled?: boolean;
+  destinationUrl?: string | null;
+  thankYouPixelHtml?: string | null;
+  thankYouUseCampaignPixel?: boolean;
+  themeJson: unknown;
+}): AdminFunnelSettings {
+  const extra =
+    template.themeJson && typeof template.themeJson === "object"
+      ? (template.themeJson as AdminTemplateThemeDocument)
+      : null;
+  const fromJson = extra?.funnelSettings;
+
+  return {
+    thankYouEnabled: template.thankYouEnabled ?? fromJson?.thankYouEnabled ?? true,
+    destinationUrl: template.destinationUrl ?? fromJson?.destinationUrl ?? null,
+    thankYouPixelHtml: template.thankYouPixelHtml ?? fromJson?.thankYouPixelHtml ?? null,
+    thankYouUseCampaignPixel:
+      template.thankYouUseCampaignPixel ?? fromJson?.thankYouUseCampaignPixel ?? true,
+  };
+}
+
+function buildAdminThemeEnvelope(
+  themeJson: ThemeJson,
+  thankYouThemeJson: ThemeJson | null | undefined,
+  funnelSettings: AdminFunnelSettings,
+  persistSettingsInTheme: boolean,
+) {
+  const envelope: AdminTemplateThemeDocument = {
+    ...themeJson,
+    ...(thankYouThemeJson ? { thankYouThemeJson } : {}),
+  };
+
+  if (persistSettingsInTheme) {
+    envelope.funnelSettings = funnelSettings;
+  } else if (envelope.funnelSettings) {
+    delete envelope.funnelSettings;
+  }
+
+  return toPrismaJson(envelope);
+}
+
+function buildThankYouScalarFields(funnelSettings: AdminFunnelSettings) {
+  if (!pageTemplateHasThankYouScalars()) return {};
+  return {
+    thankYouEnabled: funnelSettings.thankYouEnabled,
+    destinationUrl: funnelSettings.destinationUrl,
+    thankYouPixelHtml: funnelSettings.thankYouPixelHtml,
+    thankYouUseCampaignPixel: funnelSettings.thankYouUseCampaignPixel,
+  };
+}
 
 function parseAdminTemplateCraft(raw: unknown): {
   craftState: CraftSerializedState;
@@ -101,13 +171,14 @@ function serializeAdminTemplate(template: {
   createdAt: Date;
   craftState: unknown;
   themeJson: unknown;
-  thankYouEnabled: boolean;
-  destinationUrl: string | null;
-  thankYouPixelHtml: string | null;
-  thankYouUseCampaignPixel: boolean;
+  thankYouEnabled?: boolean;
+  destinationUrl?: string | null;
+  thankYouPixelHtml?: string | null;
+  thankYouUseCampaignPixel?: boolean;
 }): OptinFunnelTemplate {
   const parsedCraft = parseAdminTemplateCraft(template.craftState);
   const parsedTheme = parseAdminTemplateTheme(template.themeJson);
+  const funnelSettings = resolveAdminFunnelSettings(template);
   return {
     ...parsedCraft,
     ...parsedTheme,
@@ -115,13 +186,25 @@ function serializeAdminTemplate(template: {
     slug: template.slug,
     name: template.name,
     category: template.category,
-    thankYouEnabled: template.thankYouEnabled,
-    destinationUrl: template.destinationUrl,
-    thankYouPixelHtml: template.thankYouPixelHtml,
-    thankYouUseCampaignPixel: template.thankYouUseCampaignPixel,
+    thankYouEnabled: funnelSettings.thankYouEnabled,
+    destinationUrl: funnelSettings.destinationUrl,
+    thankYouPixelHtml: funnelSettings.thankYouPixelHtml,
+    thankYouUseCampaignPixel: funnelSettings.thankYouUseCampaignPixel,
     isSystem: template.isSystem,
     createdAt: template.createdAt.toISOString(),
   };
+}
+
+async function withStalePrismaRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (isStalePrismaClientError(error)) {
+      resetPrismaClient();
+      return await fn();
+    }
+    throw error;
+  }
 }
 
 async function createUniqueSlug(advertiserId: string, seed: string, excludeFunnelId?: string) {
@@ -195,7 +278,7 @@ export async function createOptinFunnelTemplateByAdmin(input: {
     ...(input.secondaryColor ? { secondaryColor: input.secondaryColor } : {}),
   };
   let thankYouThemeJson: ThemeJson | null = null;
-  let thankYouEnabled = input.thankYouEnabled ?? false;
+  let thankYouEnabled = input.thankYouEnabled ?? true;
   let destinationUrl = input.destinationUrl?.trim() || null;
   let thankYouPixelHtml = input.thankYouPixelHtml?.trim() || null;
   let thankYouUseCampaignPixel = input.thankYouUseCampaignPixel ?? true;
@@ -207,39 +290,49 @@ export async function createOptinFunnelTemplateByAdmin(input: {
     if (source) {
       const sourceCraft = parseAdminTemplateCraft(source.craftState);
       const sourceTheme = parseAdminTemplateTheme(source.themeJson);
+      const sourceSettings = resolveAdminFunnelSettings(source);
       craftState = sourceCraft.craftState;
       thankYouCraftState = sourceCraft.thankYouCraftState;
       themeJson = sourceTheme.themeJson ?? themeJson;
       thankYouThemeJson = sourceTheme.thankYouThemeJson;
-      thankYouEnabled = source.thankYouEnabled;
-      destinationUrl = source.destinationUrl?.trim() || null;
-      thankYouPixelHtml = source.thankYouPixelHtml?.trim() || null;
-      thankYouUseCampaignPixel = source.thankYouUseCampaignPixel;
+      thankYouEnabled = sourceSettings.thankYouEnabled;
+      destinationUrl = sourceSettings.destinationUrl;
+      thankYouPixelHtml = sourceSettings.thankYouPixelHtml;
+      thankYouUseCampaignPixel = sourceSettings.thankYouUseCampaignPixel;
     }
   }
 
-  const created = await prisma.pageTemplate.create({
-    data: {
-      slug,
-      name,
-      category: "optin_funnel",
-      craftState: toPrismaJson({
-        craft: normalizeCraftState(craftState),
-        meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
-        thankYouCraft: thankYouCraftState ? normalizeCraftState(thankYouCraftState) : undefined,
-      }),
-      themeJson: toPrismaJson({
-        ...themeJson,
-        ...(thankYouThemeJson ? { thankYouThemeJson } : {}),
-      }),
-      thankYouEnabled,
-      destinationUrl,
-      thankYouPixelHtml,
-      thankYouUseCampaignPixel,
-      isSystem: true,
-      advertiserId: null,
-    },
-  });
+  const funnelSettings: AdminFunnelSettings = {
+    thankYouEnabled,
+    destinationUrl,
+    thankYouPixelHtml,
+    thankYouUseCampaignPixel,
+  };
+  const persistSettingsInTheme = !pageTemplateHasThankYouScalars();
+
+  const created = await withStalePrismaRetry(() =>
+    prisma.pageTemplate.create({
+      data: {
+        slug,
+        name,
+        category: "optin_funnel",
+        craftState: toPrismaJson({
+          craft: normalizeCraftState(craftState),
+          meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
+          thankYouCraft: thankYouCraftState ? normalizeCraftState(thankYouCraftState) : undefined,
+        }),
+        themeJson: buildAdminThemeEnvelope(
+          themeJson,
+          thankYouThemeJson,
+          funnelSettings,
+          persistSettingsInTheme,
+        ),
+        ...buildThankYouScalarFields(funnelSettings),
+        isSystem: true,
+        advertiserId: null,
+      },
+    }),
+  );
 
   return serializeAdminTemplate(created);
 }
@@ -287,24 +380,46 @@ export async function updateOptinFunnelTemplateByAdmin(
   });
   if (!existing) throw Errors.notFound("Funnel template");
 
-  const nextThankYouEnabled =
-    input.thankYouEnabled !== undefined ? input.thankYouEnabled : existing.thankYouEnabled;
-  const nextDestinationUrl =
-    input.destinationUrl !== undefined
-      ? input.destinationUrl?.trim() || null
-      : existing.destinationUrl?.trim() || null;
+  const existingSettings = resolveAdminFunnelSettings(existing);
+  const nextFunnelSettings: AdminFunnelSettings = {
+    thankYouEnabled:
+      input.thankYouEnabled !== undefined ? input.thankYouEnabled : existingSettings.thankYouEnabled,
+    destinationUrl:
+      input.destinationUrl !== undefined
+        ? input.destinationUrl?.trim() || null
+        : existingSettings.destinationUrl,
+    thankYouPixelHtml:
+      input.thankYouPixelHtml !== undefined
+        ? input.thankYouPixelHtml
+          ? sanitizeHtml(input.thankYouPixelHtml.trim())
+          : null
+        : existingSettings.thankYouPixelHtml,
+    thankYouUseCampaignPixel:
+      input.thankYouUseCampaignPixel !== undefined
+        ? input.thankYouUseCampaignPixel
+        : existingSettings.thankYouUseCampaignPixel,
+  };
+  const persistSettingsInTheme = !pageTemplateHasThankYouScalars();
 
-  if (!nextThankYouEnabled && !nextDestinationUrl) {
-    throw Errors.validation("Destination URL is required when thank-you redirect is off.");
-  }
-  if (!nextThankYouEnabled && nextDestinationUrl) {
-    try {
-      const parsed = new URL(nextDestinationUrl);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new Error("invalid");
+  const isSettingsPatch =
+    input.thankYouEnabled !== undefined ||
+    input.destinationUrl !== undefined ||
+    input.thankYouPixelHtml !== undefined ||
+    input.thankYouUseCampaignPixel !== undefined;
+
+  if (isSettingsPatch) {
+    if (!nextFunnelSettings.thankYouEnabled && !nextFunnelSettings.destinationUrl) {
+      throw Errors.validation("Destination URL is required when thank-you redirect is off.");
+    }
+    if (!nextFunnelSettings.thankYouEnabled && nextFunnelSettings.destinationUrl) {
+      try {
+        const parsed = new URL(nextFunnelSettings.destinationUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new Error("invalid");
+        }
+      } catch {
+        throw Errors.validation("Enter a valid destination URL (https://...).");
       }
-    } catch {
-      throw Errors.validation("Enter a valid destination URL (https://...).");
     }
   }
 
@@ -333,32 +448,36 @@ export async function updateOptinFunnelTemplateByAdmin(
   const currentParsedTheme = parseAdminTemplateTheme(existing.themeJson);
   const nextTheme = input.themeJson ?? currentParsedTheme.themeJson;
   const nextThankYouTheme = input.thankYouThemeJson ?? currentParsedTheme.thankYouThemeJson;
-  const nextThemeJsonEnvelope =
+  let nextThemeJsonEnvelope =
     input.themeJson || input.thankYouThemeJson
-      ? toPrismaJson({
-          ...nextTheme,
-          ...(nextThankYouTheme ? { thankYouThemeJson: nextThankYouTheme } : {}),
-        })
+      ? buildAdminThemeEnvelope(
+          nextTheme,
+          nextThankYouTheme,
+          nextFunnelSettings,
+          persistSettingsInTheme,
+        )
       : undefined;
 
-  const updated = await prisma.pageTemplate.update({
-    where: { id },
-    data: {
-      ...(input.name ? { name: input.name.trim() } : {}),
-      ...(nextCraftEnvelope ? { craftState: nextCraftEnvelope } : {}),
-      ...(nextThemeJsonEnvelope ? { themeJson: nextThemeJsonEnvelope } : {}),
-      ...(input.thankYouEnabled !== undefined ? { thankYouEnabled: input.thankYouEnabled } : {}),
-      ...(input.destinationUrl !== undefined
-        ? { destinationUrl: nextDestinationUrl }
-        : {}),
-      ...(input.thankYouPixelHtml !== undefined
-        ? { thankYouPixelHtml: input.thankYouPixelHtml?.trim() || null }
-        : {}),
-      ...(input.thankYouUseCampaignPixel !== undefined
-        ? { thankYouUseCampaignPixel: input.thankYouUseCampaignPixel }
-        : {}),
-    },
-  });
+  if (isSettingsPatch && persistSettingsInTheme) {
+    nextThemeJsonEnvelope = buildAdminThemeEnvelope(
+      nextTheme,
+      nextThankYouTheme,
+      nextFunnelSettings,
+      true,
+    );
+  }
+
+  const updated = await withStalePrismaRetry(() =>
+    prisma.pageTemplate.update({
+      where: { id },
+      data: {
+        ...(input.name ? { name: input.name.trim() } : {}),
+        ...(nextCraftEnvelope ? { craftState: nextCraftEnvelope } : {}),
+        ...(nextThemeJsonEnvelope ? { themeJson: nextThemeJsonEnvelope } : {}),
+        ...(isSettingsPatch ? buildThankYouScalarFields(nextFunnelSettings) : {}),
+      },
+    }),
+  );
 
   return serializeAdminTemplate(updated);
 }
