@@ -4,6 +4,10 @@ export type ThemeJson = {
   primaryColor: string;
   secondaryColor: string;
   backgroundColor: string;
+  backgroundImage?: string;
+  backgroundSize?: "cover" | "contain" | "auto";
+  backgroundPosition?: string;
+  backgroundRepeat?: string;
   fontFamily: string;
   buttonStyle: "solid" | "outline" | "ghost";
   borderRadius: string;
@@ -14,11 +18,33 @@ export const DEFAULT_THEME: ThemeJson = {
   primaryColor: "#6366f1",
   secondaryColor: "#a855f7",
   backgroundColor: "#ffffff",
+  backgroundImage: "",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
   fontFamily: "Inter, system-ui, sans-serif",
   buttonStyle: "solid",
   borderRadius: "8px",
   spacingScale: "normal",
 };
+
+export function themePageBackgroundStyle(theme: ThemeJson): CSSProperties {
+  const style: CSSProperties = {
+    backgroundColor: theme.backgroundColor,
+  };
+  if (theme.backgroundImage?.trim()) {
+    style.backgroundImage = `url(${theme.backgroundImage.trim()})`;
+    style.backgroundSize = theme.backgroundSize ?? "cover";
+    style.backgroundPosition = theme.backgroundPosition ?? "center";
+    style.backgroundRepeat = theme.backgroundRepeat ?? "no-repeat";
+  }
+  return style;
+}
+
+export function normalizeThemeJson(input: unknown): ThemeJson {
+  if (!input || typeof input !== "object") return { ...DEFAULT_THEME };
+  return { ...DEFAULT_THEME, ...(input as Partial<ThemeJson>) };
+}
 
 export function themeToCssVars(theme: ThemeJson): CSSProperties {
   const spacing =
@@ -105,5 +131,6 @@ export function publishedPageCssVars(theme: ThemeJson): CSSProperties {
     ["--pb-input-border" as string]: tokens.inputBorder,
     ["--pb-form-surface-bg" as string]: tokens.formSurfaceBackground,
     ["--pb-form-surface-text" as string]: tokens.formSurfaceText,
+    ...themePageBackgroundStyle(theme),
   };
 }

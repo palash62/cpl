@@ -5,9 +5,9 @@ import { testConnection } from "@/modules/autoresponder";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
   return withAuth(async (session) => {
     try {
-      const { id } = await context.params;
       const result = await testConnection(id, session.user.id);
       if (!result.ok) {
         return Response.json(

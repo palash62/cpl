@@ -64,7 +64,6 @@ export function PageRenderer({
       style={{
         ...publishedPageCssVars(theme),
         fontFamily: theme.fontFamily,
-        background: theme.backgroundColor,
         color: "var(--pb-page-text)",
       }}
     >

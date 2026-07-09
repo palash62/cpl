@@ -21,6 +21,7 @@ const SELECT_TRIGGER_CLASS =
 const SELECT_MENU_CLASS = "z-200 !w-[22rem] max-w-[calc(100vw-2rem)]";
 
 type CampaignOption = { id: string; name: string };
+type AdvertiserOption = { id: string; name: string };
 
 const STATUSES = [
   { value: "all", label: "All statuses" },
@@ -37,12 +38,21 @@ function normalizeSelectValue(value: string | null, allowed: string[]) {
   return allowed.includes(value) ? value : "all";
 }
 
-export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: CampaignOption[] }) {
+export function AdminLeadDetailsFilters({
+  campaigns,
+  advertisers,
+}: {
+  campaigns: CampaignOption[];
+  advertisers: AdvertiserOption[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
+  const [advertiserId, setAdvertiserId] = useState(() =>
+    normalizeSelectValue(searchParams.get("advertiserId"), ["all", ...advertisers.map((a) => a.id)]),
+  );
   const [campaignId, setCampaignId] = useState(() =>
     normalizeSelectValue(searchParams.get("campaignId"), ["all", ...campaigns.map((c) => c.id)]),
   );
@@ -55,6 +65,7 @@ export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: Campaig
   const applyFilters = useCallback(
     (
       overrides?: Partial<{
+        advertiserId: string;
         campaignId: string;
         status: string;
         from: string;
@@ -64,11 +75,18 @@ export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: Campaig
       const params = new URLSearchParams(searchParams.toString());
 
       const values = {
+        advertiserId: overrides?.advertiserId ?? advertiserId,
         campaignId: overrides?.campaignId ?? campaignId,
         status: overrides?.status ?? status,
         from: overrides?.from ?? dateFrom,
         to: overrides?.to ?? dateTo,
       };
+
+      if (values.advertiserId && values.advertiserId !== "all") {
+        params.set("advertiserId", values.advertiserId);
+      } else {
+        params.delete("advertiserId");
+      }
 
       if (values.campaignId && values.campaignId !== "all") params.set("campaignId", values.campaignId);
       else params.delete("campaignId");
@@ -88,12 +106,13 @@ export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: Campaig
         router.push(`${pathname}?${params.toString()}`);
       });
     },
-    [campaignId, status, dateFrom, dateTo, pathname, router, searchParams],
+    [advertiserId, campaignId, status, dateFrom, dateTo, pathname, router, searchParams],
   );
 
   function clearFilters() {
     const from = defaultCampaignDateFrom();
     const to = defaultCampaignDateTo();
+    setAdvertiserId("all");
     setCampaignId("all");
     setStatus("all");
     setDateFrom(from);
@@ -104,6 +123,7 @@ export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: Campaig
   }
 
   const hasFilters =
+    searchParams.has("advertiserId") ||
     searchParams.has("campaignId") ||
     searchParams.has("status") ||
     searchParams.has("sort") ||
@@ -112,6 +132,29 @@ export function AdvertiserLeadDetailsFilters({ campaigns }: { campaigns: Campaig
   return (
     <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
       <div className="flex w-full flex-wrap items-center gap-2">
+        <div className="min-w-[180px] flex-1">
+          <Select
+            value={advertiserId}
+            onValueChange={(value) => {
+              if (!value) return;
+              setAdvertiserId(value);
+              applyFilters({ advertiserId: value });
+            }}
+          >
+            <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+              <SelectValue placeholder="All advertisers" />
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_CLASS}>
+              <SelectItem value="all">All advertisers</SelectItem>
+              {advertisers.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="min-w-[200px] flex-1">
           <Select
             value={campaignId}

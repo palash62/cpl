@@ -10,6 +10,8 @@ import { COMPONENT_LIBRARY, craftResolver, type CraftBlockName } from "@/modules
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
+import { ThemeBackgroundSettings } from "@/modules/page-builder/components/editor/theme-background-settings";
+import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
 import { DEFAULT_THEME, type ThemeJson } from "@/modules/page-builder/lib/theme";
 import { BLOCK_ICONS, CATEGORY_ICONS } from "@/modules/page-builder/lib/block-icons";
 import { GhlLeftPanel } from "@/modules/page-builder/components/editor/ghl-left-panel";
@@ -18,8 +20,7 @@ import { cn } from "@/lib/utils";
 const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
 
 function ThemeManager({ isLight }: { isLight: boolean }) {
-  const theme = useBuilderStore((s) => s.theme);
-  const setTheme = useBuilderStore((s) => s.setTheme);
+  const { theme, setTheme } = useActivePageTheme();
 
   function update(key: keyof ThemeJson, value: string) {
     setTheme({ ...theme, [key]: value });
@@ -35,7 +36,6 @@ function ThemeManager({ isLight }: { isLight: boolean }) {
       {[
         { key: "primaryColor" as const, label: "Primary" },
         { key: "secondaryColor" as const, label: "Secondary" },
-        { key: "backgroundColor" as const, label: "Background" },
       ].map(({ key, label }) => (
         <div key={key} className="flex items-center justify-between gap-3">
           <Label className={cn("text-xs", labelClass)}>{label}</Label>
@@ -53,6 +53,7 @@ function ThemeManager({ isLight }: { isLight: boolean }) {
           </div>
         </div>
       ))}
+      <ThemeBackgroundSettings labelClass={labelClass} />
       <div className="space-y-1.5">
         <Label className={cn("text-xs", labelClass)}>Font family</Label>
         <Input value={theme.fontFamily} onChange={(e) => update("fontFamily", e.target.value)} className={inputClass} />

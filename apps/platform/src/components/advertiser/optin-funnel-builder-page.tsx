@@ -7,6 +7,7 @@ import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import { normalizeThemeJson } from "@/modules/page-builder/lib/theme";
 import { buildCraftFromOptinTemplate } from "@/lib/optin-funnel-craft-templates";
 import { isOptinTemplateId } from "@/lib/optin-templates";
 import { cn } from "@/lib/utils";
@@ -158,8 +159,8 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           pageSlug: page.slug,
           campaignId: page.campaignId,
         });
-        setTheme(page.themeJson as ThemeJson);
-        setThankYouTheme(page.thankYouThemeJson as ThemeJson);
+        setTheme(normalizeThemeJson(page.themeJson));
+        setThankYouTheme(normalizeThemeJson(page.thankYouThemeJson));
         setBuilderConfig({
           apiBasePath: "/api/v1/advertiser/optin-funnels",
           listPath: "/advertiser/optin-funnels",

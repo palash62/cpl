@@ -10,17 +10,17 @@ import {
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
   return withAuth(async (session) => {
-    const { id } = await context.params;
     const data = await getConnection(id, session.user.id);
     return Response.json({ data });
   }, ["ADVERTISER"]);
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const { id } = await context.params;
   return withAuth(async (session) => {
     try {
-      const { id } = await context.params;
       const body = await request.json();
       const parsed = autoresponderConnectionUpdateSchema.safeParse(body);
       if (!parsed.success) {
@@ -45,9 +45,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
   return withAuth(async (session) => {
     try {
-      const { id } = await context.params;
       await deleteAdvertiserConnection(id, session.user.id);
       return Response.json({ ok: true });
     } catch (error) {

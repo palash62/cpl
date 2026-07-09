@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { BuilderImageUpload } from "@/modules/page-builder/components/editor/builder-image-upload";
 import { normalizeCssLength, normalizeSpacing } from "@/modules/page-builder/lib/responsive";
 import { GHL_FIELD_LABEL } from "@/modules/page-builder/lib/builder-panel-styles";
 
@@ -239,11 +240,11 @@ export function BackgroundPanel({
 
       {tab === "image" && (
         <div className="space-y-1.5">
-          <input
+          <BuilderImageUpload
             value={String(style.backgroundImage ?? "")}
-            onChange={(e) => onChange("backgroundImage", e.target.value)}
-            placeholder="Image URL"
-            className="h-8 w-full rounded-md border border-slate-200 px-2 text-[11px]"
+            onChange={(url) => onChange("backgroundImage", url)}
+            onClear={() => onChange("backgroundImage", "")}
+            urlPlaceholder="Or paste background image URL"
           />
           <select
             value={String(style.backgroundSize ?? "cover")}

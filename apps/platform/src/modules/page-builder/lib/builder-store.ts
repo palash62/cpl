@@ -29,6 +29,7 @@ type BuilderUIState = {
   versionHistoryOpen: boolean;
   pageSettingsOpen: boolean;
   assetPickerOpen: boolean;
+  assetPickerOnSelect: ((url: string) => void) | null;
   insertTargetNodeId: string | null;
   saveStatus: SaveStatus;
   theme: ThemeJson;
@@ -50,6 +51,7 @@ type BuilderUIState = {
   setVersionHistoryOpen: (open: boolean) => void;
   setPageSettingsOpen: (open: boolean) => void;
   setAssetPickerOpen: (open: boolean) => void;
+  openAssetPicker: (onSelect?: (url: string) => void) => void;
   setInsertTargetNodeId: (id: string | null) => void;
   setStyleBreakpoint: (bp: Breakpoint) => void;
   setSaveStatus: (status: SaveStatus) => void;
@@ -81,6 +83,7 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
   versionHistoryOpen: false,
   pageSettingsOpen: false,
   assetPickerOpen: false,
+  assetPickerOnSelect: null,
   insertTargetNodeId: null,
   saveStatus: "idle",
   theme: DEFAULT_THEME,
@@ -106,7 +109,13 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
   setPreviewOpen: (previewOpen) => set({ previewOpen }),
   setVersionHistoryOpen: (versionHistoryOpen) => set({ versionHistoryOpen }),
   setPageSettingsOpen: (pageSettingsOpen) => set({ pageSettingsOpen }),
-  setAssetPickerOpen: (assetPickerOpen) => set({ assetPickerOpen }),
+  setAssetPickerOpen: (assetPickerOpen) =>
+    set(
+      assetPickerOpen
+        ? { assetPickerOpen: true }
+        : { assetPickerOpen: false, assetPickerOnSelect: null },
+    ),
+  openAssetPicker: (onSelect) => set({ assetPickerOpen: true, assetPickerOnSelect: onSelect ?? null }),
   setInsertTargetNodeId: (insertTargetNodeId) => set({ insertTargetNodeId }),
   setStyleBreakpoint: (styleBreakpoint) => set({ styleBreakpoint }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),

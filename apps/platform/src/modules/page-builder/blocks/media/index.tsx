@@ -4,7 +4,7 @@ import { useNode } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
-import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { BuilderImageUpload } from "@/modules/page-builder/components/editor/builder-image-upload";
 
 type ImageProps = BlockProps & { src?: string; alt?: string };
 
@@ -13,27 +13,16 @@ function ImageSettings() {
     src: node.data.props.src as string,
     alt: node.data.props.alt as string,
   }));
-  const setAssetPickerOpen = useBuilderStore((s) => s.setAssetPickerOpen);
-
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <FieldLabel>Image</FieldLabel>
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={alt || ""}
-            className="mb-1.5 max-h-28 w-full rounded-md border border-slate-200 object-contain"
-          />
-        ) : null}
-        <button
-          type="button"
-          className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          onClick={() => setAssetPickerOpen(true)}
-        >
-          {src ? "Change image" : "Choose image"}
-        </button>
+        <BuilderImageUpload
+          value={src ?? ""}
+          onChange={(url) => setProp((p: ImageProps) => { p.src = url; })}
+          onClear={() => setProp((p: ImageProps) => { p.src = ""; })}
+          urlPlaceholder="Or paste image URL"
+        />
       </div>
       <div className="space-y-1.5">
         <FieldLabel>Alt text</FieldLabel>

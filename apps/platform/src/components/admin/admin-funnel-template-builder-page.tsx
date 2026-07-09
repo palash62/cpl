@@ -6,6 +6,7 @@ import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { createBlankCraftState, ensureEditorCraftState } from "@/modules/page-builder/lib/serialize";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import { normalizeThemeJson } from "@/modules/page-builder/lib/theme";
 
 type AdminTemplate = {
   id: string;
@@ -50,7 +51,7 @@ export function AdminFunnelTemplateBuilderPage({ templateId }: { templateId: str
           pageSlug: page.slug,
           campaignId: null,
         });
-        setTheme(page.themeJson);
+        setTheme(normalizeThemeJson(page.themeJson));
       });
   }, [templateId, setPageMeta, setTheme]);
 

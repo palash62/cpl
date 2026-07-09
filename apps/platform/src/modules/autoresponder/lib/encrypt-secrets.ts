@@ -11,6 +11,9 @@ const SECRET_KEYS = new Set([
   "pass",
 ]);
 
+export const SECRET_CONFIG_KEYS = SECRET_KEYS;
+export const MASKED_SECRET = "••••••••";
+
 function getEncryptionKey() {
   const raw = process.env.INTEGRATION_ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "";
   if (!raw || raw.length < 16) {
@@ -63,10 +66,10 @@ export function decryptConfigSecrets(config: Record<string, unknown>): Record<st
 }
 
 export function maskConfigForApi(config: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...config };
+  const out: Record<string, unknown> = { ...(config ?? {}) };
   for (const key of Object.keys(out)) {
     if (SECRET_KEYS.has(key) && typeof out[key] === "string" && out[key]) {
-      out[key] = "••••••••";
+      out[key] = MASKED_SECRET;
     }
   }
   return out;

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
-import { Plus, Save, X } from "lucide-react";
+import { Loader2, Plus, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +52,10 @@ const SELECT_TRIGGER_CLASS =
 const SELECT_MENU_CLASS = "z-200 !w-[22rem] max-w-[calc(100vw-2rem)]";
 
 const SELECT_MENU_WIDE_CLASS = "z-200 !w-[26rem] max-w-[calc(100vw-2rem)]";
+
+const MASKED_SECRET = "••••••••";
+
+type GetResponseListOption = { campaignId: string; name: string };
 
 type FormState = {
   name: string;
@@ -140,18 +144,80 @@ export function AutoresponderConnectionForm({
   onCancelEdit,
 }: {
   campaigns: CampaignOption[];
-  onSaved: () => void;
+  onSaved: (connection?: EditableConnection) => void;
   initialConnection?: EditableConnection | null;
   onCancelEdit?: () => void;
 }) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [getResponseLists, setGetResponseLists] = useState<GetResponseListOption[]>([]);
+  const [getResponseListsLoading, setGetResponseListsLoading] = useState(false);
+  const [getResponseListsError, setGetResponseListsError] = useState<string | null>(null);
   const isEditMode = Boolean(initialConnection);
+
+  const loadGetResponseLists = useCallback(
+    async (apiKey: string, connectionId?: string) => {
+      const trimmedKey = apiKey.trim();
+      const canUseKey = trimmedKey.length > 0 && trimmedKey !== MASKED_SECRET;
+      const resolvedConnectionId = connectionId ?? (isEditMode ? initialConnection?.id : undefined);
+
+      if (!canUseKey && !resolvedConnectionId) {
+        setGetResponseLists([]);
+        setGetResponseListsError(null);
+        return;
+      }
+
+      setGetResponseListsLoading(true);
+      setGetResponseListsError(null);
+
+      const res = await fetch("/api/v1/advertiser/autoresponders/getresponse/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(canUseKey ? { apiKey: trimmedKey } : {}),
+          ...(resolvedConnectionId ? { connectionId: resolvedConnectionId } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      setGetResponseListsLoading(false);
+
+      if (!res.ok) {
+        setGetResponseLists([]);
+        setGetResponseListsError(formatApiError(data, "Unable to load GetResponse lists"));
+        return;
+      }
+
+      const campaigns = (data?.data as GetResponseListOption[]) ?? [];
+      setGetResponseLists(campaigns);
+
+      if (campaigns.length > 0) {
+        setForm((prev) => {
+          if (prev.provider !== "GETRESPONSE") return prev;
+          const current = prev.getResponseListId.trim();
+          const isNumeric = /^\d+$/.test(current);
+          const byId = campaigns.find((list) => list.campaignId === current);
+          if (current && byId && !isNumeric) return prev;
+          const byName = campaigns.find((list) => list.name === current);
+          if (byName) return { ...prev, getResponseListId: byName.campaignId };
+          const nextId = campaigns[0]?.campaignId ?? "";
+          return nextId ? { ...prev, getResponseListId: nextId } : prev;
+        });
+      }
+    },
+    [initialConnection?.id, isEditMode],
+  );
+
+  const refreshGetResponseLists = useCallback(() => {
+    if (form.provider !== "GETRESPONSE") return;
+    void loadGetResponseLists(form.apiKey, initialConnection?.id);
+  }, [form.provider, form.apiKey, initialConnection?.id, loadGetResponseLists]);
 
   useEffect(() => {
     if (!initialConnection) {
       setForm(emptyForm());
+      setGetResponseLists([]);
+      setGetResponseListsError(null);
       return;
     }
     const cfg = initialConnection.config ?? {};
@@ -169,21 +235,55 @@ export function AutoresponderConnectionForm({
       accountId: String(cfg.accountId ?? ""),
       getResponseListId: String(cfg.campaignId ?? cfg.listId ?? ""),
     });
-  }, [initialConnection]);
+
+    if (initialConnection.provider === "GETRESPONSE") {
+      void loadGetResponseLists(String(cfg.apiKey ?? ""), initialConnection.id);
+    }
+  }, [initialConnection, loadGetResponseLists]);
+
+  useEffect(() => {
+    if (form.provider !== "GETRESPONSE") {
+      setGetResponseLists([]);
+      setGetResponseListsError(null);
+      return;
+    }
+
+    const trimmedKey = form.apiKey.trim();
+    const canUseKey = trimmedKey.length > 0 && trimmedKey !== MASKED_SECRET;
+    if (!canUseKey && !isEditMode) {
+      setGetResponseLists([]);
+      setGetResponseListsError(null);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadGetResponseLists(trimmedKey, initialConnection?.id);
+    }, canUseKey ? 500 : 0);
+
+    return () => window.clearTimeout(timer);
+  }, [form.provider, form.apiKey, isEditMode, initialConnection?.id, loadGetResponseLists]);
 
   const selectedProvider = PROVIDERS.find((p) => p.value === form.provider);
   const selectedTrigger = TRIGGERS.find((t) => t.value === form.trigger);
+
+  const getResponseListOptions =
+    form.getResponseListId &&
+    !/^\d+$/.test(form.getResponseListId.trim()) &&
+    !getResponseLists.some((list) => list.campaignId === form.getResponseListId)
+      ? [
+          ...getResponseLists,
+          { campaignId: form.getResponseListId, name: `${form.getResponseListId} (saved)` },
+        ]
+      : getResponseLists;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
 
-    if (form.provider === "GETRESPONSE" && /^\d+$/.test(form.getResponseListId.trim())) {
+    if (form.provider === "GETRESPONSE" && !form.getResponseListId.trim()) {
       setSaving(false);
-      setError(
-        "GetResponse list ID must be the alphanumeric campaign token from GetResponse, not the numeric list number.",
-      );
+      setError("Select a GetResponse list before saving.");
       return;
     }
 
@@ -210,9 +310,15 @@ export function AutoresponderConnectionForm({
       return;
     }
 
+    const savedConnection = data?.data as EditableConnection | undefined;
+
+    if (isEditMode) {
+      onSaved(savedConnection);
+      return;
+    }
+
     setForm(emptyForm());
-    onSaved();
-    if (isEditMode) onCancelEdit?.();
+    onSaved(savedConnection);
   }
 
   return (
@@ -276,6 +382,8 @@ export function AutoresponderConnectionForm({
                   provider: v as AutoresponderProvider,
                 }),
               );
+              setGetResponseLists([]);
+              setGetResponseListsError(null);
             }}
           >
             <SelectTrigger className={SELECT_TRIGGER_CLASS}>
@@ -428,27 +536,104 @@ export function AutoresponderConnectionForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>API key</Label>
-              <Input
-                type="password"
-                value={form.apiKey}
-                onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                required
-                className="bg-white"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={form.apiKey}
+                  onChange={(e) => {
+                    const nextKey = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      apiKey: nextKey,
+                      ...(nextKey !== MASKED_SECRET && nextKey !== prev.apiKey
+                        ? { getResponseListId: "" }
+                        : {}),
+                    }));
+                    setGetResponseListsError(null);
+                  }}
+                  onBlur={refreshGetResponseLists}
+                  required
+                  className="bg-white"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={getResponseListsLoading || (!form.apiKey.trim() && !isEditMode)}
+                  onClick={refreshGetResponseLists}
+                >
+                  {getResponseListsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Load lists"
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500">
+                Paste your API key, then lists load automatically. Use Load lists if they do not appear.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label>GetResponse list ID</Label>
-              <Input
-                value={form.getResponseListId}
-                onChange={(e) => setForm({ ...form, getResponseListId: e.target.value })}
-                placeholder="e.g. p86zQ"
-                required
-                className="bg-white"
-              />
-              <p className="text-xs text-slate-500">
-                Alphanumeric campaign token from GetResponse Lists (not the numeric ID). Find it via
-                API GET /campaigns or under the list name.
-              </p>
+              <Label>GetResponse list</Label>
+              {getResponseListsLoading ? (
+                <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading lists…
+                </div>
+              ) : getResponseListOptions.length > 0 ? (
+                <Select
+                  value={form.getResponseListId || undefined}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    setForm({ ...form, getResponseListId: v });
+                  }}
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="Select a list">
+                      {(() => {
+                        const selected = getResponseListOptions.find(
+                          (list) => list.campaignId === form.getResponseListId,
+                        );
+                        if (!selected) return "Select a list";
+                        return selected.name === selected.campaignId
+                          ? selected.name
+                          : `${selected.name} (${selected.campaignId})`;
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent
+                    align="start"
+                    alignItemWithTrigger={false}
+                    className={`${SELECT_MENU_WIDE_CLASS} max-h-60`}
+                  >
+                    {getResponseListOptions.map((list) => (
+                      <SelectItem key={list.campaignId} value={list.campaignId}>
+                        {list.name === list.campaignId
+                          ? list.name
+                          : `${list.name} (${list.campaignId})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-10 items-center rounded-md border border-dashed border-slate-200 bg-white px-3 text-sm text-slate-500">
+                  {form.apiKey.trim() || isEditMode
+                    ? "No lists loaded yet — click Load lists"
+                    : "Enter your API key first"}
+                </div>
+              )}
+              {getResponseListsError ? (
+                <p className="text-xs text-red-600">{getResponseListsError}</p>
+              ) : getResponseListOptions.length > 0 ? (
+                <p className="text-xs text-slate-500">
+                  Choose the GetResponse list where new leads should be added. The short code in
+                  parentheses is the API list token saved with the connection.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Lists are fetched from your GetResponse account using the API key above.
+                </p>
+              )}
             </div>
           </div>
         )}

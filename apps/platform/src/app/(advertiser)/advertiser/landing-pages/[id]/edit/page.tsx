@@ -6,6 +6,7 @@ import { LandingPageBuilder } from "@/modules/page-builder";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import { normalizeThemeJson } from "@/modules/page-builder/lib/theme";
 
 export default function LandingPageEditPage() {
   const params = useParams();
@@ -45,7 +46,7 @@ export default function LandingPageEditPage() {
           campaignId: page.campaignId,
         });
         setPageMeta({ pageId, pageName: page.name, pageSlug: page.slug, campaignId: page.campaignId });
-        setTheme(page.themeJson as ThemeJson);
+        setTheme(normalizeThemeJson(page.themeJson));
       });
   }, [pageId, setPageMeta, setTheme]);
 

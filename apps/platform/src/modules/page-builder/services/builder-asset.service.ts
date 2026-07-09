@@ -10,14 +10,31 @@ const ALLOWED_MIME = new Set([
   "image/svg+xml",
 ]);
 
+const EXT_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+};
+
 const MAX_BYTES = 5 * 1024 * 1024;
+
+function resolveMimeType(file: File): string | null {
+  if (file.type && ALLOWED_MIME.has(file.type)) return file.type;
+  const ext = path.extname(file.name).toLowerCase();
+  const fromExt = EXT_TO_MIME[ext];
+  return fromExt && ALLOWED_MIME.has(fromExt) ? fromExt : null;
+}
 
 /**
  * Device upload for page-builder (landing pages + optin funnels).
  * Stores under public/uploads/builder so both apps can use the same picker.
  */
 export async function uploadBuilderAsset(ownerId: string, file: File) {
-  if (!ALLOWED_MIME.has(file.type)) {
+  const mimeType = resolveMimeType(file);
+  if (!mimeType) {
     throw Errors.validation("Only JPEG, PNG, WebP, GIF, and SVG images are allowed.");
   }
   if (file.size > MAX_BYTES) {
@@ -35,7 +52,7 @@ export async function uploadBuilderAsset(ownerId: string, file: File) {
   return {
     url: `/uploads/builder/${ownerId}/${fileName}`,
     fileName: safeName,
-    mimeType: file.type,
+    mimeType,
     sizeBytes: file.size,
   };
 }

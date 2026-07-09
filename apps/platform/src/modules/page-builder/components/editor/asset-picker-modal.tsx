@@ -22,12 +22,15 @@ type AssetPickerProps = {
 export function AssetPickerModal({ onSelect }: AssetPickerProps) {
   const open = useBuilderStore((s) => s.assetPickerOpen);
   const setOpen = useBuilderStore((s) => s.setAssetPickerOpen);
+  const onSelectFromStore = useBuilderStore((s) => s.assetPickerOnSelect);
   const chrome = getBuilderChrome(useBuilderStore((s) => s.builderConfig.chromeTheme ?? "dark"));
   const { actions, query } = useEditor();
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isDark = chrome.properties.includes("bg-[#12141c]");
+
+  const applyHandler = onSelect ?? onSelectFromStore ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -40,14 +43,18 @@ export function AssetPickerModal({ onSelect }: AssetPickerProps) {
     const trimmed = nextUrl.trim();
     if (!trimmed) return;
 
-    if (onSelect) {
-      onSelect(trimmed);
+    if (applyHandler) {
+      applyHandler(trimmed);
     } else {
       const selectedId = query.getEvent("selected").first();
       if (selectedId) {
-        actions.setProp(selectedId, (props: { src?: string }) => {
-          props.src = trimmed;
+        actions.setProp(selectedId, (props: { src?: string; backgroundImage?: string }) => {
+          if ("src" in props) props.src = trimmed;
+          else if ("backgroundImage" in props) props.backgroundImage = trimmed;
         });
+      } else {
+        toast.error("Select an image block first, or use the theme panel for page background.");
+        return;
       }
     }
 

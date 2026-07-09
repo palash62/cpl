@@ -14,7 +14,8 @@ import { PageSettingsDrawer } from "@/modules/page-builder/components/editor/pag
 import { AssetPickerModal } from "@/modules/page-builder/components/editor/asset-picker-modal";
 import { useAutosave } from "@/modules/page-builder/hooks/use-autosave";
 import { useBuilderKeyboard } from "@/modules/page-builder/hooks/use-builder-keyboard";
-import { isDarkBackground, themeToCssVars } from "@/modules/page-builder/lib/theme";
+import { isDarkBackground, themePageBackgroundStyle, themeToCssVars } from "@/modules/page-builder/lib/theme";
+import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
@@ -46,7 +47,7 @@ export function LandingPageBuilder({
   pageSlug,
   campaignId,
 }: LandingPageBuilderProps) {
-  const theme = useBuilderStore((s) => s.theme);
+  const { theme } = useActivePageTheme();
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const builderConfig = useBuilderStore((s) => s.builderConfig);
   const chromeTheme = builderConfig.chromeTheme ?? "dark";
@@ -80,7 +81,7 @@ export function LandingPageBuilder({
               <div className="relative flex flex-1 items-start justify-center overflow-auto p-6">
                 <div
                   className={cn(
-                    "relative w-full bg-white transition-all duration-300",
+                    "relative w-full transition-all duration-300",
                     isGhl ? "min-h-[720px] shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
                     chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
                     !isGhl && "ring-1 ring-white/10",
@@ -91,6 +92,7 @@ export function LandingPageBuilder({
                     maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
                     minHeight: isDesktop ? (isGhl ? 720 : "100%") : 600,
                     ...themeToCssVars(theme),
+                    ...themePageBackgroundStyle(theme),
                   }}
                 >
                   <Frame data={resolvedCraftState as never}>

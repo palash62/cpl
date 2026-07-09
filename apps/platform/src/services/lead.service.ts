@@ -16,6 +16,39 @@ import { dispatchAutoresponderEvent } from "@/modules/autoresponder";
 import { dispatchLeadEmailAutomations } from "@/modules/email-marketing";
 import type { LeadStatus } from "@prisma/client";
 import type { Campaign, CampaignField } from "@prisma/client";
+import type { FormJson } from "@/modules/page-builder/types/form-field";
+
+type LeadValidationField = {
+  fieldName: string;
+  required: boolean;
+  fieldType: string;
+};
+
+function campaignFieldsToValidationFields(fields: CampaignField[]): LeadValidationField[] {
+  return fields.map((field) => ({
+    fieldName: field.fieldName,
+    required: field.required,
+    fieldType: field.fieldType,
+  }));
+}
+
+function formJsonToValidationFields(formJson: FormJson | null | undefined): LeadValidationField[] | null {
+  if (!formJson?.fields?.length) return null;
+  return formJson.fields.map((field) => ({
+    fieldName: field.name,
+    required: Boolean(field.required),
+    fieldType: field.type === "email" ? "email" : field.type === "phone" ? "phone" : "text",
+  }));
+}
+
+function resolveOptinFormJson(optinPage: {
+  formJson: unknown;
+  publishedVersion?: { formJson: unknown } | null;
+}): FormJson | null {
+  const raw = optinPage.publishedVersion?.formJson ?? optinPage.formJson;
+  if (!raw || typeof raw !== "object") return null;
+  return raw as FormJson;
+}
 
 async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?: string) {
   const lead = await prisma.lead.findUnique({
@@ -172,6 +205,7 @@ async function createAndProcessLead(input: {
   publisherId: string;
   trackingLinkId?: string;
   campaign: Campaign & { fields: CampaignField[] };
+  validationFields?: LeadValidationField[];
   data: Record<string, string>;
   honeypot?: string;
   ip?: string;
@@ -190,7 +224,8 @@ async function createAndProcessLead(input: {
 
   const validation = validateLead({
     data: input.data,
-    campaignFields: input.campaign.fields,
+    campaignFields:
+      input.validationFields ?? campaignFieldsToValidationFields(input.campaign.fields),
     existingEmails: [],
     existingPhones: [],
     honeypot: input.honeypot,
@@ -366,7 +401,9 @@ export async function submitOptinLead(input: {
     if (trackingLink && trackingLink.campaign.status === "ACTIVE") {
       const optinPage = await prisma.advertiserOptinPage.findUnique({
         where: { slug: input.optinSlug },
-        select: { campaignId: true, isPublished: true },
+        include: {
+          publishedVersion: { select: { formJson: true } },
+        },
       });
 
       if (
@@ -374,11 +411,14 @@ export async function submitOptinLead(input: {
         optinPage.campaignId &&
         optinPage.campaignId === trackingLink.campaignId
       ) {
+        const validationFields =
+          formJsonToValidationFields(resolveOptinFormJson(optinPage)) ?? undefined;
         return createAndProcessLead({
           campaignId: trackingLink.campaignId,
           publisherId: trackingLink.publisherId,
           trackingLinkId: trackingLink.id,
           campaign: trackingLink.campaign,
+          validationFields,
           data: input.data,
           honeypot: input.honeypot,
           ip: input.ip,
@@ -396,6 +436,7 @@ export async function submitOptinLead(input: {
     where: { slug: input.optinSlug },
     include: {
       campaign: { include: { fields: true } },
+      publishedVersion: { select: { formJson: true } },
     },
   });
 
@@ -409,10 +450,14 @@ export async function submitOptinLead(input: {
     );
   }
 
+  const validationFields =
+    formJsonToValidationFields(resolveOptinFormJson(optinPage)) ?? undefined;
+
   return createAndProcessLead({
     campaignId: optinPage.campaign.id,
     publisherId: optinPage.advertiserId,
     campaign: optinPage.campaign,
+    validationFields,
     data: input.data,
     honeypot: input.honeypot,
     ip: input.ip,
@@ -454,16 +499,8 @@ export async function submitLandingLead(input: {
     throw Errors.notFound("Landing page");
   }
 
-  const formJson = page.publishedVersion.formJson as {
-    fields: Array<{
-      name: string;
-      required?: boolean;
-      minLength?: number;
-      maxLength?: number;
-      pattern?: string;
-      type: string;
-    }>;
-  } | null;
+  const formJson = page.publishedVersion.formJson as FormJson | null;
+  const validationFields = formJsonToValidationFields(formJson) ?? undefined;
 
   if (formJson?.fields) {
     for (const field of formJson.fields) {
@@ -490,6 +527,7 @@ export async function submitLandingLead(input: {
     campaignId: page.campaign.id,
     publisherId: page.advertiserId,
     campaign: page.campaign,
+    validationFields,
     data: input.data,
     honeypot: input.honeypot,
     ip: input.ip,
@@ -556,7 +594,21 @@ export type AdvertiserLeadSort =
   | "message_asc"
   | "message_desc";
 
-export async function listLeads(filters: {
+const LEAD_LIST_INCLUDE = {
+  campaign: {
+    select: {
+      id: true,
+      name: true,
+      cpl: true,
+      advertiser: { select: { id: true, name: true } },
+    },
+  },
+  publisher: { select: { name: true, email: true } },
+  validationResults: { orderBy: { rule: "asc" as const } },
+  statusHistory: { orderBy: { createdAt: "desc" as const }, take: 3 },
+};
+
+type LeadListFilters = {
   campaignId?: string;
   campaignSearch?: string;
   publisherId?: string;
@@ -568,13 +620,9 @@ export async function listLeads(filters: {
   sort?: AdvertiserLeadSort;
   dateFrom?: Date;
   dateTo?: Date;
-  page?: number;
-  limit?: number;
-}) {
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 10;
-  const sort = filters.sort ?? "created_desc";
+};
 
+function buildLeadListWhere(filters: LeadListFilters) {
   const createdAt: { gte?: Date; lte?: Date } = {};
   if (filters.dateFrom) {
     const from = new Date(filters.dateFrom);
@@ -600,7 +648,7 @@ export async function listLeads(filters: {
         }
       : undefined;
 
-  const where = {
+  return {
     ...(filters.campaignId && { campaignId: filters.campaignId }),
     ...(filters.publisherId && { publisherId: filters.publisherId }),
     ...(filters.publisherSearch?.trim() && {
@@ -612,41 +660,45 @@ export async function listLeads(filters: {
     ...(Object.keys(createdAt).length > 0 && { createdAt }),
     ...(campaignWhere && { campaign: campaignWhere }),
   };
+}
 
-  const orderBy =
-    sort === "created_asc"
-      ? { createdAt: "asc" as const }
-      : sort === "campaign_asc"
-        ? { campaign: { name: "asc" as const } }
-        : sort === "campaign_desc"
-          ? { campaign: { name: "desc" as const } }
-          : sort === "campaignId_asc"
-            ? { campaignId: "asc" as const }
-            : sort === "campaignId_desc"
-              ? { campaignId: "desc" as const }
-              : sort === "logData_asc"
-                ? { id: "asc" as const }
-                : sort === "logData_desc"
-                  ? { id: "desc" as const }
-                  : sort === "status_asc"
-                    ? { status: "asc" as const }
-                    : sort === "status_desc"
-                      ? { status: "desc" as const }
-                      : sort === "message_asc"
-                        ? { updatedAt: "asc" as const }
-                        : sort === "message_desc"
-                          ? { updatedAt: "desc" as const }
-                          : { createdAt: "desc" as const };
+function buildLeadListOrderBy(sort: AdvertiserLeadSort) {
+  return sort === "created_asc"
+    ? { createdAt: "asc" as const }
+    : sort === "campaign_asc"
+      ? { campaign: { name: "asc" as const } }
+      : sort === "campaign_desc"
+        ? { campaign: { name: "desc" as const } }
+        : sort === "campaignId_asc"
+          ? { campaignId: "asc" as const }
+          : sort === "campaignId_desc"
+            ? { campaignId: "desc" as const }
+            : sort === "logData_asc"
+              ? { id: "asc" as const }
+              : sort === "logData_desc"
+                ? { id: "desc" as const }
+                : sort === "status_asc"
+                  ? { status: "asc" as const }
+                  : sort === "status_desc"
+                    ? { status: "desc" as const }
+                    : sort === "message_asc"
+                      ? { updatedAt: "asc" as const }
+                      : sort === "message_desc"
+                        ? { updatedAt: "desc" as const }
+                        : { createdAt: "desc" as const };
+}
+
+export async function listLeads(filters: LeadListFilters & { page?: number; limit?: number }) {
+  const page = filters.page ?? 1;
+  const limit = filters.limit ?? 10;
+  const sort = filters.sort ?? "created_desc";
+  const where = buildLeadListWhere(filters);
+  const orderBy = buildLeadListOrderBy(sort);
 
   const [data, total] = await Promise.all([
     prisma.lead.findMany({
       where,
-      include: {
-        campaign: { select: { id: true, name: true, cpl: true } },
-        publisher: { select: { name: true, email: true } },
-        validationResults: { orderBy: { rule: "asc" } },
-        statusHistory: { orderBy: { createdAt: "desc" }, take: 3 },
-      },
+      include: LEAD_LIST_INCLUDE,
       orderBy,
       skip: (page - 1) * limit,
       take: limit,
@@ -658,6 +710,21 @@ export async function listLeads(filters: {
     data,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
   };
+}
+
+const LEAD_EXPORT_MAX = 10_000;
+
+export async function listLeadsForExport(filters: LeadListFilters) {
+  const sort = filters.sort ?? "created_desc";
+  const where = buildLeadListWhere(filters);
+  const orderBy = buildLeadListOrderBy(sort);
+
+  return prisma.lead.findMany({
+    where,
+    include: LEAD_LIST_INCLUDE,
+    orderBy,
+    take: LEAD_EXPORT_MAX,
+  });
 }
 
 export type AdvertiserPublisherLeadReportRow = {

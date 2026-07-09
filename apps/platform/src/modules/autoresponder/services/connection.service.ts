@@ -13,13 +13,15 @@ import {
   decryptConfigSecrets,
   encryptConfigSecrets,
   maskConfigForApi,
+  MASKED_SECRET,
+  SECRET_CONFIG_KEYS,
 } from "../lib/encrypt-secrets";
-import { verifyGetResponseConfig } from "../providers/getresponse.provider";
+import { normalizeGetResponseConfig, verifyGetResponseConfig } from "../providers/getresponse.provider";
 import type { ConnectionInput, ConnectionPublic } from "../types/connection";
 import type { ConnectionConfig, GetResponseConfig } from "../types/provider";
 
 function toPublic(row: Awaited<ReturnType<typeof listConnectionsByAdvertiser>>[number]): ConnectionPublic {
-  const config = row.config as Record<string, unknown>;
+  const config = (row.config ?? {}) as Record<string, unknown>;
   return {
     ...row,
     config: maskConfigForApi(config),
@@ -33,10 +35,23 @@ function mergeConfig(
   const merged = { ...existing, ...incoming } as Record<string, unknown>;
   for (const key of Object.keys(incoming as object)) {
     const val = (incoming as Record<string, unknown>)[key];
-    if (val === "••••••••" || val === undefined || val === "") {
+    const isSecret = SECRET_CONFIG_KEYS.has(key);
+
+    if (val === MASKED_SECRET) {
+      if (existing[key] !== undefined) merged[key] = existing[key];
+      continue;
+    }
+
+    if ((val === undefined || val === "") && isSecret) {
       if (existing[key] !== undefined) merged[key] = existing[key];
     }
   }
+
+  const nextCampaignId = (incoming as GetResponseConfig).campaignId?.trim();
+  if (nextCampaignId) {
+    delete merged.listId;
+  }
+
   return merged;
 }
 
@@ -50,9 +65,13 @@ async function assertCampaignOwnedByAdvertiser(campaignId: string, advertiserId:
   }
 }
 
-async function assertProviderConfig(provider: ConnectionInput["provider"], config: ConnectionConfig) {
+async function assertProviderConfig(
+  provider: ConnectionInput["provider"],
+  config: ConnectionConfig,
+): Promise<ConnectionConfig> {
   if (provider === "GETRESPONSE") {
-    const result = await verifyGetResponseConfig(config as GetResponseConfig);
+    const normalized = await normalizeGetResponseConfig(config as GetResponseConfig);
+    const result = await verifyGetResponseConfig(normalized);
     if (!result.ok) {
       throw new AppError(
         "VALIDATION_ERROR",
@@ -60,6 +79,7 @@ async function assertProviderConfig(provider: ConnectionInput["provider"], confi
         422,
       );
     }
+    return normalized;
   }
 
   if (provider === "WEBHOOK") {
@@ -68,6 +88,8 @@ async function assertProviderConfig(provider: ConnectionInput["provider"], confi
       throw new AppError("VALIDATION_ERROR", "Webhook URL is required", 422);
     }
   }
+
+  return config;
 }
 
 export async function listConnections(advertiserId: string) {
@@ -95,9 +117,8 @@ export async function createAdvertiserConnection(advertiserId: string, input: Co
     await assertCampaignOwnedByAdvertiser(input.campaignId, advertiserId);
   }
 
-  await assertProviderConfig(input.provider, input.config);
-
-  const encrypted = encryptConfigSecrets(input.config as Record<string, unknown>);
+  const verifiedConfig = await assertProviderConfig(input.provider, input.config);
+  const encrypted = encryptConfigSecrets(verifiedConfig as Record<string, unknown>);
   const row = await createConnection({
     advertiserId,
     name: input.name,
@@ -124,18 +145,33 @@ export async function updateAdvertiserConnection(
   }
 
   const existingConfig = existing.config as Record<string, unknown>;
-  const nextConfig = input.config
-    ? encryptConfigSecrets(mergeConfig(existingConfig, input.config))
+  const existingDecrypted = decryptConfigSecrets(existingConfig);
+  const mergedPlain = input.config
+    ? mergeConfig(existingDecrypted, input.config)
     : undefined;
+  const nextConfig = mergedPlain ? encryptConfigSecrets(mergedPlain) : undefined;
 
-  if (nextConfig) {
-    await assertProviderConfig(
+  if (mergedPlain) {
+    const verifiedConfig = await assertProviderConfig(
       existing.provider,
-      decryptConfigSecrets(nextConfig) as ConnectionConfig,
+      mergedPlain as ConnectionConfig,
     );
+    const encryptedVerified = encryptConfigSecrets(verifiedConfig as Record<string, unknown>);
+    const updated = await updateConnection(id, advertiserId, {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.trigger !== undefined && { trigger: input.trigger }),
+      ...(input.campaignId !== undefined && { campaignId: input.campaignId }),
+      ...(input.isEnabled !== undefined && { isEnabled: input.isEnabled }),
+      config: encryptedVerified,
+      ...(input.fieldMapping !== undefined && { fieldMapping: input.fieldMapping }),
+    });
+
+    if (updated.count === 0) throw Errors.notFound("Autoresponder connection");
+
+    return getConnection(id, advertiserId);
   }
 
-  await updateConnection(id, advertiserId, {
+  const updated = await updateConnection(id, advertiserId, {
     ...(input.name !== undefined && { name: input.name }),
     ...(input.trigger !== undefined && { trigger: input.trigger }),
     ...(input.campaignId !== undefined && { campaignId: input.campaignId }),
@@ -143,6 +179,8 @@ export async function updateAdvertiserConnection(
     ...(nextConfig !== undefined && { config: nextConfig }),
     ...(input.fieldMapping !== undefined && { fieldMapping: input.fieldMapping }),
   });
+
+  if (updated.count === 0) throw Errors.notFound("Autoresponder connection");
 
   return getConnection(id, advertiserId);
 }

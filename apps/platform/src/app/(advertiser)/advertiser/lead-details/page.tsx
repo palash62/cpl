@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 import { FileText, Info } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { shortPublisherId } from "@/lib/advertiser-leads";
@@ -78,6 +79,10 @@ function riskBadge(score: number | null) {
 
 export default async function AdvertiserLeadDetailsPage({ searchParams }: PageProps) {
   const session = await getSession();
+  if (!session?.user) {
+    redirect("/login");
+  }
+
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 15;
@@ -92,12 +97,12 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
 
   const [campaigns, { data: leads, meta }] = await Promise.all([
     prisma.campaign.findMany({
-      where: { advertiserId: session!.user.id },
+      where: { advertiserId: session.user.id },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     listLeads({
-      advertiserId: session!.user.id,
+      advertiserId: session.user.id,
       campaignId: params.campaignId,
       status,
       dateFrom: new Date(dateFrom),

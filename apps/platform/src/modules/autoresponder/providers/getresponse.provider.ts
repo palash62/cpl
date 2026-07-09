@@ -15,10 +15,7 @@ function formatGetResponseError(text: string, status: number): string {
       codeDescription?: string;
     };
     if (json.message?.toLowerCase().includes("campaign is invalid")) {
-      return (
-        "GetResponse list ID is invalid. Use the alphanumeric campaign token from " +
-        "GetResponse → Lists / Campaigns (not the numeric campaign number)."
-      );
+      return "GetResponse list ID is invalid. Reload lists and choose the list again.";
     }
     if (json.message) return `GetResponse: ${json.message}`;
     if (json.codeDescription) return `GetResponse: ${json.codeDescription}`;
@@ -37,14 +34,6 @@ export async function sendGetResponse(
 
   if (!apiKey || !campaignId) {
     return { ok: false, error: "GetResponse API key and list ID are required" };
-  }
-
-  if (/^\d+$/.test(campaignId)) {
-    return {
-      ok: false,
-      error:
-        "GetResponse list ID looks numeric. Use the alphanumeric campaign token shown under the list name in GetResponse (API → Campaigns), not the 8-digit number.",
-    };
   }
 
   const body = {
@@ -80,32 +69,169 @@ export async function sendGetResponse(
   }
 }
 
+export type GetResponseCampaignOption = {
+  campaignId: string;
+  name: string;
+};
+
+function getResponseHeaders(apiKey: string): HeadersInit {
+  return {
+    "X-Auth-Token": `api-key ${apiKey.trim()}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function tokenFromHref(href?: string): string {
+  const match = href?.match(/\/campaigns\/([^/?#]+)/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function isValidCampaignId(id: string): boolean {
+  return id.length > 0;
+}
+
+async function fetchGetResponseCampaignDetails(
+  apiKey: string,
+  campaignRef: string,
+): Promise<{ campaignId?: string; name?: string; href?: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api.getresponse.com/v3/campaigns/${encodeURIComponent(campaignRef)}`,
+      {
+        method: "GET",
+        headers: getResponseHeaders(apiKey),
+        signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+      },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as { campaignId?: string; name?: string; href?: string };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCampaignOption(
+  apiKey: string,
+  row: { campaignId?: string; name?: string; href?: string },
+): Promise<GetResponseCampaignOption | null> {
+  const name = row.name?.trim();
+  if (!name) return null;
+
+  const raw = row.campaignId?.trim() ?? "";
+  const hrefId = tokenFromHref(row.href);
+
+  if (isValidCampaignId(raw)) return { campaignId: raw, name };
+  if (isValidCampaignId(hrefId)) return { campaignId: hrefId, name };
+
+  const lookupRef = raw || hrefId;
+  if (!lookupRef) return null;
+
+  const detail = await fetchGetResponseCampaignDetails(apiKey, lookupRef);
+  const detailToken = detail?.campaignId?.trim() ?? "";
+  if (isValidCampaignId(detailToken)) {
+    return { campaignId: detailToken, name: detail.name?.trim() || name };
+  }
+
+  const detailHrefToken = tokenFromHref(detail?.href);
+  if (isValidCampaignId(detailHrefToken)) {
+    return { campaignId: detailHrefToken, name: detail.name?.trim() || name };
+  }
+
+  return null;
+}
+
+export async function normalizeGetResponseConfig(
+  config: GetResponseConfig,
+): Promise<GetResponseConfig> {
+  const apiKey = config.apiKey?.trim();
+  const campaignRef = resolveCampaignId(config);
+  if (!apiKey || !campaignRef) return config;
+
+  const detail = await fetchGetResponseCampaignDetails(apiKey, campaignRef);
+  const detailToken = detail?.campaignId?.trim() ?? "";
+  if (isValidCampaignId(detailToken)) {
+    return { ...config, campaignId: detailToken };
+  }
+
+  const detailHrefToken = tokenFromHref(detail?.href);
+  if (isValidCampaignId(detailHrefToken)) {
+    return { ...config, campaignId: detailHrefToken };
+  }
+
+  const listed = await listGetResponseCampaigns(apiKey);
+  if (listed.ok) {
+    const byId = listed.campaigns.find((row) => row.campaignId === campaignRef);
+    if (byId) return { ...config, campaignId: byId.campaignId };
+    const byName = listed.campaigns.find((row) => row.name === campaignRef);
+    if (byName) return { ...config, campaignId: byName.campaignId };
+  }
+
+  return config;
+}
+
+export async function listGetResponseCampaigns(
+  apiKey: string,
+): Promise<{ ok: true; campaigns: GetResponseCampaignOption[] } | { ok: false; error: string }> {
+  const key = apiKey.trim();
+  if (!key) {
+    return { ok: false, error: "GetResponse API key is required" };
+  }
+
+  try {
+    const res = await fetch("https://api.getresponse.com/v3/campaigns", {
+      method: "GET",
+      headers: getResponseHeaders(key),
+      signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+    });
+
+    if (!res.ok) {
+      const text = (await res.text()).slice(0, 500);
+      return { ok: false, error: formatGetResponseError(text, res.status) };
+    }
+
+    const data = (await res.json()) as Array<{
+      campaignId?: string;
+      name?: string;
+      href?: string;
+    }>;
+    const rows = Array.isArray(data) ? data : [];
+    const campaigns = (
+      await Promise.all(rows.map((row) => resolveCampaignOption(key, row)))
+    ).filter((row): row is GetResponseCampaignOption => row !== null);
+
+    if (campaigns.length === 0) {
+      return {
+        ok: false,
+        error:
+          "No usable GetResponse lists found. Check your API key has access to at least one list.",
+      };
+    }
+
+    return { ok: true, campaigns };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to load GetResponse lists",
+    };
+  }
+}
+
 /** Lightweight check that the list token exists for this API key (used when creating a connection). */
 export async function verifyGetResponseConfig(
   config: GetResponseConfig,
 ): Promise<ProviderSendResult> {
   const apiKey = config.apiKey?.trim();
-  const campaignId = resolveCampaignId(config);
+  const normalized = await normalizeGetResponseConfig(config);
+  const campaignId = resolveCampaignId(normalized);
 
   if (!apiKey || !campaignId) {
     return { ok: false, error: "GetResponse API key and list ID are required" };
   }
 
-  if (/^\d+$/.test(campaignId)) {
-    return {
-      ok: false,
-      error:
-        "GetResponse list ID looks numeric. Use the alphanumeric campaign token shown under the list name in GetResponse, not the 8-digit number.",
-    };
-  }
-
   try {
     const res = await fetch(`https://api.getresponse.com/v3/campaigns/${encodeURIComponent(campaignId)}`, {
       method: "GET",
-      headers: {
-        "X-Auth-Token": `api-key ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: getResponseHeaders(apiKey),
       signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
     });
 

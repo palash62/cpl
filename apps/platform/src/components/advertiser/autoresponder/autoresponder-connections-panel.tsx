@@ -87,16 +87,28 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
     void load();
   }
 
-  async function handleEdit(id: string) {
+  async function handleEdit(conn: Connection) {
     setMessage(null);
-    const res = await fetch(`/api/v1/advertiser/autoresponders/${id}`);
+    setEditing(conn);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const res = await fetch(`/api/v1/advertiser/autoresponders/${conn.id}`);
     const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.data) {
-      setMessage({ type: "err", text: "Unable to load connection details for editing." });
+    if (res.ok && json?.data) {
+      setEditing(json.data as Connection);
       return;
     }
-    setEditing(json.data as Connection);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (!res.ok) {
+      const apiMessage =
+        typeof json?.error?.message === "string" ? json.error.message : null;
+      setMessage({
+        type: "err",
+        text:
+          apiMessage ??
+          "Could not refresh connection details. You can still edit using the last loaded data.",
+      });
+    }
   }
 
   return (
@@ -150,8 +162,14 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
             campaigns={campaigns}
             initialConnection={editing}
             onCancelEdit={() => setEditing(null)}
-            onSaved={() => {
-              setEditing(null);
+            onSaved={(saved) => {
+              if (saved) {
+                setEditing({
+                  ...saved,
+                  isEnabled: (saved as Connection).isEnabled ?? true,
+                });
+              }
+              setMessage({ type: "ok", text: "Integration saved successfully." });
               void load();
             }}
           />
@@ -247,7 +265,7 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => void handleEdit(conn.id)}
+                    onClick={() => void handleEdit(conn)}
                   >
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
                     Edit

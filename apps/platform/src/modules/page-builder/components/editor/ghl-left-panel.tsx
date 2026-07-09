@@ -24,6 +24,8 @@ import { useInsertBlock } from "@/modules/page-builder/hooks/use-insert-block";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { BLOCK_ICONS } from "@/modules/page-builder/lib/block-icons";
 import { GHL_GROUP_TITLE } from "@/modules/page-builder/lib/builder-panel-styles";
+import { ThemeBackgroundSettings } from "@/modules/page-builder/components/editor/theme-background-settings";
+import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
 import { cn } from "@/lib/utils";
 
 const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
@@ -170,15 +172,13 @@ function LayersTree() {
 }
 
 function ThemePanel() {
-  const theme = useBuilderStore((s) => s.theme);
-  const setTheme = useBuilderStore((s) => s.setTheme);
+  const { theme, setTheme } = useActivePageTheme();
 
   return (
     <div className="space-y-3 p-1">
       {[
         { key: "primaryColor" as const, label: "Primary" },
         { key: "secondaryColor" as const, label: "Secondary" },
-        { key: "backgroundColor" as const, label: "Background" },
       ].map(({ key, label }) => (
         <div key={key} className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-medium text-slate-600">{label}</span>
@@ -190,6 +190,10 @@ function ThemePanel() {
           />
         </div>
       ))}
+      <div className="border-t border-slate-200 pt-3">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Page background</p>
+        <ThemeBackgroundSettings compact />
+      </div>
     </div>
   );
 }
