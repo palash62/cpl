@@ -129,12 +129,12 @@ async function resolveCampaignOption(
   const detail = await fetchGetResponseCampaignDetails(apiKey, lookupRef);
   const detailToken = detail?.campaignId?.trim() ?? "";
   if (isValidCampaignId(detailToken)) {
-    return { campaignId: detailToken, name: detail.name?.trim() || name };
+    return { campaignId: detailToken, name: detail?.name?.trim() || name };
   }
 
   const detailHrefToken = tokenFromHref(detail?.href);
   if (isValidCampaignId(detailHrefToken)) {
-    return { campaignId: detailHrefToken, name: detail.name?.trim() || name };
+    return { campaignId: detailHrefToken, name: detail?.name?.trim() || name };
   }
 
   return null;
