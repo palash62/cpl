@@ -60,20 +60,41 @@ export function pickCampaignForIpRotation<T extends RotatableCampaign>(
 
   const lastShownId = shownCampaignIds[0];
   const lastAdvertiserId = eligible.find((c) => c.id === lastShownId)?.advertiserId;
+  const shownSet = new Set(shownCampaignIds);
 
-  let pool = eligible.filter((c) => !shownCampaignIds.includes(c.id));
+  const pickFromPool = (pool: T[]): T | null => {
+    if (pool.length === 0) return null;
+    const index = rotationCursor % pool.length;
+    return pool[index] ?? null;
+  };
 
-  if (pool.length === 0) {
-    pool = eligible.filter((c) => c.advertiserId !== lastAdvertiserId);
-    if (pool.length === 0) pool = eligible.filter((c) => c.id !== lastShownId);
-    if (pool.length === 0) pool = eligible;
-  } else if (lastAdvertiserId) {
-    const differentAdvertiser = pool.filter((c) => c.advertiserId !== lastAdvertiserId);
-    if (differentAdvertiser.length > 0) pool = differentAdvertiser;
+  const preferDifferentAdvertiser = (pool: T[]) => {
+    if (!lastAdvertiserId) return pool;
+    const different = pool.filter((c) => c.advertiserId !== lastAdvertiserId);
+    return different.length > 0 ? different : pool;
+  };
+
+  const unseen = eligible.filter((c) => !shownSet.has(c.id));
+  const unseenPick = pickFromPool(preferDifferentAdvertiser(unseen));
+  if (unseenPick) return unseenPick;
+
+  if (lastAdvertiserId) {
+    const seenDifferentAdvertiser = eligible.filter(
+      (c) => shownSet.has(c.id) && c.advertiserId !== lastAdvertiserId,
+    );
+    const seenAdvPick = pickFromPool(seenDifferentAdvertiser);
+    if (seenAdvPick) return seenAdvPick;
   }
 
-  const index = rotationCursor % pool.length;
-  return pool[index] ?? null;
+  if (lastShownId) {
+    const seenDifferentCampaign = eligible.filter(
+      (c) => shownSet.has(c.id) && c.id !== lastShownId,
+    );
+    const seenCampPick = pickFromPool(seenDifferentCampaign);
+    if (seenCampPick) return seenCampPick;
+  }
+
+  return null;
 }
 
 export function campaignExcludesBlockedPublishers(targeting: unknown): boolean {

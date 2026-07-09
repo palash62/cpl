@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { getPublisherPayoutRequestEligibility } from "@/services/payout.service";
 import { getWalletBalance, getPlatformSettings } from "@/services/wallet.service";
@@ -9,10 +10,13 @@ import { PublisherPayoutRequestForm } from "@/components/publisher/publisher-pay
 
 export default async function RequestPayoutPage() {
   const session = await getSession();
+  if (!session?.user) redirect("/login");
+
+  const userId = session.user.id;
   const [balance, settings, payoutEligibility] = await Promise.all([
-    getWalletBalance(session!.user.id),
+    getWalletBalance(userId),
     getPlatformSettings(),
-    getPublisherPayoutRequestEligibility(session!.user.id),
+    getPublisherPayoutRequestEligibility(userId),
   ]);
 
   const availableBalance = balance?.availableBalance ?? 0;

@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { getTrackingUrl } from "@cpl/shared";
 import { getSession } from "@/lib/session";
 import { getPublisherSmartLinkDashboard } from "@/services/smart-link.service";
@@ -9,14 +10,14 @@ import { PublisherSmartLinkPanel } from "@/components/publisher/publisher-smart-
 
 export default async function PublisherSmartLinkPage() {
   const session = await getSession();
+  if (!session?.user) redirect("/login");
+
   const { smartLink, eligible, sourceBreakdown, globalLinkUrl, platformGlobalLinkUrl } =
-    await getPublisherSmartLinkDashboard(session!.user.id);
+    await getPublisherSmartLinkDashboard(session.user.id);
 
   const eligibleCampaigns = eligible.map((campaign) => ({
     id: campaign.id,
-    name: campaign.name,
     cpl: Number(campaign.cpl),
-    advertiser: { name: campaign.advertiser.name },
   }));
 
   return (

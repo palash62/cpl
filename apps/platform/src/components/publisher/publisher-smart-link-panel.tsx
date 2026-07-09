@@ -11,7 +11,6 @@ import {
   buildSmartLinkUrl,
   sanitizeTrackingParam,
 } from "@/lib/smart-link";
-import { formatCurrency } from "@/components/admin/admin-ui";
 import {
   Table,
   TableBody,
@@ -23,9 +22,7 @@ import {
 
 type EligibleCampaign = {
   id: string;
-  name: string;
   cpl: number;
-  advertiser: { name: string };
 };
 
 type SourceStat = {

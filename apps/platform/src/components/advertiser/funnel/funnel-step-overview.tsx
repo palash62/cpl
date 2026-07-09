@@ -9,9 +9,9 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
-import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import type { OptinFunnelEditorType } from "@prisma/client";
 import { usesBuilderRenderer } from "@/lib/optin-funnel";
-import { PREVIEW_FALLBACK_FIELDS } from "@/lib/optin-page";
+import { PREVIEW_FALLBACK_FIELDS, DEFAULT_OPTIN_PAGE, type PublicOptinPage } from "@/lib/optin-page";
 import { getOptinTemplate, isOptinTemplateId } from "@/lib/optin-templates";
 import { OptinPageLayout } from "@/components/optin/optin-page-layout";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
@@ -29,20 +29,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { FunnelStepId } from "./funnel-types";
+import {
+  resolvePreviewUrl,
+  type FunnelStepId,
+  type FunnelWorkflowConfig,
+  type FunnelWorkflowEntity,
+} from "./funnel-types";
 
 type FunnelStepOverviewProps = {
-  funnel: SerializedOptinFunnel;
+  entity: FunnelWorkflowEntity;
+  workflow: FunnelWorkflowConfig;
   stepId: FunnelStepId;
   appUrl: string;
   onSettingsClick: () => void;
-  onFunnelUpdated?: (funnel: SerializedOptinFunnel) => void;
+  onEntityUpdated?: (data: unknown) => void;
   onStepDeleted?: () => void;
 };
 
-function resolveThumbnail(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
-  const craftState = stepId === "thankYou" ? funnel.thankYouCraftState : funnel.craftState;
-  const themeJson = stepId === "thankYou" ? funnel.thankYouThemeJson : funnel.themeJson;
+function resolveThumbnail(entity: FunnelWorkflowEntity, stepId: FunnelStepId) {
+  const craftState = stepId === "thankYou" ? entity.thankYouCraftState : entity.craftState;
+  const themeJson = stepId === "thankYou" ? entity.thankYouThemeJson : entity.themeJson;
   return { craftState, themeJson: themeJson ?? DEFAULT_THEME };
 }
 
@@ -51,8 +57,7 @@ function craftNodeName(node: unknown): string | null {
   return (node as { type?: { resolvedName?: string } }).type?.resolvedName ?? null;
 }
 
-/** True when craft is only a blank shell (row/column canvas) or missing. */
-function isBlankOrStructuralCraft(craftState: SerializedOptinFunnel["thankYouCraftState"]): boolean {
+function isBlankOrStructuralCraft(craftState: FunnelWorkflowEntity["thankYouCraftState"]): boolean {
   const craft = craftState?.craft;
   if (!craft || Object.keys(craft).length <= 1) return true;
 
@@ -63,83 +68,82 @@ function isBlankOrStructuralCraft(craftState: SerializedOptinFunnel["thankYouCra
   });
 }
 
-/**
- * Old thank-you rows were seeded from the optin empty state (heading + form).
- * Those must not count as a thank-you design in the overview thumbnail.
- */
-function looksLikeOptinSkeleton(craftState: SerializedOptinFunnel["thankYouCraftState"]): boolean {
+function looksLikeOptinSkeleton(craftState: FunnelWorkflowEntity["thankYouCraftState"]): boolean {
   const craft = craftState?.craft;
   if (!craft) return false;
   return Object.values(craft).some((node) => craftNodeName(node) === "LeadForm");
 }
 
-function hasThankYouDesign(funnel: SerializedOptinFunnel): boolean {
-  if (isBlankOrStructuralCraft(funnel.thankYouCraftState)) return false;
-  if (looksLikeOptinSkeleton(funnel.thankYouCraftState)) return false;
+function hasThankYouDesign(entity: FunnelWorkflowEntity): boolean {
+  if (isBlankOrStructuralCraft(entity.thankYouCraftState)) return false;
+  if (looksLikeOptinSkeleton(entity.thankYouCraftState)) return false;
   return true;
 }
 
-function templatePreview(funnel: SerializedOptinFunnel, stepId: FunnelStepId) {
-  if (stepId !== "optin" || !funnel.templateId || !isOptinTemplateId(funnel.templateId)) {
+function hasOptinDesign(entity: FunnelWorkflowEntity): boolean {
+  if (entity.editorType) {
+    return usesBuilderRenderer({
+      editorType: entity.editorType as OptinFunnelEditorType,
+      craftState: entity.craftState,
+    });
+  }
+  return !isBlankOrStructuralCraft(entity.craftState);
+}
+
+function templatePreview(entity: FunnelWorkflowEntity, stepId: FunnelStepId): PublicOptinPage | null {
+  if (stepId !== "optin" || !entity.templateId || !isOptinTemplateId(entity.templateId)) {
     return null;
   }
-  const template = getOptinTemplate(funnel.templateId);
+  const template = getOptinTemplate(entity.templateId);
   return {
-    id: funnel.id,
-    slug: funnel.slug,
-    title: funnel.name,
-    destinationUrl: funnel.destinationUrl,
-    campaignId: funnel.campaignId,
-    templateId: funnel.templateId,
-    headline: funnel.headline || template.headline,
-    subheadline: funnel.subheadline || template.subheadline,
-    description: funnel.description ?? "Instant access to proven strategies.",
-    ctaText: funnel.ctaText || "Get Instant Access",
-    successTitle: funnel.successTitle || "You're In!",
-    successMessage: funnel.successMessage || "Check your inbox.",
-    badgeText: funnel.badgeText ?? template.badgeText,
-    bulletPoints: funnel.bulletPoints,
-    primaryColor: funnel.primaryColor || template.primaryColor,
-    accentColor: funnel.accentColor || template.accentColor,
-    isPublished: funnel.isPublished,
-    campaignName: funnel.name,
-    displayTitle: funnel.name,
+    id: entity.id,
+    slug: entity.slug,
+    title: entity.name,
+    destinationUrl: entity.destinationUrl,
+    campaignId: entity.campaignId ?? null,
+    templateId: entity.templateId,
+    headline: entity.headline || template.headline,
+    subheadline: entity.subheadline || template.subheadline,
+    description: entity.description ?? "Instant access to proven strategies.",
+    ctaText: entity.ctaText || "Get Instant Access",
+    successTitle: entity.successTitle || "You're In!",
+    successMessage: entity.successMessage || "Check your inbox.",
+    badgeText: entity.badgeText ?? template.badgeText,
+    bulletPoints: entity.bulletPoints ?? DEFAULT_OPTIN_PAGE.bulletPoints,
+    primaryColor: entity.primaryColor || template.primaryColor,
+    accentColor: entity.accentColor || template.accentColor,
+    isPublished: entity.isPublished ?? false,
+    campaignName: entity.name,
+    displayTitle: entity.name,
     fields: PREVIEW_FALLBACK_FIELDS,
     previewMode: true,
   };
 }
 
 export function FunnelStepOverview({
-  funnel,
+  entity,
+  workflow,
   stepId,
   appUrl,
   onSettingsClick,
-  onFunnelUpdated,
+  onEntityUpdated,
   onStepDeleted,
 }: FunnelStepOverviewProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const stepName = stepId === "thankYou" ? "thank you" : "optin page";
-  const publicPath = stepId === "thankYou" ? `/o/${funnel.slug}/thank-you` : `/o/${funnel.slug}`;
-  const previewPath = `${publicPath}?preview=1`;
-  const publicUrl = `${appUrl}${previewPath}`;
-  const editHref = `/advertiser/optin-funnels/${funnel.id}/edit?step=${stepId}`;
-  const { craftState, themeJson } = resolveThumbnail(funnel, stepId);
-  const templatePage = templatePreview(funnel, stepId);
+  const { previewPath, previewUrl } = resolvePreviewUrl(entity, workflow, stepId, appUrl);
+  const editHref = workflow.editPath(entity.id, stepId);
+  const { craftState, themeJson } = resolveThumbnail(entity, stepId);
+  const templatePage = templatePreview(entity, stepId);
 
-  const showCraft =
-    stepId === "thankYou"
-      ? hasThankYouDesign(funnel)
-      : usesBuilderRenderer({
-          editorType: funnel.editorType,
-          craftState: funnel.craftState,
-        });
+  const showCraft = stepId === "thankYou" ? hasThankYouDesign(entity) : hasOptinDesign(entity);
   const showTemplate = !showCraft && !!templatePage;
-  const isBlankThankYou = stepId === "thankYou" && !hasThankYouDesign(funnel);
+  const isBlankThankYou = stepId === "thankYou" && !hasThankYouDesign(entity);
 
-  async function patchFunnel(body: Record<string, unknown>) {
-    const res = await fetch(`/api/v1/advertiser/optin-funnels/${funnel.id}`, {
+  async function patchEntity(body: Record<string, unknown>) {
+    const res = await fetch(`${workflow.apiBasePath}/${entity.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -148,7 +152,7 @@ export function FunnelStepOverview({
     if (!res.ok) {
       throw new Error(data?.error?.message ?? "Unable to update funnel");
     }
-    return data.data as SerializedOptinFunnel;
+    return data.data;
   }
 
   async function handleCreateFromBlank() {
@@ -159,12 +163,12 @@ export function FunnelStepOverview({
     setResetting(true);
     try {
       const blank = createBlankCraftState();
-      const saved = await patchFunnel({
+      const saved = await patchEntity({
         thankYouEnabled: true,
         thankYouCraftState: blank,
         step: "thankYou",
       });
-      onFunnelUpdated?.(saved);
+      onEntityUpdated?.(saved);
       toast.success("Thank you page reset to blank");
       router.push(editHref);
     } catch (e) {
@@ -180,11 +184,11 @@ export function FunnelStepOverview({
 
     setDeleting(true);
     try {
-      const saved = await patchFunnel({
+      const saved = await patchEntity({
         thankYouEnabled: false,
         thankYouCraftState: null,
       });
-      onFunnelUpdated?.(saved);
+      onEntityUpdated?.(saved);
       onStepDeleted?.();
       toast.success("Thank you step deleted");
     } catch (e) {
@@ -206,7 +210,7 @@ export function FunnelStepOverview({
       </div>
 
       <div className="space-y-6 p-5">
-        {!funnel.isPublished && (
+        {workflow.showPublishHint && !entity.isPublished && (
           <p className="text-sm text-amber-700">
             Please publish your funnel to see it live. Visitors can preview drafts from the editor.
           </p>
@@ -215,7 +219,7 @@ export function FunnelStepOverview({
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Settings className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input readOnly value={publicUrl} className="h-10 border-slate-200 bg-slate-50 pl-9 pr-10 font-mono text-xs" />
+            <Input readOnly value={previewUrl} className="h-10 border-slate-200 bg-slate-50 pl-9 pr-10 font-mono text-xs" />
           </div>
           <a
             href={previewPath}
@@ -234,7 +238,7 @@ export function FunnelStepOverview({
               <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
                 {showCraft && !isBlankThankYou ? (
                   <OptinFunnelCraftThumbnail
-                    key={`${stepId}-${funnel.updatedAt}`}
+                    key={`${stepId}-${entity.updatedAt ?? entity.id}`}
                     craftState={craftState}
                     themeJson={themeJson}
                     scale={0.28}

@@ -1,5 +1,6 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
+import { adminOptinFunnelTemplateCreateSchema } from "@/lib/validations";
 import {
   createOptinFunnelTemplateByAdmin,
   listOptinFunnelTemplatesForAdmin,
@@ -16,26 +17,25 @@ export async function POST(request: Request) {
   return withAuth(async () => {
     try {
       const body = await request.json();
-      const name = typeof body.name === "string" ? body.name.trim() : "";
-      if (name.length < 2) {
+      const parsed = adminOptinFunnelTemplateCreateSchema.safeParse(body);
+      if (!parsed.success) {
         return Response.json(
-          { error: { code: "VALIDATION_ERROR", message: "Template name must be at least 2 characters." } },
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: parsed.error.issues[0]?.message ?? "Invalid input",
+              status: 422,
+            },
+          },
           { status: 422 },
         );
       }
 
-      const primaryColor = typeof body.primaryColor === "string" ? body.primaryColor : undefined;
-      const secondaryColor = typeof body.secondaryColor === "string" ? body.secondaryColor : undefined;
-      const sourceTemplateId =
-        typeof body.sourceTemplateId === "string" && body.sourceTemplateId.trim()
-          ? body.sourceTemplateId.trim()
-          : undefined;
-
       const data = await createOptinFunnelTemplateByAdmin({
-        name,
-        primaryColor,
-        secondaryColor,
-        sourceTemplateId,
+        name: parsed.data.name,
+        primaryColor: parsed.data.primaryColor,
+        secondaryColor: parsed.data.secondaryColor,
+        sourceTemplateId: parsed.data.sourceTemplateId,
       });
       return Response.json({ data }, { status: 201 });
     } catch (error) {

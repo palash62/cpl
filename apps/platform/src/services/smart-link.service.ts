@@ -102,23 +102,50 @@ export async function ensureTrackingLink(publisherId: string, campaignId: string
 }
 
 export async function getCampaignsShownToIp(publisherId: string, ip: string) {
-  const clicks = await prisma.click.findMany({
-    where: {
-      ip,
-      trackingLink: { publisherId },
-    },
-    select: { trackingLink: { select: { campaignId: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [clicks, leads] = await Promise.all([
+    prisma.click.findMany({
+      where: {
+        ip,
+        trackingLink: { publisherId },
+      },
+      select: {
+        createdAt: true,
+        trackingLink: { select: { campaignId: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.lead.findMany({
+      where: {
+        ip,
+        publisherId,
+      },
+      select: {
+        createdAt: true,
+        campaignId: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  const events = [
+    ...clicks.map((row) => ({
+      campaignId: row.trackingLink.campaignId,
+      createdAt: row.createdAt,
+    })),
+    ...leads.map((row) => ({
+      campaignId: row.campaignId,
+      createdAt: row.createdAt,
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const seen = new Set<string>();
   const ordered: string[] = [];
-  for (const row of clicks) {
-    const campaignId = row.trackingLink.campaignId;
-    if (!seen.has(campaignId)) {
-      seen.add(campaignId);
-      ordered.push(campaignId);
+  for (const row of events) {
+    if (!seen.has(row.campaignId)) {
+      seen.add(row.campaignId);
+      ordered.push(row.campaignId);
     }
   }
   return ordered;
@@ -173,7 +200,7 @@ export async function pickNextCampaign(
       campaign: null,
       trackingSlug: null,
       campaignLandingUrl: null,
-      globalLinkUrl: await resolveGlobalLinkFallback(publisherId),
+      globalLinkUrl: null,
       visitorCountry: options.countryCode ?? null,
     };
   }

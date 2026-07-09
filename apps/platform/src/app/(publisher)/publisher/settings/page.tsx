@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle, DollarSign, FileText, KeyRound } from "lucide-react";
 import { getSession } from "@/lib/session";
@@ -25,7 +26,9 @@ import { cn } from "@/lib/utils";
 
 export default async function PublisherSettingsPage() {
   const session = await getSession();
-  const user = await getPublisherSettings(session!.user.id);
+  if (!session?.user) redirect("/login");
+
+  const user = await getPublisherSettings(session.user.id);
 
   if (!user) {
     return null;

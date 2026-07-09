@@ -18,6 +18,7 @@
     "typecheck": "npm run typecheck --workspace @cpl/platform && npm run typecheck --workspace @cpl/tracking",
     "test": "npm run test --workspace @cpl/platform",
     "db:push": "npm run db:push --workspace @cpl/database",
+    "db:migrate": "npm run db:migrate --workspace @cpl/database",
     "db:seed": "npm run db:seed --workspace @cpl/database",
     "db:studio": "npm run db:studio --workspace @cpl/database",
     "worker:email": "npm run worker:email --workspace @cpl/platform",

@@ -4,6 +4,7 @@ import {
   calculatePublisherPayout,
   parsePlatformSettings,
 } from "@/lib/platform-settings";
+import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 import {
   notifyAdminAlert,
   notifyApproved,
@@ -89,10 +90,25 @@ export async function debitWallet(
   return newBalance;
 }
 
+export async function ensurePublisherWallet(
+  userId: string,
+  tx?: Prisma.TransactionClient,
+) {
+  const db = tx ?? prisma;
+  return db.wallet.upsert({
+    where: { userId },
+    create: { userId },
+    update: {},
+  });
+}
+
 export async function processLeadPayment(leadId: string) {
   const lead = await prisma.lead.findUniqueOrThrow({
     where: { id: leadId },
-    include: { campaign: true },
+    include: {
+      campaign: true,
+      publisher: { select: { role: true } },
+    },
   });
 
   const settings = await getPlatformSettings();
@@ -114,7 +130,8 @@ export async function processLeadPayment(leadId: string) {
       `Lead payment for campaign ${lead.campaign.name}`,
     );
 
-    if (lead.source !== "optin") {
+    if (shouldCreditPublisherForLead(lead)) {
+      await ensurePublisherWallet(lead.publisherId, tx);
       await creditWallet(
         tx,
         lead.publisherId,
@@ -163,6 +180,93 @@ export async function processLeadPayment(leadId: string) {
       });
     }
   });
+}
+
+/** Backfill publisher wallet credit for PAID leads that were not credited (e.g. optin before fix). */
+export async function reconcilePublisherLeadCredit(leadId: string): Promise<boolean> {
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        campaign: true,
+        publisher: { select: { role: true } },
+      },
+    });
+    if (!lead || lead.status !== "PAID" || !shouldCreditPublisherForLead(lead)) {
+      return false;
+    }
+
+    const existing = await prisma.ledgerEntry.findFirst({
+      where: {
+        type: "CREDIT",
+        referenceType: "lead",
+        referenceId: leadId,
+        wallet: { userId: lead.publisherId },
+      },
+    });
+    if (existing) return false;
+
+    const settings = await getPlatformSettings();
+    const { publisherAmount } = calculatePublisherPayout(
+      Number(lead.campaign.cpl),
+      lead.country,
+      settings,
+    );
+
+    await prisma.$transaction(async (tx) => {
+      await ensurePublisherWallet(lead.publisherId, tx);
+      await creditWallet(
+        tx,
+        lead.publisherId,
+        publisherAmount,
+        "lead",
+        leadId,
+        `Earnings from lead`,
+      );
+    });
+
+    return true;
+  } catch (error) {
+    console.error(`Failed to reconcile publisher credit for lead ${leadId}`, error);
+    return false;
+  }
+}
+
+export async function reconcileAllPublisherLeadCredits(): Promise<number> {
+  const leads = await prisma.lead.findMany({
+    where: { status: "PAID" },
+    include: {
+      campaign: { select: { advertiserId: true } },
+      publisher: { select: { role: true } },
+    },
+  });
+
+  let credited = 0;
+  for (const lead of leads) {
+    if (!shouldCreditPublisherForLead(lead)) continue;
+    const didCredit = await reconcilePublisherLeadCredit(lead.id);
+    if (didCredit) credited += 1;
+  }
+  return credited;
+}
+
+/** Backfill missing credits for one publisher's PAID leads (safe to call on dashboard load). */
+export async function reconcilePublisherLeadCreditsForUser(publisherId: string): Promise<number> {
+  const leads = await prisma.lead.findMany({
+    where: { publisherId, status: "PAID" },
+    include: {
+      campaign: { select: { advertiserId: true } },
+      publisher: { select: { role: true } },
+    },
+  });
+
+  let credited = 0;
+  for (const lead of leads) {
+    if (!shouldCreditPublisherForLead(lead)) continue;
+    const didCredit = await reconcilePublisherLeadCredit(lead.id);
+    if (didCredit) credited += 1;
+  }
+  return credited;
 }
 
 export async function getWalletBalance(userId: string) {

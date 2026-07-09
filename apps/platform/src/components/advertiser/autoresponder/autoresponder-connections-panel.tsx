@@ -66,20 +66,25 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
   async function handleTest(id: string) {
     setTestingId(id);
     setMessage(null);
-    const res = await fetch(`/api/v1/advertiser/autoresponders/${id}/test`, { method: "POST" });
-    const json = await res.json();
-    setTestingId(null);
-    setMessage(
-      res.ok
-        ? { type: "ok", text: "Test payload sent successfully." }
-        : {
-            type: "err",
-            text:
-              (typeof json?.error?.message === "string" && json.error.message) ||
-              (typeof json?.data?.error === "string" && json.data.error) ||
-              "Test failed. Check your credentials.",
-          },
-    );
+    try {
+      const res = await fetch(`/api/v1/advertiser/autoresponders/${id}/test`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      setTestingId(null);
+      setMessage(
+        res.ok
+          ? { type: "ok", text: "Test payload sent successfully." }
+          : {
+              type: "err",
+              text:
+                (typeof json?.error?.message === "string" && json.error.message) ||
+                (typeof json?.data?.error === "string" && json.data.error) ||
+                `Test failed (HTTP ${res.status}). Check your credentials.`,
+            },
+      );
+    } catch {
+      setTestingId(null);
+      setMessage({ type: "err", text: "Test failed. Check your network connection and try again." });
+    }
   }
 
   async function handleDelete(id: string) {

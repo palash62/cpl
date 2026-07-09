@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FunnelDetailHeader } from "./funnel-detail-header";
@@ -8,7 +8,12 @@ import { FunnelStepsSidebar } from "./funnel-steps-sidebar";
 import { FunnelStepOverview } from "./funnel-step-overview";
 import { FunnelAddStepDialog } from "./funnel-add-step-dialog";
 import { FunnelSettingsSheet } from "./funnel-settings-sheet";
-import { buildFunnelSteps, type FunnelStepId } from "./funnel-types";
+import {
+  advertiserFunnelWorkflow,
+  buildFunnelSteps,
+  toFunnelWorkflowEntityFromFunnel,
+  type FunnelStepId,
+} from "./funnel-types";
 
 type FunnelDetailPanelProps = {
   initialFunnel: SerializedOptinFunnel;
@@ -16,7 +21,9 @@ type FunnelDetailPanelProps = {
 };
 
 export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelProps) {
+  const workflow = useMemo(() => advertiserFunnelWorkflow(), []);
   const [funnel, setFunnel] = useState(initialFunnel);
+  const entity = useMemo(() => toFunnelWorkflowEntityFromFunnel(funnel), [funnel]);
   const [activeStepId, setActiveStepId] = useState<FunnelStepId>("optin");
   const [addStepOpen, setAddStepOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -68,7 +75,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       thankYouUseCampaignPixel: patch?.thankYouUseCampaignPixel ?? thankYouUseCampaignPixel,
     };
 
-    const res = await fetch(`/api/v1/advertiser/optin-funnels/${funnel.id}`, {
+    const res = await fetch(`${workflow.apiBasePath}/${funnel.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -107,7 +114,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
   return (
     <div className="space-y-6">
-      <FunnelDetailHeader funnelName={funnel.name} />
+      <FunnelDetailHeader funnelName={funnel.name} backHref={workflow.backHref} />
 
       <Tabs value="steps">
         <TabsList className="h-auto w-full justify-start rounded-none border-b border-slate-200 bg-transparent p-0">
@@ -128,11 +135,13 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
               onAddStep={() => setAddStepOpen(true)}
             />
             <FunnelStepOverview
-              funnel={funnel}
+              entity={entity}
+              workflow={workflow}
               stepId={activeStepId}
               appUrl={appUrl}
               onSettingsClick={() => setSettingsOpen(true)}
-              onFunnelUpdated={(saved) => {
+              onEntityUpdated={(data) => {
+                const saved = data as SerializedOptinFunnel;
                 setFunnel(saved);
                 setThankYouEnabled(saved.thankYouEnabled);
                 setDestinationUrl(saved.destinationUrl ?? "");
@@ -149,12 +158,15 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       <FunnelSettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        funnel={funnel}
+        entityName={funnel.name}
+        urlHint={`/o/${funnel.slug}`}
+        description={workflow.settingsDescription}
         thankYouEnabled={thankYouEnabled}
         destinationUrl={destinationUrl}
         thankYouPixelHtml={thankYouPixelHtml}
         saving={savingSettings}
         message={settingsMessage}
+        thankYouRedirectHint={workflow.thankYouRedirectHint?.(funnel.slug)}
         onThankYouEnabledChange={(enabled) => void handleThankYouToggle(enabled)}
         onDestinationUrlChange={setDestinationUrl}
         onThankYouPixelHtmlChange={setThankYouPixelHtml}

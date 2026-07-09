@@ -368,10 +368,25 @@ const getResponseConfigSchema = z
     campaignId: (value.campaignId ?? value.listId ?? "").trim(),
   }));
 
-const systemeConfigSchema = z.object({
-  apiKey: z.string().min(1, "API key is required"),
-  tagId: z.string().trim().optional(),
-});
+const systemeConfigSchema = z
+  .object({
+    apiKey: z.string().min(1, "API key is required"),
+    tagId: z.string().trim().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const tagId = value.tagId?.trim() ?? "";
+    if (tagId && !/^\d+$/.test(tagId)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["tagId"],
+        message: "Systeme.io tag ID must be numeric",
+      });
+    }
+  })
+  .transform((value) => ({
+    apiKey: value.apiKey.trim(),
+    ...(value.tagId?.trim() ? { tagId: value.tagId.trim() } : {}),
+  }));
 
 const autoresponderBaseSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -537,6 +552,13 @@ export const optinFunnelUpdateSchema = z.object({
   thankYouUseCampaignPixel: z.boolean().optional(),
   step: z.enum(["optin", "thankYou"]).optional(),
   autosave: z.boolean().optional(),
+});
+
+export const adminOptinFunnelTemplateCreateSchema = z.object({
+  name: z.string().trim().min(2, "Template name must be at least 2 characters.").max(80),
+  primaryColor: z.string().trim().optional(),
+  secondaryColor: z.string().trim().optional(),
+  sourceTemplateId: z.string().trim().min(1).optional(),
 });
 
 export const adminOptinFunnelTemplateUpdateSchema = z.object({

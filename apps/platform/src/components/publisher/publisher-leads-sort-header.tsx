@@ -8,7 +8,6 @@ import type { AdvertiserLeadSort } from "@/services/lead.service";
 
 const SORT_MAP: Record<string, { asc: AdvertiserLeadSort; desc: AdvertiserLeadSort }> = {
   at: { asc: "created_asc", desc: "created_desc" },
-  campaign: { asc: "campaign_asc", desc: "campaign_desc" },
   status: { asc: "status_asc", desc: "status_desc" },
 };
 

@@ -65,20 +65,22 @@ export function AdminFunnelTemplateCreateDialog({
   function handleCreate() {
     if (mode === "blank") {
       const trimmed = name.trim();
-      if (!trimmed) return;
+      if (trimmed.length < 2) return;
       onCreate({ name: trimmed });
       return;
     }
     if (mode === "templates" && selectedTemplate) {
       const template = templates.find((t) => t.id === selectedTemplate);
+      const cloneName = `${template?.name ?? "Template"} Copy`.trim().slice(0, 80);
       onCreate({
-        name: `${template?.name ?? "Template"} Copy`,
+        name: cloneName,
         sourceTemplateId: selectedTemplate,
       });
     }
   }
 
-  const canCreate = mode === "blank" ? name.trim().length > 0 : Boolean(selectedTemplate);
+  const canCreate =
+    mode === "blank" ? name.trim().length >= 2 : Boolean(selectedTemplate);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

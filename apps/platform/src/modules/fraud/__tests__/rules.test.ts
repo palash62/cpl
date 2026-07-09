@@ -48,6 +48,18 @@ describe("duplicateRule", () => {
     expect(email?.riskDelta).toBe(60);
   });
 
+  it("flags duplicate IP with hard fail", () => {
+    const outcomes = duplicateRule(
+      baseCtx({ ip: "1.2.3.4", existingIps: ["1.2.3.4"] }),
+      DEFAULT_FRAUD_CONFIG,
+    );
+    const ip = outcomes.find((o) => o.rule === "duplicate_ip");
+    expect(ip?.passed).toBe(false);
+    expect(ip?.hardFail).toBe(true);
+    expect(ip?.riskDelta).toBe(40);
+    expect(ip?.details).toContain("Same IP already submitted");
+  });
+
   it("flags duplicate device without hard fail", () => {
     const outcomes = duplicateRule(
       baseCtx({
@@ -116,6 +128,17 @@ describe("end-to-end scoring", () => {
   it("rejects duplicate email via hard fail decision", () => {
     const outcomes = duplicateRule(
       baseCtx({ existingEmails: ["user@example.com"] }),
+      DEFAULT_FRAUD_CONFIG,
+    );
+    const score = aggregateRiskScore(outcomes);
+    const decision = decideFraud(score, outcomes, DEFAULT_FRAUD_CONFIG);
+    expect(decision.hardReject).toBe(true);
+    expect(decision.fraudDecision).toBe("auto_reject");
+  });
+
+  it("rejects duplicate IP via hard fail decision", () => {
+    const outcomes = duplicateRule(
+      baseCtx({ ip: "9.9.9.9", existingIps: ["9.9.9.9"] }),
       DEFAULT_FRAUD_CONFIG,
     );
     const score = aggregateRiskScore(outcomes);

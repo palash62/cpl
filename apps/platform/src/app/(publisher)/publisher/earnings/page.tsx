@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { ArrowDownLeft, Banknote, CheckCircle, Clock, History, Plus, TrendingUp, Wallet } from "lucide-react";
@@ -44,18 +45,21 @@ function parseTab(tab?: string): PublisherEarningsTab {
 
 export default async function PublisherEarningsPage({ searchParams }: PageProps) {
   const session = await getSession();
+  if (!session?.user) redirect("/login");
+
   const params = await searchParams;
   const tab = parseTab(params.tab);
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
+  const userId = session.user.id;
 
   const [balance, approvedLeads, pendingPayouts] = await Promise.all([
-    getWalletBalance(session!.user.id),
+    getWalletBalance(userId),
     prisma.lead.count({
-      where: { publisherId: session!.user.id, status: { in: ["APPROVED", "PAID"] } },
+      where: { publisherId: userId, status: { in: ["APPROVED", "PAID"] } },
     }),
     prisma.payout.count({
-      where: { publisherId: session!.user.id, status: { in: [...PENDING_PAYOUT_STATUSES] } },
+      where: { publisherId: userId, status: { in: [...PENDING_PAYOUT_STATUSES] } },
     }),
   ]);
 
@@ -68,12 +72,12 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
 
   const ledger =
     tab === "earnings"
-      ? await listPublisherLedger(session!.user.id, { page, limit })
+      ? await listPublisherLedger(userId, { page, limit })
       : null;
 
   const payoutsResult =
     tab === "payouts"
-      ? await listPayouts({ publisherId: session!.user.id, page, limit })
+      ? await listPayouts({ publisherId: userId, page, limit })
       : null;
 
   const totalEarned =

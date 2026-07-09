@@ -1,6 +1,5 @@
 "use client";
 
-import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +15,15 @@ import {
 type FunnelSettingsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  funnel: SerializedOptinFunnel;
+  entityName: string;
+  urlHint: string;
+  description?: string;
   thankYouEnabled: boolean;
   destinationUrl: string;
   thankYouPixelHtml: string;
   saving: boolean;
   message: string | null;
+  thankYouRedirectHint?: string;
   onThankYouEnabledChange: (enabled: boolean) => void;
   onDestinationUrlChange: (url: string) => void;
   onThankYouPixelHtmlChange: (html: string) => void;
@@ -31,12 +33,15 @@ type FunnelSettingsSheetProps = {
 export function FunnelSettingsSheet({
   open,
   onOpenChange,
-  funnel,
+  entityName,
+  urlHint,
+  description = "Configure submit behavior and tracking for this funnel.",
   thankYouEnabled,
   destinationUrl,
   thankYouPixelHtml,
   saving,
   message,
+  thankYouRedirectHint,
   onThankYouEnabledChange,
   onDestinationUrlChange,
   onThankYouPixelHtmlChange,
@@ -50,13 +55,13 @@ export function FunnelSettingsSheet({
             <Settings2 className="h-4 w-4 text-blue-600" />
             Funnel settings
           </SheetTitle>
-          <SheetDescription>Configure submit behavior and tracking for this funnel.</SheetDescription>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <div className="mt-5 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-sm font-semibold text-slate-900">{funnel.name}</p>
-            <p className="mt-1 font-mono text-xs text-slate-500">/o/{funnel.slug}</p>
+            <p className="text-sm font-semibold text-slate-900">{entityName}</p>
+            <p className="mt-1 font-mono text-xs text-slate-500">{urlHint}</p>
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 p-3">
@@ -96,10 +101,8 @@ export function FunnelSettingsSheet({
               </div>
             )}
 
-            {thankYouEnabled && (
-              <p className="text-xs text-slate-500">
-                Users will go to `/o/{funnel.slug}/thank-you` after submit.
-              </p>
+            {thankYouEnabled && thankYouRedirectHint && (
+              <p className="text-xs text-slate-500">{thankYouRedirectHint}</p>
             )}
           </div>
 
@@ -120,7 +123,7 @@ export function FunnelSettingsSheet({
               {saving ? "Saving..." : "Save settings"}
             </Button>
             {message && (
-              <p className={`text-sm ${message.includes("Unable") ? "text-red-600" : "text-emerald-600"}`}>
+              <p className={`text-sm ${message.includes("Unable") || message.includes("required") || message.includes("valid") ? "text-red-600" : "text-emerald-600"}`}>
                 {message}
               </p>
             )}

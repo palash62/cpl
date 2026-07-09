@@ -35,8 +35,8 @@ export function duplicateRule(ctx: FraudEvaluationContext, config: FraudConfig):
       rule: "duplicate_ip",
       passed: !dup,
       riskDelta: dup ? config.weights.duplicate_ip : 0,
-      hardFail: false,
-      details: dup ? "Same IP submitted recently for this campaign" : undefined,
+      hardFail: dup,
+      details: dup ? "Same IP already submitted for this campaign" : undefined,
     });
   }
 

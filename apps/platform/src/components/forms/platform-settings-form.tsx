@@ -74,6 +74,16 @@ export function PlatformSettingsForm() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!settings) return;
+
+    if (
+      settings.publisherPayoutPercent < 1 ||
+      settings.publisherPayoutPercent > 100 ||
+      !Number.isFinite(settings.publisherPayoutPercent)
+    ) {
+      setMessage("Publisher payout must be between 1% and 100%.");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     const res = await fetch("/api/v1/admin/settings", {
@@ -97,7 +107,7 @@ export function PlatformSettingsForm() {
   }
 
   return (
-    <form onSubmit={save} className="mx-auto max-w-3xl space-y-8">
+    <form onSubmit={save} noValidate className="mx-auto max-w-3xl space-y-8">
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Percent className="h-4 w-4 text-[var(--theme-primary)]" />
@@ -113,14 +123,13 @@ export function PlatformSettingsForm() {
             <Input
               id="publisherPayoutPercent"
               type="number"
-              min={1}
-              max={100}
               step={0.1}
               value={settings.publisherPayoutPercent}
               onChange={(e) =>
                 setSettings({ ...settings, publisherPayoutPercent: Number(e.target.value) })
               }
             />
+            <p className="text-xs text-slate-500">Must be between 1% and 100%.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="minPayout">Minimum payout request ($)</Label>

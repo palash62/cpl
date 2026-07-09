@@ -174,7 +174,10 @@ export async function createOptinFunnelTemplateByAdmin(input: {
   thankYouPixelHtml?: string | null;
   thankYouUseCampaignPixel?: boolean;
 }) {
-  const name = input.name.trim();
+  const name = input.name.trim().slice(0, 80);
+  if (name.length < 2) {
+    throw Errors.validation("Template name must be at least 2 characters.");
+  }
   const slugBase = slugifyOptinAddress(name) || "optin-template";
   let slug = `optin-template-${slugBase}`;
   let suffix = 1;
@@ -192,7 +195,7 @@ export async function createOptinFunnelTemplateByAdmin(input: {
     ...(input.secondaryColor ? { secondaryColor: input.secondaryColor } : {}),
   };
   let thankYouThemeJson: ThemeJson | null = null;
-  let thankYouEnabled = input.thankYouEnabled ?? true;
+  let thankYouEnabled = input.thankYouEnabled ?? false;
   let destinationUrl = input.destinationUrl?.trim() || null;
   let thankYouPixelHtml = input.thankYouPixelHtml?.trim() || null;
   let thankYouUseCampaignPixel = input.thankYouUseCampaignPixel ?? true;
@@ -248,6 +251,19 @@ export async function getOptinFunnelTemplateByAdmin(id: string): Promise<OptinFu
   if (!template) throw Errors.notFound("Funnel template");
 
   return serializeAdminTemplate(template);
+}
+
+export async function duplicateOptinFunnelTemplateByAdmin(id: string): Promise<OptinFunnelTemplate> {
+  const source = await prisma.pageTemplate.findFirst({
+    where: { id, category: "optin_funnel", isSystem: true },
+  });
+  if (!source) throw Errors.notFound("Funnel template");
+
+  const copyName = `${source.name} (Copy)`.trim().slice(0, 80);
+  return createOptinFunnelTemplateByAdmin({
+    name: copyName.length >= 2 ? copyName : "Template (Copy)",
+    sourceTemplateId: id,
+  });
 }
 
 export async function updateOptinFunnelTemplateByAdmin(

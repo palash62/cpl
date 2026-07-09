@@ -17,6 +17,7 @@ import {
   SECRET_CONFIG_KEYS,
 } from "../lib/encrypt-secrets";
 import { normalizeGetResponseConfig, verifyGetResponseConfig } from "../providers/getresponse.provider";
+import { verifySystemeConfig } from "../providers/systeme.provider";
 import type { ConnectionInput, ConnectionPublic } from "../types/connection";
 import type { ConnectionConfig, GetResponseConfig } from "../types/provider";
 
@@ -53,6 +54,18 @@ function mergeConfig(
   }
 
   return merged;
+}
+
+function encryptConfigOrThrow(config: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return encryptConfigSecrets(config);
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Unable to encrypt integration credentials. Check INTEGRATION_ENCRYPTION_KEY or AUTH_SECRET.";
+    throw new AppError("VALIDATION_ERROR", message, 422);
+  }
 }
 
 async function assertCampaignOwnedByAdvertiser(campaignId: string, advertiserId: string) {
@@ -98,6 +111,14 @@ async function assertProviderConfig(
     if (tagId && !/^\d+$/.test(tagId)) {
       throw new AppError("VALIDATION_ERROR", "Systeme.io tag ID must be numeric", 422);
     }
+    const verified = await verifySystemeConfig({ apiKey, ...(tagId ? { tagId } : {}) });
+    if (!verified.ok) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        verified.error ?? "Systeme.io credentials are invalid",
+        422,
+      );
+    }
   }
 
   return config;
@@ -129,7 +150,7 @@ export async function createAdvertiserConnection(advertiserId: string, input: Co
   }
 
   const verifiedConfig = await assertProviderConfig(input.provider, input.config);
-  const encrypted = encryptConfigSecrets(verifiedConfig as Record<string, unknown>);
+  const encrypted = encryptConfigOrThrow(verifiedConfig as Record<string, unknown>);
   const row = await createConnection({
     advertiserId,
     name: input.name,
@@ -160,14 +181,14 @@ export async function updateAdvertiserConnection(
   const mergedPlain = input.config
     ? mergeConfig(existingDecrypted, input.config)
     : undefined;
-  const nextConfig = mergedPlain ? encryptConfigSecrets(mergedPlain) : undefined;
+  const nextConfig = mergedPlain ? encryptConfigOrThrow(mergedPlain) : undefined;
 
   if (mergedPlain) {
     const verifiedConfig = await assertProviderConfig(
       existing.provider,
       mergedPlain as ConnectionConfig,
     );
-    const encryptedVerified = encryptConfigSecrets(verifiedConfig as Record<string, unknown>);
+    const encryptedVerified = encryptConfigOrThrow(verifiedConfig as Record<string, unknown>);
     const updated = await updateConnection(id, advertiserId, {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.trigger !== undefined && { trigger: input.trigger }),

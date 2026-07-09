@@ -98,6 +98,11 @@ export const authConfig = {
         return true;
       }
 
+      // API routes enforce auth themselves and return JSON errors.
+      if (pathname.startsWith("/api/")) {
+        return true;
+      }
+
       const viewAsPublisher =
         viewAs?.role === "PUBLISHER" &&
         (pathname.startsWith("/publisher") ||

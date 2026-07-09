@@ -139,11 +139,31 @@ function buildConfig(form: FormState): Record<string, unknown> {
   }
 }
 
-function formatApiError(data: unknown, fallback: string): string {
-  if (!data || typeof data !== "object") return fallback;
-  const error = (data as { error?: { message?: string } }).error;
-  if (typeof error?.message === "string" && error.message.trim()) return error.message;
-  return fallback;
+function formatApiError(data: unknown, fallback: string, status?: number): string {
+  if (!data || typeof data !== "object") {
+    return status ? `${fallback} (HTTP ${status})` : fallback;
+  }
+
+  const payload = data as {
+    error?: { message?: string; code?: string };
+    message?: string;
+    issues?: Array<{ message?: string; path?: Array<string | number> }>;
+  };
+
+  if (typeof payload.error?.message === "string" && payload.error.message.trim()) {
+    return payload.error.message;
+  }
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    return payload.message;
+  }
+
+  const issue = payload.issues?.find((item) => item.message?.trim());
+  if (issue?.message) {
+    const path = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+    return `${path}${issue.message}`;
+  }
+
+  return status ? `${fallback} (HTTP ${status})` : fallback;
 }
 
 export function AutoresponderConnectionForm({
@@ -291,6 +311,12 @@ export function AutoresponderConnectionForm({
     setSaving(true);
     setError(null);
 
+    if (form.provider === "SYSTEME" && form.systemeTagId.trim() && !/^\d+$/.test(form.systemeTagId.trim())) {
+      setSaving(false);
+      setError("Systeme.io tag ID must be numeric (any length). Leave blank if you are not using a tag.");
+      return;
+    }
+
     if (form.provider === "GETRESPONSE" && !form.getResponseListId.trim()) {
       setSaving(false);
       setError("Select a GetResponse list before saving.");
@@ -316,7 +342,13 @@ export function AutoresponderConnectionForm({
     setSaving(false);
 
     if (!res.ok) {
-      setError(formatApiError(data, isEditMode ? "Failed to update connection" : "Failed to create connection"));
+      setError(
+        formatApiError(
+          data,
+          isEditMode ? "Failed to update connection" : "Failed to create connection",
+          res.status,
+        ),
+      );
       return;
     }
 
@@ -332,7 +364,7 @@ export function AutoresponderConnectionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -666,13 +698,19 @@ export function AutoresponderConnectionForm({
             <div className="space-y-2">
               <Label>Tag ID (optional)</Label>
               <Input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
                 value={form.systemeTagId}
-                onChange={(e) => setForm({ ...form, systemeTagId: e.target.value })}
-                placeholder="12345"
+                onChange={(e) =>
+                  setForm({ ...form, systemeTagId: e.target.value.replace(/[^\d]/g, "") })
+                }
+                placeholder="e.g. 12345"
                 className="bg-white"
               />
               <p className="text-xs text-slate-500">
-                If set, each new contact will also be tagged to trigger your automation.
+                Numeric tag ID from Systeme.io → Tags. Any length is fine — leave blank to skip
+                tagging.
               </p>
             </div>
           </div>

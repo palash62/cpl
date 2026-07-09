@@ -170,8 +170,6 @@ function CurrencyInput({
       <input
         id={id}
         type="number"
-        min={min}
-        max={max}
         step={step}
         required={required}
         disabled={disabled}
@@ -395,7 +393,7 @@ export function CreateCampaignForm({
     }
     if (!cplValue || cplValue < minCpl || cplValue > 100) {
       if (canEditField("cpl")) {
-        setError(`CPL bid is required (min $${minCpl.toFixed(2)}).`);
+        setError(`CPL bid must be between $${minCpl.toFixed(2)} and $100.00.`);
         return;
       }
     }
@@ -553,7 +551,7 @@ export function CreateCampaignForm({
     (!isAdmin || (advertiserId && !loadingAdvertisers));
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div
         className="relative overflow-hidden rounded-[18px] px-6 py-5 shadow-md"
         style={{

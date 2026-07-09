@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { format } from "date-fns";
 import { FileText } from "lucide-react";
@@ -8,10 +9,10 @@ import { prisma } from "@/lib/prisma";
 import {
   extractLeadCountry,
   formatLeadRejectReason,
+  formatPublisherLeadPayout,
   parseUserAgent,
   shortLeadId,
 } from "@/lib/publisher-leads";
-import { calculatePublisherPayout } from "@/lib/platform-settings";
 import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
 import { PageSection } from "@/components/admin/page-section";
@@ -33,7 +34,6 @@ import {
 
 interface PageProps {
   searchParams: Promise<{
-    campaign?: string;
     source?: string;
     sort?: string;
     page?: string;
@@ -44,8 +44,6 @@ function parseSort(sort?: string): AdvertiserLeadSort {
   const valid: AdvertiserLeadSort[] = [
     "created_desc",
     "created_asc",
-    "campaign_asc",
-    "campaign_desc",
     "status_asc",
     "status_desc",
   ];
@@ -56,15 +54,17 @@ function parseSort(sort?: string): AdvertiserLeadSort {
 
 export default async function PublisherLeadsPage({ searchParams }: PageProps) {
   const session = await getSession();
+  if (!session?.user) redirect("/login");
+
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
+  const userId = session.user.id;
 
   const [settings, { data: leads, meta }] = await Promise.all([
     getPlatformSettingsConfig(),
     listLeads({
-      publisherId: session!.user.id,
-      campaignSearch: params.campaign,
+      publisherId: userId,
       source: params.source,
       sort: parseSort(params.sort),
       page,
@@ -79,7 +79,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
             type: "CREDIT",
             referenceType: "lead",
             referenceId: { in: leadIds },
-            wallet: { userId: session!.user.id },
+            wallet: { userId },
           },
           select: { referenceId: true, amount: true },
         })
@@ -103,7 +103,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
 
       <PageSection
         title="Lead Submissions"
-        description="Detailed lead activity across campaigns"
+        description="Detailed lead activity from your Smart Link"
         icon={FileText}
         gradient="leads"
       >
@@ -154,36 +154,8 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
               ) : (
                 leads.map((lead) => {
                   const { device, os } = parseUserAgent(lead.userAgent);
-                  const payoutAmount = calculatePublisherPayout(
-                    Number(lead.campaign.cpl),
-                    lead.country,
-                    settings,
-                  ).publisherAmount;
                   const creditedAmount = creditedByLeadId.get(lead.id);
-                  const payout =
-                    creditedAmount !== undefined
-                      ? {
-                          label: new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          }).format(creditedAmount),
-                          className: "font-semibold text-emerald-700",
-                        }
-                      : lead.status === "PAID" || lead.status === "APPROVED"
-                        ? lead.source === "optin"
-                          ? { label: "—", className: "text-slate-400" }
-                          : {
-                              label: new Intl.NumberFormat("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                              }).format(payoutAmount),
-                              className: "font-semibold text-emerald-700",
-                            }
-                        : lead.status === "PENDING" ||
-                            lead.status === "VALIDATING" ||
-                            lead.status === "CAPTURED"
-                          ? { label: "Pending", className: "text-amber-700" }
-                          : { label: "—", className: "text-slate-400" };
+                  const payout = formatPublisherLeadPayout(lead, settings, creditedAmount);
                   const rejectReason = formatLeadRejectReason(lead);
 
                   return (

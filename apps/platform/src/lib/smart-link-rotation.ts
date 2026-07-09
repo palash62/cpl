@@ -52,8 +52,10 @@ export function filterCampaignsByCountry<T extends Pick<Campaign, "targeting">>(
 type RotatableCampaign = Pick<Campaign, "id" | "advertiserId">;
 
 /**
- * Pick the next campaign for a returning visitor: prefer unseen campaigns,
- * then a different advertiser than the last visit, then avoid immediate repeat.
+ * Pick the next campaign for a returning visitor.
+ * Prefer unseen campaigns (different advertiser first), then seen campaigns with
+ * a different advertiser, then a different campaign id. Returns null when the
+ * only option would be the same campaign again.
  */
 export function pickCampaignForIpRotation<T extends RotatableCampaign>(
   eligible: T[],
@@ -64,18 +66,43 @@ export function pickCampaignForIpRotation<T extends RotatableCampaign>(
 
   const lastShownId = shownCampaignIds[0];
   const lastAdvertiserId = eligible.find((c) => c.id === lastShownId)?.advertiserId;
+  const shownSet = new Set(shownCampaignIds);
 
-  let pool = eligible.filter((c) => !shownCampaignIds.includes(c.id));
+  const pickFromPool = (pool: T[]): T | null => {
+    if (pool.length === 0) return null;
+    const index = rotationCursor % pool.length;
+    return pool[index] ?? null;
+  };
 
-  if (pool.length === 0) {
-    pool = eligible.filter((c) => c.advertiserId !== lastAdvertiserId);
-    if (pool.length === 0) pool = eligible.filter((c) => c.id !== lastShownId);
-    if (pool.length === 0) pool = eligible;
-  } else if (lastAdvertiserId) {
-    const differentAdvertiser = pool.filter((c) => c.advertiserId !== lastAdvertiserId);
-    if (differentAdvertiser.length > 0) pool = differentAdvertiser;
+  const preferDifferentAdvertiser = (pool: T[]) => {
+    if (!lastAdvertiserId) return pool;
+    const different = pool.filter((c) => c.advertiserId !== lastAdvertiserId);
+    return different.length > 0 ? different : pool;
+  };
+
+  // 1–2: unseen campaigns (prefer different advertiser)
+  const unseen = eligible.filter((c) => !shownSet.has(c.id));
+  const unseenPick = pickFromPool(preferDifferentAdvertiser(unseen));
+  if (unseenPick) return unseenPick;
+
+  // 3: already seen, different advertiser
+  if (lastAdvertiserId) {
+    const seenDifferentAdvertiser = eligible.filter(
+      (c) => shownSet.has(c.id) && c.advertiserId !== lastAdvertiserId,
+    );
+    const seenAdvPick = pickFromPool(seenDifferentAdvertiser);
+    if (seenAdvPick) return seenAdvPick;
   }
 
-  const index = rotationCursor % pool.length;
-  return pool[index] ?? null;
+  // 4: already seen, different campaign id than last
+  if (lastShownId) {
+    const seenDifferentCampaign = eligible.filter(
+      (c) => shownSet.has(c.id) && c.id !== lastShownId,
+    );
+    const seenCampPick = pickFromPool(seenDifferentCampaign);
+    if (seenCampPick) return seenCampPick;
+  }
+
+  // 5: no valid rotation target
+  return null;
 }

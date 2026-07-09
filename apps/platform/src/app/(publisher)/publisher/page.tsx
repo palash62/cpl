@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
   CheckCircle,
@@ -20,10 +21,7 @@ import { LeadsTrendChart } from "@/components/dashboard/dashboard-charts";
 import { RoleHero } from "@/components/layout/role-hero";
 import { PublisherInfoBanner } from "@/components/publisher/publisher-info-banner";
 import { PublisherPeriodFilter } from "@/components/publisher/publisher-period-filter";
-import {
-  PublisherRecentLeadsTable,
-  PublisherTopCampaignsTable,
-} from "@/components/publisher/publisher-dashboard-panels";
+import { PublisherRecentLeadsTable } from "@/components/publisher/publisher-dashboard-panels";
 import { ButtonLink } from "@/components/ui/button-link";
 
 interface PageProps {
@@ -32,11 +30,13 @@ interface PageProps {
 
 export default async function PublisherDashboardPage({ searchParams }: PageProps) {
   const session = await getSession();
+  if (!session?.user) redirect("/login");
+
   const params = await searchParams;
   const period = parsePublisherPeriod(params.period);
   const periodLabel = PUBLISHER_PERIODS.find((p) => p.value === period)?.label ?? "Last 30 Days";
-  const data = await getPublisherDashboardData(session!.user.id, period);
-  const firstName = session?.user?.name?.split(" ")[0] ?? "Publisher";
+  const data = await getPublisherDashboardData(session.user.id, period);
+  const firstName = session.user.name?.split(" ")[0] ?? "Publisher";
 
   return (
     <div className="space-y-7">
@@ -111,24 +111,20 @@ export default async function PublisherDashboardPage({ searchParams }: PageProps
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
-        <div className="space-y-6">
-          <PublisherRecentLeadsTable leads={data.recentLeads} />
+      <div className="space-y-6">
+        <PublisherRecentLeadsTable leads={data.recentLeads} />
 
-          {data.leadsTrend.length > 0 && (
-            <PageSection
-              title="Leads Trend"
-              description="Daily lead volume over the last 30 days"
-              icon={FileText}
-              gradient="leads"
-              contentClassName="p-6"
-            >
-              <LeadsTrendChart title="Leads Trend" data={data.leadsTrend} />
-            </PageSection>
-          )}
-        </div>
-
-        <PublisherTopCampaignsTable campaigns={data.topCampaigns} />
+        {data.leadsTrend.length > 0 && (
+          <PageSection
+            title="Leads Trend"
+            description="Daily lead volume over the last 30 days"
+            icon={FileText}
+            gradient="leads"
+            contentClassName="p-6"
+          >
+            <LeadsTrendChart title="Leads Trend" data={data.leadsTrend} />
+          </PageSection>
+        )}
       </div>
     </div>
   );

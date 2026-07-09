@@ -12,8 +12,71 @@ export class AppError extends Error {
   }
 }
 
+const PROVIDER_ENUM_TRUNCATED = "Data truncated for column 'provider'";
+
+function stringifyError(error: unknown): string {
+  if (error instanceof Error) {
+    const parts = [error.message, error.stack ?? ""];
+    const cause = (error as Error & { cause?: unknown }).cause;
+    if (cause instanceof Error) {
+      parts.push(cause.message, cause.stack ?? "");
+    } else if (cause != null) {
+      parts.push(String(cause));
+    }
+    return parts.join("\n");
+  }
+  return String(error);
+}
+
+function isProviderEnumOutdated(error: unknown): boolean {
+  return stringifyError(error).includes(PROVIDER_ENUM_TRUNCATED);
+}
+
+function providerEnumOutdatedResponse(requestId?: string) {
+  return Response.json(
+    {
+      error: {
+        code: "DATABASE_SCHEMA_OUTDATED",
+        message:
+          "Systeme.io is not enabled in the database yet. Run npm run db:push (or apply the latest migrations) and try again.",
+        status: 503,
+        requestId,
+      },
+    },
+    { status: 503 },
+  );
+}
+
+export function readApiErrorMessage(data: unknown, fallback: string, status?: number): string {
+  if (!data || typeof data !== "object") {
+    return status ? `${fallback} (HTTP ${status})` : fallback;
+  }
+
+  const payload = data as {
+    error?: { message?: string };
+    message?: string;
+    issues?: Array<{ message?: string; path?: Array<string | number> }>;
+  };
+
+  if (typeof payload.error?.message === "string" && payload.error.message.trim()) {
+    return payload.error.message;
+  }
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    return payload.message;
+  }
+
+  const issue = payload.issues?.find((item) => item.message?.trim());
+  if (issue?.message) {
+    const path = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+    return `${path}${issue.message}`;
+  }
+
+  return status ? `${fallback} (HTTP ${status})` : fallback;
+}
+
 export function errorResponse(error: unknown, requestId?: string) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2025") {
     return Response.json(
       {
         error: {
@@ -25,6 +88,35 @@ export function errorResponse(error: unknown, requestId?: string) {
       },
       { status: 404 },
     );
+    }
+
+    if (error.code === "P2002") {
+      return Response.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "A template with this name already exists. Try a different name.",
+            status: 422,
+            requestId,
+          },
+        },
+        { status: 422 },
+      );
+    }
+
+    if (error.code === "P2000") {
+      return Response.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Template name is too long. Use 80 characters or fewer.",
+            status: 422,
+            requestId,
+          },
+        },
+        { status: 422 },
+      );
+    }
   }
 
   if (error instanceof AppError) {
@@ -39,6 +131,24 @@ export function errorResponse(error: unknown, requestId?: string) {
         },
       },
       { status: error.status },
+    );
+  }
+
+  if (isProviderEnumOutdated(error)) {
+    return providerEnumOutdatedResponse(requestId);
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return Response.json(
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: error.message,
+          status: 500,
+          requestId,
+        },
+      },
+      { status: 500 },
     );
   }
 

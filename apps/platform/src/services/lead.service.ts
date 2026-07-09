@@ -63,7 +63,8 @@ async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?:
   if (!lead) return;
 
   const campaignName = lead.campaign.name;
-  const isOptin = lead.source === "optin";
+  const publisherAttributed =
+    Boolean(lead.trackingLinkId) || lead.publisherId !== lead.campaign.advertiserId;
 
   if (status === "PENDING") {
     void notifyGeneric(lead.campaign.advertiser, {
@@ -75,7 +76,7 @@ async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?:
     return;
   }
 
-  if (status === "REJECTED" && !isOptin) {
+  if (status === "REJECTED" && publisherAttributed) {
     void notifyRejected(
       lead.publisher,
       "Lead",
@@ -86,7 +87,7 @@ async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?:
     return;
   }
 
-  if ((status === "APPROVED" || status === "PAID") && !isOptin) {
+  if ((status === "APPROVED" || status === "PAID") && publisherAttributed) {
     void notifyGeneric(lead.publisher, {
       title: status === "PAID" ? "Lead paid" : "Lead approved",
       message: `A lead for campaign "${campaignName}" was approved and earnings were credited.`,
@@ -373,6 +374,18 @@ export async function submitLead(input: {
   });
 }
 
+async function resolveHousePublisherId(): Promise<string> {
+  const admin = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!admin) {
+    throw Errors.validation("Platform is not configured for direct opt-in submissions.");
+  }
+  return admin.id;
+}
+
 export async function submitOptinLead(input: {
   optinSlug: string;
   data: Record<string, string>;
@@ -453,9 +466,11 @@ export async function submitOptinLead(input: {
   const validationFields =
     formJsonToValidationFields(resolveOptinFormJson(optinPage)) ?? undefined;
 
+  const housePublisherId = await resolveHousePublisherId();
+
   return createAndProcessLead({
     campaignId: optinPage.campaign.id,
-    publisherId: optinPage.advertiserId,
+    publisherId: housePublisherId,
     campaign: optinPage.campaign,
     validationFields,
     data: input.data,
@@ -600,6 +615,7 @@ const LEAD_LIST_INCLUDE = {
       id: true,
       name: true,
       cpl: true,
+      advertiserId: true,
       advertiser: { select: { id: true, name: true } },
     },
   },

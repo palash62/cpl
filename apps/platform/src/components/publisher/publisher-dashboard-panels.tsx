@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { FileText, Megaphone } from "lucide-react";
+import { FileText } from "lucide-react";
 import { formatCurrency, LeadStatusBadge } from "@/components/admin/admin-ui";
 import { PageSection } from "@/components/admin/page-section";
 import {
@@ -15,22 +15,14 @@ interface RecentLead {
   id: string;
   status: string;
   createdAt: Date;
-  campaign: { name: string };
   payoutAmount: number;
-}
-
-interface TopCampaign {
-  campaignId: string;
-  name: string;
-  approvedLeads: number;
-  earnings: number;
 }
 
 export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
   return (
     <PageSection
       title="Recent Leads"
-      description="Your latest lead submissions across campaigns"
+      description="Your latest lead submissions"
       icon={FileText}
       gradient="leads"
     >
@@ -46,7 +38,6 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
               style={{ background: "var(--theme-primary-soft)" }}
             >
               <TableHead className="h-11 px-6 text-slate-600">Date</TableHead>
-              <TableHead className="h-11 px-4 text-slate-600">Campaign</TableHead>
               <TableHead className="h-11 px-4 text-right text-slate-600">Payout</TableHead>
               <TableHead className="h-11 px-6 text-slate-600">Status</TableHead>
             </TableRow>
@@ -60,9 +51,6 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
                 <TableCell className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
                   {format(lead.createdAt, "MMM d, yyyy HH:mm")}
                 </TableCell>
-                <TableCell className="px-4 py-4 font-medium text-slate-800">
-                  {lead.campaign.name}
-                </TableCell>
                 <TableCell className="px-4 py-4 text-right font-semibold text-[var(--theme-primary)]">
                   {formatCurrency(lead.payoutAmount)}
                 </TableCell>
@@ -73,40 +61,6 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
             ))}
           </TableBody>
         </Table>
-      )}
-    </PageSection>
-  );
-}
-
-export function PublisherTopCampaignsTable({ campaigns }: { campaigns: TopCampaign[] }) {
-  return (
-    <PageSection
-      title="Top Campaigns"
-      description="Best performing campaigns by approved leads"
-      icon={Megaphone}
-      gradient="approved"
-    >
-      {campaigns.length === 0 ? (
-        <div className="px-6 py-12 text-center text-sm text-slate-500">
-          No approved leads yet. Join campaigns to start earning.
-        </div>
-      ) : (
-        <div className="divide-y divide-slate-100">
-          {campaigns.map((campaign) => (
-            <div
-              key={campaign.campaignId}
-              className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-slate-50/80"
-            >
-              <div>
-                <p className="text-sm font-medium text-slate-800">{campaign.name}</p>
-                <p className="text-xs text-slate-500">{campaign.approvedLeads} approved leads</p>
-              </div>
-              <span className="text-sm font-semibold text-emerald-600">
-                {formatCurrency(campaign.earnings)}
-              </span>
-            </div>
-          ))}
-        </div>
       )}
     </PageSection>
   );

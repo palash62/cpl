@@ -74,7 +74,7 @@ export function OptinFunnelsGallery({
 
     const { data } = await res.json();
 
-    router.push(`/advertiser/optin-funnels/${data.id}/edit`);
+    router.push(`/advertiser/optin-funnels/${data.id}`);
 
   }
   async function archiveFunnel(id: string) {

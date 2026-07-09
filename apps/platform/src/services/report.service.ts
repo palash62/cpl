@@ -261,7 +261,7 @@ export async function getPublisherDashboardData(
   period: PublisherPeriod = "last30",
 ) {
   const { from, to, prevFrom, prevTo } = getPublisherPeriodRange(period);
-  const [current, previous, wallet, recentLeadsRaw, topCampaignLeads, leadsTrend, platformSettings] =
+  const [current, previous, wallet, recentLeadsRaw, leadsTrend, platformSettings] =
     await Promise.all([
       getPublisherMetricsForRange(publisherId, from, to),
       getPublisherMetricsForRange(publisherId, prevFrom, prevTo),
@@ -270,58 +270,42 @@ export async function getPublisherDashboardData(
         where: { publisherId },
         take: 5,
         orderBy: { createdAt: "desc" },
-        include: { campaign: { select: { name: true, cpl: true } } },
-      }),
-      prisma.lead.findMany({
-        where: {
-          publisherId,
-          status: { in: ["APPROVED", "PAID"] },
-          createdAt: { gte: from, lte: to },
-        },
-        select: {
-          campaignId: true,
-          country: true,
-          campaign: { select: { name: true, cpl: true } },
+        include: {
+          campaign: { select: { cpl: true } },
         },
       }),
       getPublisherLeadsTrend(30, publisherId),
       getPlatformSettingsConfig(),
     ]);
 
+  const recentLeadIds = recentLeadsRaw.map((lead) => lead.id);
+  const creditedEntries =
+    recentLeadIds.length > 0
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            type: "CREDIT",
+            referenceType: "lead",
+            referenceId: { in: recentLeadIds },
+            wallet: { userId: publisherId },
+          },
+          select: { referenceId: true, amount: true },
+        })
+      : [];
+  const creditedByLeadId = new Map(
+    creditedEntries.map((entry) => [entry.referenceId, Number(entry.amount)]),
+  );
+
   const recentLeads = recentLeadsRaw.map((lead) => {
-    const payoutAmount = calculatePublisherPayout(
-      Number(lead.campaign.cpl),
-      lead.country,
-      platformSettings,
-    ).publisherAmount;
-    return { ...lead, payoutAmount };
+    const creditedAmount = creditedByLeadId.get(lead.id);
+    const payoutAmount =
+      creditedAmount ??
+      calculatePublisherPayout(
+        Number(lead.campaign.cpl),
+        lead.country,
+        platformSettings,
+      ).publisherAmount;
+    return { id: lead.id, status: lead.status, createdAt: lead.createdAt, payoutAmount };
   });
-
-  const campaignPerf = new Map<string, { campaignId: string; name: string; approvedLeads: number; earnings: number }>();
-  for (const lead of topCampaignLeads) {
-    const amount = calculatePublisherPayout(
-      Number(lead.campaign.cpl),
-      lead.country,
-      platformSettings,
-    ).publisherAmount;
-    const existing = campaignPerf.get(lead.campaignId) ?? {
-      campaignId: lead.campaignId,
-      name: lead.campaign.name,
-      approvedLeads: 0,
-      earnings: 0,
-    };
-    existing.approvedLeads += 1;
-    existing.earnings += amount;
-    campaignPerf.set(lead.campaignId, existing);
-  }
-
-  const topCampaigns = [...campaignPerf.values()]
-    .map((row) => ({
-      ...row,
-      earnings: Math.round(row.earnings * 100) / 100,
-    }))
-    .sort((a, b) => b.approvedLeads - a.approvedLeads || b.earnings - a.earnings)
-    .slice(0, 5);
 
   const availableBalance = wallet
     ? Number(wallet.balance) - Number(wallet.holdBalance)
@@ -344,7 +328,6 @@ export async function getPublisherDashboardData(
       earningsTrend: calcTrend(current.earnings, previous.earnings),
     },
     recentLeads,
-    topCampaigns,
     leadsTrend,
   };
 }

@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { AppError, Errors } from "@/lib/errors";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { AppError, Errors, errorResponse } from "@/lib/errors";
+import { Prisma } from "@prisma/client";
 
 describe("Error handling", () => {
   it("creates AppError with code and status", () => {
@@ -13,6 +14,35 @@ describe("Error handling", () => {
     expect(Errors.duplicateLead().code).toBe("LEAD_DUPLICATE");
     expect(Errors.insufficientFunds().code).toBe("WALLET_INSUFFICIENT_FUNDS");
     expect(Errors.payoutBelowMinimum(50).message).toContain("50");
+  });
+
+  it("maps provider enum truncation to DATABASE_SCHEMA_OUTDATED", async () => {
+    const err = new Prisma.PrismaClientUnknownRequestError("create failed", {
+      clientVersion: "6.19.3",
+    });
+    Object.assign(err, {
+      message: "Invalid create()\nData truncated for column 'provider' at row 1",
+    });
+
+    const res = errorResponse(err);
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(body.error.code).toBe("DATABASE_SCHEMA_OUTDATED");
+    expect(body.error.message).toContain("db:push");
+  });
+
+  it("maps provider enum truncation from error cause text", async () => {
+    const err = new Error("Query failed");
+    (err as Error & { cause: Error }).cause = new Error(
+      "Data truncated for column 'provider' at row 1",
+    );
+
+    const res = errorResponse(err);
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(body.error.code).toBe("DATABASE_SCHEMA_OUTDATED");
   });
 });
 

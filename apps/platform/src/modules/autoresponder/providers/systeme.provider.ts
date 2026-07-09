@@ -6,12 +6,101 @@ type SystemeContactResponse = {
   id?: string | number;
 };
 
+type SystemeErrorResponse = {
+  detail?: string;
+  title?: string;
+  violations?: Array<{ message?: string; propertyPath?: string }>;
+};
+
 function getSystemeHeaders(apiKey: string): HeadersInit {
   return {
     "X-API-Key": apiKey,
     "Content-Type": "application/json",
     accept: "application/json",
   };
+}
+
+function formatSystemeError(status: number, body: string): string {
+  try {
+    const parsed = JSON.parse(body) as SystemeErrorResponse;
+    const violation = parsed.violations?.find((item) => item.message)?.message;
+    if (violation) return violation;
+    if (parsed.detail) return parsed.detail;
+    if (parsed.title) return parsed.title;
+  } catch {
+    // Fall back to raw body below.
+  }
+  return body.trim() || `Systeme.io request failed (${status})`;
+}
+
+/** Lightweight check that the API key (and optional tag) are valid before saving a connection. */
+export async function verifySystemeConfig(config: SystemeConfig): Promise<ProviderSendResult> {
+  const apiKey = config.apiKey?.trim();
+  const tagId = config.tagId?.trim();
+
+  if (!apiKey) {
+    return { ok: false, error: "Systeme.io API key is required" };
+  }
+
+  try {
+    const contactsRes = await fetch("https://api.systeme.io/api/contacts?limit=10", {
+      method: "GET",
+      headers: getSystemeHeaders(apiKey),
+      signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+    });
+
+    if (!contactsRes.ok) {
+      const text = (await contactsRes.text()).slice(0, 500);
+      if (contactsRes.status === 401 || contactsRes.status === 403) {
+        return { ok: false, httpStatus: contactsRes.status, error: "Systeme.io API key is invalid or expired" };
+      }
+      return {
+        ok: false,
+        httpStatus: contactsRes.status,
+        error: formatSystemeError(contactsRes.status, text),
+      };
+    }
+
+    if (!tagId) {
+      return { ok: true, httpStatus: contactsRes.status };
+    }
+
+    const tagRes = await fetch(`https://api.systeme.io/api/tags/${encodeURIComponent(tagId)}`, {
+      method: "GET",
+      headers: getSystemeHeaders(apiKey),
+      signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+    });
+
+    if (!tagRes.ok) {
+      const text = (await tagRes.text()).slice(0, 500);
+      return {
+        ok: false,
+        httpStatus: tagRes.status,
+        error:
+          tagRes.status === 404
+            ? `Systeme.io tag ID ${tagId} was not found in your account`
+            : formatSystemeError(tagRes.status, text),
+      };
+    }
+
+    return { ok: true, httpStatus: tagRes.status };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Systeme.io verification failed",
+    };
+  }
+}
+
+export function buildSystemeTestEmail(advertiserEmail?: string | null): string {
+  const stamp = Date.now();
+  if (advertiserEmail?.includes("@")) {
+    const [local, domain] = advertiserEmail.split("@");
+    if (local && domain) {
+      return `${local}+cpl-test-${stamp}@${domain}`;
+    }
+  }
+  return `cpl-test-${stamp}@mailinator.com`;
 }
 
 export async function sendSysteme(
@@ -25,8 +114,9 @@ export async function sendSysteme(
 
   const fields: Array<{ slug: string; value: string }> = [];
   if (payload.firstName) fields.push({ slug: "first_name", value: payload.firstName });
-  if (payload.lastName) fields.push({ slug: "last_name", value: payload.lastName });
+  if (payload.lastName) fields.push({ slug: "surname", value: payload.lastName });
   if (payload.phone) fields.push({ slug: "phone_number", value: payload.phone });
+  if (payload.country) fields.push({ slug: "country", value: payload.country });
 
   try {
     const createContactRes = await fetch("https://api.systeme.io/api/contacts", {
@@ -42,7 +132,11 @@ export async function sendSysteme(
 
     if (!createContactRes.ok) {
       const text = (await createContactRes.text()).slice(0, 500);
-      return { ok: false, httpStatus: createContactRes.status, error: text || createContactRes.statusText };
+      return {
+        ok: false,
+        httpStatus: createContactRes.status,
+        error: formatSystemeError(createContactRes.status, text),
+      };
     }
 
     const contact = (await createContactRes.json().catch(() => ({}))) as SystemeContactResponse;
@@ -69,7 +163,11 @@ export async function sendSysteme(
 
     if (!assignTagRes.ok) {
       const text = (await assignTagRes.text()).slice(0, 500);
-      return { ok: false, httpStatus: assignTagRes.status, error: text || assignTagRes.statusText };
+      return {
+        ok: false,
+        httpStatus: assignTagRes.status,
+        error: formatSystemeError(assignTagRes.status, text),
+      };
     }
 
     return { ok: true, httpStatus: assignTagRes.status };

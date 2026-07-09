@@ -1,19 +1,31 @@
 import { prisma } from "@/lib/prisma";
-import { subHours } from "date-fns";
 
-export async function loadDuplicateContext(campaignId: string, duplicateWindowDays: number, ipWindowHours: number) {
+export async function loadDuplicateContext(
+  campaignId: string,
+  duplicateWindowDays: number,
+  _ipWindowHours: number,
+) {
   const since = new Date();
   since.setDate(since.getDate() - duplicateWindowDays);
-  const ipSince = subHours(new Date(), ipWindowHours);
 
-  const leads = await prisma.lead.findMany({
-    where: {
-      campaignId,
-      createdAt: { gte: since },
-      status: { notIn: ["REJECTED"] },
-    },
-    select: { data: true, ip: true, deviceFingerprint: true, createdAt: true },
-  });
+  const [leads, ipLeads] = await Promise.all([
+    prisma.lead.findMany({
+      where: {
+        campaignId,
+        createdAt: { gte: since },
+        status: { notIn: ["REJECTED"] },
+      },
+      select: { data: true, deviceFingerprint: true },
+    }),
+    prisma.lead.findMany({
+      where: {
+        campaignId,
+        createdAt: { gte: since },
+        ip: { not: null },
+      },
+      select: { ip: true },
+    }),
+  ]);
 
   const existingEmails = leads
     .map((l) => (l.data as Record<string, string>).email?.toLowerCase())
@@ -23,10 +35,7 @@ export async function loadDuplicateContext(campaignId: string, duplicateWindowDa
     .map((l) => (l.data as Record<string, string>).phone?.replace(/\D/g, ""))
     .filter(Boolean) as string[];
 
-  const existingIps = leads
-    .filter((l) => l.ip && l.createdAt >= ipSince)
-    .map((l) => l.ip!)
-    .filter(Boolean);
+  const existingIps = ipLeads.map((l) => l.ip!).filter(Boolean);
 
   const existingFingerprints = leads
     .map((l) => l.deviceFingerprint)

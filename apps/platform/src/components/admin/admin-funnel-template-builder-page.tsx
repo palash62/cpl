@@ -25,9 +25,14 @@ type AdminTemplate = {
   thankYouThemeJson: ThemeJson | null;
 };
 
+function parseStepParam(value: string | null): FunnelStepId {
+  return value === "thankYou" ? "thankYou" : "optin";
+}
+
 export function AdminFunnelTemplateBuilderPage({ templateId }: { templateId: string }) {
   const searchParams = useSearchParams();
-  const stepParam = searchParams.get("step") === "thankYou" ? "thankYou" : "optin";
+  const stepParam = parseStepParam(searchParams.get("step"));
+
   const setPageMeta = useBuilderStore((s) => s.setPageMeta);
   const setTheme = useBuilderStore((s) => s.setTheme);
   const setThankYouTheme = useBuilderStore((s) => s.setThankYouTheme);
@@ -50,7 +55,7 @@ export function AdminFunnelTemplateBuilderPage({ templateId }: { templateId: str
       chromeTheme: "light",
       mode: "funnel",
       ui: "ghl",
-      thankYouEnabled: template?.thankYouEnabled ?? true,
+      thankYouEnabled: template?.thankYouEnabled ?? false,
     });
   }, [setBuilderConfig, templateId, template?.thankYouEnabled]);
 
@@ -83,8 +88,19 @@ export function AdminFunnelTemplateBuilderPage({ templateId }: { templateId: str
         });
         setTheme(normalizeThemeJson(page.themeJson));
         setThankYouTheme(normalizeThemeJson(page.thankYouThemeJson ?? page.themeJson));
+        setBuilderConfig({
+          apiBasePath: "/api/v1/admin/optin-funnel-templates",
+          listPath: "/admin/funnel-templates",
+          detailPath: `/admin/funnel-templates/${templateId}`,
+          publicPathPrefix: "/o/",
+          label: "Optin Funnel Builder",
+          chromeTheme: "light",
+          mode: "funnel",
+          ui: "ghl",
+          thankYouEnabled: page.thankYouEnabled,
+        });
       });
-  }, [templateId, setPageMeta, setTheme, setThankYouTheme]);
+  }, [templateId, setPageMeta, setTheme, setThankYouTheme, setBuilderConfig]);
 
   const switchStep = useCallback(
     async (step: FunnelStepId) => {
@@ -111,17 +127,26 @@ export function AdminFunnelTemplateBuilderPage({ templateId }: { templateId: str
   }
 
   const activeCraft = funnelStep === "thankYou" ? thankYouCraft : optinCraft;
+  const thankYouDisabled = funnelStep === "thankYou" && !template.thankYouEnabled;
 
   return (
-    <div className={cn("min-h-0 flex-1")}>
-      <LandingPageBuilder
-        key={`${templateId}-${funnelStep}`}
-        pageId={templateId}
-        initialCraftState={activeCraft}
-        pageName={template.name}
-        pageSlug={template.slug}
-        campaignId={null}
-      />
+    <div className="flex h-full min-h-0 flex-col">
+      {thankYouDisabled && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          Enable thank-you redirect in funnel settings to edit this page.
+        </div>
+      )}
+
+      <div className={cn("min-h-0 flex-1", thankYouDisabled && "pointer-events-none opacity-50")}>
+        <LandingPageBuilder
+          key={`${templateId}-${funnelStep}`}
+          pageId={templateId}
+          initialCraftState={activeCraft}
+          pageName={template.name}
+          pageSlug={template.slug}
+          campaignId={null}
+        />
+      </div>
     </div>
   );
 }
