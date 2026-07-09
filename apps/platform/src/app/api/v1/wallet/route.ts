@@ -1,10 +1,10 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
 import {
-  createCreditCardDeposit,
   createWiseDeposit,
   getWalletBalance,
 } from "@/services/wallet.service";
+import { createCardPaymentIntent } from "@/services/stripe-payment.service";
 
 export async function GET() {
   return withAuth(async (session) => {
@@ -55,10 +55,21 @@ export async function POST(request: Request) {
         return Response.json({ deposit, balance }, { status: 201 });
       }
 
-      const deposit = await createCreditCardDeposit(session.user.id, amount);
-      const balance = await getWalletBalance(session.user.id);
-      return Response.json({ deposit, balance }, { status: 201 });
+      const deposit = await createCardPaymentIntent(session.user.id, amount);
+      return Response.json(deposit, { status: 201 });
     } catch (error) {
+      if (error instanceof Error && error.message === "STRIPE_NOT_CONFIGURED") {
+        return Response.json(
+          {
+            error: {
+              code: "STRIPE_NOT_CONFIGURED",
+              message: "Credit card payments are not available yet. Use Wise or contact support.",
+              status: 422,
+            },
+          },
+          { status: 422 },
+        );
+      }
       return errorResponse(error);
     }
   }, ["ADVERTISER", "ADMIN"]);

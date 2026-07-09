@@ -214,6 +214,29 @@ export const smtpSettingsSchema = z
     }
   });
 
+export const stripeSettingsSchema = z
+  .object({
+    publishableKey: z.string().trim(),
+    secretKey: z.string().optional(),
+    webhookSecret: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.publishableKey && !data.publishableKey.startsWith("pk_")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Publishable key must start with pk_",
+        path: ["publishableKey"],
+      });
+    }
+    if (data.secretKey && !data.secretKey.startsWith("sk_")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Secret key must start with sk_",
+        path: ["secretKey"],
+      });
+    }
+  });
+
 export const updateAdvertiserProfileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   company: z.string().trim().min(2, "Company name must be at least 2 characters").optional(),
@@ -345,6 +368,11 @@ const getResponseConfigSchema = z
     campaignId: (value.campaignId ?? value.listId ?? "").trim(),
   }));
 
+const systemeConfigSchema = z.object({
+  apiKey: z.string().min(1, "API key is required"),
+  tagId: z.string().trim().optional(),
+});
+
 const autoresponderBaseSchema = z.object({
   name: z.string().trim().min(2).max(80),
   trigger: z.enum(["LEAD_CAPTURED", "LEAD_APPROVED"]),
@@ -370,6 +398,10 @@ export const autoresponderConnectionSchema = z.discriminatedUnion("provider", [
     provider: z.literal("GETRESPONSE"),
     config: getResponseConfigSchema,
   }),
+  autoresponderBaseSchema.extend({
+    provider: z.literal("SYSTEME"),
+    config: systemeConfigSchema,
+  }),
 ]);
 
 export const autoresponderConnectionUpdateSchema = z.object({
@@ -379,7 +411,13 @@ export const autoresponderConnectionUpdateSchema = z.object({
   isEnabled: z.boolean().optional(),
   fieldMapping: z.record(z.string(), z.string()).optional().nullable(),
   config: z
-    .union([webhookConfigSchema, mailchimpConfigSchema, aweberConfigSchema, getResponseConfigSchema])
+    .union([
+      webhookConfigSchema,
+      mailchimpConfigSchema,
+      aweberConfigSchema,
+      getResponseConfigSchema,
+      systemeConfigSchema,
+    ])
     .optional(),
 });
 
@@ -493,6 +531,28 @@ export const optinFunnelUpdateSchema = z.object({
   craftState: z.record(z.string(), z.unknown()).optional(),
   themeJson: z.record(z.string(), z.unknown()).optional(),
   thankYouEnabled: z.boolean().optional(),
+  thankYouCraftState: z.record(z.string(), z.unknown()).nullable().optional(),
+  thankYouThemeJson: z.record(z.string(), z.unknown()).optional(),
+  thankYouPixelHtml: z.string().trim().max(10000).nullable().optional(),
+  thankYouUseCampaignPixel: z.boolean().optional(),
+  step: z.enum(["optin", "thankYou"]).optional(),
+  autosave: z.boolean().optional(),
+});
+
+export const adminOptinFunnelTemplateUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  craftState: z.record(z.string(), z.unknown()).optional(),
+  themeJson: z.record(z.string(), z.unknown()).optional(),
+  thankYouEnabled: z.boolean().optional(),
+  destinationUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: "Enter a valid destination URL",
+    }),
   thankYouCraftState: z.record(z.string(), z.unknown()).nullable().optional(),
   thankYouThemeJson: z.record(z.string(), z.unknown()).optional(),
   thankYouPixelHtml: z.string().trim().max(10000).nullable().optional(),

@@ -8,13 +8,17 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminFunnelTemplatePreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ step?: string }>;
 }) {
   const session = await getSession();
   if (!session || session.user.role !== "ADMIN") notFound();
 
   const { id } = await params;
+  const query = await searchParams;
+  const step = query.step === "thankYou" ? "thankYou" : "optin";
   let template;
   try {
     template = await getOptinFunnelTemplateByAdmin(id);
@@ -25,8 +29,12 @@ export default async function AdminFunnelTemplatePreviewPage({
   return (
     <FunnelTemplatePreview
       templateName={template.name}
-      craftState={template.craftState}
-      theme={template.themeJson ?? DEFAULT_THEME}
+      craftState={step === "thankYou" ? (template.thankYouCraftState ?? template.craftState) : template.craftState}
+      theme={
+        step === "thankYou"
+          ? (template.thankYouThemeJson ?? template.themeJson ?? DEFAULT_THEME)
+          : (template.themeJson ?? DEFAULT_THEME)
+      }
     />
   );
 }

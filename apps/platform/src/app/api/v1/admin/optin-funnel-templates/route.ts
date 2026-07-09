@@ -26,8 +26,17 @@ export async function POST(request: Request) {
 
       const primaryColor = typeof body.primaryColor === "string" ? body.primaryColor : undefined;
       const secondaryColor = typeof body.secondaryColor === "string" ? body.secondaryColor : undefined;
+      const sourceTemplateId =
+        typeof body.sourceTemplateId === "string" && body.sourceTemplateId.trim()
+          ? body.sourceTemplateId.trim()
+          : undefined;
 
-      const data = await createOptinFunnelTemplateByAdmin({ name, primaryColor, secondaryColor });
+      const data = await createOptinFunnelTemplateByAdmin({
+        name,
+        primaryColor,
+        secondaryColor,
+        sourceTemplateId,
+      });
       return Response.json({ data }, { status: 201 });
     } catch (error) {
       return errorResponse(error);

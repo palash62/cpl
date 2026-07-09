@@ -16,6 +16,7 @@ export type {
   MailchimpConfig,
   AweberConfig,
   GetResponseConfig,
+  SystemeConfig,
   ConnectionConfig,
 } from "./types/provider";
 export { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG, AUTORESPONDER_SETTINGS_KEY } from "./config/defaults";

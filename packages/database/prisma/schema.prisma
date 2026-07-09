@@ -125,6 +125,7 @@ enum AutoresponderProvider {
   MAILCHIMP
   AWEBER
   GETRESPONSE
+  SYSTEME
 }
 
 enum AutoresponderTrigger {
@@ -1094,6 +1095,10 @@ model PageTemplate {
   thumbnailUrl  String?  @map("thumbnail_url")
   craftState    Json     @map("craft_state")
   themeJson     Json     @map("theme_json")
+  thankYouEnabled         Boolean @default(false) @map("thank_you_enabled")
+  destinationUrl          String? @map("destination_url")
+  thankYouPixelHtml       String? @db.Text @map("thank_you_pixel_html")
+  thankYouUseCampaignPixel Boolean @default(true) @map("thank_you_use_campaign_pixel")
   isSystem      Boolean  @default(true) @map("is_system")
   advertiserId  String?  @map("advertiser_id")
   favoriteCount Int      @default(0) @map("favorite_count")

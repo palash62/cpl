@@ -26,8 +26,15 @@ export type GetResponseConfig = {
   listId?: string;
 };
 
+export type SystemeConfig = {
+  apiKey: string;
+  /** Optional tag id to attach after contact creation */
+  tagId?: string;
+};
+
 export type ConnectionConfig =
   | WebhookConfig
   | MailchimpConfig
   | AweberConfig
-  | GetResponseConfig;
+  | GetResponseConfig
+  | SystemeConfig;

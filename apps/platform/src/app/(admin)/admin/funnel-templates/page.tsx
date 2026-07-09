@@ -1,17 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, FolderPlus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { buttonVariants } from "@/components/ui/button";
-import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import { cn } from "@/lib/utils";
+import { FunnelListToolbar } from "@/components/advertiser/funnel/funnel-list-toolbar";
+import { FunnelModuleShell } from "@/components/advertiser/funnel/funnel-module-shell";
+import { AdminFunnelTemplateCreateDialog } from "@/components/admin/admin-funnel-template-create-dialog";
+
+const PAGE_SIZES = [15, 25, 50] as const;
 
 type TemplateCard = {
   id: string;
@@ -27,7 +50,10 @@ export default function AdminFunnelTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(15);
+  const [createOpen, setCreateOpen] = useState(false);
 
   async function loadTemplates() {
     setLoading(true);
@@ -41,16 +67,26 @@ export default function AdminFunnelTemplatesPage() {
     void loadTemplates();
   }, []);
 
-  async function createTemplate() {
-    if (name.trim().length < 2) {
-      toast.error("Template name must be at least 2 characters.");
-      return;
-    }
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return templates;
+    return templates.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q),
+    );
+  }, [templates, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, filtered.length);
+
+  async function createTemplate(input: { name: string; sourceTemplateId?: string }) {
     setSaving(true);
     const res = await fetch("/api/v1/admin/optin-funnel-templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify(input),
     });
     setSaving(false);
     if (!res.ok) {
@@ -59,6 +95,7 @@ export default function AdminFunnelTemplatesPage() {
       return;
     }
     const { data } = await res.json();
+    setCreateOpen(false);
     toast.success("Template created. Opening builder...");
     router.push(`/admin/funnel-templates/${data.id}/edit`);
   }
@@ -80,92 +117,166 @@ export default function AdminFunnelTemplatesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Funnel Templates</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Create and design opt-in page templates. Advertisers will see these when creating a new funnel.
-        </p>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Create new template</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[240px] flex-1">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Template name"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void createTemplate();
-              }}
-            />
-          </div>
-          <Button onClick={createTemplate} disabled={saving}>
+    <FunnelModuleShell
+      title="Funnel Templates"
+      description="Create and manage system funnel templates used by advertisers when creating new funnels."
+      action={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" disabled>
+            <FolderPlus className="h-4 w-4" />
+          </Button>
+          <Button disabled={saving} onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            {saving ? "Creating..." : "Create & open builder"}
+            New template
           </Button>
         </div>
+      }
+    >
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <FunnelListToolbar
+          search={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
+
+        {loading ? (
+          <div className="px-6 py-12 text-sm text-slate-500">Loading templates...</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <p className="text-sm font-medium text-slate-900">
+              {templates.length === 0 ? "No templates yet" : "No templates match your search"}
+            </p>
+            <p className="mt-1 max-w-sm text-sm text-slate-500">
+              {templates.length === 0
+                ? "Create your first template to make reusable funnel layouts for advertisers."
+                : "Try a different search term."}
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Name
+                </TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Created
+                </TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Type
+                </TableHead>
+                <TableHead className="w-12 px-4" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="px-4 font-medium">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/admin/funnel-templates/${template.id}`)}
+                      className="text-slate-900 hover:text-blue-600"
+                    >
+                      {template.name}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-slate-500">
+                    {new Date(template.createdAt).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-slate-500">System template</TableCell>
+                  <TableCell className="px-4">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 text-slate-500")}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => router.push(`/admin/funnel-templates/${template.id}`)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Open template
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => window.open(`/admin/funnel-templates/${template.id}/preview`, "_blank", "noopener,noreferrer")}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          disabled={deletingId === template.id}
+                          onClick={() => void deleteTemplate(template)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div className="flex items-center gap-2">
+              <span>Rows per page</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => {
+                  setPageSize(Number(v) as (typeof PAGE_SIZES)[number]);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-16">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <span>
+              {rangeStart} – {rangeEnd} of {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <span className="flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-200 px-2 text-slate-700">
+                {currentPage}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-          Existing templates
-        </div>
-        <div className="p-4">
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading templates...</p>
-          ) : templates.length === 0 ? (
-            <p className="text-sm text-slate-500">No templates yet.</p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
-                >
-                  <div className="relative aspect-4/3 overflow-hidden border-b border-slate-100 bg-slate-50">
-                    <OptinFunnelCraftThumbnail
-                      craftState={{
-                        craft: template.craftState,
-                        meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
-                      }}
-                      themeJson={template.themeJson}
-                      scale={0.32}
-                    />
-                  </div>
-                  <div className="space-y-3 p-3">
-                    <div>
-                      <p className="truncate text-sm font-semibold text-slate-900">{template.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(template.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/admin/funnel-templates/${template.id}/edit`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}
-                      >
-                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                        Edit
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        disabled={deletingId === template.id}
-                        onClick={() => void deleteTemplate(template)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      <AdminFunnelTemplateCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        loading={saving}
+        onCreate={createTemplate}
+      />
+    </FunnelModuleShell>
   );
 }

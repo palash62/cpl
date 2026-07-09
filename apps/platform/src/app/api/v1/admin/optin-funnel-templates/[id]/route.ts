@@ -1,5 +1,6 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
+import { adminOptinFunnelTemplateUpdateSchema } from "@/lib/validations";
 import {
   deleteOptinFunnelTemplateByAdmin,
   getOptinFunnelTemplateByAdmin,
@@ -27,11 +28,31 @@ export async function PATCH(request: Request, context: RouteContext) {
   return withAuth(async () => {
     try {
       const body = await request.json();
+      const parsed = adminOptinFunnelTemplateUpdateSchema.safeParse(body);
+      if (!parsed.success) {
+        return Response.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: parsed.error.issues[0]?.message ?? "Invalid input",
+              status: 422,
+            },
+          },
+          { status: 422 },
+        );
+      }
       const data = await updateOptinFunnelTemplateByAdmin(id, {
-        name: typeof body.name === "string" ? body.name : undefined,
-        craftState: body.craftState as CraftSerializedState | undefined,
-        themeJson: body.themeJson as ThemeJson | undefined,
-        autosave: typeof body.autosave === "boolean" ? body.autosave : undefined,
+        name: parsed.data.name,
+        craftState: parsed.data.craftState as CraftSerializedState | undefined,
+        themeJson: parsed.data.themeJson as ThemeJson | undefined,
+        thankYouEnabled: parsed.data.thankYouEnabled,
+        destinationUrl: parsed.data.destinationUrl,
+        thankYouCraftState: (parsed.data.thankYouCraftState as CraftSerializedState | null | undefined) ?? undefined,
+        thankYouThemeJson: parsed.data.thankYouThemeJson as ThemeJson | undefined,
+        thankYouPixelHtml: parsed.data.thankYouPixelHtml,
+        thankYouUseCampaignPixel: parsed.data.thankYouUseCampaignPixel,
+        step: parsed.data.step,
+        autosave: parsed.data.autosave,
       });
       return Response.json({ data });
     } catch (error) {

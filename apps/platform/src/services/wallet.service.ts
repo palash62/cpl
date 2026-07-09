@@ -293,39 +293,6 @@ export async function listUserDeposits(
   };
 }
 
-export async function createCreditCardDeposit(userId: string, amount: number) {
-  return prisma.$transaction(async (tx) => {
-    const deposit = await tx.deposit.create({
-      data: {
-        userId,
-        amount,
-        method: "CREDIT_CARD",
-        status: "COMPLETED",
-        stripePaymentId: `cc_${Date.now()}`,
-        processedAt: new Date(),
-      },
-    });
-
-    await creditWallet(tx, userId, amount, "deposit", deposit.id, "Credit card deposit");
-
-    return { deposit, userId };
-  }).then(async ({ deposit, userId }) => {
-    void notifyGeneric(
-      await prisma.user.findUniqueOrThrow({
-        where: { id: userId },
-        select: { id: true, email: true, name: true },
-      }),
-      {
-        title: "Deposit received",
-        message: `Your credit card deposit of $${amount.toFixed(2)} has been credited to your wallet.`,
-        actionPath: "/advertiser/wallet",
-        notificationType: "deposit.completed",
-      },
-    );
-    return deposit;
-  });
-}
-
 export async function createWiseDeposit(
   userId: string,
   amount: number,

@@ -6,6 +6,7 @@ import { sendWebhook } from "./webhook.provider";
 import { sendMailchimp } from "./mailchimp.provider";
 import { sendAweber } from "./aweber.provider";
 import { sendGetResponse } from "./getresponse.provider";
+import { sendSysteme } from "./systeme.provider";
 
 export async function sendViaProvider(
   provider: AutoresponderProvider,
@@ -21,6 +22,8 @@ export async function sendViaProvider(
       return sendAweber(config as never, payload);
     case "GETRESPONSE":
       return sendGetResponse(config as never, payload);
+    case "SYSTEME":
+      return sendSysteme(config as never, payload);
     default:
       return { ok: false, error: "Unknown provider" };
   }

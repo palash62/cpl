@@ -4,13 +4,15 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 import { FileText } from "lucide-react";
 import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import {
   extractLeadCountry,
   formatLeadRejectReason,
-  formatPublisherLeadPayout,
   parseUserAgent,
   shortLeadId,
 } from "@/lib/publisher-leads";
+import { calculatePublisherPayout } from "@/lib/platform-settings";
+import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
 import { PageSection } from "@/components/admin/page-section";
 import { LeadStatusBadge } from "@/components/admin/admin-ui";
@@ -58,14 +60,33 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
 
-  const { data: leads, meta } = await listLeads({
-    publisherId: session!.user.id,
-    campaignSearch: params.campaign,
-    source: params.source,
-    sort: parseSort(params.sort),
-    page,
-    limit,
-  });
+  const [settings, { data: leads, meta }] = await Promise.all([
+    getPlatformSettingsConfig(),
+    listLeads({
+      publisherId: session!.user.id,
+      campaignSearch: params.campaign,
+      source: params.source,
+      sort: parseSort(params.sort),
+      page,
+      limit,
+    }),
+  ]);
+  const leadIds = leads.map((lead) => lead.id);
+  const creditedEntries =
+    leadIds.length > 0
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            type: "CREDIT",
+            referenceType: "lead",
+            referenceId: { in: leadIds },
+            wallet: { userId: session!.user.id },
+          },
+          select: { referenceId: true, amount: true },
+        })
+      : [];
+  const creditedByLeadId = new Map(
+    creditedEntries.map((entry) => [entry.referenceId, Number(entry.amount)]),
+  );
 
   return (
     <div className="space-y-6">
@@ -133,10 +154,36 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
               ) : (
                 leads.map((lead) => {
                   const { device, os } = parseUserAgent(lead.userAgent);
-                  const payout = formatPublisherLeadPayout(
-                    lead.status,
+                  const payoutAmount = calculatePublisherPayout(
                     Number(lead.campaign.cpl),
-                  );
+                    lead.country,
+                    settings,
+                  ).publisherAmount;
+                  const creditedAmount = creditedByLeadId.get(lead.id);
+                  const payout =
+                    creditedAmount !== undefined
+                      ? {
+                          label: new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          }).format(creditedAmount),
+                          className: "font-semibold text-emerald-700",
+                        }
+                      : lead.status === "PAID" || lead.status === "APPROVED"
+                        ? lead.source === "optin"
+                          ? { label: "—", className: "text-slate-400" }
+                          : {
+                              label: new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                              }).format(payoutAmount),
+                              className: "font-semibold text-emerald-700",
+                            }
+                        : lead.status === "PENDING" ||
+                            lead.status === "VALIDATING" ||
+                            lead.status === "CAPTURED"
+                          ? { label: "Pending", className: "text-amber-700" }
+                          : { label: "—", className: "text-slate-400" };
                   const rejectReason = formatLeadRejectReason(lead);
 
                   return (

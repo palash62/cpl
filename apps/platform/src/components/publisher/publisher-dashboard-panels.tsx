@@ -15,7 +15,8 @@ interface RecentLead {
   id: string;
   status: string;
   createdAt: Date;
-  campaign: { name: string; cpl: unknown };
+  campaign: { name: string };
+  payoutAmount: number;
 }
 
 interface TopCampaign {
@@ -46,7 +47,7 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
             >
               <TableHead className="h-11 px-6 text-slate-600">Date</TableHead>
               <TableHead className="h-11 px-4 text-slate-600">Campaign</TableHead>
-              <TableHead className="h-11 px-4 text-right text-slate-600">CPL</TableHead>
+              <TableHead className="h-11 px-4 text-right text-slate-600">Payout</TableHead>
               <TableHead className="h-11 px-6 text-slate-600">Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -63,7 +64,7 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
                   {lead.campaign.name}
                 </TableCell>
                 <TableCell className="px-4 py-4 text-right font-semibold text-[var(--theme-primary)]">
-                  {formatCurrency(Number(lead.campaign.cpl))}
+                  {formatCurrency(lead.payoutAmount)}
                 </TableCell>
                 <TableCell className="px-6 py-4">
                   <LeadStatusBadge status={lead.status} />

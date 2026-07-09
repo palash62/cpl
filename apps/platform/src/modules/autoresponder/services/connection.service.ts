@@ -89,6 +89,17 @@ async function assertProviderConfig(
     }
   }
 
+  if (provider === "SYSTEME") {
+    const apiKey = (config as { apiKey?: string }).apiKey?.trim() ?? "";
+    const tagId = (config as { tagId?: string }).tagId?.trim() ?? "";
+    if (!apiKey) {
+      throw new AppError("VALIDATION_ERROR", "Systeme.io API key is required", 422);
+    }
+    if (tagId && !/^\d+$/.test(tagId)) {
+      throw new AppError("VALIDATION_ERROR", "Systeme.io tag ID must be numeric", 422);
+    }
+  }
+
   return config;
 }
 

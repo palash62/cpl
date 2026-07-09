@@ -21,11 +21,19 @@ export async function savePageCraft(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         isAdminTemplate
-          ? {
-              craftState: craft,
-              themeJson: store.theme,
-              autosave: options?.autosave ?? false,
-            }
+          ? isThankYou
+            ? {
+                thankYouCraftState: craft,
+                thankYouThemeJson: store.thankYouTheme,
+                step: "thankYou",
+                autosave: options?.autosave ?? false,
+              }
+            : {
+                craftState: craft,
+                themeJson: store.theme,
+                step: "optin",
+                autosave: options?.autosave ?? false,
+              }
           : {
               ...(isThankYou
                 ? {

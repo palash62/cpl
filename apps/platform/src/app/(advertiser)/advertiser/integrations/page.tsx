@@ -4,14 +4,18 @@ import { RoleHero } from "@/components/layout/role-hero";
 import { AutoresponderConnectionsPanel } from "@/components/advertiser/autoresponder/autoresponder-connections-panel";
 import Link from "next/link";
 import { Info, Mail } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdvertiserIntegrationsPage() {
   const session = await getSession();
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
   const campaigns = await prisma.campaign.findMany({
-    where: { advertiserId: session!.user.id },
+    where: { advertiserId: session.user.id },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

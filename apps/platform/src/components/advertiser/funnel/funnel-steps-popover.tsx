@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { GripVertical, Plus, Search } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export function FunnelStepsPopover({
   currentStepLabel,
 }: FunnelStepsPopoverProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -44,7 +45,7 @@ export function FunnelStepsPopover({
   async function goToStep(stepId: FunnelStepId) {
     setOpen(false);
     await useBuilderStore.getState().flushSave?.();
-    router.push(`/advertiser/optin-funnels/${funnelId}/edit?step=${stepId}`);
+    router.push(`${pathname}?step=${stepId}`);
   }
 
   return (
@@ -96,7 +97,7 @@ export function FunnelStepsPopover({
             onClick={() => {
               setOpen(false);
               void useBuilderStore.getState().flushSave?.();
-              router.push(`/advertiser/optin-funnels/${funnelId}`);
+                router.push(useBuilderStore.getState().builderConfig.detailPath ?? `/advertiser/optin-funnels/${funnelId}`);
             }}
           >
             <Plus className="mr-2 h-4 w-4" />

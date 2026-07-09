@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Landmark, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { WalletStripeCheckout } from "@/components/advertiser/wallet-stripe-checkout";
 
 const QUICK_AMOUNTS = [50, 100, 250, 500, 1000];
 
 type PaymentMethod = "CREDIT_CARD" | "WISE";
+
+type StripeCheckoutState = {
+  amount: number;
+  clientSecret: string;
+  publishableKey: string;
+  depositId: string;
+};
 
 function CurrencyInput({
   id,
@@ -64,16 +72,32 @@ export function WalletRechargePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [stripeEnabled, setStripeEnabled] = useState<boolean | null>(null);
+  const [stripeCheckout, setStripeCheckout] = useState<StripeCheckoutState | null>(null);
 
   const numericAmount = Number(amount);
   const canSubmit =
     !loading &&
+    !stripeCheckout &&
     numericAmount >= 10 &&
-    (method === "CREDIT_CARD" || wiseReference.trim().length > 0);
+    (method === "WISE" ? wiseReference.trim().length > 0 : stripeEnabled === true);
+
+  useEffect(() => {
+    fetch("/api/v1/wallet/stripe/config")
+      .then((r) => r.json())
+      .then((d) => setStripeEnabled(Boolean(d?.data?.enabled && d?.data?.publishableKey)))
+      .catch(() => setStripeEnabled(false));
+  }, []);
 
   async function deposit() {
     if (!canSubmit) {
-      setError(method === "WISE" ? "Enter amount (min $10) and Wise transfer reference" : "Minimum deposit is $10.00");
+      if (method === "WISE") {
+        setError("Enter amount (min $10) and Wise transfer reference");
+      } else if (stripeEnabled === false) {
+        setError("Credit card payments are not configured yet. Use Wise or contact support.");
+      } else {
+        setError("Minimum deposit is $10.00");
+      }
       return;
     }
 
@@ -81,40 +105,70 @@ export function WalletRechargePanel({
     setError(null);
     setSuccess(null);
 
-    const body: Record<string, unknown> = {
-      amount: numericAmount,
-      method,
-    };
-
     if (method === "WISE") {
-      body.wiseReference = wiseReference.trim();
-      if (payerName.trim()) body.payerName = payerName.trim();
-      if (note.trim()) body.note = note.trim();
+      const res = await fetch("/api/v1/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: numericAmount,
+          method: "WISE",
+          wiseReference: wiseReference.trim(),
+          ...(payerName.trim() ? { payerName: payerName.trim() } : {}),
+          ...(note.trim() ? { note: note.trim() } : {}),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setBalance(data.balance);
+        setSuccess(`Wise deposit submitted for $${numericAmount.toFixed(2)}. Pending admin approval.`);
+        setWiseReference("");
+        setPayerName("");
+        setNote("");
+        router.refresh();
+      } else {
+        setError(data?.error?.message ?? "Unable to add funds. Please try again.");
+      }
+
+      setLoading(false);
+      return;
     }
 
     const res = await fetch("/api/v1/wallet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ amount: numericAmount, method: "CREDIT_CARD" }),
     });
     const data = await res.json();
+    setLoading(false);
 
-    if (res.ok) {
-      setBalance(data.balance);
-      if (method === "CREDIT_CARD") {
-        setSuccess(`$${numericAmount.toFixed(2)} added and approved instantly.`);
-      } else {
-        setSuccess(`Wise deposit submitted for $${numericAmount.toFixed(2)}. Pending admin approval.`);
-        setWiseReference("");
-        setPayerName("");
-        setNote("");
-      }
-      router.refresh();
-    } else {
-      setError(data?.error?.message ?? "Unable to add funds. Please try again.");
+    if (!res.ok) {
+      setError(data?.error?.message ?? "Unable to start card payment. Please try again.");
+      return;
     }
 
-    setLoading(false);
+    setStripeCheckout({
+      amount: numericAmount,
+      clientSecret: data.clientSecret,
+      publishableKey: data.publishableKey,
+      depositId: data.depositId,
+    });
+  }
+
+  function handleStripeSuccess(nextBalance: {
+    balance: number;
+    holdBalance: number;
+    availableBalance: number;
+    currency: string;
+  }) {
+    setBalance({
+      balance: nextBalance.balance,
+      availableBalance: nextBalance.availableBalance,
+      currency: nextBalance.currency,
+    });
+    setStripeCheckout(null);
+    setSuccess(`$${numericAmount.toFixed(2)} added and approved instantly.`);
+    router.refresh();
   }
 
   return (
@@ -140,7 +194,10 @@ export function WalletRechargePanel({
         <div className="grid gap-2 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => setMethod("CREDIT_CARD")}
+            onClick={() => {
+              setMethod("CREDIT_CARD");
+              setStripeCheckout(null);
+            }}
             className={cn(
               "flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
               method === "CREDIT_CARD"
@@ -151,12 +208,17 @@ export function WalletRechargePanel({
             <CreditCard className="h-5 w-5 text-[var(--theme-primary)]" />
             <div>
               <p className="text-sm font-semibold text-slate-900">Credit Card</p>
-              <p className="text-xs text-slate-500">Instant approval</p>
+              <p className="text-xs text-slate-500">
+                {stripeEnabled === false ? "Not configured" : "Stripe checkout"}
+              </p>
             </div>
           </button>
           <button
             type="button"
-            onClick={() => setMethod("WISE")}
+            onClick={() => {
+              setMethod("WISE");
+              setStripeCheckout(null);
+            }}
             className={cn(
               "flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
               method === "WISE"
@@ -173,29 +235,31 @@ export function WalletRechargePanel({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="add-funds-amount">Amount</Label>
-        <CurrencyInput id="add-funds-amount" value={amount} onChange={setAmount} min={10} />
-        <div className="flex flex-wrap gap-2 pt-1">
-          {QUICK_AMOUNTS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setAmount(String(preset))}
-              className={cn(
-                "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-                Number(amount) === preset
-                  ? "border-[var(--theme-primary)] bg-[var(--theme-primary-soft)] text-[var(--theme-primary)]"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-              )}
-            >
-              ${preset}
-            </button>
-          ))}
+      {!stripeCheckout && (
+        <div className="space-y-2">
+          <Label htmlFor="add-funds-amount">Amount</Label>
+          <CurrencyInput id="add-funds-amount" value={amount} onChange={setAmount} min={10} />
+          <div className="flex flex-wrap gap-2 pt-1">
+            {QUICK_AMOUNTS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setAmount(String(preset))}
+                className={cn(
+                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                  Number(amount) === preset
+                    ? "border-[var(--theme-primary)] bg-[var(--theme-primary-soft)] text-[var(--theme-primary)]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                ${preset}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {method === "WISE" && (
+      {method === "WISE" && !stripeCheckout && (
         <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
           <p className="text-sm text-slate-600">
             Send your transfer via Wise, then enter the reference and payer details below. Funds are
@@ -235,6 +299,24 @@ export function WalletRechargePanel({
         </div>
       )}
 
+      {method === "CREDIT_CARD" && stripeEnabled === false && !stripeCheckout && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Credit card payments are not enabled yet. Ask your platform admin to add Stripe keys in
+          Admin → Settings → Payments (Stripe).
+        </p>
+      )}
+
+      {stripeCheckout && (
+        <WalletStripeCheckout
+          amount={stripeCheckout.amount}
+          clientSecret={stripeCheckout.clientSecret}
+          publishableKey={stripeCheckout.publishableKey}
+          depositId={stripeCheckout.depositId}
+          onSuccess={handleStripeSuccess}
+          onCancel={() => setStripeCheckout(null)}
+        />
+      )}
+
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
@@ -244,25 +326,27 @@ export function WalletRechargePanel({
         </p>
       )}
 
-      <Button
-        type="button"
-        onClick={deposit}
-        disabled={!canSubmit}
-        size="lg"
-        className="h-12 w-full rounded-xl bg-[var(--theme-primary)] text-base font-semibold text-white shadow-md hover:opacity-90 sm:w-auto sm:min-w-[200px]"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <Plus className="mr-2 h-5 w-5" />
-            {method === "CREDIT_CARD" ? "Pay with Card" : "Submit Wise Deposit"}
-          </>
-        )}
-      </Button>
+      {!stripeCheckout && (
+        <Button
+          type="button"
+          onClick={deposit}
+          disabled={!canSubmit}
+          size="lg"
+          className="h-12 w-full rounded-xl bg-[var(--theme-primary)] text-base font-semibold text-white shadow-md hover:opacity-90 sm:w-auto sm:min-w-[200px]"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-5 w-5" />
+              {method === "CREDIT_CARD" ? "Continue to Card Payment" : "Submit Wise Deposit"}
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

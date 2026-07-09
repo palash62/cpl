@@ -11,13 +11,14 @@ import {
 
 type FunnelDetailHeaderProps = {
   funnelName: string;
+  backHref?: string;
 };
 
-export function FunnelDetailHeader({ funnelName }: FunnelDetailHeaderProps) {
+export function FunnelDetailHeader({ funnelName, backHref = "/advertiser/optin-funnels" }: FunnelDetailHeaderProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
-        <ButtonLink href="/advertiser/optin-funnels" variant="ghost" size="sm" className="shrink-0 text-slate-600">
+        <ButtonLink href={backHref} variant="ghost" size="sm" className="shrink-0 text-slate-600">
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </ButtonLink>

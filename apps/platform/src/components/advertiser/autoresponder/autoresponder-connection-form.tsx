@@ -19,6 +19,7 @@ const PROVIDERS: { value: AutoresponderProvider; label: string; hint: string }[]
   { value: "MAILCHIMP", label: "Mailchimp", hint: "Audience list" },
   { value: "AWEBER", label: "AWeber", hint: "Subscriber list" },
   { value: "GETRESPONSE", label: "GetResponse", hint: "Contact list" },
+  { value: "SYSTEME", label: "Systeme.io", hint: "Contacts and optional tag automation" },
 ];
 
 const TRIGGERS: { value: AutoresponderTrigger; label: string; description: string }[] = [
@@ -70,6 +71,7 @@ type FormState = {
   accessToken: string;
   accountId: string;
   getResponseListId: string;
+  systemeTagId: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -85,6 +87,7 @@ const emptyForm = (): FormState => ({
   accessToken: "",
   accountId: "",
   getResponseListId: "",
+  systemeTagId: "",
 });
 
 function clearProviderCredentials(form: FormState): FormState {
@@ -98,6 +101,7 @@ function clearProviderCredentials(form: FormState): FormState {
     accessToken: "",
     accountId: "",
     getResponseListId: "",
+    systemeTagId: "",
   };
 }
 
@@ -124,6 +128,11 @@ function buildConfig(form: FormState): Record<string, unknown> {
       return {
         apiKey: form.apiKey.trim(),
         campaignId: form.getResponseListId.trim(),
+      };
+    case "SYSTEME":
+      return {
+        apiKey: form.apiKey.trim(),
+        ...(form.systemeTagId.trim() ? { tagId: form.systemeTagId.trim() } : {}),
       };
     default:
       return {};
@@ -234,6 +243,7 @@ export function AutoresponderConnectionForm({
       accessToken: String(cfg.accessToken ?? ""),
       accountId: String(cfg.accountId ?? ""),
       getResponseListId: String(cfg.campaignId ?? cfg.listId ?? ""),
+      systemeTagId: String(cfg.tagId ?? ""),
     });
 
     if (initialConnection.provider === "GETRESPONSE") {
@@ -634,6 +644,36 @@ export function AutoresponderConnectionForm({
                   Lists are fetched from your GetResponse account using the API key above.
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {form.provider === "SYSTEME" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>API key</Label>
+              <Input
+                type="password"
+                value={form.apiKey}
+                onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
+                required
+                className="bg-white"
+              />
+              <p className="text-xs text-slate-500">
+                Generate an API key in your Systeme.io account settings.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Tag ID (optional)</Label>
+              <Input
+                value={form.systemeTagId}
+                onChange={(e) => setForm({ ...form, systemeTagId: e.target.value })}
+                placeholder="12345"
+                className="bg-white"
+              />
+              <p className="text-xs text-slate-500">
+                If set, each new contact will also be tagged to trigger your automation.
+              </p>
             </div>
           </div>
         )}

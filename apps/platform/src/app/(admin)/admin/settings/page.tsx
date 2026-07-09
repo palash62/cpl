@@ -1,10 +1,11 @@
 import { PlatformSettingsForm } from "@/components/forms/platform-settings-form";
 import { SmtpSettingsForm } from "@/components/forms/smtp-settings-form";
 import { SesSettingsForm } from "@/components/forms/ses-settings-form";
+import { StripeSettingsForm } from "@/components/forms/stripe-settings-form";
 import { EmailLogsTable } from "@/components/admin/email-logs-table";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
-import { Mail, Settings, Cloud } from "lucide-react";
+import { Mail, Settings, Cloud, CreditCard } from "lucide-react";
 
 export default function AdminSettingsPage() {
   return (
@@ -22,6 +23,16 @@ export default function AdminSettingsPage() {
       >
         <div className="p-6">
           <PlatformSettingsForm />
+        </div>
+      </PageSection>
+      <PageSection
+        title="Payments (Stripe)"
+        description="Credit card checkout for advertiser wallet top-ups"
+        icon={CreditCard}
+        gradient="revenue"
+      >
+        <div className="p-6">
+          <StripeSettingsForm />
         </div>
       </PageSection>
       <PageSection

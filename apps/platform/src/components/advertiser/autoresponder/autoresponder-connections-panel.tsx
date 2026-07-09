@@ -25,6 +25,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   MAILCHIMP: "Mailchimp",
   AWEBER: "AWeber",
   GETRESPONSE: "GetResponse",
+  SYSTEME: "Systeme.io",
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -156,7 +157,7 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
           <p className="mb-6 text-sm text-slate-500">
             {editing
               ? "Update connection settings, then save changes."
-              : "Connect Mailchimp, AWeber, GetResponse, or a custom webhook."}
+                : "Connect Mailchimp, AWeber, GetResponse, Systeme.io, or a custom webhook."}
           </p>
           <AutoresponderConnectionForm
             campaigns={campaigns}

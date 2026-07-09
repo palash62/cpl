@@ -76,7 +76,8 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
   async function handlePreview() {
     if (isAdminTemplate) {
       await useBuilderStore.getState().flushSave?.();
-      window.open(`/admin/funnel-templates/${pageId}/preview`, "_blank", "noopener,noreferrer");
+      const stepQuery = funnelStep === "thankYou" ? "?step=thankYou" : "";
+      window.open(`/admin/funnel-templates/${pageId}/preview${stepQuery}`, "_blank", "noopener,noreferrer");
       return;
     }
     if (isFunnel) {
@@ -105,7 +106,7 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
 
       <div className={cn("mx-1.5 h-5 w-px", chrome.toolbarDivider)} />
 
-      {isFunnel && !isAdminTemplate ? (
+      {isFunnel ? (
         <FunnelStepsPopover
           funnelId={pageId}
           steps={buildFunnelSteps(builderConfig.thankYouEnabled ?? false)}

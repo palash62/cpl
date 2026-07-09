@@ -9,6 +9,7 @@ export const DEFAULT_AUTORESPONDER_PLATFORM_CONFIG = {
     "MAILCHIMP",
     "AWEBER",
     "GETRESPONSE",
+    "SYSTEME",
   ] as AutoresponderProvider[],
   retryDelayMs: 2000,
   requestTimeoutMs: 5000,
