@@ -15,6 +15,7 @@ import { PREVIEW_FALLBACK_FIELDS, DEFAULT_OPTIN_PAGE, type PublicOptinPage } fro
 import { getOptinTemplate, isOptinTemplateId } from "@/lib/optin-templates";
 import { OptinPageLayout } from "@/components/optin/optin-page-layout";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
+import { funnelCraftPreviewRevision } from "@/components/optin/funnel-craft-preview-frame";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +137,7 @@ export function FunnelStepOverview({
   const { previewPath, previewUrl } = resolvePreviewUrl(entity, workflow, stepId, appUrl);
   const editHref = workflow.editPath(entity.id, stepId);
   const { craftState, themeJson } = resolveThumbnail(entity, stepId);
+  const thumbnailRevision = funnelCraftPreviewRevision(craftState?.craft, themeJson);
   const templatePage = templatePreview(entity, stepId);
 
   const showCraft = stepId === "thankYou" ? hasThankYouDesign(entity) : hasOptinDesign(entity);
@@ -238,7 +240,7 @@ export function FunnelStepOverview({
               <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
                 {showCraft && !isBlankThankYou ? (
                   <OptinFunnelCraftThumbnail
-                    key={`${stepId}-${entity.updatedAt ?? entity.id}`}
+                    key={`${stepId}-${thumbnailRevision}`}
                     craftState={craftState}
                     themeJson={themeJson}
                     scale={0.28}

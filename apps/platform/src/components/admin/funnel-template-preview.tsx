@@ -2,7 +2,6 @@
 
 import { PageRenderer } from "@/modules/page-builder/components/renderer/page-renderer";
 import { extractFormJson } from "@/modules/page-builder/lib/extract-form-json";
-import { themePageBackgroundStyle } from "@/modules/page-builder/lib/theme";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 
@@ -16,13 +15,7 @@ export function FunnelTemplatePreview({ templateName, craftState, theme }: Funne
   const formJson = extractFormJson(craftState, "");
 
   return (
-    <div
-      className="flex min-h-screen w-full flex-col"
-      style={{
-        ...themePageBackgroundStyle(theme),
-        ["--pb-viewport-fill" as string]: "calc(100dvh - 2.5rem)",
-      }}
-    >
+    <div className="flex min-h-screen w-full flex-col">
       <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
         Preview: <span className="font-semibold">{templateName}</span> — leads are not captured in template preview.
       </div>

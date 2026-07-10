@@ -5,6 +5,10 @@ import { PageRenderer } from "@/modules/page-builder/components/renderer/page-re
 import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import { DEFAULT_THEME, type ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { PageDocument } from "@/modules/page-builder/types/page-document";
+import {
+  FunnelCraftPreviewFrame,
+  funnelCraftPreviewRevision,
+} from "@/components/optin/funnel-craft-preview-frame";
 
 export function OptinFunnelCraftThumbnail({
   craftState,
@@ -23,6 +27,7 @@ export function OptinFunnelCraftThumbnail({
     craftState?.craft ??
     (emptyFallback === "blank" ? createBlankCraftState() : null);
   const theme = themeJson ?? DEFAULT_THEME;
+  const revision = funnelCraftPreviewRevision(craft, theme);
 
   useEffect(() => {
     setMounted(true);
@@ -46,8 +51,9 @@ export function OptinFunnelCraftThumbnail({
   const frameHeight = 720;
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-100">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <div
+        key={revision}
         className="absolute left-1/2 top-0 origin-top"
         style={{
           width: frameWidth,
@@ -55,9 +61,15 @@ export function OptinFunnelCraftThumbnail({
           transform: `translateX(-50%) scale(${scale})`,
         }}
       >
-        <div className="h-full w-full overflow-hidden bg-white">
-          <PageRenderer craftState={craft} theme={theme} />
-        </div>
+        <FunnelCraftPreviewFrame
+          theme={theme}
+          fillParent
+          viewportFill={`${frameHeight}px`}
+          className="h-full min-h-0"
+          style={{ minHeight: frameHeight }}
+        >
+          <PageRenderer craftState={craft} theme={theme} fillParent />
+        </FunnelCraftPreviewFrame>
       </div>
     </div>
   );

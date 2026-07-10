@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { OptinFunnelTemplate } from "@/services/optin-funnel.service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FunnelDetailHeader } from "@/components/advertiser/funnel/funnel-detail-header";
@@ -33,6 +33,32 @@ export function AdminFunnelTemplateDetailPanel({
   const [thankYouPixelHtml, setThankYouPixelHtml] = useState(template.thankYouPixelHtml ?? "");
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshTemplate() {
+      const res = await fetch(`${workflow.apiBasePath}/${initialTemplate.id}`, {
+        cache: "no-store",
+      });
+      const body = await res.json();
+      if (!cancelled && res.ok && body.data) {
+        setTemplate(body.data as OptinFunnelTemplate);
+      }
+    }
+
+    void refreshTemplate();
+
+    function onFocus() {
+      void refreshTemplate();
+    }
+
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [initialTemplate.id, workflow.apiBasePath]);
 
   const steps = buildFunnelSteps(thankYouEnabled);
 

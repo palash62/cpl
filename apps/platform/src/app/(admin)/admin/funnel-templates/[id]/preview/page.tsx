@@ -5,6 +5,7 @@ import { getOptinFunnelTemplateByAdmin } from "@/services/optin-funnel.service";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminFunnelTemplatePreviewPage({
   params,
