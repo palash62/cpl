@@ -79,4 +79,23 @@ describe("enrichLeadsWithCountry", () => {
       "India",
     );
   });
+
+  it("resolves timezone-only leads even when display already inferred a country", async () => {
+    const lookup = vi.fn();
+    const enriched = await enrichLeadsWithCountry(
+      [
+        {
+          id: "lead-tz",
+          ip: "unknown",
+          country: null,
+          geoCountry: null,
+          submissionMeta: { timezone: "Asia/Kolkata", language: "en-IN" },
+        },
+      ],
+      lookup,
+    );
+
+    expect(enriched[0]?.country).toBe("IN");
+    expect(lookup).not.toHaveBeenCalled();
+  });
 });

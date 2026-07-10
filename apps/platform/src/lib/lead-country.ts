@@ -151,16 +151,21 @@ export type LeadCountryFields = LeadCountrySource & { id: string };
 export async function enrichLeadsWithCountry<T extends LeadCountryFields>(
   leads: T[],
   lookup: (ip: string) => Promise<string | undefined> = lookupIpCountry,
+  resolveIp?: (lead: T) => string | undefined,
 ): Promise<T[]> {
-  const needsResolution = leads.filter(
-    (lead) => extractLeadCountry(lead.data, lead.country, lead.geoCountry, lead.submissionMeta) === "—",
-  );
+  const needsResolution = leads.filter((lead) => !lead.country?.trim() && !lead.geoCountry?.trim());
   if (needsResolution.length === 0) return leads;
 
   const resolvedByLeadId = new Map<string, string>();
   await Promise.all(
     needsResolution.map(async (lead) => {
-      const resolved = await resolveMissingLeadCountry(lead, lookup);
+      const resolved = await resolveMissingLeadCountry(
+        {
+          ...lead,
+          ip: resolveIp?.(lead) ?? lead.ip,
+        },
+        lookup,
+      );
       if (resolved) resolvedByLeadId.set(lead.id, resolved);
     }),
   );

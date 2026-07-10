@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { validateLead } from "@/lib/lead-validation";
 import { Errors } from "@/lib/errors";
 import { enrichLeadsWithCountry } from "@/lib/lead-country";
+import { normalizeClientIp } from "@cpl/shared";
 import { processLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
 import { notifyGeneric, notifyRejected } from "@/services/notify.service";
@@ -720,6 +721,45 @@ function buildLeadListOrderBy(sort: AdvertiserLeadSort) {
                         : { createdAt: "desc" as const };
 }
 
+async function loadFunnelEventIpByLeadId(leadIds: string[]) {
+  if (leadIds.length === 0) return new Map<string, string>();
+
+  const events = await prisma.funnelEvent.findMany({
+    where: { leadId: { in: leadIds }, ip: { not: null } },
+    select: { leadId: true, ip: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const map = new Map<string, string>();
+  for (const event of events) {
+    if (!event.leadId || !event.ip || map.has(event.leadId)) continue;
+    map.set(event.leadId, event.ip);
+  }
+  return map;
+}
+
+async function enrichLeadListRows<
+  T extends {
+    id: string;
+    ip?: string | null;
+    country?: string | null;
+    geoCountry?: string | null;
+    data?: unknown;
+    submissionMeta?: unknown;
+  },
+>(rows: T[]) {
+  const needsFunnelIp = rows.filter(
+    (lead) => !lead.country?.trim() && !lead.geoCountry?.trim() && !normalizeClientIp(lead.ip),
+  );
+  const funnelIps = await loadFunnelEventIpByLeadId(needsFunnelIp.map((lead) => lead.id));
+
+  return enrichLeadsWithCountry(rows, undefined, (lead) => {
+    const directIp = normalizeClientIp(lead.ip);
+    if (directIp) return directIp;
+    return funnelIps.get(lead.id);
+  });
+}
+
 export async function listLeads(filters: LeadListFilters & { page?: number; limit?: number }) {
   const page = filters.page ?? 1;
   const limit = filters.limit ?? 10;
@@ -738,7 +778,7 @@ export async function listLeads(filters: LeadListFilters & { page?: number; limi
     prisma.lead.count({ where }),
   ]);
 
-  const enriched = await enrichLeadsWithCountry(data);
+  const enriched = await enrichLeadListRows(data);
   const backfill = enriched
     .map((lead, index) => {
       const original = data[index];
@@ -791,7 +831,7 @@ export async function listLeadsForExport(filters: LeadListFilters) {
     take: LEAD_EXPORT_MAX,
   });
 
-  return enrichLeadsWithCountry(data);
+  return enrichLeadListRows(data);
 }
 
 export type AdvertiserPublisherLeadReportRow = {
