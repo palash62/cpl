@@ -1,6 +1,6 @@
 "use client";
 
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
@@ -29,11 +29,18 @@ function SocialSettings() {
 
 function createSocialBlock(platform: string, defaultUrl: string) {
   function SocialLink({ url = defaultUrl, ...props }: SocialProps) {
+    const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
     return (
       <BlockWrapper {...props} layout={{ display: "inline-block", ...props.layout }}>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 no-underline hover:bg-muted">
-          {platform}
-        </a>
+        {enabled ? (
+          <span className="inline-flex cursor-default items-center gap-2 rounded-lg border px-4 py-2 no-underline">
+            {platform}
+          </span>
+        ) : (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 no-underline hover:bg-muted">
+            {platform}
+          </a>
+        )}
       </BlockWrapper>
     );
   }

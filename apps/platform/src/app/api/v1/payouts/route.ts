@@ -33,6 +33,7 @@ export async function POST(request: Request) {
         session.user.id,
         parsed.data.amount,
         parsed.data.method,
+        parsed.data.paymentDetails,
         parsed.data.idempotencyKey,
       );
 

@@ -10,6 +10,8 @@ import type { CraftSerializedState } from "@/modules/page-builder/types/page-doc
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
+import "@/modules/page-builder/styles/page-builder-rich-text.css";
+import "@/modules/page-builder/styles/page-builder-animations.css";
 
 type PageRendererProps = {
   craftState: CraftSerializedState;

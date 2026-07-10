@@ -1,0 +1,84 @@
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes pb-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes pb-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.pb-btn-hover-pulse:hover {
+  animation: pb-pulse 1.2s ease-in-out infinite;
+}
+
+.pb-btn-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pb-btn-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
+
+.pb-btn-hover-glow:hover {
+  animation: pb-glow 1.5s ease-in-out infinite;
+}
+
+.pb-btn-hover-shimmer {
+  background-size: 200% auto;
+}
+
+.pb-btn-hover-shimmer:hover {
+  animation: pb-shimmer 1.8s linear infinite;
+}

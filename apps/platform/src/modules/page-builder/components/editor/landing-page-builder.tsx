@@ -25,6 +25,8 @@ import { BREAKPOINT_WIDTHS } from "@/modules/page-builder/lib/responsive";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import { RenderNode } from "@/modules/page-builder/components/editor/render-node";
 import { cn } from "@/lib/utils";
+import "@/modules/page-builder/styles/page-builder-rich-text.css";
+import "@/modules/page-builder/styles/page-builder-animations.css";
 
 type LandingPageBuilderProps = {
   pageId: string;
@@ -81,8 +83,8 @@ export function LandingPageBuilder({
               <div className="relative flex flex-1 items-start justify-center overflow-auto p-6">
                 <div
                   className={cn(
-                    "relative w-full transition-all duration-300",
-                    isGhl ? "min-h-[720px] shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
+                    "relative flex w-full flex-col transition-all duration-300",
+                    isGhl ? "min-h-[720px] shadow-lg ring-1 ring-slate-200" : "min-h-[calc(100vh-12rem)] shadow-2xl",
                     chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
                     !isGhl && "ring-1 ring-white/10",
                     !isDesktop && "overflow-hidden rounded-xl",
@@ -90,7 +92,7 @@ export function LandingPageBuilder({
                   )}
                   style={{
                     maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
-                    minHeight: isDesktop ? (isGhl ? 720 : "100%") : 600,
+                    minHeight: isDesktop ? (isGhl ? 720 : "calc(100vh - 12rem)") : 600,
                     ...themeToCssVars(theme),
                     ...themePageBackgroundStyle(theme),
                   }}

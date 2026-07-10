@@ -131,11 +131,72 @@ export const optinPageColorsSchema = z.object({
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 });
 
-export const payoutRequestSchema = z.object({
-  amount: z.number().positive(),
-  method: z.enum(["PAYPAL", "BANK_TRANSFER", "STRIPE_CONNECT"]),
-  idempotencyKey: z.string().optional(),
+export const emailPayoutDetailsSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address"),
 });
+
+export const bankPayoutDetailsSchema = z
+  .object({
+    country: z.string().trim().min(2, "Country is required"),
+    beneficiaryName: z.string().trim().min(2, "Beneficiary name is required"),
+    accountNumber: z.string().trim().min(4, "Account number is required"),
+    accountType: z.enum(["checking", "savings"]).optional(),
+    routingNumber: z.string().trim().optional(),
+    sortCode: z.string().trim().optional(),
+    iban: z.string().trim().optional(),
+    swiftBic: z.string().trim().optional(),
+    bankName: z.string().trim().optional(),
+    bankAddress: z.string().trim().optional(),
+    addressLine1: z.string().trim().optional(),
+    city: z.string().trim().optional(),
+    state: z.string().trim().optional(),
+    postalCode: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const country = data.country.toUpperCase();
+    if (country === "US") {
+      if (!data.routingNumber?.trim()) {
+        ctx.addIssue({ code: "custom", message: "Routing number is required for US", path: ["routingNumber"] });
+      }
+      if (!data.accountType) {
+        ctx.addIssue({ code: "custom", message: "Account type is required for US", path: ["accountType"] });
+      }
+      if (!data.addressLine1?.trim()) {
+        ctx.addIssue({ code: "custom", message: "Address is required for US", path: ["addressLine1"] });
+      }
+    }
+    if (country === "GB" && !data.sortCode?.trim()) {
+      ctx.addIssue({ code: "custom", message: "Sort code is required for UK", path: ["sortCode"] });
+    }
+    if (country === "IN" && !data.routingNumber?.trim()) {
+      ctx.addIssue({ code: "custom", message: "IFSC is required for India", path: ["routingNumber"] });
+    }
+    const euCodes = ["DE", "FR", "ES", "IT", "NL", "BE", "AT", "IE", "PT", "FI", "GR", "LU"];
+    if (euCodes.includes(country) && !data.iban?.trim()) {
+      ctx.addIssue({ code: "custom", message: "IBAN is required for this country", path: ["iban"] });
+    }
+  });
+
+export const payoutRequestSchema = z.discriminatedUnion("method", [
+  z.object({
+    amount: z.number().positive(),
+    method: z.literal("WISE"),
+    paymentDetails: emailPayoutDetailsSchema,
+    idempotencyKey: z.string().optional(),
+  }),
+  z.object({
+    amount: z.number().positive(),
+    method: z.literal("STRIPE_CONNECT"),
+    paymentDetails: emailPayoutDetailsSchema,
+    idempotencyKey: z.string().optional(),
+  }),
+  z.object({
+    amount: z.number().positive(),
+    method: z.literal("BANK_TRANSFER"),
+    paymentDetails: bankPayoutDetailsSchema,
+    idempotencyKey: z.string().optional(),
+  }),
+]);
 
 export const ticketSchema = z.object({
   subject: z.string().trim().min(3, "Subject must be at least 3 characters"),

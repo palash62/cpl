@@ -17,6 +17,21 @@ async function main() {
     update: {},
   });
   await prisma.platformSetting.upsert({
+    where: { key: "min_payout_wise" },
+    create: { key: "min_payout_wise", value: 50 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "min_payout_bank_transfer" },
+    create: { key: "min_payout_bank_transfer", value: 100 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "min_payout_stripe_connect" },
+    create: { key: "min_payout_stripe_connect", value: 50 },
+    update: {},
+  });
+  await prisma.platformSetting.upsert({
     where: { key: "duplicate_window_days" },
     create: { key: "duplicate_window_days", value: 30 },
     update: {},
@@ -170,8 +185,9 @@ async function main() {
       data: {
         publisherId: publisher.id,
         amount: 100,
-        method: "PAYPAL",
+        method: "WISE",
         status: "PENDING",
+        paymentDetails: { email: "publisher@cpl.local" },
       },
     });
   }

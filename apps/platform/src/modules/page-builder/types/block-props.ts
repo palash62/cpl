@@ -54,6 +54,17 @@ export type AnimationProps = {
   duration?: string;
 };
 
+export type ButtonAppearanceProps = {
+  backgroundColor?: string;
+  textColor?: string;
+  border?: string;
+  borderRadius?: string;
+  boxShadow?: string;
+  icon?: string;
+  iconPosition?: "left" | "right";
+  hoverEffect?: "none" | "pulse" | "lift" | "glow" | "shimmer";
+};
+
 export type ResponsiveOverrides = Partial<{
   typography: TypographyProps;
   layout: LayoutProps;

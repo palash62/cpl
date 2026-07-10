@@ -10,6 +10,8 @@ import {
   BUILDER_CHECKBOX_LABEL,
   BUILDER_FIELD_INPUT,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
+import { RichTextField } from "@/modules/page-builder/components/editor/rich-text-field";
+import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { cn } from "@/lib/utils";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 
@@ -24,7 +26,10 @@ function HeadingSettings() {
     <div className="space-y-3">
       <div className="space-y-1.5">
         <FieldLabel>Text</FieldLabel>
-        <FieldInput value={text ?? ""} onChange={(e) => setProp((p: HeadingProps) => { p.text = e.target.value; })} />
+        <FieldInput
+          value={stripHtmlToPlain(text ?? "")}
+          onChange={(e) => setProp((p: HeadingProps) => { p.text = e.target.value; })}
+        />
       </div>
       <div className="space-y-1.5">
         <FieldLabel>Level</FieldLabel>
@@ -48,14 +53,11 @@ export function Heading({ text = "Heading", level = 2, ...props }: HeadingProps)
 
   return (
     <BlockWrapper {...props} as={Tag}>
-      <span
-        contentEditable={enabled}
-        suppressContentEditableWarning
-        onBlur={(e) => setProp((p: HeadingProps) => { p.text = e.currentTarget.textContent ?? ""; })}
-        className={enabled ? "outline-none" : undefined}
-      >
-        {text}
-      </span>
+      <RichTextField
+        value={text ?? ""}
+        editable={enabled}
+        onChange={(html) => setProp((p: HeadingProps) => { p.text = html; })}
+      />
     </BlockWrapper>
   );
 }
@@ -82,7 +84,7 @@ function ParagraphSettings() {
         <FieldLabel>Text</FieldLabel>
         <textarea
           className={cn("w-full min-h-[80px] rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
-          value={text ?? ""}
+          value={stripHtmlToPlain(text ?? "")}
           onChange={(e) => setProp((p: ParagraphProps) => { p.text = e.target.value; })}
         />
       </div>
@@ -96,14 +98,11 @@ export function Paragraph({ text = "Paragraph text", ...props }: ParagraphProps)
   const { actions: { setProp } } = useNode();
   return (
     <BlockWrapper {...props} as="p">
-      <span
-        contentEditable={enabled}
-        suppressContentEditableWarning
-        onBlur={(e) => setProp((p: ParagraphProps) => { p.text = e.currentTarget.textContent ?? ""; })}
-        className={enabled ? "outline-none" : undefined}
-      >
-        {text}
-      </span>
+      <RichTextField
+        value={text ?? ""}
+        editable={enabled}
+        onChange={(html) => setProp((p: ParagraphProps) => { p.text = html; })}
+      />
     </BlockWrapper>
   );
 }
@@ -134,7 +133,7 @@ function ListSettings() {
         <FieldLabel>Items (one per line)</FieldLabel>
         <textarea
           className={cn("w-full min-h-[100px] rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
-          value={(items ?? []).join("\n")}
+          value={(items ?? []).map(stripHtmlToPlain).join("\n")}
           onChange={(e) => setProp((p: ListProps) => { p.items = e.target.value.split("\n").filter(Boolean); })}
         />
       </div>
@@ -143,11 +142,50 @@ function ListSettings() {
   );
 }
 
+function ListItem({
+  item,
+  index,
+  enabled,
+  onChange,
+}: {
+  item: string;
+  index: number;
+  enabled: boolean;
+  onChange: (index: number, html: string) => void;
+}) {
+  return (
+    <li>
+      <RichTextField
+        value={item}
+        editable={enabled}
+        onChange={(html) => onChange(index, html)}
+      />
+    </li>
+  );
+}
+
 export function List({ items = ["Item one", "Item two"], ordered = false, ...props }: ListProps) {
   const Tag = ordered ? "ol" : "ul";
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const { actions: { setProp } } = useNode();
+
   return (
     <BlockWrapper {...props} as={Tag}>
-      {items.map((item, i) => <li key={i}>{item}</li>)}
+      {(items ?? []).map((item, i) => (
+        <ListItem
+          key={i}
+          item={item}
+          index={i}
+          enabled={enabled}
+          onChange={(index, html) =>
+            setProp((p: ListProps) => {
+              const next = [...(p.items ?? [])];
+              next[index] = html;
+              p.items = next;
+            })
+          }
+        />
+      ))}
     </BlockWrapper>
   );
 }

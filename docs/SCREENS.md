@@ -52,7 +52,7 @@
 | 14 | Platform Reports | `/admin/reports` | Done | Summary metrics, payout breakdown |
 | 15 | Support Tickets | `/admin/support` | Done | All tickets, create ticket |
 | 16 | Ticket Detail | `/admin/support/[id]` | Planned | Thread view, internal notes |
-| 17 | Settings | `/admin/settings` | Done | Platform fee, payout threshold |
+| 17 | Settings | `/admin/settings` | Done | Platform fee, per-method payout minimums |
 | 18 | Audit Log | `/admin/audit-log` | Done | Actor, action, entity, timestamp |
 
 ---
@@ -91,8 +91,8 @@
 | 7 | Lead Detail | `/publisher/leads/[id]` | Planned | Status, rejection reason |
 | 8 | Earnings | `/publisher/earnings` | Done | Period summary |
 | 9 | Payout History | `/publisher/payouts` | Done | Past payouts with status |
-| 10 | Request Payout | `/publisher/payouts/request` | Done | Amount, method selector |
-| 11 | Payment Settings | `/publisher/settings/payment` | Planned | PayPal, bank setup |
+| 10 | Request Payout | `/publisher/payouts/request` | Done | Amount, Wise/Stripe/bank method + payment details |
+| 11 | Payment Settings | `/publisher/settings/payment` | Planned | Wise, bank, Stripe setup |
 | 12 | Reports | `/publisher/reports` | Planned | Conversion stats |
 | 13 | Support | `/publisher/support` | Done | Ticket list + create |
 | 14 | Profile Settings | `/publisher/settings` | Partial | Profile display only |

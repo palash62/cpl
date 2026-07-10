@@ -342,10 +342,13 @@ List payouts (scoped by role).
 ```json
 {
   "amount": 150.00,
-  "method": "PAYPAL",
+  "method": "WISE",
+  "paymentDetails": { "email": "publisher@example.com" },
   "idempotencyKey": "unique-key-123"
 }
 ```
+
+Supported methods: `WISE`, `STRIPE_CONNECT` (email in `paymentDetails`), `BANK_TRANSFER` (country-specific bank fields in `paymentDetails`).
 
 ### PATCH `/api/v1/payouts/:id/approve` (Admin)
 

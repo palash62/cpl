@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 type Settings = {
   publisherPayoutPercent: number;
   minPayoutAmount: number;
+  minPayoutWise: number;
+  minPayoutBankTransfer: number;
+  minPayoutStripeConnect: number;
   tier1PayoutMin: number;
   tier1PayoutMax: number;
   tier2PayoutMin: number;
@@ -118,7 +121,7 @@ export function PlatformSettingsForm() {
           tier payout range for the lead&apos;s country.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+          <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="publisherPayoutPercent">Publisher payout (% of CPL)</Label>
             <Input
               id="publisherPayoutPercent"
@@ -132,15 +135,41 @@ export function PlatformSettingsForm() {
             <p className="text-xs text-slate-500">Must be between 1% and 100%.</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="minPayout">Minimum payout request ($)</Label>
+            <Label htmlFor="minPayoutWise">Minimum Wise payout ($)</Label>
             <Input
-              id="minPayout"
+              id="minPayoutWise"
               type="number"
               min={1}
               step={1}
-              value={settings.minPayoutAmount}
+              value={settings.minPayoutWise}
               onChange={(e) =>
-                setSettings({ ...settings, minPayoutAmount: Number(e.target.value) })
+                setSettings({ ...settings, minPayoutWise: Number(e.target.value) })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="minPayoutBank">Minimum bank transfer payout ($)</Label>
+            <Input
+              id="minPayoutBank"
+              type="number"
+              min={1}
+              step={1}
+              value={settings.minPayoutBankTransfer}
+              onChange={(e) =>
+                setSettings({ ...settings, minPayoutBankTransfer: Number(e.target.value) })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="minPayoutStripe">Minimum Stripe payout ($)</Label>
+            <Input
+              id="minPayoutStripe"
+              type="number"
+              min={1}
+              step={1}
+              value={settings.minPayoutStripeConnect}
+              onChange={(e) =>
+                setSettings({ ...settings, minPayoutStripeConnect: Number(e.target.value) })
               }
             />
           </div>

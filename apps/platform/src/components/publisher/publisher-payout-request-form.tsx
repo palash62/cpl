@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { AlertTriangle, Banknote, Clock, Loader2 } from "lucide-react";
@@ -16,6 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  EMPTY_BANK_DETAILS,
+  PublisherBankPayoutFields,
+} from "@/components/publisher/publisher-bank-payout-fields";
+import type { BankPayoutDetails } from "@/lib/payout-payment-details";
+
+type PayoutMethod = "WISE" | "BANK_TRANSFER" | "STRIPE_CONNECT";
 
 type PayoutEligibility = {
   canRequest: boolean;
@@ -23,18 +30,35 @@ type PayoutEligibility = {
   nextAllowedAt?: string | null;
 };
 
+type MinPayoutSettings = {
+  wise: number;
+  bankTransfer: number;
+  stripeConnect: number;
+};
+
+function minForMethod(method: PayoutMethod, mins: MinPayoutSettings) {
+  if (method === "WISE") return mins.wise;
+  if (method === "BANK_TRANSFER") return mins.bankTransfer;
+  return mins.stripeConnect;
+}
+
 export function PublisherPayoutRequestForm({
   availableBalance,
-  minPayoutAmount,
+  minPayoutSettings,
   payoutEligibility,
 }: {
   availableBalance: number;
-  minPayoutAmount: number;
+  minPayoutSettings: MinPayoutSettings;
   payoutEligibility: PayoutEligibility;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState(Math.max(minPayoutAmount, Math.min(availableBalance, 50)));
-  const [method, setMethod] = useState("PAYPAL");
+  const [method, setMethod] = useState<PayoutMethod>("WISE");
+  const minPayoutAmount = minForMethod(method, minPayoutSettings);
+  const [amount, setAmount] = useState(
+    Math.max(minPayoutAmount, Math.min(availableBalance, minPayoutAmount)),
+  );
+  const [email, setEmail] = useState("");
+  const [bankDetails, setBankDetails] = useState<BankPayoutDetails>(EMPTY_BANK_DETAILS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState(
@@ -42,6 +66,15 @@ export function PublisherPayoutRequestForm({
       ? ""
       : buildWeeklyLimitWarning(payoutEligibility.nextAllowedAt),
   );
+
+  useEffect(() => {
+    setAmount((prev) => Math.max(minPayoutAmount, Math.min(availableBalance, prev)));
+  }, [minPayoutAmount, availableBalance]);
+
+  const paymentDetails = useMemo(() => {
+    if (method === "BANK_TRANSFER") return bankDetails;
+    return { email: email.trim() };
+  }, [method, email, bankDetails]);
 
   const canSubmit =
     payoutEligibility.canRequest && availableBalance >= minPayoutAmount && !loading;
@@ -58,6 +91,7 @@ export function PublisherPayoutRequestForm({
       body: JSON.stringify({
         amount,
         method,
+        paymentDetails,
         idempotencyKey: `payout-${Date.now()}`,
       }),
     });
@@ -108,6 +142,23 @@ export function PublisherPayoutRequestForm({
           )}
 
           <div className="space-y-2">
+            <Label>Method</Label>
+            <Select
+              value={method}
+              onValueChange={(v) => v && setMethod(v as PayoutMethod)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WISE">Wise</SelectItem>
+                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                <SelectItem value="STRIPE_CONNECT">Stripe</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Amount ($)</Label>
             <Input
               type="number"
@@ -118,23 +169,26 @@ export function PublisherPayoutRequestForm({
               required
             />
             <p className="text-xs text-slate-500">
-              Minimum payout: {formatCurrency(minPayoutAmount)}
+              Minimum payout for this method: {formatCurrency(minPayoutAmount)}
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Method</Label>
-            <Select value={method} onValueChange={(v) => v && setMethod(v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PAYPAL">PayPal</SelectItem>
-                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                <SelectItem value="STRIPE_CONNECT">Stripe Connect</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {(method === "WISE" || method === "STRIPE_CONNECT") && (
+            <div className="space-y-2">
+              <Label>{method === "WISE" ? "Wise email ID" : "Stripe account email"}</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+          )}
+
+          {method === "BANK_TRANSFER" && (
+            <PublisherBankPayoutFields value={bankDetails} onChange={setBankDetails} />
+          )}
 
           <Button
             type="submit"

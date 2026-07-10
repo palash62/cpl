@@ -1,0 +1,33 @@
+.pb-rich-text-editor .tiptap {
+  outline: none;
+  min-width: 1ch;
+}
+
+.pb-rich-text-editor .tiptap p,
+.pb-rich-text p {
+  margin: 0;
+  display: inline;
+}
+
+.pb-rich-text mark {
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.pb-rich-text span[style*="font-size"],
+.pb-rich-text-editor .tiptap span[style*="font-size"] {
+  line-height: 1.2;
+}
+
+.pb-rich-text a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.pb-rich-text strong {
+  font-weight: 700;
+}
+
+.pb-rich-text em {
+  font-style: italic;
+}

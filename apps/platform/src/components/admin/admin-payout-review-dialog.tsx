@@ -9,6 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, KycStatusBadge, PayoutStatusBadge } from "@/components/admin/admin-ui";
 import { isPendingPayoutStatus } from "@/lib/payout-status";
+import {
+  bankPayoutDetailRows,
+  formatPayoutMethodLabel,
+  isBankPayoutDetails,
+  isEmailPayoutDetails,
+  type BankPayoutDetails,
+} from "@/lib/payout-payment-details";
 import { cn } from "@/lib/utils";
 
 type PayoutRow = {
@@ -16,6 +23,7 @@ type PayoutRow = {
   amount: unknown;
   method: string;
   status: string;
+  paymentDetails?: unknown;
   rejectionReason?: string | null;
   rejectedAt?: string | Date | null;
   createdAt: string | Date;
@@ -33,10 +41,6 @@ type PayoutRow = {
   };
 };
 
-function formatMethod(method: string) {
-  return method.toLowerCase().replace(/_/g, " ");
-}
-
 export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -52,6 +56,11 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
   const available = balance !== null && holdBalance !== null ? balance - holdBalance : null;
   const profile = payout.publisher.publisherProfile;
   const canDecide = isPendingPayoutStatus(status);
+  const details = payout.paymentDetails;
+  const bankDetails = isBankPayoutDetails(details, payout.method)
+    ? (details as BankPayoutDetails)
+    : null;
+  const emailDetails = isEmailPayoutDetails(details, payout.method) ? details : null;
 
   async function sendDecision(action: "approve" | "reject") {
     if (action === "reject" && !note.trim()) {
@@ -109,7 +118,7 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
                 <p className="text-2xl font-bold text-emerald-600">
                   {formatCurrency(Number(payout.amount))}
                 </p>
-                <p className="text-sm capitalize text-slate-500">{formatMethod(payout.method)}</p>
+                <p className="text-sm text-slate-600">{formatPayoutMethodLabel(payout.method)}</p>
               </div>
               <PayoutStatusBadge status={status} />
             </div>
@@ -123,7 +132,7 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-xs text-slate-500">Payment method</p>
                 <Badge variant="outline" className="mt-1 border-indigo-200 bg-indigo-50 text-indigo-700">
-                  {payout.method}
+                  {formatPayoutMethodLabel(payout.method)}
                 </Badge>
               </div>
             </div>
@@ -167,6 +176,30 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment details</p>
+            {emailDetails ? (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <p className="text-xs text-slate-500">Email</p>
+                <p className="break-all text-sm font-medium text-slate-900">{emailDetails.email}</p>
+              </div>
+            ) : bankDetails ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {bankPayoutDetailRows(bankDetails).map((row) => (
+                  <div
+                    key={row.label}
+                    className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2"
+                  >
+                    <p className="text-xs text-slate-500">{row.label}</p>
+                    <p className="break-all text-sm font-medium text-slate-900">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">No payment details submitted.</p>
+            )}
           </div>
 
           {available !== null && (

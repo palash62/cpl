@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { debitWallet, getPlatformSettings } from "@/services/wallet.service";
 import { Errors } from "@/lib/errors";
+import { getMinPayoutForMethod } from "@/lib/platform-settings";
 import { isPendingPayoutStatus, PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { payoutPublisherSelect } from "@/lib/payout";
+import type { PayoutPaymentDetails } from "@/lib/payout-payment-details";
 import type { Prisma, PayoutMethod } from "@prisma/client";
 import {
   notifyAdminAlert,
@@ -51,12 +53,14 @@ export async function requestPayout(
   publisherId: string,
   amount: number,
   method: PayoutMethod,
+  paymentDetails: PayoutPaymentDetails,
   idempotencyKey?: string,
 ) {
   const settings = await getPlatformSettings();
+  const minAmount = getMinPayoutForMethod(method, settings);
 
-  if (amount < settings.minPayoutAmount) {
-    throw Errors.payoutBelowMinimum(settings.minPayoutAmount);
+  if (amount < minAmount) {
+    throw Errors.payoutBelowMinimum(minAmount);
   }
 
   if (idempotencyKey) {
@@ -84,6 +88,7 @@ export async function requestPayout(
       publisherId,
       amount,
       method,
+      paymentDetails: paymentDetails as Prisma.InputJsonValue,
       idempotencyKey,
       status: "PENDING",
     },

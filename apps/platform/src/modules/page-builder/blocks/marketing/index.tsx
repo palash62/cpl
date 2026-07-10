@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
+import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
+import { ButtonLabelContent } from "@/modules/page-builder/components/editor/button-label-content";
+import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
+import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
-import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
-import type { BlockProps } from "@/modules/page-builder/types/block-props";
+import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
 
 type CtaProps = BlockProps & {
@@ -16,6 +19,7 @@ type CtaProps = BlockProps & {
   href?: string;
   openInNewTab?: boolean;
   fullWidth?: boolean;
+  buttonAppearance?: ButtonAppearanceProps;
   /** @deprecated Prefer typography.fontSize + fullWidth; kept for older craft JSON. */
   buttonSize?: "small" | "medium" | "large" | "full";
 };
@@ -52,7 +56,7 @@ function CtaSettings() {
     <div className="space-y-3">
       <div className="space-y-1.5">
         <FieldLabel>Button text</FieldLabel>
-        <FieldInput value={text ?? ""} onChange={(e) => setProp((p: CtaProps) => { p.text = e.target.value; })} />
+        <FieldInput value={stripHtmlToPlain(text ?? "")} onChange={(e) => setProp((p: CtaProps) => { p.text = e.target.value; })} />
       </div>
       <div className="space-y-1.5">
         <FieldLabel>External link URL</FieldLabel>
@@ -108,6 +112,7 @@ function CtaSettings() {
         />
         Full width
       </label>
+      <ButtonAppearancePanel />
       <StandardSettings />
     </div>
   );
@@ -119,6 +124,7 @@ export function CtaButton({
   openInNewTab = false,
   fullWidth = false,
   buttonSize,
+  buttonAppearance,
   ...props
 }: CtaProps) {
   const theme = useBuilderStore((s) => s.theme);
@@ -141,9 +147,9 @@ export function CtaButton({
       normalizedHref === "#form" ||
       normalizedHref === "#pb-optin-form");
 
-  // Size styles live on the control itself so the scrollbar works with or without full width.
+  const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);
   const buttonStyle = {
-    ...buttonStyleFromTheme(theme, "primary", props.typography?.color),
+    ...resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
     fontSize: `${fontSizePx}px`,
     lineHeight: 1.25,
     padding: `${padY}px ${padX}px`,
@@ -154,7 +160,19 @@ export function CtaButton({
     justifyContent: "center",
     boxSizing: "border-box" as const,
     textDecoration: "none",
+    cursor: enabled ? "default" : undefined,
   };
+
+  const label = (
+    <ButtonLabelContent
+      text={text ?? ""}
+      editable={enabled}
+      onChange={(html) => setProp((p: CtaProps) => { p.text = html; })}
+      icon={buttonAppearance?.icon}
+      iconPosition={buttonAppearance?.iconPosition}
+      iconSize={Math.max(14, Math.round(fontSizePx * 0.95))}
+    />
+  );
 
   return (
     <BlockWrapper
@@ -162,9 +180,13 @@ export function CtaButton({
       typography={{ ...props.typography, fontSize: `${fontSizePx}px` }}
       layout={{ textAlign: "center", ...props.layout }}
     >
-      {actsAsOptinSubmit ? (
-        <button type="submit" form="pb-optin-form" style={buttonStyle}>
-          {text}
+      {enabled ? (
+        <button type="button" style={buttonStyle} className={hoverClass}>
+          {label}
+        </button>
+      ) : actsAsOptinSubmit ? (
+        <button type="submit" form="pb-optin-form" style={buttonStyle} className={hoverClass}>
+          {label}
         </button>
       ) : (
         <a
@@ -172,15 +194,9 @@ export function CtaButton({
           target={openInNewTab || isExternalHttp ? "_blank" : undefined}
           rel={openInNewTab || isExternalHttp ? "noopener noreferrer" : undefined}
           style={buttonStyle}
+          className={hoverClass}
         >
-          <span
-            contentEditable={enabled}
-            suppressContentEditableWarning
-            onBlur={(e) => setProp((p: CtaProps) => { p.text = e.currentTarget.textContent ?? ""; })}
-            className={enabled ? "outline-none" : undefined}
-          >
-            {text}
-          </span>
+          {label}
         </a>
       )}
     </BlockWrapper>

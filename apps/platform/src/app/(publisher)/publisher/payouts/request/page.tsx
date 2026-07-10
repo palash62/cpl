@@ -37,7 +37,11 @@ export default async function RequestPayoutPage() {
 
       <PublisherPayoutRequestForm
         availableBalance={availableBalance}
-        minPayoutAmount={settings.minPayoutAmount}
+        minPayoutSettings={{
+          wise: settings.minPayoutWise,
+          bankTransfer: settings.minPayoutBankTransfer,
+          stripeConnect: settings.minPayoutStripeConnect,
+        }}
         payoutEligibility={{
           canRequest: payoutEligibility.canRequest,
           lastRequestAt: payoutEligibility.lastRequestAt?.toISOString() ?? null,

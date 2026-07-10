@@ -19,7 +19,13 @@ export function Section({ children, ...props }: SectionProps) {
   const showEmpty = enabled && childCount === 0;
 
   return (
-    <CanvasWrapper {...props} layout={{ minHeight: showEmpty ? "400px" : undefined, ...props.layout }}>
+    <CanvasWrapper
+      {...props}
+      layout={{
+        minHeight: enabled ? (showEmpty ? "400px" : "100%") : "100vh",
+        ...props.layout,
+      }}
+    >
       {showEmpty ? <CanvasAddButton parentId={id} variant="section" /> : children}
     </CanvasWrapper>
   );
@@ -67,6 +73,7 @@ export function Columns({
   columns = 2,
   ...props
 }: SectionProps & { columns?: number }) {
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const label = columns === 1 ? "1 Column Row" : `${columns} Column Row`;
   return (
     <CanvasWrapper
@@ -77,6 +84,8 @@ export function Columns({
         gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: "16px",
         width: "100%",
+        minHeight: enabled ? "100%" : "100vh",
+        alignItems: "stretch",
         ...props.layout,
       }}
     >
@@ -114,14 +123,15 @@ export function Column({
       {...props}
       name={props.name ?? label}
       layout={{
-        minHeight: "120px",
+        minHeight: enabled ? "100%" : "100%",
         padding: "8px",
         display: "flex",
         flexDirection: "column",
         gap: "8px",
+        alignSelf: "stretch",
         ...props.layout,
       }}
-      className="h-full"
+      className="h-full min-h-full"
     >
       {showEmpty ? <CanvasAddButton parentId={id} variant="column" /> : children}
     </CanvasWrapper>

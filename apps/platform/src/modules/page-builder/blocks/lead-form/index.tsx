@@ -12,10 +12,14 @@ import {
   BUILDER_FIELD_INPUT,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
 import { cn } from "@/lib/utils";
+import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
+import { ButtonLabelContent } from "@/modules/page-builder/components/editor/button-label-content";
+import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
+import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
-import type { BlockProps } from "@/modules/page-builder/types/block-props";
+import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 
 type LeadFormProps = BlockProps & {
   children?: ReactNode;
@@ -407,7 +411,10 @@ FormSelect.craft = {
   related: { settings: FormFieldSettings },
 };
 
-type SubmitProps = BlockProps & { text?: string };
+type SubmitProps = BlockProps & {
+  text?: string;
+  buttonAppearance?: ButtonAppearanceProps;
+};
 
 function SubmitButtonSettings() {
   const {
@@ -422,7 +429,7 @@ function SubmitButtonSettings() {
       <div className="space-y-1.5">
         <FieldLabel>Button text</FieldLabel>
         <FieldInput
-          value={text ?? ""}
+          value={stripHtmlToPlain(text ?? "")}
           onChange={(e) =>
             setProp((p: SubmitProps) => {
               p.text = e.target.value;
@@ -430,21 +437,33 @@ function SubmitButtonSettings() {
           }
         />
       </div>
+      <ButtonAppearancePanel />
       <StandardSettings />
     </div>
   );
 }
 
-export function SubmitButton({ text = "Submit", ...props }: SubmitProps) {
+export function SubmitButton({ text = "Submit", buttonAppearance, ...props }: SubmitProps) {
   const theme = useBuilderStore((s) => s.theme);
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const { actions: { setProp } } = useNode();
+  const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);
+
   return (
     <BlockWrapper {...props} draggable>
       <button
-        type="submit"
-        style={buttonStyleFromTheme(theme, "primary", props.typography?.color)}
-        className="w-full px-4 py-2.5"
+        type={enabled ? "button" : "submit"}
+        form={enabled ? undefined : "pb-optin-form"}
+        style={resolveButtonStyle(theme, buttonAppearance, props.typography?.color)}
+        className={cn("w-full px-4 py-2.5", hoverClass)}
       >
-        {text}
+        <ButtonLabelContent
+          text={text ?? ""}
+          editable={enabled}
+          onChange={(html) => setProp((p: SubmitProps) => { p.text = html; })}
+          icon={buttonAppearance?.icon}
+          iconPosition={buttonAppearance?.iconPosition}
+        />
       </button>
     </BlockWrapper>
   );

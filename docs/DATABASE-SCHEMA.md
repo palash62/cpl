@@ -117,7 +117,7 @@ enum PayoutStatus {
 }
 
 enum PayoutMethod {
-  PAYPAL
+  WISE
   BANK_TRANSFER
   STRIPE_CONNECT
 }
@@ -356,6 +356,7 @@ enum KycStatus {
 | publisher_id | String | FK → users |
 | amount | Decimal(12,2) | |
 | method | PayoutMethod | |
+| payment_details | JSON? | Method-specific destination (email or bank fields) |
 | status | PayoutStatus | |
 | idempotency_key | String? | Unique |
 | processed_at | DateTime? | |

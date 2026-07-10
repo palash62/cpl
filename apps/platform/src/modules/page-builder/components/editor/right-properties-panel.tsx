@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { useEffect } from "react";
 import { NodeProvider, useEditor, useNode } from "@craftjs/core";
 import { MousePointer2, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +18,13 @@ import {
   SpacingControl,
   WidthControl,
 } from "@/modules/page-builder/components/settings/ghl/controls";
+import { BorderShadowPanel } from "@/modules/page-builder/components/settings/ghl/border-shadow-panel";
+import {
+  InlineTextFormattingPanel,
+  RICH_TEXT_BLOCK_NAMES,
+} from "@/modules/page-builder/components/settings/ghl/inline-text-formatting-panel";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { useRichTextEditorStore } from "@/modules/page-builder/lib/rich-text-editor-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import {
@@ -55,6 +62,7 @@ function GhlStylesPanel() {
   const layoutSafe = { ...(layout ?? {}), ...(breakpointOverride?.layout ?? {}) };
   const styleSafe = { ...(style ?? {}), ...(breakpointOverride?.style ?? {}) };
   const isSection = displayName === "Section";
+  const supportsInlineText = RICH_TEXT_BLOCK_NAMES.has(displayName);
 
   function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
     setProp((props: BlockProps) => {
@@ -73,16 +81,17 @@ function GhlStylesPanel() {
   }
 
   function setStyleProp(key: string, value: string) {
+    const nextValue = key === "opacity" ? parseFloat(value) || 1 : value;
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
-        props.style = { ...(props.style ?? {}), [key]: value };
+        props.style = { ...(props.style ?? {}), [key]: nextValue };
         return;
       }
       props.responsive = {
         ...(props.responsive ?? {}),
         [styleBreakpoint]: {
           ...(props.responsive?.[styleBreakpoint] ?? {}),
-          style: { ...(props.responsive?.[styleBreakpoint]?.style ?? {}), [key]: value },
+          style: { ...(props.responsive?.[styleBreakpoint]?.style ?? {}), [key]: nextValue },
         },
       };
     });
@@ -188,9 +197,16 @@ function GhlStylesPanel() {
         </div>
       </div>
 
+      {supportsInlineText ? <InlineTextFormattingPanel /> : null}
+
       <div className={GHL_SECTION_CARD}>
         <p className={GHL_SECTION_TITLE}>Typography</p>
         <TypographyFields />
+      </div>
+
+      <div className={GHL_SECTION_CARD}>
+        <p className={GHL_SECTION_TITLE}>Border & Shadow</p>
+        <BorderShadowPanel style={styleSafe as Record<string, string | number | undefined>} onChange={setStyleProp} />
       </div>
     </div>
   );
@@ -273,6 +289,12 @@ export function RightPropertiesPanel() {
       displayName: name,
     };
   });
+
+  useEffect(() => {
+    if (!selected) {
+      useRichTextEditorStore.getState().setActiveEditor(null);
+    }
+  }, [selected]);
 
   if (isGhl) {
     return (

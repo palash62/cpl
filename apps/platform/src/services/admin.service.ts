@@ -557,6 +557,9 @@ export async function updatePlatformSettings(
   data: {
     publisherPayoutPercent?: number;
     minPayoutAmount?: number;
+    minPayoutWise?: number;
+    minPayoutBankTransfer?: number;
+    minPayoutStripeConnect?: number;
     tier1PayoutMin?: number;
     tier1PayoutMax?: number;
     tier2PayoutMin?: number;

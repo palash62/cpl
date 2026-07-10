@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 
 const prismaMocks = vi.hoisted(() => ({
-  pageTemplateHasThankYouScalars: vi.fn(() => true),
+  pageTemplateHasThankYouScalars: vi.fn((_client?: unknown) => true),
 }));
 
 vi.mock("@/lib/prisma", async (importOriginal) => {

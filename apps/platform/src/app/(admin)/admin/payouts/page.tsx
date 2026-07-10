@@ -9,6 +9,7 @@ import { AdminPayoutReviewDialog } from "@/components/admin/admin-payout-review-
 import { AdminPayoutsFilters } from "@/components/admin/admin-payouts-filters";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { formatPayoutMethod } from "@/lib/payout";
+import { payoutDetailsSummary } from "@/lib/payout-payment-details";
 import {
   listAdminPayouts,
   listPendingPayouts,
@@ -102,6 +103,7 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                 <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Destination</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
                 <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
               </TableRow>
@@ -126,6 +128,9 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                   </TableCell>
                   <TableCell className="px-4 py-4 text-sm text-slate-600">
                     {formatPayoutMethod(payout.method)}
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate px-4 py-4 text-xs text-slate-500">
+                    {payoutDetailsSummary(payout.method, payout.paymentDetails)}
                   </TableCell>
                   <TableCell className="px-4 py-4">
                     <PayoutStatusBadge status={payout.status} />
@@ -177,6 +182,7 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                     <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
                     <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
+                    <TableHead className="h-11 px-4 text-slate-600">Destination</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">Processed</TableHead>
                     <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
@@ -207,6 +213,9 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-slate-600">
                         {formatPayoutMethod(payout.method)}
+                      </TableCell>
+                      <TableCell className="max-w-[180px] truncate px-4 py-4 text-xs text-slate-500">
+                        {payoutDetailsSummary(payout.method, payout.paymentDetails)}
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="space-y-1">

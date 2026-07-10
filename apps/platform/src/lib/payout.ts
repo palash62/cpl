@@ -1,5 +1,16 @@
 export function formatPayoutMethod(method: string) {
-  return method.toLowerCase().replace(/_/g, " ");
+  switch (method) {
+    case "WISE":
+      return "Wise";
+    case "STRIPE_CONNECT":
+      return "Stripe";
+    case "BANK_TRANSFER":
+      return "Bank Transfer";
+    case "PAYPAL":
+      return "PayPal (legacy)";
+    default:
+      return method.toLowerCase().replace(/_/g, " ");
+  }
 }
 
 export function formatPublisherOptionLabel(publisher: {
@@ -19,6 +30,7 @@ export type AdminPayoutRow = {
   amount: unknown;
   method: string;
   status: string;
+  paymentDetails?: unknown;
   rejectionReason?: string | null;
   rejectedAt?: string | Date | null;
   processedAt?: string | Date | null;

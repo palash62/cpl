@@ -1,3 +1,4 @@
+import type { PayoutMethod } from "@prisma/client";
 import { TIER_COUNTRIES, type CountryTier } from "@/lib/campaign-form";
 
 export type TierPayoutRange = {
@@ -7,7 +8,11 @@ export type TierPayoutRange = {
 
 export type PlatformSettingsConfig = {
   publisherPayoutPercent: number;
+  /** @deprecated Use method-specific minimums */
   minPayoutAmount: number;
+  minPayoutWise: number;
+  minPayoutBankTransfer: number;
+  minPayoutStripeConnect: number;
   tier1: TierPayoutRange;
   tier2: TierPayoutRange;
   tier3: TierPayoutRange;
@@ -18,6 +23,9 @@ export type PlatformSettingsConfig = {
 const DEFAULTS: PlatformSettingsConfig = {
   publisherPayoutPercent: 70,
   minPayoutAmount: 50,
+  minPayoutWise: 50,
+  minPayoutBankTransfer: 100,
+  minPayoutStripeConnect: 50,
   tier1: { min: 0.7, max: 2.5 },
   tier2: { min: 0.5, max: 1.8 },
   tier3: { min: 0.25, max: 1.0 },
@@ -34,16 +42,25 @@ function readRange(map: Record<string, unknown>, prefix: string, fallback: TierP
   };
 }
 
+function readNumber(map: Record<string, unknown>, key: string, fallback: number): number {
+  const value = Number(map[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 export function parsePlatformSettings(map: Record<string, unknown>): PlatformSettingsConfig {
   const publisherPayoutPercent = Number(map.publisher_payout_percent);
   const minPayoutAmount = Number(map.min_payout_amount);
   const duplicateWindowDays = Number(map.duplicate_window_days);
+  const legacyMin = Number.isFinite(minPayoutAmount) ? minPayoutAmount : DEFAULTS.minPayoutAmount;
 
   return {
     publisherPayoutPercent: Number.isFinite(publisherPayoutPercent)
       ? publisherPayoutPercent
       : DEFAULTS.publisherPayoutPercent,
-    minPayoutAmount: Number.isFinite(minPayoutAmount) ? minPayoutAmount : DEFAULTS.minPayoutAmount,
+    minPayoutAmount: legacyMin,
+    minPayoutWise: readNumber(map, "min_payout_wise", legacyMin || DEFAULTS.minPayoutWise),
+    minPayoutBankTransfer: readNumber(map, "min_payout_bank_transfer", legacyMin || DEFAULTS.minPayoutBankTransfer),
+    minPayoutStripeConnect: readNumber(map, "min_payout_stripe_connect", legacyMin || DEFAULTS.minPayoutStripeConnect),
     tier1: readRange(map, "tier1", DEFAULTS.tier1),
     tier2: readRange(map, "tier2", DEFAULTS.tier2),
     tier3: readRange(map, "tier3", DEFAULTS.tier3),
@@ -55,6 +72,22 @@ export function parsePlatformSettings(map: Record<string, unknown>): PlatformSet
       ? duplicateWindowDays
       : DEFAULTS.duplicateWindowDays,
   };
+}
+
+export function getMinPayoutForMethod(
+  method: PayoutMethod | string,
+  settings: PlatformSettingsConfig,
+): number {
+  switch (method) {
+    case "WISE":
+      return settings.minPayoutWise;
+    case "BANK_TRANSFER":
+      return settings.minPayoutBankTransfer;
+    case "STRIPE_CONNECT":
+      return settings.minPayoutStripeConnect;
+    default:
+      return settings.minPayoutAmount;
+  }
 }
 
 export function resolveCountryTier(countryCode: string | null | undefined): CountryTier | null {
@@ -97,6 +130,9 @@ export function platformSettingsToUpdates(
   data: Partial<{
     publisherPayoutPercent: number;
     minPayoutAmount: number;
+    minPayoutWise: number;
+    minPayoutBankTransfer: number;
+    minPayoutStripeConnect: number;
     tier1PayoutMin: number;
     tier1PayoutMax: number;
     tier2PayoutMin: number;
@@ -113,6 +149,15 @@ export function platformSettingsToUpdates(
   }
   if (data.minPayoutAmount !== undefined) {
     updates.push({ key: "min_payout_amount", value: data.minPayoutAmount });
+  }
+  if (data.minPayoutWise !== undefined) {
+    updates.push({ key: "min_payout_wise", value: data.minPayoutWise });
+  }
+  if (data.minPayoutBankTransfer !== undefined) {
+    updates.push({ key: "min_payout_bank_transfer", value: data.minPayoutBankTransfer });
+  }
+  if (data.minPayoutStripeConnect !== undefined) {
+    updates.push({ key: "min_payout_stripe_connect", value: data.minPayoutStripeConnect });
   }
   if (data.tier1PayoutMin !== undefined) {
     updates.push({ key: "tier1_payout_min", value: data.tier1PayoutMin });
@@ -143,6 +188,9 @@ export function settingsConfigToApi(config: PlatformSettingsConfig) {
   return {
     publisherPayoutPercent: config.publisherPayoutPercent,
     minPayoutAmount: config.minPayoutAmount,
+    minPayoutWise: config.minPayoutWise,
+    minPayoutBankTransfer: config.minPayoutBankTransfer,
+    minPayoutStripeConnect: config.minPayoutStripeConnect,
     tier1PayoutMin: config.tier1.min,
     tier1PayoutMax: config.tier1.max,
     tier2PayoutMin: config.tier2.min,
