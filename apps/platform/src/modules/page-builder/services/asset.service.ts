@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
+import { resolvePlatformUploadsDir } from "@/lib/platform-public-dir";
 import { getLandingPage } from "@/modules/page-builder/services/landing-page.service";
 
 const ALLOWED_MIME = new Set([
@@ -31,7 +32,7 @@ export async function uploadLandingPageAsset(
   const buffer = Buffer.from(await file.arrayBuffer());
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
   const storageKey = `landing-pages/${landingPageId}/${Date.now()}-${safeName}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "landing-pages", landingPageId);
+  const uploadDir = resolvePlatformUploadsDir("landing-pages", landingPageId);
   await mkdir(uploadDir, { recursive: true });
   const filePath = path.join(uploadDir, `${Date.now()}-${safeName}`);
   await writeFile(filePath, buffer);

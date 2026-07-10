@@ -28,6 +28,8 @@ if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   exit 1
 fi
 
+mkdir -p "$ROOT/data/platform-uploads/builder" "$ROOT/data/platform-uploads/landing-pages"
+
 # Stop interim host processes that may hold ports 3000/3001 (e.g. manual standalone start).
 for port in 3000 3001; do
   pid="$(ss -tlnp 2>/dev/null | awk -v p=":$port" '$4 ~ p { if (match($0, /pid=([0-9]+)/, m)) print m[1] }' | head -1)"

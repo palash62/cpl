@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { Errors } from "@/lib/errors";
+import { resolvePlatformUploadsDir } from "@/lib/platform-public-dir";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -44,7 +45,7 @@ export async function uploadBuilderAsset(ownerId: string, file: File) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100) || "image";
   const stamp = Date.now();
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "builder", ownerId);
+  const uploadDir = resolvePlatformUploadsDir("builder", ownerId);
   await mkdir(uploadDir, { recursive: true });
   const fileName = `${stamp}-${safeName}`;
   await writeFile(path.join(uploadDir, fileName), buffer);

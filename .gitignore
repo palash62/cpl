@@ -54,3 +54,5 @@ deploy/docker-registry.env
 
 # User-uploaded builder assets (local/runtime only)
 apps/platform/public/uploads/
+data/platform-uploads/*
+!data/platform-uploads/.gitkeep
