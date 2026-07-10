@@ -67,7 +67,7 @@ export function PageRenderer({
       id="pb-page"
       className={
         fillParent
-          ? "pb-published-page flex min-h-[var(--pb-viewport-fill,100dvh)] w-full flex-1 flex-col"
+          ? "pb-published-page flex w-full flex-1 flex-col"
           : "pb-published-page flex min-h-screen w-full flex-col"
       }
       style={{
@@ -89,9 +89,11 @@ export function PageRenderer({
           Submitting…
         </div>
       ) : (
-        <Editor resolver={craftResolver} enabled={false}>
-          <Frame data={craftState as never} />
-        </Editor>
+        <div className="pb-fill-viewport flex flex-1 flex-col">
+          <Editor resolver={craftResolver} enabled={false}>
+            <Frame data={craftState as never} />
+          </Editor>
+        </div>
       )}
       {needsImplicitForm && loading && (
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
@@ -108,7 +110,7 @@ export function PageRenderer({
       {needsImplicitForm ? (
         <form
           id="pb-optin-form"
-          className={fillParent ? "flex min-h-[var(--pb-viewport-fill,100dvh)] flex-1 flex-col" : undefined}
+          className={fillParent ? "pb-fill-viewport flex flex-1 flex-col" : undefined}
           onSubmit={handleImplicitSubmit}
           noValidate
         >
