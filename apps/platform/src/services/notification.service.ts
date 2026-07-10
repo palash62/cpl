@@ -166,10 +166,58 @@ export async function addTicketMessage(
 export async function getTicketForUser(ticketId: string, userId: string, isAdmin: boolean) {
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: ticketId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
 
   if (!ticket) return null;
   if (!isAdmin && ticket.userId !== userId) return null;
   return ticket;
+}
+
+export async function closeSupportTicket(ticketId: string) {
+  const existing = await prisma.supportTicket.findUnique({
+    where: { id: ticketId },
+    select: { status: true },
+  });
+
+  if (!existing) return null;
+  if (existing.status === "CLOSED") {
+    return prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+          include: { sender: { select: { name: true, role: true } } },
+        },
+        user: { select: { name: true, email: true, role: true, id: true } },
+      },
+    });
+  }
+
+  return prisma.supportTicket
+    .update({
+      where: { id: ticketId },
+      data: { status: "CLOSED", updatedAt: new Date() },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+          include: { sender: { select: { name: true, role: true } } },
+        },
+        user: { select: { name: true, email: true, role: true, id: true } },
+      },
+    })
+    .then(async (ticket) => {
+      const supportPath =
+        ticket.user.role === "ADVERTISER" ? "/advertiser/support" : "/publisher/support";
+      void notifyGeneric(
+        { id: ticket.user.id, email: ticket.user.email, name: ticket.user.name },
+        {
+          title: "Support ticket closed",
+          message: `Your ticket "${ticket.subject}" has been closed by our support team.`,
+          actionPath: supportPath,
+          notificationType: "support.closed",
+        },
+      );
+      return ticket;
+    });
 }

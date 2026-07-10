@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Ticket,
   Users,
+  XCircle,
 } from "lucide-react";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
@@ -58,11 +59,14 @@ export function AdminSupportTicketsPanel() {
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const open = tickets.filter((t) => t.status === "OPEN").length;
     const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
-    return { total: tickets.length, open, inProgress };
+    const closed = tickets.filter((t) => t.status === "CLOSED").length;
+    return { total: tickets.length, open, inProgress, closed };
   }, [tickets]);
 
   async function load() {
@@ -101,11 +105,41 @@ export function AdminSupportTicketsPanel() {
     load();
   }
 
+  async function closeTicket(ticketId: string) {
+    if (!window.confirm("Close this support ticket? The user will be notified.")) {
+      return;
+    }
+
+    setClosingId(ticketId);
+    setCloseError(null);
+
+    const res = await fetch("/api/v1/support/tickets", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId, action: "close" }),
+    });
+    const data = await res.json();
+
+    setClosingId(null);
+
+    if (!res.ok) {
+      setCloseError(data?.error?.message ?? "Unable to close ticket");
+      return;
+    }
+
+    setReplyingId(null);
+    setReplyBody("");
+    setReplyError(null);
+    setExpandedId(ticketId);
+    load();
+  }
+
   function toggleExpand(ticketId: string) {
     setExpandedId((current) => (current === ticketId ? null : ticketId));
     setReplyingId(null);
     setReplyBody("");
     setReplyError(null);
+    setCloseError(null);
   }
 
   if (loading) {
@@ -114,10 +148,11 @@ export function AdminSupportTicketsPanel() {
 
   return (
     <div className="space-y-7">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <GradientStatCard variant="leads" label="All Tickets" value={stats.total} icon={Ticket} />
         <NeutralStatCard label="Open" value={stats.open} icon={MessageSquare} accent="orange" />
         <NeutralStatCard label="In Progress" value={stats.inProgress} icon={Clock} accent="purple" />
+        <NeutralStatCard label="Closed" value={stats.closed} icon={XCircle} accent="green" />
       </div>
 
       <PageSection
@@ -152,6 +187,7 @@ export function AdminSupportTicketsPanel() {
                 tickets.map((ticket, index) => {
                   const lastMessage = ticket.messages?.[ticket.messages.length - 1];
                   const isExpanded = expandedId === ticket.id;
+                  const isClosed = ticket.status === "CLOSED";
 
                   return (
                     <Fragment key={ticket.id}>
@@ -219,6 +255,11 @@ export function AdminSupportTicketsPanel() {
                                   {format(new Date(ticket.createdAt), "MMM d, yyyy")}
                                 </span>
                               </div>
+                              {closeError && expandedId === ticket.id && (
+                                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                  {closeError}
+                                </p>
+                              )}
                               {replyError && (
                                 <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                                   {replyError}
@@ -242,6 +283,14 @@ export function AdminSupportTicketsPanel() {
                                 }}
                                 sendingReply={sending}
                                 replyLabel="Admin reply to user"
+                                allowReply={!isClosed}
+                                closedMessage="This ticket is closed."
+                                secondaryActionLabel="Close Ticket"
+                                onSecondaryAction={
+                                  isClosed ? undefined : () => closeTicket(ticket.id)
+                                }
+                                secondaryActionLoading={closingId === ticket.id}
+                                secondaryActionIcon={<XCircle className="h-3.5 w-3.5" />}
                               />
                             </div>
                           </TableCell>

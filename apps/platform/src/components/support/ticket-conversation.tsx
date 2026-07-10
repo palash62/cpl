@@ -24,6 +24,13 @@ interface TicketConversationProps {
   sendingReply: boolean;
   replyLabel?: string;
   emptyMessage?: string;
+  allowReply?: boolean;
+  closedMessage?: string;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  secondaryActionLoading?: boolean;
+  secondaryActionDisabled?: boolean;
+  secondaryActionIcon?: React.ReactNode;
 }
 
 export function TicketConversation({
@@ -37,7 +44,15 @@ export function TicketConversation({
   sendingReply,
   replyLabel = "Add a follow-up message",
   emptyMessage = "No messages on this ticket.",
+  allowReply = true,
+  closedMessage = "This ticket is closed. No further replies can be sent.",
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryActionLoading = false,
+  secondaryActionDisabled = false,
+  secondaryActionIcon,
 }: TicketConversationProps) {
+  const showSecondaryAction = Boolean(secondaryActionLabel && onSecondaryAction);
   return (
     <div className="space-y-4">
       {messages.length > 0 ? (
@@ -89,37 +104,55 @@ export function TicketConversation({
         <p className="text-sm text-slate-500">{emptyMessage}</p>
       )}
 
-      {showReplyForm ? (
-        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-          <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {replyLabel}
-          </Label>
-          <textarea
-            value={replyBody}
-            onChange={(e) => onReplyBodyChange(e.target.value)}
-            rows={3}
-            placeholder="Type your message..."
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
-          />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={onSendReply}
-              disabled={sendingReply || !replyBody.trim()}
-              className="gap-1 bg-[var(--theme-primary)] hover:opacity-90"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {sendingReply ? "Sending..." : "Send Reply"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={onCancelReply}>
-              Cancel
-            </Button>
+      {allowReply ? (
+        showReplyForm ? (
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+            <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {replyLabel}
+            </Label>
+            <textarea
+              value={replyBody}
+              onChange={(e) => onReplyBodyChange(e.target.value)}
+              rows={3}
+              placeholder="Type your message..."
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={onSendReply}
+                disabled={sendingReply || !replyBody.trim()}
+                className="gap-1 bg-[var(--theme-primary)] hover:opacity-90"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {sendingReply ? "Sending..." : "Send Reply"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={onCancelReply}>
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={onStartReply}>
+              Reply
+            </Button>
+            {showSecondaryAction && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 border-slate-300 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                disabled={secondaryActionDisabled || secondaryActionLoading}
+                onClick={onSecondaryAction}
+              >
+                {secondaryActionIcon}
+                {secondaryActionLoading ? "Closing..." : secondaryActionLabel}
+              </Button>
+            )}
+          </div>
+        )
       ) : (
-        <Button size="sm" variant="outline" onClick={onStartReply}>
-          Reply
-        </Button>
+        <p className="text-sm text-slate-500">{closedMessage}</p>
       )}
     </div>
   );

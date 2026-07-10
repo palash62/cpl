@@ -284,6 +284,7 @@ export function SupportTicketsPanel() {
                   const lastMessage = ticket.messages?.[ticket.messages.length - 1];
                   const hasAdminReply = ticket.messages?.some((m) => m.sender?.role === "ADMIN");
                   const isExpanded = expandedId === ticket.id;
+                  const isClosed = ticket.status === "CLOSED";
 
                   return (
                     <Fragment key={ticket.id}>
@@ -363,6 +364,7 @@ export function SupportTicketsPanel() {
                                   setReplyError(null);
                                 }}
                                 sendingReply={sendingReply}
+                                allowReply={!isClosed}
                               />
                             </div>
                           </TableCell>

@@ -6,6 +6,7 @@ import {
   listTickets,
   addTicketMessage,
   getTicketForUser,
+  closeSupportTicket,
 } from "@/services/notification.service";
 
 export async function GET(request: Request) {
@@ -61,30 +62,65 @@ export async function PATCH(request: Request) {
     try {
       const body = await request.json();
       const ticketId = body.ticketId as string | undefined;
+
+      if (!ticketId) {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "Ticket ID is required", status: 422 } },
+          { status: 422 },
+        );
+      }
+
+      const isAdmin = session.user.role === "ADMIN";
+      const action = body.action as string | undefined;
+
+      if (action === "close") {
+        if (!isAdmin) {
+          return Response.json(
+            { error: { code: "FORBIDDEN", message: "Only admins can close tickets", status: 403 } },
+            { status: 403 },
+          );
+        }
+
+        const ticket = await getTicketForUser(ticketId, session.user.id, true);
+        if (!ticket) {
+          return errorResponse(Errors.notFound("Ticket"));
+        }
+
+        const updated = await closeSupportTicket(ticketId);
+        if (!updated) {
+          return errorResponse(Errors.notFound("Ticket"));
+        }
+
+        return Response.json({ data: updated });
+      }
+
       const messageBody = typeof body.body === "string" ? body.body.trim() : "";
 
-      if (!ticketId || messageBody.length < 1) {
+      if (messageBody.length < 1) {
         return Response.json(
           { error: { code: "VALIDATION_ERROR", message: "Reply message is required", status: 422 } },
           { status: 422 },
         );
       }
 
-      const ticket = await getTicketForUser(
-        ticketId,
-        session.user.id,
-        session.user.role === "ADMIN",
-      );
+      const ticket = await getTicketForUser(ticketId, session.user.id, isAdmin);
 
       if (!ticket) {
         return errorResponse(Errors.notFound("Ticket"));
+      }
+
+      if (ticket.status === "CLOSED") {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "This ticket is closed", status: 422 } },
+          { status: 422 },
+        );
       }
 
       const updated = await addTicketMessage(
         ticketId,
         session.user.id,
         messageBody,
-        session.user.role === "ADMIN" ? Boolean(body.isInternal) : false,
+        isAdmin ? Boolean(body.isInternal) : false,
       );
 
       return Response.json({ data: updated });
