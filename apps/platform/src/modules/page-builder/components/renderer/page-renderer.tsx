@@ -60,7 +60,7 @@ export function PageRenderer({
   const page = (
     <div
       id="pb-page"
-      className="pb-published-page w-full"
+      className="pb-published-page min-h-screen w-full"
       style={{
         ...publishedPageCssVars(theme),
         fontFamily: theme.fontFamily,
