@@ -14,7 +14,7 @@ import { PageSettingsDrawer } from "@/modules/page-builder/components/editor/pag
 import { AssetPickerModal } from "@/modules/page-builder/components/editor/asset-picker-modal";
 import { useAutosave } from "@/modules/page-builder/hooks/use-autosave";
 import { useBuilderKeyboard } from "@/modules/page-builder/hooks/use-builder-keyboard";
-import { isDarkBackground, themePageBackgroundStyle, themeToCssVars } from "@/modules/page-builder/lib/theme";
+import { isDarkBackground, pageShellStyle } from "@/modules/page-builder/lib/theme";
 import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
@@ -27,6 +27,7 @@ import { RenderNode } from "@/modules/page-builder/components/editor/render-node
 import { cn } from "@/lib/utils";
 import "@/modules/page-builder/styles/page-builder-rich-text.css";
 import "@/modules/page-builder/styles/page-builder-animations.css";
+import "@/modules/page-builder/styles/page-builder-layout.css";
 
 type LandingPageBuilderProps = {
   pageId: string;
@@ -93,8 +94,13 @@ export function LandingPageBuilder({
                   style={{
                     maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
                     minHeight: isDesktop ? (isGhl ? 720 : "calc(100vh - 12rem)") : 600,
-                    ...themeToCssVars(theme),
-                    ...themePageBackgroundStyle(theme),
+                    ...pageShellStyle(theme, {
+                      viewportFill: isDesktop
+                        ? isGhl
+                          ? "720px"
+                          : "calc(100vh - 12rem)"
+                        : "600px",
+                    }),
                   }}
                 >
                   <Frame data={resolvedCraftState as never}>

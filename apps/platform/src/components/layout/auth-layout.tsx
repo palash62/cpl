@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import "./auth-page.css";
 
 interface AuthLayoutProps {
@@ -17,7 +18,7 @@ export function AuthLayout({ children, title, description, badge }: AuthLayoutPr
 
       <header className="authHeader">
         <Link href="/" className="authLogo">
-          <span>✦</span> LEADVIX
+          <PlatformLogo />
         </Link>
       </header>
 

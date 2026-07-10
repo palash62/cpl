@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import { getNavForRole } from "./nav-config";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import { useNavigationPending } from "./navigation-pending";
@@ -30,12 +31,9 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
           href="/"
           prefetch={true}
           onClick={() => startNavigation()}
-          className="flex items-center gap-2.5 font-bold text-white"
+          className="flex items-center"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-sm font-bold text-white">
-            LV
-          </span>
-          {!collapsed && <span className="text-[15px] tracking-tight">LeadVix</span>}
+          <PlatformLogo collapsed={collapsed} variant="sidebar" />
         </Link>
       </div>
       <nav className="flex-1 space-y-0.5 p-3">

@@ -4,7 +4,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Editor, Frame } from "@craftjs/core";
 import { craftResolver } from "@/modules/page-builder/blocks";
-import { publishedPageCssVars } from "@/modules/page-builder/lib/theme";
+import { pageShellStyle } from "@/modules/page-builder/lib/theme";
+import { previewContentRevision } from "@/modules/page-builder/lib/preview-revision";
 import { PublishedPageProvider } from "@/modules/page-builder/lib/published-page-context";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
@@ -40,6 +41,8 @@ export function PageRenderer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const needsImplicitForm = !!onLeadSubmit && !craftHasLeadForm(craftState);
+  const revision = previewContentRevision(craftState, theme);
+  const viewportFill = fillParent ? "calc(100dvh - 2.5rem)" : "100dvh";
 
   async function handleImplicitSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,15 +71,10 @@ export function PageRenderer({
       id="pb-page"
       className={
         fillParent
-          ? "pb-published-page flex w-full flex-1 flex-col"
-          : "pb-published-page flex min-h-screen w-full flex-col"
+          ? "flex w-full flex-1 flex-col"
+          : "flex min-h-screen w-full flex-col"
       }
-      style={{
-        ...publishedPageCssVars(theme, { includeBackground: true }),
-        ["--pb-viewport-fill" as string]: fillParent ? "calc(100dvh - 2.5rem)" : "100dvh",
-        fontFamily: theme.fontFamily,
-        color: "var(--pb-page-text)",
-      }}
+      style={pageShellStyle(theme, { viewportFill })}
     >
       {error && (
         <div className="mx-auto max-w-3xl px-4 pt-4">
@@ -90,11 +88,9 @@ export function PageRenderer({
           Submitting…
         </div>
       ) : (
-        <div className="pb-fill-viewport flex flex-1 flex-col">
-          <Editor resolver={craftResolver} enabled={false}>
-            <Frame data={craftState as never} />
-          </Editor>
-        </div>
+        <Editor resolver={craftResolver} enabled={false}>
+          <Frame key={revision} data={craftState as never} />
+        </Editor>
       )}
       {needsImplicitForm && loading && (
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
@@ -111,7 +107,7 @@ export function PageRenderer({
       {needsImplicitForm ? (
         <form
           id="pb-optin-form"
-          className={fillParent ? "pb-fill-viewport flex flex-1 flex-col" : undefined}
+          className={fillParent ? "flex flex-1 flex-col" : undefined}
           onSubmit={handleImplicitSubmit}
           noValidate
         >

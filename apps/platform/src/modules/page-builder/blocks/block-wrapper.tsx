@@ -8,109 +8,31 @@ import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { usePublishedBreakpoint } from "@/modules/page-builder/hooks/use-published-breakpoint";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
+import type { Breakpoint } from "@/modules/page-builder/types/block-props";
 
-const PUBLISHED_BACKGROUND_KEYS = new Set([
-  "background",
-  "backgroundColor",
-  "backgroundImage",
-  "backgroundSize",
-  "backgroundPosition",
-  "backgroundRepeat",
-  "backdropFilter",
-]);
+function buildBlockStyle(
+  blockProps: BlockProps,
+  breakpoint: Breakpoint,
+  extraStyle?: CSSProperties,
+): CSSProperties {
+  const style: CSSProperties = {
+    ...mergeBlockStyles(blockProps, breakpoint),
+    ...extraStyle,
+  };
 
-const PUBLISHED_CONTENT_LAYOUT_KEYS = new Set([
-  "width",
-  "maxWidth",
-  "margin",
-  "marginTop",
-  "marginRight",
-  "marginBottom",
-  "marginLeft",
-  "padding",
-  "paddingTop",
-  "paddingRight",
-  "paddingBottom",
-  "paddingLeft",
-  "display",
-  "flexDirection",
-  "justifyContent",
-  "alignItems",
-  "gap",
-  "flexWrap",
-  "gridTemplateColumns",
-  "textAlign",
-  "aspectRatio",
-]);
-
-function hasPublishedBackground(style: CSSProperties) {
-  return Boolean(style.background || style.backgroundColor || style.backgroundImage);
-}
-
-function isPublishedWidthConstrained(style: CSSProperties) {
-  const width = style.width;
-  const maxWidth = style.maxWidth;
-  if (maxWidth && maxWidth !== "none") return true;
-  if (width && width !== "100%" && width !== "auto") return true;
-  return false;
-}
-
-const PB_VIEWPORT_MIN_HEIGHT = "var(--pb-viewport-fill, 100dvh)";
-
-function assignStyleProp(
-  target: CSSProperties,
-  key: string,
-  value: CSSProperties[keyof CSSProperties] | undefined,
-) {
-  if (value === undefined) return;
-  (target as Record<string, CSSProperties[keyof CSSProperties]>)[key] = value;
-}
-
-function applyPublishedShellSizing(shell: CSSProperties, style: CSSProperties) {
-  if (!hasPublishedBackground(style)) return shell;
-  if (!shell.minHeight) shell.minHeight = PB_VIEWPORT_MIN_HEIGHT;
-  return shell;
-}
-
-function viewportFillStyle(active: boolean): CSSProperties {
-  return active ? { minHeight: PB_VIEWPORT_MIN_HEIGHT } : {};
-}
-
-function splitPublishedBlockStyles(style: CSSProperties) {
-  if (!hasPublishedBackground(style) || !isPublishedWidthConstrained(style)) {
-    return { shell: applyPublishedShellSizing({ ...style }, style), content: null as CSSProperties | null };
+  if (!("color" in style) || !style.color) {
+    style.color = "var(--pb-page-text, #0f172a)";
   }
 
-  const shell: CSSProperties = { width: "100%" };
-  const content: CSSProperties = {};
-
-  for (const [key, value] of Object.entries(style)) {
-    if (value === undefined) continue;
-    // Keep backgrounds on the constrained inner box so full-width shells do not
-    // paint over parent section backgrounds (e.g. red section + white container).
-    if (PUBLISHED_BACKGROUND_KEYS.has(key)) {
-      assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
-      continue;
-    }
-    if (key === "minHeight" || key === "height") {
-      assignStyleProp(shell, key, value as CSSProperties[keyof CSSProperties]);
-      assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
-      continue;
-    }
-    if (PUBLISHED_CONTENT_LAYOUT_KEYS.has(key)) {
-      assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
-      continue;
-    }
-    assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
+  const animation = blockProps.animation;
+  if (animation?.type && animation.type !== "none") {
+    style.animation = `${animation.type} ${animation.duration ?? "0.5s"} ease ${animation.delay ?? "0s"} both`;
   }
 
-  return { shell, content };
+  return style;
 }
 
-function renderPublishedBackgroundMedia(
-  backgroundVideo: string | undefined,
-  children: ReactNode,
-) {
+function renderBackgroundMedia(backgroundVideo: string | undefined, children: ReactNode) {
   if (!backgroundVideo) return children;
 
   return (
@@ -156,78 +78,19 @@ export function BlockWrapper({
 
   if (blockProps.visible === false && !enabled) return null;
 
-  const style: CSSProperties = {
-    ...mergeBlockStyles(blockProps, breakpoint),
-    ...extraStyle,
-  };
-
-  if (
-    !enabled &&
-    (style.backgroundColor === "#ffffff" ||
-      style.backgroundColor === "#fff" ||
-      style.backgroundColor === "white")
-  ) {
-    delete style.backgroundColor;
-  }
-
-  if (!("color" in style) || !style.color) {
-    style.color = "var(--pb-page-text, #0f172a)";
-  }
-
-  const animation = blockProps.animation;
-  if (animation?.type && animation.type !== "none") {
-    style.animation = `${animation.type} ${animation.duration ?? "0.5s"} ease ${animation.delay ?? "0s"} both`;
-  }
+  const style = buildBlockStyle(blockProps, breakpoint, extraStyle);
+  const backgroundVideo = blockProps.style?.backgroundVideo
+    ? String(blockProps.style.backgroundVideo)
+    : undefined;
+  const inner = renderBackgroundMedia(backgroundVideo, children);
 
   if (!enabled) {
-    const { shell, content } = splitPublishedBlockStyles(style);
-    const backgroundVideo = blockProps.style?.backgroundVideo
-      ? String(blockProps.style.backgroundVideo)
-      : undefined;
-
-    if (content) {
-      return (
-        <Tag
-          style={{ ...shell, ...viewportFillStyle(hasPublishedBackground(content)) }}
-          className={cn(className, "flex w-full flex-col", hasPublishedBackground(content) && "pb-fill-viewport")}
-        >
-          {renderPublishedBackgroundMedia(
-            backgroundVideo,
-            <div className="flex flex-1 flex-col" style={content}>{children}</div>,
-          )}
-        </Tag>
-      );
-    }
-
     return (
-      <Tag
-        style={{ ...shell, ...viewportFillStyle(hasPublishedBackground(shell)) }}
-        className={cn(
-          className,
-          "w-full",
-          hasPublishedBackground(shell) && "pb-fill-viewport",
-        )}
-      >
-        {renderPublishedBackgroundMedia(backgroundVideo, children)}
+      <Tag style={style} className={cn(className, "w-full")}>
+        {inner}
       </Tag>
     );
   }
-
-  const inner = blockProps.style?.backgroundVideo ? (
-    <div className="relative overflow-hidden">
-      <video
-        src={String(blockProps.style.backgroundVideo)}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="relative">{children}</div>
-    </div>
-  ) : (
-    children
-  );
 
   return (
     <Tag

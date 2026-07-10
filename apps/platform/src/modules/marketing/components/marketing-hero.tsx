@@ -14,7 +14,7 @@ export function MarketingHero() {
             instead of wasting budget on expensive clicks that may never convert.
           </p>
           <div className="hero-actions">
-            <Link href="/login" className="btn">
+            <Link href="/register" className="btn">
               Join Now →
             </Link>
             <a href="#vsl" className="video-btn">

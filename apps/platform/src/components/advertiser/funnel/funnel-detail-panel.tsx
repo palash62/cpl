@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FunnelDetailHeader } from "./funnel-detail-header";
@@ -35,6 +35,36 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
 
   const steps = buildFunnelSteps(thankYouEnabled);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshFunnel() {
+      const res = await fetch(`${workflow.apiBasePath}/${initialFunnel.id}`, {
+        cache: "no-store",
+      });
+      const body = await res.json();
+      if (!cancelled && res.ok && body.data) {
+        const refreshed = body.data as SerializedOptinFunnel;
+        setFunnel(refreshed);
+        setThankYouEnabled(refreshed.thankYouEnabled);
+        setDestinationUrl(refreshed.destinationUrl ?? "");
+        setThankYouPixelHtml(refreshed.thankYouPixelHtml ?? "");
+      }
+    }
+
+    void refreshFunnel();
+
+    function onFocus() {
+      void refreshFunnel();
+    }
+
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [initialFunnel.id, workflow.apiBasePath]);
 
   function isValidHttpUrl(value: string) {
     try {

@@ -139,3 +139,19 @@ export function publishedPageCssVars(
   if (options?.includeBackground === false) return vars;
   return { ...vars, ...themePageBackgroundStyle(theme) };
 }
+
+/** Shared editor + preview page shell (theme vars, background, text tokens). */
+export function pageShellStyle(
+  theme: ThemeJson,
+  options?: { viewportFill?: string },
+): CSSProperties {
+  const style: CSSProperties = {
+    ...publishedPageCssVars(theme, { includeBackground: true }),
+    fontFamily: theme.fontFamily,
+    color: "var(--pb-page-text)",
+  };
+  if (options?.viewportFill) {
+    (style as Record<string, string>)["--pb-viewport-fill"] = options.viewportFill;
+  }
+  return style;
+}

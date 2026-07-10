@@ -13,7 +13,7 @@ export function CtaSection() {
             flexible CPL bidding, pre-made funnels, and AI optimization.
           </p>
           <br />
-          <Link href="/login" className="btn">
+          <Link href="/register" className="btn">
             Join Now →
           </Link>
           <p className="cta-note">

@@ -1,11 +1,12 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { themePageBackgroundStyle, type ThemeJson } from "@/modules/page-builder/lib/theme";
+import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import { previewContentRevision } from "@/modules/page-builder/lib/preview-revision";
 import { cn } from "@/lib/utils";
 
 type FunnelCraftPreviewFrameProps = {
-  theme: ThemeJson;
+  theme?: ThemeJson;
   fillParent?: boolean;
   viewportFill?: string;
   className?: string;
@@ -13,8 +14,8 @@ type FunnelCraftPreviewFrameProps = {
   children: ReactNode;
 };
 
+/** Viewport sizing wrapper only — theme background is applied by PageRenderer. */
 export function FunnelCraftPreviewFrame({
-  theme,
   fillParent = true,
   viewportFill,
   className,
@@ -27,7 +28,6 @@ export function FunnelCraftPreviewFrame({
     <div
       className={cn("flex w-full flex-1 flex-col", fillParent ? "min-h-0" : "h-full min-h-0", className)}
       style={{
-        ...themePageBackgroundStyle(theme),
         ["--pb-viewport-fill" as string]: fill,
         ...style,
       }}
@@ -41,12 +41,5 @@ export function funnelCraftPreviewRevision(
   craftState: unknown,
   theme: ThemeJson | null | undefined,
 ): string {
-  const serialized = craftState ? JSON.stringify(craftState) : "";
-  const craftKey = serialized
-    ? `${serialized.length}:${serialized.slice(0, 64)}:${serialized.slice(-64)}`
-    : "0";
-  const themeKey = theme
-    ? `${theme.backgroundColor}|${theme.backgroundImage ?? ""}|${theme.primaryColor}`
-    : "";
-  return `${craftKey}:${themeKey}`;
+  return previewContentRevision(craftState, theme);
 }

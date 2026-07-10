@@ -7,6 +7,12 @@ import { savePageCraft } from "@/modules/page-builder/lib/save-page";
 
 const AUTOSAVE_MS = 3000;
 
+function buildSaveFingerprint(serialized: string): string {
+  const store = useBuilderStore.getState();
+  const theme = store.funnelStep === "thankYou" ? store.thankYouTheme : store.theme;
+  return `${serialized}::${JSON.stringify(theme)}`;
+}
+
 export function useAutosave(pageId: string) {
   const { query } = useEditor();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,23 +22,28 @@ export function useAutosave(pageId: string) {
   useEffect(() => {
     async function flushSave() {
       const serialized = query.serialize();
-      if (serialized === lastSavedRef.current) return true;
+      const fingerprint = buildSaveFingerprint(serialized);
+      if (fingerprint === lastSavedRef.current) return true;
       const result = await savePageCraft(pageId, serialized, { autosave: true });
-      if (result.ok) lastSavedRef.current = serialized;
+      if (result.ok) lastSavedRef.current = fingerprint;
       return result.ok;
     }
 
-    lastSavedRef.current = query.serialize();
+    lastSavedRef.current = buildSaveFingerprint(query.serialize());
     setFlushSave(flushSave);
 
     const interval = setInterval(() => {
       const serialized = query.serialize();
-      if (serialized === lastSavedRef.current) return;
+      const fingerprint = buildSaveFingerprint(serialized);
+      if (fingerprint === lastSavedRef.current) return;
 
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(async () => {
-        const result = await savePageCraft(pageId, serialized, { autosave: true });
-        if (result.ok) lastSavedRef.current = serialized;
+        const nextSerialized = query.serialize();
+        const nextFingerprint = buildSaveFingerprint(nextSerialized);
+        if (nextFingerprint === lastSavedRef.current) return;
+        const result = await savePageCraft(pageId, nextSerialized, { autosave: true });
+        if (result.ok) lastSavedRef.current = nextFingerprint;
       }, AUTOSAVE_MS);
     }, 1000);
 

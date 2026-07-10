@@ -13,7 +13,7 @@ export function VslSection() {
               Discover how advertisers can launch campaigns, use pre-made funnels, connect autoresponders,
               verify leads, bid CPL, and optimize performance with AI.
             </p>
-            <Link href="/login" className="btn">
+            <Link href="/register" className="btn">
               Join Now →
             </Link>
           </div>
