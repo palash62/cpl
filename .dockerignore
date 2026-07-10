@@ -1,7 +1,10 @@
 .git
 .github
 .cursor
-**/node_modules
+# Exclude workspace installs only — keep Next standalone traced deps
+/node_modules
+/apps/*/node_modules
+/packages/*/node_modules
 **/.next/cache
 **/*.log
 **/.DS_Store
