@@ -55,20 +55,9 @@ function isPublishedWidthConstrained(style: CSSProperties) {
   return false;
 }
 
-const PB_VIEWPORT_MIN_HEIGHT = "var(--pb-viewport-fill, 100dvh)";
-
-function assignStyleProp(
-  target: CSSProperties,
-  key: string,
-  value: CSSProperties[keyof CSSProperties] | undefined,
-) {
-  if (value === undefined) return;
-  (target as Record<string, CSSProperties[keyof CSSProperties]>)[key] = value;
-}
-
 function applyPublishedShellSizing(shell: CSSProperties, style: CSSProperties) {
   if (!hasPublishedBackground(style)) return shell;
-  if (!shell.minHeight) shell.minHeight = PB_VIEWPORT_MIN_HEIGHT;
+  if (!shell.minHeight) shell.minHeight = "var(--pb-viewport-fill, 100dvh)";
   return shell;
 }
 
@@ -80,22 +69,22 @@ function splitPublishedBlockStyles(style: CSSProperties) {
   const shell: CSSProperties = { width: "100%" };
   const content: CSSProperties = {};
 
-  for (const [key, value] of Object.entries(style)) {
+  for (const [key, value] of Object.entries(style) as [keyof CSSProperties, CSSProperties[keyof CSSProperties]][]) {
     if (value === undefined) continue;
     if (PUBLISHED_BACKGROUND_KEYS.has(key)) {
-      assignStyleProp(shell, key, value as CSSProperties[keyof CSSProperties]);
+      shell[key] = value;
       continue;
     }
     if (key === "minHeight" || key === "height") {
-      assignStyleProp(shell, key, value as CSSProperties[keyof CSSProperties]);
-      assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
+      shell[key] = value;
+      content[key] = value;
       continue;
     }
     if (PUBLISHED_CONTENT_LAYOUT_KEYS.has(key)) {
-      assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
+      content[key] = value;
       continue;
     }
-    assignStyleProp(content, key, value as CSSProperties[keyof CSSProperties]);
+    content[key] = value;
   }
 
   return { shell: applyPublishedShellSizing(shell, style), content };
@@ -174,7 +163,7 @@ export function BlockWrapper({
       return (
         <Tag
           style={shell}
-          className={cn(className, "flex w-full flex-col", hasPublishedBackground(shell) && "pb-fill-viewport")}
+          className={cn(className, "flex w-full flex-col", hasPublishedBackground(shell) && "min-h-[var(--pb-viewport-fill,100dvh)]")}
         >
           {renderPublishedBackgroundMedia(
             backgroundVideo,
@@ -190,7 +179,7 @@ export function BlockWrapper({
         className={cn(
           className,
           "w-full",
-          hasPublishedBackground(shell) && "pb-fill-viewport",
+          hasPublishedBackground(shell) && "min-h-[var(--pb-viewport-fill,100dvh)]",
         )}
       >
         {renderPublishedBackgroundMedia(backgroundVideo, children)}
@@ -245,7 +234,7 @@ export function CanvasWrapper({
   return (
     <BlockWrapper
       {...blockProps}
-      className={cn(enabled ? "min-h-[40px]" : "pb-fill-viewport flex-1", className)}
+      className={cn(enabled ? "min-h-[40px]" : "min-h-[var(--pb-viewport-fill,100dvh)] flex-1", className)}
       draggable
     >
       {children}

@@ -299,16 +299,6 @@
 }
 
 @layer utilities {
-  .pb-fill-viewport {
-    min-height: var(--pb-viewport-fill, 100dvh);
-  }
-
-  .pb-published-page {
-    display: flex;
-    flex-direction: column;
-    min-height: var(--pb-viewport-fill, 100dvh);
-  }
-
   .premium-card {
     @apply rounded-[18px] border border-slate-200/80 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md;
   }
