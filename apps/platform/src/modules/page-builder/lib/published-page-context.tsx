@@ -2,11 +2,17 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
+import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import type { Breakpoint } from "@/modules/page-builder/types/block-props";
 
-type PublishedPageContextValue = {
+export type PublishedPageContextValue = {
   landingPageSlug?: string;
   onLeadSubmit?: (data: Record<string, string>) => Promise<void>;
   formJson?: FormJson | null;
+  theme?: ThemeJson;
+  breakpoint?: Breakpoint;
+  matchEditorCanvas?: boolean;
+  isGhl?: boolean;
 };
 
 const PublishedPageContext = createContext<PublishedPageContextValue>({});

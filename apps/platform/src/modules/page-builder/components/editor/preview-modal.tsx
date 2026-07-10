@@ -15,8 +15,9 @@ export function PreviewModal({ pageSlug }: PreviewModalProps) {
   const setPreviewOpen = useBuilderStore((s) => s.setPreviewOpen);
   const publicPathPrefix = useBuilderStore((s) => s.builderConfig.publicPathPrefix);
   const funnelStep = useBuilderStore((s) => s.funnelStep);
+  const breakpoint = useBuilderStore((s) => s.breakpoint);
   const thankYouSuffix = funnelStep === "thankYou" ? "/thank-you" : "";
-  const previewPath = `${publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1`;
+  const previewPath = `${publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1&frame=1&bp=${breakpoint}`;
 
   return (
     <Dialog open={open} onOpenChange={setPreviewOpen}>

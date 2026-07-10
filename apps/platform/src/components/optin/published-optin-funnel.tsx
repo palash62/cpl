@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { Suspense, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageRenderer } from "@/modules/page-builder/components/renderer/page-renderer";
+import { PreviewDeviceToolbar } from "@/modules/page-builder/components/renderer/preview-device-toolbar";
+import { parseBreakpointParam } from "@/modules/page-builder/lib/editor-canvas";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
@@ -22,7 +25,7 @@ type PublishedOptinFunnelProps = {
   previewMode?: boolean;
 };
 
-export function PublishedOptinFunnel({
+function PublishedOptinFunnelContent({
   slug,
   craftState,
   theme,
@@ -32,6 +35,9 @@ export function PublishedOptinFunnel({
   previewMode,
 }: PublishedOptinFunnelProps) {
   const signalRef = useRef(createSignalCollector());
+  const searchParams = useSearchParams();
+  const breakpoint = parseBreakpointParam(searchParams.get("bp"));
+  const matchEditorCanvas = searchParams.get("frame") === "1";
 
   useEffect(() => {
     return attachSignalListeners(signalRef.current);
@@ -84,7 +90,10 @@ export function PublishedOptinFunnel({
       theme={theme}
       landingPageSlug={slug}
       formJson={formJson}
-      fillParent={previewMode}
+      fillParent={previewMode && matchEditorCanvas}
+      breakpoint={previewMode && matchEditorCanvas ? breakpoint : undefined}
+      matchEditorCanvas={previewMode && matchEditorCanvas}
+      isGhl
       onLeadSubmit={previewMode ? undefined : handleSubmit}
     />
   );
@@ -96,7 +105,20 @@ export function PublishedOptinFunnel({
       <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
         Preview mode — form submissions are disabled until you publish.
       </div>
+      {matchEditorCanvas && <PreviewDeviceToolbar isGhl />}
       {page}
     </div>
+  );
+}
+
+export function PublishedOptinFunnel(props: PublishedOptinFunnelProps) {
+  if (!props.previewMode) {
+    return <PublishedOptinFunnelContent {...props} />;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <PublishedOptinFunnelContent {...props} />
+    </Suspense>
   );
 }

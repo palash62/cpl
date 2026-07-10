@@ -219,10 +219,12 @@ export function withoutStretchLayout(layout?: LayoutProps): LayoutProps | undefi
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+import type { Breakpoint } from "@/modules/page-builder/types/block-props";
+import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
+
+/** @deprecated Use getCanvasViewportFill from editor-canvas.ts */
 export function getEditorViewportFill(isGhl: boolean, breakpoint: Breakpoint): string {
-  if (breakpoint === "mobile") return "640px";
-  if (breakpoint === "tablet") return "600px";
-  return isGhl ? "720px" : "calc(100vh - 12rem)";
+  return getCanvasViewportFill(breakpoint, isGhl);
 }
 
 export function resolveColumnsGrid(

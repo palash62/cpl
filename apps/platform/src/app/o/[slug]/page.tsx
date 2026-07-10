@@ -11,6 +11,7 @@ import {
 } from "@/services/optin-funnel.service";
 import { usesBuilderRenderer } from "@/lib/optin-funnel";
 import { createEmptyCraftState } from "@/modules/page-builder/lib/serialize";
+import { normalizePreviewCraft } from "@/modules/page-builder/lib/preview-craft";
 import { recordFunnelEvent } from "@/services/funnel-analytics.service";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
@@ -78,7 +79,7 @@ export default async function PublicOptinFunnelPage({
       return (
         <PublishedOptinFunnel
           slug={slug}
-          craftState={draft.craftState?.craft ?? createEmptyCraftState()}
+          craftState={normalizePreviewCraft(draft.craftState?.craft ?? createEmptyCraftState())}
           theme={draft.themeJson ?? DEFAULT_THEME}
           formJson={draft.formJson ?? null}
           thankYouEnabled={draft.thankYouEnabled}

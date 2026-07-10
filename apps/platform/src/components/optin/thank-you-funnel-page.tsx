@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageRenderer } from "@/modules/page-builder/components/renderer/page-renderer";
+import { PreviewDeviceToolbar } from "@/modules/page-builder/components/renderer/preview-device-toolbar";
+import { parseBreakpointParam } from "@/modules/page-builder/lib/editor-canvas";
+import { normalizePreviewCraft } from "@/modules/page-builder/lib/preview-craft";
 import { buildPixelUrl } from "@/lib/campaign-pixel";
 import type { PublicThankYouFunnel } from "@/lib/optin-funnel";
 
-export function ThankYouFunnelPage({
+function ThankYouFunnelPageContent({
   page,
   origin,
 }: {
   page: PublicThankYouFunnel;
   origin: string;
 }) {
+  const searchParams = useSearchParams();
+  const breakpoint = parseBreakpointParam(searchParams.get("bp"));
+  const matchEditorCanvas = page.previewMode && searchParams.get("frame") === "1";
+
   useEffect(() => {
     if (page.previewMode || !page.leadId) return;
 
@@ -63,17 +71,47 @@ export function ThankYouFunnelPage({
     );
   }
 
+  const craftState = normalizePreviewCraft(page.thankYouCraftState.craft);
+
   return (
-    <div>
+    <div className={matchEditorCanvas ? "flex min-h-screen flex-col" : undefined}>
+      {page.previewMode && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+          Preview mode — thank you page
+        </div>
+      )}
+      {matchEditorCanvas && <PreviewDeviceToolbar isGhl />}
       <PageRenderer
-        craftState={page.thankYouCraftState.craft}
+        craftState={craftState}
         theme={page.thankYouThemeJson}
         landingPageSlug={page.slug}
         formJson={null}
+        fillParent={matchEditorCanvas}
+        breakpoint={matchEditorCanvas ? breakpoint : undefined}
+        matchEditorCanvas={matchEditorCanvas}
+        isGhl
       />
       {page.thankYouPixelHtml && (
         <div dangerouslySetInnerHTML={{ __html: page.thankYouPixelHtml }} />
       )}
     </div>
+  );
+}
+
+export function ThankYouFunnelPage({
+  page,
+  origin,
+}: {
+  page: PublicThankYouFunnel;
+  origin: string;
+}) {
+  if (!page.previewMode) {
+    return <ThankYouFunnelPageContent page={page} origin={origin} />;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <ThankYouFunnelPageContent page={page} origin={origin} />
+    </Suspense>
   );
 }

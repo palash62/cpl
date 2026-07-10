@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { mergeBlockStyles } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
-import { usePublishedBreakpoint } from "@/modules/page-builder/hooks/use-published-breakpoint";
+import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import type { Breakpoint } from "@/modules/page-builder/types/block-props";
 
@@ -71,10 +71,8 @@ export function BlockWrapper({
     hovered: node.events.hovered,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
-  const editorBreakpoint = useBuilderStore((s) => s.breakpoint);
-  const publishedBreakpoint = usePublishedBreakpoint();
   const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
-  const breakpoint = enabled ? editorBreakpoint : publishedBreakpoint;
+  const breakpoint = useRenderBreakpoint();
 
   if (blockProps.visible === false && !enabled) return null;
 

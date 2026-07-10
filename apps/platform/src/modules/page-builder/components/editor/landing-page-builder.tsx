@@ -21,7 +21,8 @@ import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { ensureEditorCraftState } from "@/modules/page-builder/lib/serialize";
 import { BuilderSettingsLayoutProvider } from "@/modules/page-builder/lib/builder-settings-context";
-import { BREAKPOINT_WIDTHS, getEditorViewportFill } from "@/modules/page-builder/lib/responsive";
+import { BREAKPOINT_WIDTHS } from "@/modules/page-builder/lib/responsive";
+import { GHL_DESKTOP_CANVAS_WIDTH, getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import { RenderNode } from "@/modules/page-builder/components/editor/render-node";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export function LandingPageBuilder({
   const isGhl = isGhlBuilderMode(builderConfig);
   const isDesktop = breakpoint === "desktop";
   const canvasWidth = isDesktop ? undefined : BREAKPOINT_WIDTHS[breakpoint];
-  const viewportFill = getEditorViewportFill(isGhl, breakpoint);
+  const viewportFill = getCanvasViewportFill(breakpoint, isGhl);
   const darkCanvas = isDarkBackground(theme.backgroundColor);
 
   const resolvedCraftState = ensureEditorCraftState(initialCraftState);
@@ -93,7 +94,7 @@ export function LandingPageBuilder({
                     darkCanvas ? "text-slate-100" : "text-slate-900",
                   )}
                   style={{
-                    maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
+                    maxWidth: canvasWidth ?? (isGhl ? GHL_DESKTOP_CANVAS_WIDTH : "100%"),
                     minHeight: viewportFill,
                     ...pageShellStyle(theme, { viewportFill }),
                   }}

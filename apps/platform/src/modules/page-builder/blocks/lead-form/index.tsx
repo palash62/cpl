@@ -18,7 +18,7 @@ import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
-import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
 import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 
@@ -81,7 +81,7 @@ export function LeadForm({
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
-  const theme = useBuilderStore((s) => s.theme);
+  const theme = usePageTheme();
   const published = usePublishedPage();
   const slug = landingPageSlug ?? published.landingPageSlug;
   const submitHandler = onSubmit ?? published.onLeadSubmit;
@@ -448,7 +448,7 @@ function SubmitButtonSettings() {
 }
 
 export function SubmitButton({ text = "Submit", buttonAppearance, ...props }: SubmitProps) {
-  const theme = useBuilderStore((s) => s.theme);
+  const theme = usePageTheme();
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);

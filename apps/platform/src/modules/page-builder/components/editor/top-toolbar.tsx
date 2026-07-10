@@ -80,12 +80,15 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
       return;
     }
 
+    const breakpoint = useBuilderStore.getState().breakpoint;
     const cacheBust = `t=${Date.now()}`;
+    const frameQuery = "frame=1&";
+    const bpQuery = `bp=${breakpoint}&`;
 
     if (isAdminTemplate) {
       const stepQuery = funnelStep === "thankYou" ? "step=thankYou&" : "";
       window.open(
-        `/admin/funnel-templates/${pageId}/preview?${stepQuery}${cacheBust}`,
+        `/admin/funnel-templates/${pageId}/preview?${stepQuery}${frameQuery}${bpQuery}${cacheBust}`,
         "_blank",
         "noopener,noreferrer",
       );
@@ -93,7 +96,7 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
     }
     if (isFunnel) {
       const thankYouSuffix = funnelStep === "thankYou" ? "/thank-you" : "";
-      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1&${cacheBust}`;
+      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1&${frameQuery}${bpQuery}${cacheBust}`;
       window.open(previewPath, "_blank", "noopener,noreferrer");
       return;
     }

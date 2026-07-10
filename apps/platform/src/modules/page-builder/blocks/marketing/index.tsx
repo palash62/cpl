@@ -9,7 +9,7 @@ import { ButtonLabelContent } from "@/modules/page-builder/components/editor/but
 import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
-import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
 import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
@@ -127,7 +127,7 @@ export function CtaButton({
   buttonAppearance,
   ...props
 }: CtaProps) {
-  const theme = useBuilderStore((s) => s.theme);
+  const theme = usePageTheme();
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   const published = usePublishedPage();
@@ -403,7 +403,7 @@ function PricingTableSettings() {
 }
 
 export function PricingTable({ plans = [{ name: "Basic", price: "$29/mo", features: ["100 leads", "Email support"] }], ...props }: BlockProps & { plans?: PricingPlan[] }) {
-  const theme = useBuilderStore((s) => s.theme);
+  const theme = usePageTheme();
   return (
     <BlockWrapper {...props} layout={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", ...props.layout }}>
       {plans.map((plan) => (
@@ -527,7 +527,7 @@ export function ProgressBar({
   showValue = true,
   ...props
 }: ProgressBarProps) {
-  const theme = useBuilderStore((s) => s.theme);
+  const theme = usePageTheme();
   const safeMax = Math.max(1, max);
   const safeValue = Math.min(Math.max(0, value), safeMax);
   const percent = Math.round((safeValue / safeMax) * 100);

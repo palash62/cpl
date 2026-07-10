@@ -7,10 +7,16 @@ import { craftResolver } from "@/modules/page-builder/blocks";
 import { pageShellStyle } from "@/modules/page-builder/lib/theme";
 import { previewContentRevision } from "@/modules/page-builder/lib/preview-revision";
 import { PublishedPageProvider } from "@/modules/page-builder/lib/published-page-context";
+import {
+  getCanvasMaxWidth,
+  getCanvasViewportFill,
+} from "@/modules/page-builder/lib/editor-canvas";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
+import type { Breakpoint } from "@/modules/page-builder/types/block-props";
+import { cn } from "@/lib/utils";
 import "@/modules/page-builder/styles/page-builder-rich-text.css";
 import "@/modules/page-builder/styles/page-builder-animations.css";
 import "@/modules/page-builder/styles/page-builder-layout.css";
@@ -23,6 +29,11 @@ type PageRendererProps = {
   onLeadSubmit?: (data: Record<string, string>) => Promise<void>;
   /** When true, fill a parent flex column (e.g. preview banner + page). */
   fillParent?: boolean;
+  /** Override responsive breakpoint (preview from editor device switcher). */
+  breakpoint?: Breakpoint;
+  /** Frame preview at the same width/height as the GHL editor canvas. */
+  matchEditorCanvas?: boolean;
+  isGhl?: boolean;
 };
 
 function craftHasLeadForm(craft: CraftSerializedState): boolean {
@@ -36,13 +47,26 @@ export function PageRenderer({
   formJson,
   onLeadSubmit,
   fillParent = false,
+  breakpoint: breakpointProp,
+  matchEditorCanvas = false,
+  isGhl = true,
 }: PageRendererProps) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const needsImplicitForm = !!onLeadSubmit && !craftHasLeadForm(craftState);
   const revision = previewContentRevision(craftState, theme);
-  const viewportFill = fillParent ? "calc(100dvh - 2.5rem)" : "100dvh";
+  const breakpoint = breakpointProp ?? "desktop";
+
+  const editorViewportFill = matchEditorCanvas
+    ? getCanvasViewportFill(breakpoint, isGhl)
+    : undefined;
+  const viewportFill = matchEditorCanvas
+    ? editorViewportFill!
+    : fillParent
+      ? "calc(100dvh - 2.5rem)"
+      : "100dvh";
+  const canvasMaxWidth = matchEditorCanvas ? getCanvasMaxWidth(breakpoint, isGhl) : undefined;
 
   async function handleImplicitSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -66,16 +90,8 @@ export function PageRenderer({
     }
   }
 
-  const page = (
-    <div
-      id="pb-page"
-      className={
-        fillParent
-          ? "pb-published-page flex min-h-0 w-full flex-1 flex-col"
-          : "pb-published-page flex w-full flex-col"
-      }
-      style={pageShellStyle(theme, { viewportFill })}
-    >
+  const pageInner = (
+    <>
       {error && (
         <div className="mx-auto max-w-3xl px-4 pt-4">
           <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -99,15 +115,62 @@ export function PageRenderer({
           </span>
         </div>
       )}
+    </>
+  );
+
+  const page = matchEditorCanvas ? (
+    <div
+      className={cn(
+        "flex w-full justify-center overflow-auto bg-slate-50 p-6",
+        fillParent ? "min-h-0 flex-1" : "min-h-screen",
+      )}
+    >
+      <div
+        id="pb-page"
+        className={cn(
+          "pb-published-page flex w-full flex-col shadow-lg ring-1 ring-slate-200",
+          fillParent && "min-h-0",
+        )}
+        style={{
+          maxWidth: canvasMaxWidth,
+          minHeight: editorViewportFill,
+          width: "100%",
+          ...pageShellStyle(theme, { viewportFill: editorViewportFill }),
+        }}
+      >
+        {pageInner}
+      </div>
+    </div>
+  ) : (
+    <div
+      id="pb-page"
+      className={
+        fillParent
+          ? "pb-published-page flex min-h-0 w-full flex-1 flex-col"
+          : "pb-published-page flex w-full flex-col"
+      }
+      style={pageShellStyle(theme, { viewportFill })}
+    >
+      {pageInner}
     </div>
   );
 
+  const providerValue = {
+    landingPageSlug,
+    onLeadSubmit,
+    formJson,
+    theme,
+    breakpoint: matchEditorCanvas ? breakpoint : undefined,
+    matchEditorCanvas,
+    isGhl,
+  };
+
   return (
-    <PublishedPageProvider value={{ landingPageSlug, onLeadSubmit, formJson }}>
+    <PublishedPageProvider value={providerValue}>
       {needsImplicitForm ? (
         <form
           id="pb-optin-form"
-          className={fillParent ? "flex flex-1 flex-col" : undefined}
+          className={fillParent ? "flex min-h-0 flex-1 flex-col" : undefined}
           onSubmit={handleImplicitSubmit}
           noValidate
         >

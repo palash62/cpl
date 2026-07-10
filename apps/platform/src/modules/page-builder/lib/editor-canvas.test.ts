@@ -1,0 +1,36 @@
+import { describe, expect, it } from "vitest";
+import {
+  GHL_DESKTOP_CANVAS_WIDTH,
+  getCanvasMaxWidth,
+  getCanvasViewportFill,
+  getCanvasWidthLabel,
+  parseBreakpointParam,
+} from "@/modules/page-builder/lib/editor-canvas";
+
+describe("editor-canvas", () => {
+  it("parses breakpoint query params", () => {
+    expect(parseBreakpointParam("desktop")).toBe("desktop");
+    expect(parseBreakpointParam("tablet")).toBe("tablet");
+    expect(parseBreakpointParam("mobile")).toBe("mobile");
+    expect(parseBreakpointParam(null)).toBe("desktop");
+    expect(parseBreakpointParam("invalid")).toBe("desktop");
+  });
+
+  it("returns GHL desktop canvas width", () => {
+    expect(getCanvasMaxWidth("desktop", true)).toBe(GHL_DESKTOP_CANVAS_WIDTH);
+    expect(getCanvasMaxWidth("desktop", false)).toBeUndefined();
+    expect(getCanvasMaxWidth("tablet", true)).toBe(768);
+    expect(getCanvasMaxWidth("mobile", true)).toBe(375);
+  });
+
+  it("matches editor viewport fill heights", () => {
+    expect(getCanvasViewportFill("desktop", true)).toBe("720px");
+    expect(getCanvasViewportFill("tablet", true)).toBe("600px");
+    expect(getCanvasViewportFill("mobile", true)).toBe("640px");
+  });
+
+  it("formats canvas width labels for preview toolbar", () => {
+    expect(getCanvasWidthLabel("desktop", true)).toBe("960px");
+    expect(getCanvasWidthLabel("tablet", true)).toBe("768px");
+  });
+});

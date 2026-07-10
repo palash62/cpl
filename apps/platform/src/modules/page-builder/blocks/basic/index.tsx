@@ -7,11 +7,11 @@ import { CanvasAddButton } from "@/modules/page-builder/blocks/basic/canvas-add-
 import { RowSettings } from "@/modules/page-builder/components/settings/layout/row-settings";
 import { ColumnSettings } from "@/modules/page-builder/components/settings/layout/column-settings";
 import { StandardSettings } from "@/modules/page-builder/components/settings/shared/block-settings";
-import { usePublishedBreakpoint } from "@/modules/page-builder/hooks/use-published-breakpoint";
+import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
+import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
 import {
-  getEditorViewportFill,
   publishedSectionLayout,
   resolveColumnsGrid,
   resolveSectionPadding,
@@ -22,10 +22,7 @@ import type { BlockProps } from "@/modules/page-builder/types/block-props";
 type SectionProps = BlockProps & { children?: ReactNode };
 
 function useActiveBreakpoint() {
-  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
-  const editorBreakpoint = useBuilderStore((s) => s.breakpoint);
-  const publishedBreakpoint = usePublishedBreakpoint();
-  return enabled ? editorBreakpoint : publishedBreakpoint;
+  return useRenderBreakpoint();
 }
 
 export function Section({ children, ...props }: SectionProps) {
@@ -219,7 +216,7 @@ export function CanvasRoot({ children }: { children?: ReactNode }) {
   const breakpoint = useBuilderStore((s) => s.breakpoint);
   const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
   const showEmpty = enabled && childCount === 0;
-  const editorMinHeight = getEditorViewportFill(isGhl, breakpoint);
+  const editorMinHeight = getCanvasViewportFill(breakpoint, isGhl);
 
   return (
     <div
