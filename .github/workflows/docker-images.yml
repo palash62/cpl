@@ -70,6 +70,7 @@ jobs:
           context: .
           file: Dockerfile.platform
           push: true
+          no-cache: true
           tags: |
             ${{ steps.meta.outputs.platform }}:latest
             ${{ steps.meta.outputs.platform }}:${{ steps.meta.outputs.sha }}
@@ -80,6 +81,7 @@ jobs:
           context: .
           file: Dockerfile.tracking
           push: true
+          no-cache: true
           tags: |
             ${{ steps.meta.outputs.tracking }}:latest
             ${{ steps.meta.outputs.tracking }}:${{ steps.meta.outputs.sha }}
