@@ -12,6 +12,8 @@ import {
   getPublisherPeriodRange,
   type PublisherPeriod,
 } from "@/lib/publisher-periods";
+import { getPublisherEarningsForRange } from "@/lib/publisher-earnings";
+import { reconcilePublisherLeadCreditsForUser } from "@/services/wallet.service";
 import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay } from "date-fns";
 
 export async function getAdminDashboardStats() {
@@ -224,7 +226,7 @@ async function getAdvertiserSummaryRows(advertiserId: string) {
 }
 
 async function getPublisherMetricsForRange(publisherId: string, from: Date, to: Date) {
-  const [clicks, totalLeads, approvedLeads, earningsAgg] = await Promise.all([
+  const [clicks, totalLeads, approvedLeads, earnings] = await Promise.all([
     prisma.click.count({
       where: {
         trackingLink: { publisherId },
@@ -241,19 +243,10 @@ async function getPublisherMetricsForRange(publisherId: string, from: Date, to: 
         createdAt: { gte: from, lte: to },
       },
     }),
-    prisma.ledgerEntry.aggregate({
-      where: {
-        type: "CREDIT",
-        referenceType: "lead",
-        createdAt: { gte: from, lte: to },
-        wallet: { userId: publisherId },
-      },
-      _sum: { amount: true },
-    }),
+    getPublisherEarningsForRange(publisherId, from, to),
   ]);
 
   const conversionRate = clicks > 0 ? (approvedLeads / clicks) * 100 : 0;
-  const earnings = Number(earningsAgg._sum.amount ?? 0);
 
   return { clicks, totalLeads, approvedLeads, conversionRate, earnings };
 }
@@ -262,6 +255,8 @@ export async function getPublisherDashboardData(
   publisherId: string,
   period: PublisherPeriod = "last30",
 ) {
+  await reconcilePublisherLeadCreditsForUser(publisherId);
+
   const { from, to, prevFrom, prevTo } = getPublisherPeriodRange(period);
   const [current, previous, wallet, recentLeadsRaw, leadsTrend, platformSettings] =
     await Promise.all([
