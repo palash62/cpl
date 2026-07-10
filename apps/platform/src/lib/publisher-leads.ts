@@ -45,16 +45,19 @@ const COUNTRY_KEYS = ["country", "country_code", "countryCode", "nationality"];
 export function extractLeadCountry(
   data: unknown,
   storedCountry?: string | null,
+  geoCountry?: string | null,
 ): string {
   if (storedCountry?.trim()) return storedCountry.trim();
 
-  if (!data || typeof data !== "object") return "—";
-
-  const record = data as Record<string, string>;
-  for (const key of COUNTRY_KEYS) {
-    const value = record[key]?.trim();
-    if (value) return value;
+  if (data && typeof data === "object") {
+    const record = data as Record<string, string>;
+    for (const key of COUNTRY_KEYS) {
+      const value = record[key]?.trim();
+      if (value) return value;
+    }
   }
+
+  if (geoCountry?.trim()) return geoCountry.trim();
 
   return "—";
 }

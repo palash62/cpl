@@ -69,6 +69,7 @@ export const PUBLISHER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/publisher", icon: LayoutDashboard },
   { label: "Smart Link", href: "/publisher/smart-link", icon: Link2 },
   { label: "Leads", href: "/publisher/leads", icon: FileText },
+  { label: "Lead Report", href: "/publisher/lead-report", icon: BarChart3 },
   { label: "Earnings & Payouts", href: "/publisher/earnings", icon: Wallet },
   { label: "Support", href: "/publisher/support", icon: LifeBuoy },
   { label: "Settings", href: "/publisher/settings", icon: Settings },

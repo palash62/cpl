@@ -21,7 +21,7 @@ export function AdvertiserSummaryTable({ rows }: { rows: SummaryRow[] }) {
   return (
     <PageSection
       title="Summary Stats"
-      description="Leads, CPL, and spend across time periods"
+      description="Approved leads, CPL, and spend across time periods"
       icon={BarChart3}
       gradient="leads"
     >
@@ -32,7 +32,7 @@ export function AdvertiserSummaryTable({ rows }: { rows: SummaryRow[] }) {
             style={{ background: "var(--theme-primary-soft)" }}
           >
             <TableHead className="h-11 px-6 text-slate-600">Period</TableHead>
-            <TableHead className="h-11 px-4 text-right text-slate-600">Leads</TableHead>
+            <TableHead className="h-11 px-4 text-right text-slate-600">Approved Leads</TableHead>
             <TableHead className="h-11 px-4 text-right text-slate-600">CPL</TableHead>
             <TableHead className="h-11 px-6 text-right text-slate-600">Spent</TableHead>
           </TableRow>

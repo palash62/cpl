@@ -17,6 +17,10 @@ import { dispatchLeadEmailAutomations } from "@/modules/email-marketing";
 import type { LeadStatus } from "@prisma/client";
 import type { Campaign, CampaignField } from "@prisma/client";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
+import { endOfDay, startOfDay } from "date-fns";
+import { calculatePublisherPayout } from "@/lib/platform-settings";
+import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
+import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 
 type LeadValidationField = {
   fieldName: string;
@@ -217,7 +221,7 @@ async function createAndProcessLead(input: {
   submissionMeta?: SubmissionMeta;
 }) {
   const settings = await getPlatformSettings();
-  const country = extractCountry(input.data);
+  const formCountry = extractCountry(input.data);
   const targeting =
     typeof input.campaign.targeting === "object" && input.campaign.targeting
       ? (input.campaign.targeting as Record<string, unknown>)
@@ -239,13 +243,15 @@ async function createAndProcessLead(input: {
     data: input.data,
     ip: input.ip,
     userAgent: input.userAgent,
-    country,
+    country: formCountry,
     deviceFingerprint: input.deviceFingerprint,
     submissionMeta: input.submissionMeta,
     honeypot: input.honeypot,
     targeting,
     duplicateWindowDays: settings.duplicateWindowDays,
   });
+
+  const country = formCountry ?? fraud.geoCountry;
 
   const fraudConfig = await getFraudConfig();
   const allResults = [
@@ -756,6 +762,17 @@ export type AdvertiserPublisherLeadReportRow = {
   lastLeadAt: Date | null;
 };
 
+function buildLeadReportDateRange(dateFrom?: Date, dateTo?: Date) {
+  const createdAt: { gte?: Date; lte?: Date } = {};
+  if (dateFrom) {
+    createdAt.gte = startOfDay(dateFrom);
+  }
+  if (dateTo) {
+    createdAt.lte = endOfDay(dateTo);
+  }
+  return createdAt;
+}
+
 export async function listAdvertiserPublisherLeadReport(filters: {
   advertiserId: string;
   publisherSearch?: string;
@@ -783,17 +800,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
     };
   }
 
-  const createdAt: { gte?: Date; lte?: Date } = {};
-  if (filters.dateFrom) {
-    const from = new Date(filters.dateFrom);
-    from.setHours(0, 0, 0, 0);
-    createdAt.gte = from;
-  }
-  if (filters.dateTo) {
-    const to = new Date(filters.dateTo);
-    to.setHours(23, 59, 59, 999);
-    createdAt.lte = to;
-  }
+  const createdAt = buildLeadReportDateRange(filters.dateFrom, filters.dateTo);
 
   const leads = await prisma.lead.findMany({
     where: {
@@ -850,6 +857,123 @@ export async function listAdvertiserPublisherLeadReport(filters: {
     }
 
     grouped.set(lead.publisherId, existing);
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.totalLeads - a.totalLeads);
+}
+
+export type PublisherSubIdLeadReportRow = {
+  subId: string;
+  totalLeads: number;
+  approvedLeads: number;
+  pendingLeads: number;
+  rejectedLeads: number;
+  paidLeads: number;
+  earnings: number;
+  lastLeadAt: Date | null;
+};
+
+export async function listPublisherSubIdLeadReport(filters: {
+  publisherId: string;
+  subIdSearch?: string;
+  campaignSearch?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+}) {
+  const createdAt = buildLeadReportDateRange(filters.dateFrom, filters.dateTo);
+  const [leads, platformSettings] = await Promise.all([
+    prisma.lead.findMany({
+      where: {
+        publisherId: filters.publisherId,
+        ...(filters.subIdSearch?.trim() && {
+          subId: { contains: filters.subIdSearch.trim() },
+        }),
+        ...(filters.campaignSearch?.trim() && {
+          campaignId: { contains: filters.campaignSearch.trim() },
+        }),
+        ...(Object.keys(createdAt).length > 0 && { createdAt }),
+      },
+      select: {
+        id: true,
+        subId: true,
+        status: true,
+        country: true,
+        createdAt: true,
+        publisherId: true,
+        trackingLinkId: true,
+        campaign: { select: { cpl: true, advertiserId: true } },
+        publisher: { select: { role: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    getPlatformSettingsConfig(),
+  ]);
+
+  const paidLeadIds = leads.filter((lead) => lead.status === "PAID").map((lead) => lead.id);
+  const creditedEntries =
+    paidLeadIds.length > 0
+      ? await prisma.ledgerEntry.findMany({
+          where: {
+            type: "CREDIT",
+            referenceType: "lead",
+            referenceId: { in: paidLeadIds },
+            wallet: { userId: filters.publisherId },
+          },
+          select: { referenceId: true, amount: true },
+        })
+      : [];
+  const creditedByLeadId = new Map(
+    creditedEntries.map((entry) => [entry.referenceId, Number(entry.amount)]),
+  );
+
+  const grouped = new Map<string, PublisherSubIdLeadReportRow>();
+
+  for (const lead of leads) {
+    const subId = lead.subId?.trim() || "No Sub ID";
+    const existing = grouped.get(subId) ?? {
+      subId,
+      totalLeads: 0,
+      approvedLeads: 0,
+      pendingLeads: 0,
+      rejectedLeads: 0,
+      paidLeads: 0,
+      earnings: 0,
+      lastLeadAt: null,
+    };
+
+    existing.totalLeads += 1;
+    if (lead.status === "APPROVED") {
+      existing.approvedLeads += 1;
+      if (shouldCreditPublisherForLead(lead)) {
+        existing.earnings += calculatePublisherPayout(
+          Number(lead.campaign.cpl),
+          lead.country,
+          platformSettings,
+        ).publisherAmount;
+      }
+    } else if (lead.status === "PAID") {
+      existing.paidLeads += 1;
+      const credited = creditedByLeadId.get(lead.id);
+      if (credited !== undefined) {
+        existing.earnings += credited;
+      } else if (shouldCreditPublisherForLead(lead)) {
+        existing.earnings += calculatePublisherPayout(
+          Number(lead.campaign.cpl),
+          lead.country,
+          platformSettings,
+        ).publisherAmount;
+      }
+    } else if (lead.status === "REJECTED") {
+      existing.rejectedLeads += 1;
+    } else {
+      existing.pendingLeads += 1;
+    }
+
+    if (!existing.lastLeadAt || lead.createdAt > existing.lastLeadAt) {
+      existing.lastLeadAt = lead.createdAt;
+    }
+
+    grouped.set(subId, existing);
   }
 
   return Array.from(grouped.values()).sort((a, b) => b.totalLeads - a.totalLeads);

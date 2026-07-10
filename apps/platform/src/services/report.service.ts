@@ -121,10 +121,7 @@ export async function getAdvertiserMetricsForRange(
     return { leads: 0, spent: 0, cpl: 0, clicks: 0 };
   }
 
-  const [leads, approvedLeads, clicks] = await Promise.all([
-    prisma.lead.count({
-      where: { campaignId: { in: campaignIds }, createdAt: { gte: from, lte: to } },
-    }),
+  const [approvedLeads, clicks] = await Promise.all([
     prisma.lead.findMany({
       where: {
         campaignId: { in: campaignIds },
@@ -133,20 +130,23 @@ export async function getAdvertiserMetricsForRange(
       },
       include: { campaign: { select: { cpl: true } } },
     }),
-    prisma.trackingLink.aggregate({
-      where: { campaignId: { in: campaignIds } },
-      _sum: { clickCount: true },
+    prisma.click.count({
+      where: {
+        trackingLink: { campaignId: { in: campaignIds } },
+        createdAt: { gte: from, lte: to },
+      },
     }),
   ]);
 
   const spent = approvedLeads.reduce((sum, lead) => sum + Number(lead.campaign.cpl), 0);
+  const leads = approvedLeads.length;
   const cpl = leads > 0 ? spent / leads : 0;
 
   return {
     leads,
     spent,
     cpl,
-    clicks: clicks._sum.clickCount ?? 0,
+    clicks,
   };
 }
 
@@ -224,12 +224,13 @@ async function getAdvertiserSummaryRows(advertiserId: string) {
 }
 
 async function getPublisherMetricsForRange(publisherId: string, from: Date, to: Date) {
-  const links = await prisma.trackingLink.findMany({
-    where: { publisherId },
-  });
-  const clicks = links.reduce((sum, l) => sum + l.clickCount, 0);
-
-  const [totalLeads, approvedLeads, earningsAgg] = await Promise.all([
+  const [clicks, totalLeads, approvedLeads, earningsAgg] = await Promise.all([
+    prisma.click.count({
+      where: {
+        trackingLink: { publisherId },
+        createdAt: { gte: from, lte: to },
+      },
+    }),
     prisma.lead.count({
       where: { publisherId, createdAt: { gte: from, lte: to } },
     }),
@@ -243,6 +244,7 @@ async function getPublisherMetricsForRange(publisherId: string, from: Date, to: 
     prisma.ledgerEntry.aggregate({
       where: {
         type: "CREDIT",
+        referenceType: "lead",
         createdAt: { gte: from, lte: to },
         wallet: { userId: publisherId },
       },
@@ -250,7 +252,7 @@ async function getPublisherMetricsForRange(publisherId: string, from: Date, to: 
     }),
   ]);
 
-  const conversionRate = clicks > 0 ? (totalLeads / clicks) * 100 : 0;
+  const conversionRate = clicks > 0 ? (approvedLeads / clicks) * 100 : 0;
   const earnings = Number(earningsAgg._sum.amount ?? 0);
 
   return { clicks, totalLeads, approvedLeads, conversionRate, earnings };
@@ -333,22 +335,33 @@ export async function getPublisherDashboardData(
 }
 
 export async function getPublisherDashboardStats(publisherId: string) {
-  const links = await prisma.trackingLink.findMany({
-    where: { publisherId },
-  });
+  const now = new Date();
+  const from = startOfDay(now);
+  const to = endOfDay(now);
 
-  const clicks = links.reduce((sum, l) => sum + l.clickCount, 0);
-
-  const [totalLeads, approvedLeads, wallet] = await Promise.all([
+  const [clicks, totalLeads, approvedLeads, earningsAgg] = await Promise.all([
+    prisma.click.count({
+      where: {
+        trackingLink: { publisherId },
+        createdAt: { gte: from, lte: to },
+      },
+    }),
     prisma.lead.count({ where: { publisherId } }),
     prisma.lead.count({
       where: { publisherId, status: { in: ["APPROVED", "PAID"] } },
     }),
-    prisma.wallet.findUnique({ where: { userId: publisherId } }),
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "CREDIT",
+        referenceType: "lead",
+        wallet: { userId: publisherId },
+      },
+      _sum: { amount: true },
+    }),
   ]);
 
-  const conversionRate = clicks > 0 ? (totalLeads / clicks) * 100 : 0;
-  const earnings = Number(wallet?.balance ?? 0);
+  const conversionRate = clicks > 0 ? (approvedLeads / clicks) * 100 : 0;
+  const earnings = Number(earningsAgg._sum.amount ?? 0);
 
   const recentLeads = await prisma.lead.findMany({
     where: { publisherId },

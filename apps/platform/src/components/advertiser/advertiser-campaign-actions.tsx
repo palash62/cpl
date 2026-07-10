@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Ban, Pencil, Play, Trash2 } from "lucide-react";
 import type { CampaignStatus } from "@prisma/client";
-import { canAdminDeleteCampaign } from "@/lib/campaign-lifecycle";
+import { canAdminDeleteCampaign, getAllowedStatusTransitions } from "@/lib/campaign-lifecycle";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
@@ -27,6 +27,26 @@ export function AdvertiserCampaignActions({
 
   const lifecycle = { status: campaign.status, leadCount: campaign.leadCount };
   const canDelete = canAdminDeleteCampaign(lifecycle);
+  const transitions = getAllowedStatusTransitions(campaign.status).filter(
+    (s) => s === "PAUSED" || s === "ACTIVE",
+  );
+
+  async function patchStatus(status: CampaignStatus) {
+    setLoading(true);
+    setError(null);
+    const res = await fetch(`/api/v1/campaigns/${campaign.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => null);
+    setLoading(false);
+    if (!res.ok) {
+      setError(data?.error?.message ?? "Unable to update campaign");
+      return;
+    }
+    router.refresh();
+  }
 
   async function handleDelete() {
     setLoading(true);
@@ -43,7 +63,7 @@ export function AdvertiserCampaignActions({
   }
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <ButtonLink href={`/advertiser/campaigns/${campaign.id}`} variant="outline" size="sm" className="h-8">
         View
       </ButtonLink>
@@ -56,6 +76,33 @@ export function AdvertiserCampaignActions({
         <Pencil className="h-3.5 w-3.5" />
         Edit
       </ButtonLink>
+
+      {transitions.includes("PAUSED") && campaign.status === "ACTIVE" && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          disabled={loading}
+          onClick={() => patchStatus("PAUSED")}
+        >
+          <Ban className="h-3.5 w-3.5" />
+          Pause
+        </Button>
+      )}
+      {transitions.includes("ACTIVE") && campaign.status === "PAUSED" && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          disabled={loading}
+          onClick={() => patchStatus("ACTIVE")}
+        >
+          <Play className="h-3.5 w-3.5" />
+          Resume
+        </Button>
+      )}
 
       {canDelete ? (
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -98,6 +145,7 @@ export function AdvertiserCampaignActions({
           Delete
         </Button>
       )}
+      {error && !deleteOpen && <p className="w-full text-right text-xs text-red-600">{error}</p>}
     </div>
   );
 }

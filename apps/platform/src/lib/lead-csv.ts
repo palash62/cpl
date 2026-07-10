@@ -18,6 +18,7 @@ export type LeadCsvRow = {
   data: unknown;
   status: string;
   country: string | null;
+  geoCountry: string | null;
   source: string | null;
   subId: string | null;
   userAgent: string | null;
@@ -72,7 +73,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
   const rows = leads.map((lead) => {
     const data = leadDataRecord(lead.data);
     const { device, os } = parseUserAgent(lead.userAgent);
-    const country = extractLeadCountry(lead.data, lead.country);
+    const country = extractLeadCountry(lead.data, lead.country, lead.geoCountry);
     const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
     const notes = formatLeadRejectReason(lead);
     const flags = lead.validationResults

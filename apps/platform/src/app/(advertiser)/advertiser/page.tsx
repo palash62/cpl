@@ -74,7 +74,7 @@ export default async function AdvertiserDashboardPage({ searchParams }: PageProp
         />
         <GradientStatCard
           variant="leads"
-          label="Leads"
+          label="Approved Leads"
           value={data.stats.leads}
           icon={FileText}
           trend={data.stats.leadsTrend}

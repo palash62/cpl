@@ -202,7 +202,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
               ) : (
                 leads.map((lead) => {
                   const { device, os } = parseUserAgent(lead.userAgent);
-                  const country = extractLeadCountry(lead.data, lead.country);
+                  const country = extractLeadCountry(lead.data, lead.country, lead.geoCountry);
                   const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
                   const notes = formatLeadRejectReason(lead);
                   const leadData = formatLeadDataSummary(lead.data);

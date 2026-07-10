@@ -33,10 +33,12 @@ async function getAdvertiserPaymentsForRange(from: Date, to: Date) {
 }
 
 async function getPublisherPayoutsForRange(from: Date, to: Date) {
-  const result = await prisma.payout.aggregate({
+  const result = await prisma.ledgerEntry.aggregate({
     where: {
-      status: "COMPLETED",
-      processedAt: { gte: from, lte: to },
+      type: "CREDIT",
+      referenceType: "lead",
+      createdAt: { gte: from, lte: to },
+      wallet: { user: { role: "PUBLISHER" } },
     },
     _sum: { amount: true },
   });
@@ -47,22 +49,13 @@ async function getPublisherPayoutsForRange(from: Date, to: Date) {
 async function getReferralPayForRange(from: Date, to: Date) {
   const users = await prisma.user.findMany({
     where: {
-      OR: [
-        {
-          campaigns: {
-            some: {
-              leads: {
-                some: { status: "PAID", updatedAt: { gte: from, lte: to } },
-              },
-            },
+      campaigns: {
+        some: {
+          leads: {
+            some: { status: "PAID", updatedAt: { gte: from, lte: to } },
           },
         },
-        {
-          deposits: {
-            some: { status: "COMPLETED", createdAt: { gte: from, lte: to } },
-          },
-        },
-      ],
+      },
     },
     select: {
       referredById: true,
@@ -75,10 +68,6 @@ async function getReferralPayForRange(from: Date, to: Date) {
           },
         },
       },
-      deposits: {
-        where: { status: "COMPLETED", createdAt: { gte: from, lte: to } },
-        select: { amount: true },
-      },
     },
   });
 
@@ -86,12 +75,10 @@ async function getReferralPayForRange(from: Date, to: Date) {
     const leadSpend = user.campaigns
       .flatMap((campaign) => campaign.leads)
       .reduce((sum, lead) => sum + Number(lead.campaign.cpl), 0);
-    const depositSpend = user.deposits.reduce((sum, deposit) => sum + Number(deposit.amount), 0);
-    const adSpend = leadSpend + depositSpend;
 
     return (
       total +
-      referralCommissionForAdSpend(adSpend, user.referredById, user.referredBy?.referredById)
+      referralCommissionForAdSpend(leadSpend, user.referredById, user.referredBy?.referredById)
     );
   }, 0);
 }

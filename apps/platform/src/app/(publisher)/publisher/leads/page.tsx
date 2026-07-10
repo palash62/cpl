@@ -173,7 +173,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
                         {payout.label}
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">
-                        {extractLeadCountry(lead.data, lead.country)}
+                        {extractLeadCountry(lead.data, lead.country, lead.geoCountry)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4">
                         <LeadStatusBadge status={lead.status} />
