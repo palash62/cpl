@@ -120,9 +120,12 @@ export function publishedPageTokens(theme: ThemeJson) {
   };
 }
 
-export function publishedPageCssVars(theme: ThemeJson): CSSProperties {
+export function publishedPageCssVars(
+  theme: ThemeJson,
+  options?: { includeBackground?: boolean },
+): CSSProperties {
   const tokens = publishedPageTokens(theme);
-  return {
+  const vars: CSSProperties = {
     ...themeToCssVars(theme),
     ["--pb-page-text" as string]: tokens.pageText,
     ["--pb-label" as string]: tokens.labelColor,
@@ -131,6 +134,8 @@ export function publishedPageCssVars(theme: ThemeJson): CSSProperties {
     ["--pb-input-border" as string]: tokens.inputBorder,
     ["--pb-form-surface-bg" as string]: tokens.formSurfaceBackground,
     ["--pb-form-surface-text" as string]: tokens.formSurfaceText,
-    ...themePageBackgroundStyle(theme),
   };
+
+  if (options?.includeBackground === false) return vars;
+  return { ...vars, ...themePageBackgroundStyle(theme) };
 }

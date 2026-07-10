@@ -16,14 +16,15 @@ export function FunnelTemplatePreview({ templateName, craftState, theme }: Funne
   const formJson = extractFormJson(craftState, "");
 
   return (
-    <div className="min-h-screen w-full" style={themePageBackgroundStyle(theme)}>
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+    <div className="flex min-h-screen w-full flex-col" style={themePageBackgroundStyle(theme)}>
+      <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
         Preview: <span className="font-semibold">{templateName}</span> — leads are not captured in template preview.
       </div>
       <PageRenderer
         craftState={craftState}
         theme={theme}
         formJson={formJson}
+        fillParent
         onLeadSubmit={async () => {
           /* preview only */
         }}

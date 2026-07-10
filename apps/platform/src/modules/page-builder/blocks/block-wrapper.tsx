@@ -55,9 +55,15 @@ function isPublishedWidthConstrained(style: CSSProperties) {
   return false;
 }
 
+function applyPublishedShellSizing(shell: CSSProperties, style: CSSProperties) {
+  if (!hasPublishedBackground(style)) return shell;
+  if (!shell.minHeight) shell.minHeight = "100%";
+  return shell;
+}
+
 function splitPublishedBlockStyles(style: CSSProperties) {
   if (!hasPublishedBackground(style) || !isPublishedWidthConstrained(style)) {
-    return { shell: style, content: null as CSSProperties | null };
+    return { shell: applyPublishedShellSizing({ ...style }, style), content: null as CSSProperties | null };
   }
 
   const shell: CSSProperties = { width: "100%" };
@@ -81,7 +87,7 @@ function splitPublishedBlockStyles(style: CSSProperties) {
     content[key] = value;
   }
 
-  return { shell, content };
+  return { shell: applyPublishedShellSizing(shell, style), content };
 }
 
 function renderPublishedBackgroundMedia(
@@ -155,17 +161,17 @@ export function BlockWrapper({
 
     if (content) {
       return (
-        <Tag style={shell} className={cn(className, "w-full")}>
+        <Tag style={shell} className={cn(className, "flex min-h-full w-full flex-col")}>
           {renderPublishedBackgroundMedia(
             backgroundVideo,
-            <div style={content}>{children}</div>,
+            <div className="min-h-full flex-1" style={content}>{children}</div>,
           )}
         </Tag>
       );
     }
 
     return (
-      <Tag style={shell} className={className}>
+      <Tag style={shell} className={cn(className, hasPublishedBackground(shell) && "min-h-full w-full")}>
         {renderPublishedBackgroundMedia(backgroundVideo, children)}
       </Tag>
     );
@@ -213,8 +219,14 @@ export function CanvasWrapper({
   className,
   ...blockProps
 }: BlockWrapperProps) {
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+
   return (
-    <BlockWrapper {...blockProps} className={cn("min-h-[40px]", className)} draggable>
+    <BlockWrapper
+      {...blockProps}
+      className={cn(enabled ? "min-h-[40px]" : "min-h-full flex-1", className)}
+      draggable
+    >
       {children}
     </BlockWrapper>
   );

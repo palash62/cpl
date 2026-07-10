@@ -17,6 +17,8 @@ type PageRendererProps = {
   landingPageSlug?: string;
   formJson?: FormJson | null;
   onLeadSubmit?: (data: Record<string, string>) => Promise<void>;
+  /** When true, fill a parent flex column (e.g. preview banner + page). */
+  fillParent?: boolean;
 };
 
 function craftHasLeadForm(craft: CraftSerializedState): boolean {
@@ -29,6 +31,7 @@ export function PageRenderer({
   landingPageSlug,
   formJson,
   onLeadSubmit,
+  fillParent = false,
 }: PageRendererProps) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -60,9 +63,13 @@ export function PageRenderer({
   const page = (
     <div
       id="pb-page"
-      className="pb-published-page min-h-screen w-full"
+      className={
+        fillParent
+          ? "pb-published-page flex min-h-full w-full flex-1 flex-col"
+          : "pb-published-page flex min-h-screen w-full flex-col"
+      }
       style={{
-        ...publishedPageCssVars(theme),
+        ...publishedPageCssVars(theme, { includeBackground: !fillParent }),
         fontFamily: theme.fontFamily,
         color: "var(--pb-page-text)",
       }}
@@ -96,7 +103,12 @@ export function PageRenderer({
   return (
     <PublishedPageProvider value={{ landingPageSlug, onLeadSubmit, formJson }}>
       {needsImplicitForm ? (
-        <form id="pb-optin-form" onSubmit={handleImplicitSubmit} noValidate>
+        <form
+          id="pb-optin-form"
+          className={fillParent ? "flex min-h-full flex-1 flex-col" : undefined}
+          onSubmit={handleImplicitSubmit}
+          noValidate
+        >
           <input type="text" name="honeypot" className="hidden" tabIndex={-1} autoComplete="off" />
           {page}
         </form>
