@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { validateLead } from "@/lib/lead-validation";
 import { Errors } from "@/lib/errors";
+import { enrichLeadsWithCountry } from "@/lib/lead-country";
 import { processLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
 import { notifyGeneric, notifyRejected } from "@/services/notify.service";
@@ -219,6 +220,7 @@ async function createAndProcessLead(input: {
   subId?: string;
   deviceFingerprint?: string;
   submissionMeta?: SubmissionMeta;
+  headerCountry?: string;
 }) {
   const settings = await getPlatformSettings();
   const formCountry = extractCountry(input.data);
@@ -251,7 +253,8 @@ async function createAndProcessLead(input: {
     duplicateWindowDays: settings.duplicateWindowDays,
   });
 
-  const country = formCountry ?? fraud.geoCountry;
+  const country = formCountry ?? fraud.geoCountry ?? input.headerCountry;
+  const geoCountry = fraud.geoCountry ?? input.headerCountry;
 
   const fraudConfig = await getFraudConfig();
   const allResults = [
@@ -280,7 +283,7 @@ async function createAndProcessLead(input: {
       riskScore: fraud.riskScore,
       fraudDecision: fraud.fraudDecision,
       deviceFingerprint: input.deviceFingerprint,
-      geoCountry: fraud.geoCountry,
+      geoCountry,
       submissionMeta: input.submissionMeta ?? undefined,
       ip: input.ip,
       userAgent: input.userAgent,
@@ -348,6 +351,7 @@ export async function submitLead(input: {
   subId?: string;
   deviceFingerprint?: string;
   submissionMeta?: SubmissionMeta;
+  headerCountry?: string;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -377,6 +381,7 @@ export async function submitLead(input: {
     subId: input.subId,
     deviceFingerprint: input.deviceFingerprint,
     submissionMeta: input.submissionMeta,
+    headerCountry: input.headerCountry,
   });
 }
 
@@ -403,6 +408,7 @@ export async function submitOptinLead(input: {
   trackingSlug?: string;
   source?: string;
   subId?: string;
+  headerCountry?: string;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -446,6 +452,7 @@ export async function submitOptinLead(input: {
           subId: input.subId,
           deviceFingerprint: input.deviceFingerprint,
           submissionMeta: input.submissionMeta,
+          headerCountry: input.headerCountry,
         });
       }
     }
@@ -487,6 +494,7 @@ export async function submitOptinLead(input: {
     subId: input.subId,
     deviceFingerprint: input.deviceFingerprint,
     submissionMeta: input.submissionMeta,
+    headerCountry: input.headerCountry,
   });
 }
 
@@ -498,6 +506,7 @@ export async function submitLandingLead(input: {
   userAgent?: string;
   deviceFingerprint?: string;
   submissionMeta?: SubmissionMeta;
+  headerCountry?: string;
 }) {
   if (input.honeypot) {
     throw Errors.duplicateLead();
@@ -556,6 +565,7 @@ export async function submitLandingLead(input: {
     source: "landing_page",
     deviceFingerprint: input.deviceFingerprint,
     submissionMeta: input.submissionMeta,
+    headerCountry: input.headerCountry,
   });
 }
 
@@ -728,8 +738,41 @@ export async function listLeads(filters: LeadListFilters & { page?: number; limi
     prisma.lead.count({ where }),
   ]);
 
+  const enriched = await enrichLeadsWithCountry(data);
+  const backfill = enriched
+    .map((lead, index) => {
+      const original = data[index];
+      if (
+        !lead.country ||
+        (original.country?.trim() === lead.country && original.geoCountry?.trim() === lead.geoCountry)
+      ) {
+        return null;
+      }
+      return {
+        id: lead.id,
+        country: lead.country,
+        geoCountry: lead.geoCountry ?? lead.country,
+      };
+    })
+    .filter((item): item is { id: string; country: string; geoCountry: string } => item !== null);
+
+  if (backfill.length > 0) {
+    void prisma
+      .$transaction(
+        backfill.map((item) =>
+          prisma.lead.update({
+            where: { id: item.id },
+            data: { country: item.country, geoCountry: item.geoCountry },
+          }),
+        ),
+      )
+      .catch((error) => {
+        console.error("Failed to backfill lead country", error);
+      });
+  }
+
   return {
-    data,
+    data: enriched,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
   };
 }
@@ -741,12 +784,14 @@ export async function listLeadsForExport(filters: LeadListFilters) {
   const where = buildLeadListWhere(filters);
   const orderBy = buildLeadListOrderBy(sort);
 
-  return prisma.lead.findMany({
+  const data = await prisma.lead.findMany({
     where,
     include: LEAD_LIST_INCLUDE,
     orderBy,
     take: LEAD_EXPORT_MAX,
   });
+
+  return enrichLeadsWithCountry(data);
 }
 
 export type AdvertiserPublisherLeadReportRow = {

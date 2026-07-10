@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInternalServiceToken } from "@cpl/shared";
 import { errorResponse } from "@/lib/errors";
+import { getLeadSubmissionGeo } from "@/lib/request-geo";
 import { leadSubmitSchema } from "@/lib/validations";
 import { submitLead } from "@/services/lead.service";
 
@@ -31,16 +32,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
+    const { ip, headerCountry } = getLeadSubmissionGeo(request);
 
     const lead = await submitLead({
       slug: parsed.data.slug,
       data: parsed.data.data,
       honeypot: parsed.data.honeypot,
       ip,
+      headerCountry,
       userAgent: request.headers.get("user-agent") ?? undefined,
       source: parsed.data.source,
       subId: parsed.data.subId,

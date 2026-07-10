@@ -93,17 +93,8 @@ export async function checkEmailWithProvider(email: string): Promise<RuleOutcome
   }
 }
 
+import { lookupIpCountry as sharedLookupIpCountry } from "@cpl/shared";
+
 export async function lookupIpCountry(ip: string): Promise<string | undefined> {
-  const apiKey = process.env.FRAUD_IP_API_KEY?.trim();
-  if (!apiKey) return undefined;
-  try {
-    const res = await fetch(`https://ipinfo.io/${ip}/json?token=${apiKey}`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!res.ok) return undefined;
-    const data = (await res.json()) as { country?: string };
-    return data.country?.toUpperCase();
-  } catch {
-    return undefined;
-  }
+  return sharedLookupIpCountry(ip);
 }

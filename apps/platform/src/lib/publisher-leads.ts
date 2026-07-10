@@ -40,27 +40,10 @@ export function shortLeadId(id: string) {
   return id.slice(-8).toUpperCase();
 }
 
-const COUNTRY_KEYS = ["country", "country_code", "countryCode", "nationality"];
-
-export function extractLeadCountry(
-  data: unknown,
-  storedCountry?: string | null,
-  geoCountry?: string | null,
-): string {
-  if (storedCountry?.trim()) return storedCountry.trim();
-
-  if (data && typeof data === "object") {
-    const record = data as Record<string, string>;
-    for (const key of COUNTRY_KEYS) {
-      const value = record[key]?.trim();
-      if (value) return value;
-    }
-  }
-
-  if (geoCountry?.trim()) return geoCountry.trim();
-
-  return "—";
-}
+export {
+  extractLeadCountry,
+  formatLeadCountryDisplay,
+} from "@/lib/lead-country";
 
 export function parseUserAgent(userAgent?: string | null): { device: string; os: string } {
   if (!userAgent?.trim()) {

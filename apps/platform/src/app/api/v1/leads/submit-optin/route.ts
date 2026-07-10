@@ -1,5 +1,6 @@
 import { errorResponse } from "@/lib/errors";
 import { optinSubmitSchema } from "@/lib/validations";
+import { getLeadSubmissionGeo } from "@/lib/request-geo";
 import { submitOptinLead } from "@/services/lead.service";
 import { prisma } from "@/lib/prisma";
 
@@ -15,16 +16,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
+    const { ip, headerCountry } = getLeadSubmissionGeo(request);
 
     const lead = await submitOptinLead({
       optinSlug: parsed.data.optinSlug,
       data: parsed.data.data,
       honeypot: parsed.data.honeypot,
       ip,
+      headerCountry,
       userAgent: request.headers.get("user-agent") ?? undefined,
       deviceFingerprint: parsed.data.deviceFingerprint,
       submissionMeta: parsed.data.submissionMeta,
