@@ -28,7 +28,9 @@ if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   exit 1
 fi
 
-mkdir -p "$ROOT/data/platform-uploads/builder" "$ROOT/data/platform-uploads/landing-pages"
+mkdir -p /var/lib/cpl/platform-uploads/builder /var/lib/cpl/platform-uploads/landing-pages
+sudo chown -R ubuntu:www-data /var/lib/cpl/platform-uploads 2>/dev/null || true
+sudo chmod -R 775 /var/lib/cpl/platform-uploads 2>/dev/null || true
 
 # Stop interim host processes that may hold ports 3000/3001 (e.g. manual standalone start).
 for port in 3000 3001; do

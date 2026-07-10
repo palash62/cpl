@@ -34,7 +34,7 @@ services:
     memswap_limit: 900m
     cpus: 1.0
     volumes:
-      - ./data/platform-uploads:/app/apps/platform/public/uploads
+      - /var/lib/cpl/platform-uploads:/app/apps/platform/public/uploads
     healthcheck:
       test:
         [
