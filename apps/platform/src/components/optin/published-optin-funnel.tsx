@@ -78,13 +78,25 @@ export function PublishedOptinFunnel({
     [slug, thankYouEnabled, destinationUrl, previewMode],
   );
 
-  return (
+  const page = (
     <PageRenderer
       craftState={craftState}
       theme={theme}
       landingPageSlug={slug}
       formJson={formJson}
+      fillParent={previewMode}
       onLeadSubmit={previewMode ? undefined : handleSubmit}
     />
+  );
+
+  if (!previewMode) return page;
+
+  return (
+    <div className="flex min-h-screen w-full flex-col">
+      <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+        Preview mode — form submissions are disabled until you publish.
+      </div>
+      {page}
+    </div>
   );
 }

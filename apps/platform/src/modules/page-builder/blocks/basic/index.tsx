@@ -12,6 +12,7 @@ import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import {
   getEditorViewportFill,
+  publishedSectionLayout,
   resolveColumnsGrid,
   resolveSectionPadding,
   withoutStretchLayout,
@@ -47,16 +48,7 @@ export function Section({ children, ...props }: SectionProps) {
       layout={
         showEmpty
           ? { minHeight: "400px", ...sanitizedLayout }
-          : {
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "100%",
-              minHeight: "var(--pb-viewport-fill)",
-              boxSizing: "border-box",
-              ...sanitizedLayout,
-            }
+          : publishedSectionLayout(sanitizedLayout)
       }
     >
       {showEmpty ? <CanvasAddButton parentId={id} variant="section" /> : children}
@@ -231,7 +223,7 @@ export function CanvasRoot({ children }: { children?: ReactNode }) {
 
   return (
     <div
-      className={enabled ? "w-full" : "pb-fill-viewport w-full flex flex-col"}
+      className={enabled ? "w-full" : "flex min-h-0 w-full flex-1 flex-col"}
       style={{
         background: "inherit",
         ...(enabled ? { minHeight: editorMinHeight } : {}),

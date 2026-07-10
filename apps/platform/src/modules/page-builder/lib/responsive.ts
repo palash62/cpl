@@ -239,6 +239,19 @@ export function resolveColumnsGrid(
 
 const DEFAULT_SECTION_PADDING = "40px 20px";
 
+/** Published section shell — top-aligned, no duplicate viewport min-height. */
+export function publishedSectionLayout(sanitizedLayout: LayoutProps): LayoutProps {
+  return {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    boxSizing: "border-box",
+    ...sanitizedLayout,
+  };
+}
+
 export function resolveSectionPadding(
   layout: LayoutProps | undefined,
   breakpoint: Breakpoint,

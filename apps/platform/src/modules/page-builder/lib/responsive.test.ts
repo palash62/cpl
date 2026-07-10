@@ -7,6 +7,7 @@ import {
   mergeBlockStyles,
   normalizeCssLength,
   normalizeSpacing,
+  publishedSectionLayout,
   resolveColumnsGrid,
   resolveSectionPadding,
   withoutStretchLayout,
@@ -219,6 +220,16 @@ describe("resolveSectionPadding", () => {
     expect(resolveSectionPadding({ padding: "24px 8px" }, "mobile")).toEqual({
       padding: "24px 8px",
     });
+  });
+});
+
+describe("publishedSectionLayout", () => {
+  it("top-aligns content without viewport min-height", () => {
+    const layout = publishedSectionLayout({ padding: "40px 20px" });
+    expect(layout.justifyContent).toBe("flex-start");
+    expect(layout.alignItems).toBe("center");
+    expect(layout.minHeight).toBeUndefined();
+    expect(layout.padding).toBe("40px 20px");
   });
 });
 

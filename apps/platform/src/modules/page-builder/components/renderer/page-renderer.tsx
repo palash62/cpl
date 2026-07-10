@@ -71,8 +71,8 @@ export function PageRenderer({
       id="pb-page"
       className={
         fillParent
-          ? "flex w-full flex-1 flex-col"
-          : "flex min-h-screen w-full flex-col"
+          ? "pb-published-page flex min-h-0 w-full flex-1 flex-col"
+          : "pb-published-page flex w-full flex-col"
       }
       style={pageShellStyle(theme, { viewportFill })}
     >
