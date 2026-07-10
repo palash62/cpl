@@ -131,7 +131,7 @@ export function buildBlankPageWithRow(): CraftSerializedState {
       props: {
         name: "Section",
         style: { backgroundColor: "#ffffff" },
-        layout: { padding: "48px 24px", minHeight: "400px" },
+        layout: { padding: "48px 24px" },
       },
       displayName: "Section",
       parent: "ROOT",

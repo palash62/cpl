@@ -123,7 +123,7 @@ export function CanvasWrapper({
   return (
     <BlockWrapper
       {...blockProps}
-      className={cn(enabled ? "min-h-[40px]" : "w-full flex-1", className)}
+      className={cn(enabled ? "min-h-[40px]" : "w-full", className)}
       draggable
     >
       {children}
