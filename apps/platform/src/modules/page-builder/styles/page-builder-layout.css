@@ -1,0 +1,10 @@
+/* Published funnel layout — imported by PageRenderer so preview/live always get these rules. */
+.pb-fill-viewport {
+  min-height: var(--pb-viewport-fill, 100dvh);
+}
+
+.pb-published-page {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--pb-viewport-fill, 100dvh);
+}

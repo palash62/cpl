@@ -12,6 +12,7 @@ import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import type { FormJson } from "@/modules/page-builder/types/form-field";
 import "@/modules/page-builder/styles/page-builder-rich-text.css";
 import "@/modules/page-builder/styles/page-builder-animations.css";
+import "@/modules/page-builder/styles/page-builder-layout.css";
 
 type PageRendererProps = {
   craftState: CraftSerializedState;
@@ -71,8 +72,8 @@ export function PageRenderer({
           : "pb-published-page flex min-h-screen w-full flex-col"
       }
       style={{
-        ...publishedPageCssVars(theme, { includeBackground: !fillParent }),
-        ...(fillParent ? {} : { ["--pb-viewport-fill" as string]: "100dvh" }),
+        ...publishedPageCssVars(theme, { includeBackground: true }),
+        ["--pb-viewport-fill" as string]: fillParent ? "calc(100dvh - 2.5rem)" : "100dvh",
         fontFamily: theme.fontFamily,
         color: "var(--pb-page-text)",
       }}

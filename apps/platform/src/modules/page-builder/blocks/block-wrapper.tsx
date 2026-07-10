@@ -72,6 +72,10 @@ function applyPublishedShellSizing(shell: CSSProperties, style: CSSProperties) {
   return shell;
 }
 
+function viewportFillStyle(active: boolean): CSSProperties {
+  return active ? { minHeight: PB_VIEWPORT_MIN_HEIGHT } : {};
+}
+
 function splitPublishedBlockStyles(style: CSSProperties) {
   if (!hasPublishedBackground(style) || !isPublishedWidthConstrained(style)) {
     return { shell: applyPublishedShellSizing({ ...style }, style), content: null as CSSProperties | null };
@@ -157,6 +161,15 @@ export function BlockWrapper({
     ...extraStyle,
   };
 
+  if (
+    !enabled &&
+    (style.backgroundColor === "#ffffff" ||
+      style.backgroundColor === "#fff" ||
+      style.backgroundColor === "white")
+  ) {
+    delete style.backgroundColor;
+  }
+
   if (!("color" in style) || !style.color) {
     style.color = "var(--pb-page-text, #0f172a)";
   }
@@ -175,7 +188,7 @@ export function BlockWrapper({
     if (content) {
       return (
         <Tag
-          style={shell}
+          style={{ ...shell, ...viewportFillStyle(hasPublishedBackground(content)) }}
           className={cn(className, "flex w-full flex-col", hasPublishedBackground(content) && "pb-fill-viewport")}
         >
           {renderPublishedBackgroundMedia(
@@ -188,7 +201,7 @@ export function BlockWrapper({
 
     return (
       <Tag
-        style={shell}
+        style={{ ...shell, ...viewportFillStyle(hasPublishedBackground(shell)) }}
         className={cn(
           className,
           "w-full",
@@ -247,7 +260,7 @@ export function CanvasWrapper({
   return (
     <BlockWrapper
       {...blockProps}
-      className={cn(enabled ? "min-h-[40px]" : "pb-fill-viewport flex-1", className)}
+      className={cn(enabled ? "min-h-[40px]" : "w-full flex-1", className)}
       draggable
     >
       {children}

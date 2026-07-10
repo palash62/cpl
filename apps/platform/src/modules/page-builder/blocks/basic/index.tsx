@@ -22,7 +22,7 @@ export function Section({ children, ...props }: SectionProps) {
     <CanvasWrapper
       {...props}
       layout={{
-        minHeight: enabled ? (showEmpty ? "400px" : "100%") : "100vh",
+        ...(enabled ? { minHeight: showEmpty ? "400px" : "100%" } : {}),
         ...props.layout,
       }}
     >
@@ -35,7 +35,7 @@ Section.craft = {
   displayName: "Section",
   props: {
     name: "Section",
-    style: { backgroundColor: "#ffffff" },
+    style: { backgroundColor: "transparent" },
     layout: { padding: "40px 20px", width: "100%" },
   },
   rules: { canDrag: () => true, canMoveIn: () => true },
@@ -84,7 +84,7 @@ export function Columns({
         gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: "16px",
         width: "100%",
-        minHeight: enabled ? "100%" : "100vh",
+        ...(enabled ? { minHeight: "100%" } : {}),
         alignItems: "stretch",
         ...props.layout,
       }}
