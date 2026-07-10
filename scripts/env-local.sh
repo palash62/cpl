@@ -7,6 +7,14 @@ DATABASE_URL="${DATABASE_URL:-mysql://root:password@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production-64chars-minimum!!}"
 AUTH_SECRET="${AUTH_SECRET:-dev-secret-change-in-production-min-32-chars}"
 
+if [[ "$DATABASE_URL" != *"connection_limit="* ]]; then
+  if [[ "$DATABASE_URL" == *"?"* ]]; then
+    DATABASE_URL="${DATABASE_URL}&connection_limit=10&pool_timeout=20"
+  else
+    DATABASE_URL="${DATABASE_URL}?connection_limit=10&pool_timeout=20"
+  fi
+fi
+
 mkdir -p "$ROOT/packages/database"
 cat > "$ROOT/packages/database/.env" <<EOF
 DATABASE_URL="$DATABASE_URL"

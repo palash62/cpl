@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 
-const PRISMA_CLIENT_VERSION = 15;
+const PRISMA_CLIENT_VERSION = 16;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -49,11 +49,8 @@ function getPrisma() {
   }
 
   const client = createPrismaClient();
-
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-    globalForPrisma.prismaClientVersion = PRISMA_CLIENT_VERSION;
-  }
+  globalForPrisma.prisma = client;
+  globalForPrisma.prismaClientVersion = PRISMA_CLIENT_VERSION;
 
   return client;
 }

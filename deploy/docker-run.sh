@@ -8,12 +8,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+if docker info >/dev/null 2>&1; then
+  DOCKER=(docker)
+else
+  DOCKER=(sudo docker)
+fi
+
 # shellcheck source=deploy/docker-registry.sh
 source "$ROOT/deploy/docker-registry.sh"
 
 IMAGE_SOURCE="${IMAGE_SOURCE:-registry}"
 IMAGE_TAR="${IMAGE_TAR:-$ROOT/deploy/cpl-docker-images.tar}"
-COMPOSE=(docker compose -f docker-compose.prod.yml)
+COMPOSE=("${DOCKER[@]}" compose -f docker-compose.prod.yml)
 
 if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   echo "Missing .env files for production."
@@ -22,13 +28,23 @@ if [ ! -f apps/platform/.env ] || [ ! -f apps/tracking/.env ]; then
   exit 1
 fi
 
+# Stop interim host processes that may hold ports 3000/3001 (e.g. manual standalone start).
+for port in 3000 3001; do
+  pid="$(ss -tlnp 2>/dev/null | awk -v p=":$port" '$4 ~ p { if (match($0, /pid=([0-9]+)/, m)) print m[1] }' | head -1)"
+  if [ -n "${pid:-}" ]; then
+    echo "==> Stopping host process on port $port (pid $pid) before starting containers..."
+    kill "$pid" 2>/dev/null || sudo kill "$pid" 2>/dev/null || true
+    sleep 1
+  fi
+done
+
 if [ "$IMAGE_SOURCE" = "tar" ]; then
   if [ ! -f "$IMAGE_TAR" ]; then
     echo "IMAGE_SOURCE=tar but missing $IMAGE_TAR"
     exit 1
   fi
   echo "==> Loading images from $IMAGE_TAR (offline)..."
-  docker load -i "$IMAGE_TAR"
+  "${DOCKER[@]}" load -i "$IMAGE_TAR"
 else
   echo "==> Pulling from registry (no build)..."
   echo "  $CPL_PLATFORM_IMAGE"
@@ -58,6 +74,15 @@ echo ""
 echo "Images: $CPL_PLATFORM_IMAGE | $CPL_TRACKING_IMAGE"
 echo "Memory caps: platform 900m | tracking 500m"
 echo ""
+echo "Build images on your laptop (not on this VPS):"
+echo "  bash deploy/docker-build-images.sh && bash deploy/docker-push.sh"
+echo "  # or save offline: SAVE_TAR=1 bash deploy/docker-build-images.sh"
+echo "  # then scp deploy/cpl-docker-images.tar here and:"
+echo "  IMAGE_SOURCE=tar bash deploy/docker-run.sh"
+echo ""
 echo "After pulling new images, sync the database schema on this host:"
 echo "  cd $ROOT && npm run db:push"
 echo "  ${COMPOSE[@]} restart"
+echo ""
+echo "First run or recovery (env + seed + smoke test):"
+echo "  bash $ROOT/deploy/bootstrap-production.sh"

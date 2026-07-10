@@ -33,6 +33,18 @@ services:
     mem_limit: 900m
     memswap_limit: 900m
     cpus: 1.0
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   tracking:
     image: ${CPL_TRACKING_IMAGE:-ghcr.io/palash62/cpl-tracking:latest}
@@ -49,3 +61,15 @@ services:
     mem_limit: 500m
     memswap_limit: 500m
     cpus: 0.5
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/track.js').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

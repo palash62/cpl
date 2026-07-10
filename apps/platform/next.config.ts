@@ -6,6 +6,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: root,
   devIndicators: false,
   serverExternalPackages: ["@prisma/client", "prisma"],
   transpilePackages: ["@cpl/database", "@cpl/shared"],

@@ -10,6 +10,15 @@ DATABASE_URL="${DATABASE_URL:-mysql://cpl:cpl_dev_pass@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-change-me-to-a-random-64-char-secret}"
 AUTH_SECRET="${AUTH_SECRET:-change-me-auth-secret-min-32-characters}"
 
+# Append Prisma pool limits if not already present.
+if [[ "$DATABASE_URL" != *"connection_limit="* ]]; then
+  if [[ "$DATABASE_URL" == *"?"* ]]; then
+    DATABASE_URL="${DATABASE_URL}&connection_limit=10&pool_timeout=20"
+  else
+    DATABASE_URL="${DATABASE_URL}?connection_limit=10&pool_timeout=20"
+  fi
+fi
+
 mkdir -p "$ROOT/packages/database"
 cat > "$ROOT/packages/database/.env" <<EOF
 DATABASE_URL="$DATABASE_URL"
