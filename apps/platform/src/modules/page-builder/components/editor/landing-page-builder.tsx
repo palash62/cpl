@@ -21,7 +21,7 @@ import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { ensureEditorCraftState } from "@/modules/page-builder/lib/serialize";
 import { BuilderSettingsLayoutProvider } from "@/modules/page-builder/lib/builder-settings-context";
-import { BREAKPOINT_WIDTHS } from "@/modules/page-builder/lib/responsive";
+import { BREAKPOINT_WIDTHS, getEditorViewportFill } from "@/modules/page-builder/lib/responsive";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import { RenderNode } from "@/modules/page-builder/components/editor/render-node";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,7 @@ export function LandingPageBuilder({
   const isGhl = isGhlBuilderMode(builderConfig);
   const isDesktop = breakpoint === "desktop";
   const canvasWidth = isDesktop ? undefined : BREAKPOINT_WIDTHS[breakpoint];
+  const viewportFill = getEditorViewportFill(isGhl, breakpoint);
   const darkCanvas = isDarkBackground(theme.backgroundColor);
 
   const resolvedCraftState = ensureEditorCraftState(initialCraftState);
@@ -85,7 +86,7 @@ export function LandingPageBuilder({
                 <div
                   className={cn(
                     "relative flex w-full flex-col transition-all duration-300",
-                    isGhl ? "min-h-[720px] shadow-lg ring-1 ring-slate-200" : "min-h-[calc(100vh-12rem)] shadow-2xl",
+                    isGhl ? "shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
                     chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
                     !isGhl && "ring-1 ring-white/10",
                     !isDesktop && "overflow-hidden rounded-xl",
@@ -93,14 +94,8 @@ export function LandingPageBuilder({
                   )}
                   style={{
                     maxWidth: canvasWidth ?? (isGhl ? 960 : "100%"),
-                    minHeight: isDesktop ? (isGhl ? 720 : "calc(100vh - 12rem)") : 600,
-                    ...pageShellStyle(theme, {
-                      viewportFill: isDesktop
-                        ? isGhl
-                          ? "720px"
-                          : "calc(100vh - 12rem)"
-                        : "600px",
-                    }),
+                    minHeight: viewportFill,
+                    ...pageShellStyle(theme, { viewportFill }),
                   }}
                 >
                   <Frame data={resolvedCraftState as never}>

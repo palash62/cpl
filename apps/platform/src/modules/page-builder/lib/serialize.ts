@@ -1,5 +1,45 @@
 import type { CraftSerializedState, PageDocument } from "@/modules/page-builder/types/page-document";
 import { buildBlankPageWithRow, normalizeRowColumnState } from "@/modules/page-builder/lib/row-column";
+import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
+import type { LayoutProps } from "@/modules/page-builder/types/block-props";
+
+const LAYOUT_SANITIZE_TYPES = new Set(["Section", "Container", "Column", "LeadForm"]);
+
+function nodeTypeName(node: CraftSerializedState[string]): string {
+  const type = node.type as { resolvedName?: string };
+  return type?.resolvedName ?? "";
+}
+
+function sanitizeStretchLayoutInCraft(state: CraftSerializedState): CraftSerializedState {
+  let changed = false;
+  const result: CraftSerializedState = { ...state };
+
+  for (const [id, node] of Object.entries(state)) {
+    const typeName = nodeTypeName(node);
+    if (!LAYOUT_SANITIZE_TYPES.has(typeName)) continue;
+
+    const props = node.props as { layout?: LayoutProps } | undefined;
+    if (!props?.layout) continue;
+
+    const cleaned = withoutStretchLayout(props.layout);
+    if (JSON.stringify(cleaned ?? {}) === JSON.stringify(props.layout)) continue;
+
+    const nextProps = { ...props };
+    if (cleaned) {
+      nextProps.layout = cleaned;
+    } else {
+      delete nextProps.layout;
+    }
+
+    result[id] = {
+      ...node,
+      props: nextProps,
+    };
+    changed = true;
+  }
+
+  return changed ? result : state;
+}
 
 function isNodeMap(value: unknown): value is CraftSerializedState {
   return !!value && typeof value === "object" && "ROOT" in (value as object);
@@ -13,7 +53,7 @@ export function normalizeCraftState(state: CraftSerializedState | { nodes: Craft
     delete (node as { events?: unknown }).events;
     result[id] = node;
   }
-  return result;
+  return sanitizeStretchLayoutInCraft(result);
 }
 
 export function wrapPageDocument(craft: CraftSerializedState): PageDocument {

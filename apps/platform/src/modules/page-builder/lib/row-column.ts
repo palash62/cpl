@@ -21,7 +21,7 @@ export function createColumnNode(id: string, parentId: string, columnIndex: numb
     props: {
       name: `${ordinalLabel(columnIndex)} Column`,
       columnIndex: columnIndex + 1,
-      layout: { minHeight: "120px", padding: "8px" },
+      layout: { padding: "8px" },
     },
     displayName: `${ordinalLabel(columnIndex)} Column`,
     parent: parentId,

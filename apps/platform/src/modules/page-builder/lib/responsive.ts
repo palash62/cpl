@@ -100,8 +100,9 @@ export function mergeBlockStyles(
   props: BlockProps,
   breakpoint: Breakpoint = "desktop",
 ): CSSProperties {
-  const base = blockPropsToStyle(props);
-  const override = props.responsive?.[breakpoint];
+  const scaledProps = applyBreakpointTypographyScale(props, breakpoint);
+  const base = blockPropsToStyle(scaledProps);
+  const override = scaledProps.responsive?.[breakpoint];
   if (!override) return base;
 
   if (override.visible === false) {
@@ -187,3 +188,105 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
   tablet: 768,
   mobile: 375,
 };
+
+const STRETCH_LAYOUT_VALUES = new Set([
+  "100%",
+  "100vh",
+  "100dvh",
+  "720px",
+  "400px",
+  "600px",
+  "640px",
+]);
+
+export function isStretchLayoutValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (STRETCH_LAYOUT_VALUES.has(normalized)) return true;
+  return normalized.includes("calc(100");
+}
+
+export function withoutStretchLayout(layout?: LayoutProps): LayoutProps | undefined {
+  if (!layout) return undefined;
+
+  const next = { ...layout };
+  if (next.minHeight && isStretchLayoutValue(next.minHeight)) {
+    delete next.minHeight;
+  }
+  if (next.height && isStretchLayoutValue(next.height)) {
+    delete next.height;
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+export function getEditorViewportFill(isGhl: boolean, breakpoint: Breakpoint): string {
+  if (breakpoint === "mobile") return "640px";
+  if (breakpoint === "tablet") return "600px";
+  return isGhl ? "720px" : "calc(100vh - 12rem)";
+}
+
+export function resolveColumnsGrid(
+  columns: number,
+  breakpoint: Breakpoint,
+  responsive?: BlockProps["responsive"],
+): string {
+  const override = responsive?.[breakpoint]?.layout?.gridTemplateColumns;
+  if (override) return override;
+  if (breakpoint === "mobile") return "1fr";
+  if (breakpoint === "tablet" && columns > 2) return "repeat(2, 1fr)";
+  return `repeat(${columns}, 1fr)`;
+}
+
+const DEFAULT_SECTION_PADDING = "40px 20px";
+
+export function resolveSectionPadding(
+  layout: LayoutProps | undefined,
+  breakpoint: Breakpoint,
+  responsive?: BlockProps["responsive"],
+): LayoutProps | undefined {
+  if (responsive?.[breakpoint]?.layout?.padding) return layout;
+  const padding = layout?.padding ?? DEFAULT_SECTION_PADDING;
+  if (padding !== DEFAULT_SECTION_PADDING) return layout;
+  const inline =
+    breakpoint === "mobile" ? "12px" : breakpoint === "tablet" ? "16px" : "20px";
+  return { ...layout, padding: `40px ${inline}` };
+}
+
+function parseFontSizePx(fontSize: string): number | null {
+  const normalized = fontSize.trim().toLowerCase();
+  const pxMatch = normalized.match(/^([\d.]+)px$/);
+  if (pxMatch) return Number(pxMatch[1]);
+  const remMatch = normalized.match(/^([\d.]+)rem$/);
+  if (remMatch) return Number(remMatch[1]) * 16;
+  const bareMatch = normalized.match(/^([\d.]+)$/);
+  if (bareMatch) return Number(bareMatch[1]);
+  return null;
+}
+
+function scaleFontSizeForBreakpoint(fontSize: string, breakpoint: Breakpoint): string {
+  if (breakpoint !== "mobile" && breakpoint !== "tablet") return fontSize;
+  const px = parseFontSizePx(fontSize);
+  if (px === null) return fontSize;
+  const factor = breakpoint === "mobile" ? 0.75 : 0.88;
+  return `${Math.round(px * factor)}px`;
+}
+
+function applyBreakpointTypographyScale(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+): BlockProps {
+  if (breakpoint === "desktop" || props.responsive?.[breakpoint]?.typography?.fontSize) {
+    return props;
+  }
+
+  const fontSize = props.typography?.fontSize;
+  if (!fontSize) return props;
+
+  return {
+    ...props,
+    typography: {
+      ...props.typography,
+      fontSize: scaleFontSizeForBreakpoint(fontSize, breakpoint),
+    },
+  };
+}

@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   blockPropsToStyle,
   expandSpacingShorthand,
+  getEditorViewportFill,
+  isStretchLayoutValue,
   mergeBlockStyles,
   normalizeCssLength,
   normalizeSpacing,
+  resolveColumnsGrid,
+  resolveSectionPadding,
+  withoutStretchLayout,
 } from "./responsive";
 
 describe("normalizeCssLength", () => {
@@ -143,5 +148,85 @@ describe("mergeBlockStyles", () => {
     );
     expect(style.fontSize).toBe("14px");
     expect(style.color).toBe("#334155");
+  });
+
+  it("scales typography on mobile when no explicit responsive override", () => {
+    const style = mergeBlockStyles(
+      {
+        typography: { fontSize: "32px" },
+      },
+      "mobile",
+    );
+    expect(style.fontSize).toBe("24px");
+  });
+});
+
+describe("withoutStretchLayout", () => {
+  it("removes viewport stretch minHeight and height values", () => {
+    expect(withoutStretchLayout({ minHeight: "100%", padding: "16px" })).toEqual({
+      padding: "16px",
+    });
+    expect(withoutStretchLayout({ height: "100vh", width: "100%" })).toEqual({
+      width: "100%",
+    });
+    expect(withoutStretchLayout({ minHeight: "calc(100vh - 2rem)" })).toBeUndefined();
+  });
+
+  it("keeps explicit non-stretch heights", () => {
+    expect(withoutStretchLayout({ minHeight: "250px" })).toEqual({ minHeight: "250px" });
+  });
+});
+
+describe("isStretchLayoutValue", () => {
+  it("detects known stretch patterns", () => {
+    expect(isStretchLayoutValue("100%")).toBe(true);
+    expect(isStretchLayoutValue("720px")).toBe(true);
+    expect(isStretchLayoutValue("calc(100dvh - 2rem)")).toBe(true);
+    expect(isStretchLayoutValue("250px")).toBe(false);
+  });
+});
+
+describe("resolveColumnsGrid", () => {
+  it("stacks columns on mobile", () => {
+    expect(resolveColumnsGrid(3, "mobile")).toBe("1fr");
+  });
+
+  it("limits tablet grids to two columns when row has more than two", () => {
+    expect(resolveColumnsGrid(3, "tablet")).toBe("repeat(2, 1fr)");
+    expect(resolveColumnsGrid(2, "tablet")).toBe("repeat(2, 1fr)");
+  });
+
+  it("honors responsive grid overrides", () => {
+    expect(
+      resolveColumnsGrid(3, "mobile", {
+        mobile: { layout: { gridTemplateColumns: "repeat(2, 1fr)" } },
+      }),
+    ).toBe("repeat(2, 1fr)");
+  });
+});
+
+describe("resolveSectionPadding", () => {
+  it("tightens default section padding on smaller breakpoints", () => {
+    expect(resolveSectionPadding({ padding: "40px 20px" }, "mobile")).toEqual({
+      padding: "40px 12px",
+    });
+    expect(resolveSectionPadding({ padding: "40px 20px" }, "tablet")).toEqual({
+      padding: "40px 16px",
+    });
+  });
+
+  it("leaves custom padding untouched", () => {
+    expect(resolveSectionPadding({ padding: "24px 8px" }, "mobile")).toEqual({
+      padding: "24px 8px",
+    });
+  });
+});
+
+describe("getEditorViewportFill", () => {
+  it("returns breakpoint-aware editor canvas heights", () => {
+    expect(getEditorViewportFill(true, "desktop")).toBe("720px");
+    expect(getEditorViewportFill(false, "desktop")).toBe("calc(100vh - 12rem)");
+    expect(getEditorViewportFill(true, "tablet")).toBe("600px");
+    expect(getEditorViewportFill(true, "mobile")).toBe("640px");
   });
 });

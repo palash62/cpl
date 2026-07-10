@@ -17,6 +17,7 @@ import { ButtonLabelContent } from "@/modules/page-builder/components/editor/but
 import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
+import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
 import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
@@ -103,8 +104,9 @@ export function LeadForm({
   }
 
   if (submitted) {
+    const { layout, ...rest } = props;
     return (
-      <CanvasWrapper {...props}>
+      <CanvasWrapper {...rest} layout={withoutStretchLayout(layout)}>
         <div className="rounded-lg border bg-green-50 p-6 text-center">
           <h3 className="text-green-800" style={{ fontWeight: 600 }}>{successTitleText}</h3>
           <p className="mt-2 text-green-700">{successMessageText}</p>
@@ -131,8 +133,10 @@ export function LeadForm({
     </form>
   );
 
+  const { layout, ...rest } = props;
+
   return (
-    <CanvasWrapper {...props}>
+    <CanvasWrapper {...rest} layout={withoutStretchLayout(layout)}>
       <div
         className={cn(
           "rounded-3xl border border-slate-200/80 p-6",

@@ -7,24 +7,57 @@ import { CanvasAddButton } from "@/modules/page-builder/blocks/basic/canvas-add-
 import { RowSettings } from "@/modules/page-builder/components/settings/layout/row-settings";
 import { ColumnSettings } from "@/modules/page-builder/components/settings/layout/column-settings";
 import { StandardSettings } from "@/modules/page-builder/components/settings/shared/block-settings";
+import { usePublishedBreakpoint } from "@/modules/page-builder/hooks/use-published-breakpoint";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
+import {
+  getEditorViewportFill,
+  resolveColumnsGrid,
+  resolveSectionPadding,
+  withoutStretchLayout,
+} from "@/modules/page-builder/lib/responsive";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 
 type SectionProps = BlockProps & { children?: ReactNode };
+
+function useActiveBreakpoint() {
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const editorBreakpoint = useBuilderStore((s) => s.breakpoint);
+  const publishedBreakpoint = usePublishedBreakpoint();
+  return enabled ? editorBreakpoint : publishedBreakpoint;
+}
 
 export function Section({ children, ...props }: SectionProps) {
   const { id, childCount } = useNode((node) => ({
     childCount: node.data.nodes?.length ?? 0,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const breakpoint = useActiveBreakpoint();
   const showEmpty = enabled && childCount === 0;
+  const sanitizedLayout =
+    resolveSectionPadding(
+      withoutStretchLayout(props.layout),
+      breakpoint,
+      props.responsive,
+    ) ?? {};
 
   return (
     <CanvasWrapper
       {...props}
-      layout={{
-        ...(enabled && showEmpty ? { minHeight: "400px" } : {}),
-        ...props.layout,
-      }}
+      layout={
+        showEmpty
+          ? { minHeight: "400px", ...sanitizedLayout }
+          : {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              minHeight: "var(--pb-viewport-fill)",
+              boxSizing: "border-box",
+              ...sanitizedLayout,
+            }
+      }
     >
       {showEmpty ? <CanvasAddButton parentId={id} variant="section" /> : children}
     </CanvasWrapper>
@@ -48,11 +81,18 @@ export function Container({ children, ...props }: SectionProps) {
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const showEmpty = enabled && childCount === 0;
+  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
 
   return (
     <CanvasWrapper
       {...props}
-      layout={{ maxWidth: "1200px", margin: "0 auto", minHeight: showEmpty ? "200px" : undefined, ...props.layout }}
+      layout={{
+        maxWidth: "1200px",
+        margin: "0 auto",
+        width: "100%",
+        ...(showEmpty ? { minHeight: "200px" } : {}),
+        ...sanitizedLayout,
+      }}
     >
       {showEmpty ? <CanvasAddButton parentId={id} variant="container" /> : children}
     </CanvasWrapper>
@@ -73,18 +113,21 @@ export function Columns({
   columns = 2,
   ...props
 }: SectionProps & { columns?: number }) {
+  const breakpoint = useActiveBreakpoint();
   const label = columns === 1 ? "1 Column Row" : `${columns} Column Row`;
+  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
+
   return (
     <CanvasWrapper
       {...props}
       name={props.name ?? label}
       layout={{
         display: "grid",
-        gridTemplateColumns: `repeat(${columns}, 1fr)`,
+        gridTemplateColumns: resolveColumnsGrid(columns, breakpoint, props.responsive),
         gap: "16px",
         width: "100%",
         alignItems: "stretch",
-        ...props.layout,
+        ...sanitizedLayout,
       }}
     >
       {children}
@@ -115,6 +158,7 @@ export function Column({
   const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
   const label = `${labels[columnIndex - 1] ?? `${columnIndex}th`} Column`;
   const showEmpty = enabled && childCount === 0;
+  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
 
   return (
     <CanvasWrapper
@@ -127,7 +171,7 @@ export function Column({
         flexDirection: "column",
         gap: "8px",
         alignSelf: "stretch",
-        ...props.layout,
+        ...sanitizedLayout,
       }}
       className={showEmpty ? "min-h-[120px]" : undefined}
     >
@@ -138,7 +182,7 @@ export function Column({
 
 Column.craft = {
   displayName: "Column",
-  props: { columnIndex: 1, name: "1st Column", layout: { minHeight: "120px", padding: "8px" } },
+  props: { columnIndex: 1, name: "1st Column", layout: { padding: "8px" } },
   rules: {
     canDrag: () => false,
     canMoveIn: () => true,
@@ -180,10 +224,19 @@ export function CanvasRoot({ children }: { children?: ReactNode }) {
     childCount: node.data.nodes?.length ?? 0,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const breakpoint = useBuilderStore((s) => s.breakpoint);
+  const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
   const showEmpty = enabled && childCount === 0;
+  const editorMinHeight = getEditorViewportFill(isGhl, breakpoint);
 
   return (
-    <div className={enabled ? "min-h-[720px] w-full" : "pb-fill-viewport flex w-full flex-1 flex-col"} style={{ background: "inherit" }}>
+    <div
+      className={enabled ? "w-full" : "pb-fill-viewport w-full flex flex-col"}
+      style={{
+        background: "inherit",
+        ...(enabled ? { minHeight: editorMinHeight } : {}),
+      }}
+    >
       {showEmpty ? (
         <div className="p-6">
           <CanvasAddButton parentId={id} variant="page" />

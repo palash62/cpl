@@ -1,4 +1,20 @@
 /* Published funnel layout — imported by PageRenderer so preview/live always get these rules. */
+#pb-page {
+  --pb-section-padding-inline: 20px;
+}
+
+@media (max-width: 768px) {
+  #pb-page {
+    --pb-section-padding-inline: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  #pb-page {
+    --pb-section-padding-inline: 12px;
+  }
+}
+
 .pb-fill-viewport {
   min-height: var(--pb-viewport-fill, 100dvh);
 }
