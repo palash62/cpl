@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       const config = await getResolvedSesConfig();
       const result = await sendMarketingEmail({
         to,
-        fromName: "Leadvix",
+        fromName: "LeadVix",
         fromEmail: config.fromEmail,
         replyTo: PLATFORM_EMAILS.support,
         subject: "SES test email",

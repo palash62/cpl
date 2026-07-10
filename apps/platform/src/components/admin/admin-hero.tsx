@@ -35,7 +35,7 @@ export function AdminHero({ userName = "Admin" }: AdminHeroProps) {
             {getGreeting()}, {userName}
           </h1>
           <p className="mt-1.5 max-w-lg text-sm text-white/80">
-            Monitor your CPL Platform from one powerful dashboard.
+            Monitor your LeadVix platform from one powerful dashboard.
           </p>
         </div>
 

@@ -127,7 +127,7 @@ export const MOCK_FORMS: MockForm[] = [
 ];
 
 export const MOCK_EMAIL_LOGS: MockEmailLog[] = [
-  { id: "1", recipient: "sarah@example.com", subject: "Welcome to Leadvix", status: "opened", sentAt: "2026-06-15 10:32" },
+  { id: "1", recipient: "sarah@example.com", subject: "Welcome to LeadVix", status: "opened", sentAt: "2026-06-15 10:32" },
   { id: "2", recipient: "mike@acme.io", subject: "Your weekly digest", status: "delivered", sentAt: "2026-06-15 09:15" },
   { id: "3", recipient: "bad@invalid.mail", subject: "Product update", status: "bounced", sentAt: "2026-06-14 16:40" },
   { id: "4", recipient: "james@corp.net", subject: "Special offer inside", status: "clicked", sentAt: "2026-06-14 14:22" },

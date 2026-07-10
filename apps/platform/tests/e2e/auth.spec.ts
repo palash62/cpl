@@ -10,9 +10,13 @@ test.describe("Auth pages", () => {
 
   test("register page renders", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByRole("heading", { name: "Create account" })).toBeVisible();
-    await expect(page.getByText("Advertiser")).toBeVisible();
-    await expect(page.getByText("Publisher")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create advertiser account" })).toBeVisible();
+    await expect(page.getByLabel("Name")).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Number")).toBeVisible();
+    await expect(page.getByLabel("Address")).toBeVisible();
+    await expect(page.getByLabel("Country")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
   });
 
   test("redirects unauthenticated users to login", async ({ page }) => {

@@ -1,5 +1,5 @@
 /**
- * Test all three Leadvix platform email addresses.
+ * Test all three LeadVix platform email addresses.
  * Run: npm run test:emails --workspace @cpl/platform
  */
 import { config } from "dotenv";

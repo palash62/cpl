@@ -18,7 +18,7 @@ export function ProblemSolutionSection() {
 
         <div className="box">
           <h3>
-            Meet <span className="purple">Leadvix</span>
+            Meet <span className="purple">LeadVix</span>
           </h3>
           <p>
             A smarter Pay Per Lead platform designed to help advertisers pay for valid, verified lead

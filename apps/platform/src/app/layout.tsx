@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "CPL Platform",
+  title: "LeadVix",
   description: "Cost Per Lead marketplace for advertisers and publishers",
 };
 

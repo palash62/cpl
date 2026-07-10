@@ -10,7 +10,7 @@ export function MarketingHero() {
             Stop Paying $1–$3 Per Click. Start Buying <span>Verified Leads.</span>
           </h1>
           <p>
-            Leadvix helps advertisers buy 100% verified lead opt-ins from $0.70–$2.50 per lead,
+            LeadVix helps advertisers buy 100% verified lead opt-ins from $0.70–$2.50 per lead,
             instead of wasting budget on expensive clicks that may never convert.
           </p>
           <div className="hero-actions">

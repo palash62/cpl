@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     const referredById = await resolveReferrerId(parsed.data.referralRef);
-    const role = parsed.data.referralRef?.trim() ? "ADVERTISER" : parsed.data.role;
+    const role = "ADVERTISER" as const;
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
     const user = await prisma.$transaction(async (tx) => {
@@ -48,14 +48,16 @@ export async function POST(request: Request) {
           status: "PENDING",
           referredById: referredById ?? undefined,
           wallet: { create: {} },
-          ...(role === "ADVERTISER" && {
-            advertiserProfile: {
-              create: { company: parsed.data.company ?? parsed.data.name },
+          advertiserProfile: {
+            create: {
+              company: parsed.data.name,
+              billingInfo: {
+                phone: parsed.data.phone,
+                address: parsed.data.address,
+                country: parsed.data.country,
+              },
             },
-          }),
-          ...(role === "PUBLISHER" && {
-            publisherProfile: { create: {} },
-          }),
+          },
         },
       });
 
@@ -76,12 +78,11 @@ export async function POST(request: Request) {
         verifyToken,
       );
 
-      const roleLabel = user.role === "PUBLISHER" ? "publisher" : "advertiser";
+      const roleLabel = "advertiser";
       await notifyAdminAlert({
         title: `New ${roleLabel} registration`,
         message: `${user.name} (${user.email}) registered and is pending review.`,
-        actionPath:
-          user.role === "PUBLISHER" ? "/admin/publishers" : "/admin/advertisers",
+        actionPath: "/admin/advertisers",
         metadata: { userId: user.id, role: user.role },
       });
 

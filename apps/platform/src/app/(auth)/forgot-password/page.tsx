@@ -39,7 +39,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Forgot password" description="We will email you a link to reset your password">
+    <AuthLayout
+      badge="Account recovery"
+      title="Forgot password"
+      description="We will email you a secure link to reset your password"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <Alert variant="destructive">
@@ -59,16 +63,16 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
-            className="rounded-xl border-slate-200"
+            className="rounded-xl border-slate-200 bg-transparent"
             required
           />
         </div>
-        <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+        <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading}>
           {loading ? "Sending..." : "Send reset link"}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-slate-500">
-        <Link href="/login" className="font-medium text-[var(--theme-primary)] hover:underline">
+      <p className="authMuted mt-4 text-center">
+        <Link href="/login" className="authLink hover:underline">
           Back to sign in
         </Link>
       </p>

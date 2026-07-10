@@ -38,7 +38,7 @@ function VerifyEmailContent() {
 
   return (
     <>
-      {status === "loading" && <p className="text-sm text-slate-500">Verifying your email...</p>}
+      {status === "loading" && <p className="authMuted text-sm">Verifying your email...</p>}
       {status === "success" && (
         <Alert>
           <AlertDescription>{message}</AlertDescription>
@@ -55,12 +55,12 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <AuthLayout title="Verify email" description="Confirming your email address">
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading...</p>}>
+    <AuthLayout badge="Email verification" title="Verify email" description="Confirming your email address">
+      <Suspense fallback={<p className="authMuted text-sm">Loading...</p>}>
         <VerifyEmailContent />
       </Suspense>
-      <p className="mt-4 text-center text-sm text-slate-500">
-        <Link href="/login" className="font-medium text-[var(--theme-primary)] hover:underline">
+      <p className="authMuted mt-4 text-center">
+        <Link href="/login" className="authLink hover:underline">
           Go to sign in
         </Link>
       </p>

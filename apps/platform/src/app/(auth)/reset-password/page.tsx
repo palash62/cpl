@@ -63,7 +63,7 @@ function ResetPasswordForm() {
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          className="rounded-xl border-slate-200"
+          className="rounded-xl border-slate-200 bg-transparent"
           minLength={8}
           required
         />
@@ -75,12 +75,12 @@ function ResetPasswordForm() {
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          className="rounded-xl border-slate-200"
+          className="rounded-xl border-slate-200 bg-transparent"
           minLength={8}
           required
         />
       </div>
-      <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+      <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading}>
         {loading ? "Updating..." : "Update password"}
       </Button>
     </form>
@@ -89,12 +89,12 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <AuthLayout title="Reset password" description="Choose a new password for your account">
-      <Suspense fallback={<p className="text-sm text-slate-500">Loading...</p>}>
+    <AuthLayout badge="Password reset" title="Reset password" description="Choose a new password for your account">
+      <Suspense fallback={<p className="authMuted text-sm">Loading...</p>}>
         <ResetPasswordForm />
       </Suspense>
-      <p className="mt-4 text-center text-sm text-slate-500">
-        <Link href="/login" className="font-medium text-[var(--theme-primary)] hover:underline">
+      <p className="authMuted mt-4 text-center">
+        <Link href="/login" className="authLink hover:underline">
           Back to sign in
         </Link>
       </p>

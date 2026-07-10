@@ -97,7 +97,7 @@ export async function testSmtpConnection(testTo?: string) {
 
   const result = await sendEmail({
     to,
-    subject: "CPL Platform SMTP test",
+    subject: "LeadVix SMTP test",
     html: `<p>SMTP test successful at ${new Date().toISOString()}</p>`,
     text: `SMTP test successful at ${new Date().toISOString()}`,
     template: "generic",

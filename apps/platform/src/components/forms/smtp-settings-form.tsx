@@ -171,7 +171,7 @@ export function SmtpSettingsForm() {
               id="smtpFrom"
               value={settings.from}
               onChange={(e) => setSettings({ ...settings, from: e.target.value })}
-              placeholder='Leadvix <noreply@leadvix.io>'
+              placeholder='LeadVix <noreply@leadvix.io>'
             />
           </div>
           <div className="space-y-2">

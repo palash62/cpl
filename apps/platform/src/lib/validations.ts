@@ -5,8 +5,10 @@ export const registerSchema = z
     email: z.string().email(),
     password: z.string().min(8),
     name: z.string().min(2),
-    role: z.enum(["ADVERTISER", "PUBLISHER"]),
-    company: z.string().optional(),
+    phone: z.string().min(5, "Enter a valid phone number"),
+    address: z.string().min(3, "Enter your address"),
+    country: z.string().min(2, "Select your country"),
+    role: z.literal("ADVERTISER").default("ADVERTISER"),
     referralRef: z.string().optional(),
   })
   .refine((data) => !data.referralRef?.trim() || data.role === "ADVERTISER", {

@@ -39,7 +39,7 @@ export function ThemePreviewCard({ meta, active }: ThemePreviewCardProps) {
           }}
         >
           <div className="mb-3 flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-[10px] font-bold text-white">
-            CP
+            LV
           </div>
           <div className="space-y-1">
             <div className="h-6 rounded-lg bg-white text-[8px] font-medium leading-6 text-[var(--theme-sidebar-active-text)] text-center shadow-sm">

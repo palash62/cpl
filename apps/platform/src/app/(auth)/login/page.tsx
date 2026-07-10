@@ -55,7 +55,11 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Welcome back" description="Sign in to your CPL Platform account">
+    <AuthLayout
+      badge="Secure sign in"
+      title="Welcome back"
+      description="Sign in to your LeadVix account and manage verified lead campaigns."
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <Alert variant="destructive">
@@ -70,17 +74,14 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
-            className="rounded-xl border-slate-200"
+            className="rounded-xl border-slate-200 bg-transparent"
             required
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor="password">Password</Label>
-            <Link
-              href="/forgot-password"
-              className="shrink-0 text-sm font-semibold text-blue-600 underline hover:text-blue-700"
-            >
+            <Link href="/forgot-password" className="authLink shrink-0 text-sm underline-offset-2 hover:underline">
               Forgot Password
             </Link>
           </div>
@@ -89,20 +90,17 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-xl border-slate-200"
+            className="rounded-xl border-slate-200 bg-transparent"
             required
           />
         </div>
-        <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+        <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
-      <p className="mt-4 text-center text-xs text-slate-400">
-        Demo: admin@cpl.local / password123
-      </p>
-      <p className="mt-4 text-center text-sm text-slate-500">
+      <p className="authMuted mt-4 text-center">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-[var(--theme-primary)] hover:underline">
+        <Link href="/register" className="authLink hover:underline">
           Register
         </Link>
       </p>

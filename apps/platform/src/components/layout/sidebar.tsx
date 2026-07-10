@@ -33,9 +33,9 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
           className="flex items-center gap-2.5 font-bold text-white"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-sm font-bold text-white">
-            CP
+            LV
           </span>
-          {!collapsed && <span className="text-[15px] tracking-tight">CPL Platform</span>}
+          {!collapsed && <span className="text-[15px] tracking-tight">LeadVix</span>}
         </Link>
       </div>
       <nav className="flex-1 space-y-0.5 p-3">
