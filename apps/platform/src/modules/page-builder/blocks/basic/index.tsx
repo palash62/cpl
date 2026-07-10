@@ -175,7 +175,7 @@ export function CanvasRoot({ children }: { children?: ReactNode }) {
   const showEmpty = enabled && childCount === 0;
 
   return (
-    <div className={enabled ? "min-h-[720px] w-full" : "flex min-h-full w-full flex-1 flex-col"} style={{ background: "inherit" }}>
+    <div className={enabled ? "min-h-[720px] w-full" : "flex min-h-[var(--pb-viewport-fill,100dvh)] w-full flex-1 flex-col"} style={{ background: "inherit" }}>
       {showEmpty ? (
         <div className="p-6">
           <CanvasAddButton parentId={id} variant="page" />

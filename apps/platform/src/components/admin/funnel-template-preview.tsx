@@ -16,7 +16,13 @@ export function FunnelTemplatePreview({ templateName, craftState, theme }: Funne
   const formJson = extractFormJson(craftState, "");
 
   return (
-    <div className="flex min-h-screen w-full flex-col" style={themePageBackgroundStyle(theme)}>
+    <div
+      className="flex min-h-screen w-full flex-col"
+      style={{
+        ...themePageBackgroundStyle(theme),
+        ["--pb-viewport-fill" as string]: "calc(100dvh - 2.5rem)",
+      }}
+    >
       <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
         Preview: <span className="font-semibold">{templateName}</span> — leads are not captured in template preview.
       </div>

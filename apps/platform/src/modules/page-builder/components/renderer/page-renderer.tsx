@@ -65,11 +65,12 @@ export function PageRenderer({
       id="pb-page"
       className={
         fillParent
-          ? "pb-published-page flex min-h-full w-full flex-1 flex-col"
+          ? "pb-published-page flex min-h-[var(--pb-viewport-fill,100dvh)] w-full flex-1 flex-col"
           : "pb-published-page flex min-h-screen w-full flex-col"
       }
       style={{
         ...publishedPageCssVars(theme, { includeBackground: !fillParent }),
+        ...(fillParent ? {} : { ["--pb-viewport-fill" as string]: "100dvh" }),
         fontFamily: theme.fontFamily,
         color: "var(--pb-page-text)",
       }}
@@ -105,7 +106,7 @@ export function PageRenderer({
       {needsImplicitForm ? (
         <form
           id="pb-optin-form"
-          className={fillParent ? "flex min-h-full flex-1 flex-col" : undefined}
+          className={fillParent ? "flex min-h-[var(--pb-viewport-fill,100dvh)] flex-1 flex-col" : undefined}
           onSubmit={handleImplicitSubmit}
           noValidate
         >

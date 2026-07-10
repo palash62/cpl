@@ -57,7 +57,7 @@ function isPublishedWidthConstrained(style: CSSProperties) {
 
 function applyPublishedShellSizing(shell: CSSProperties, style: CSSProperties) {
   if (!hasPublishedBackground(style)) return shell;
-  if (!shell.minHeight) shell.minHeight = "100%";
+  if (!shell.minHeight) shell.minHeight = "var(--pb-viewport-fill, 100dvh)";
   return shell;
 }
 
@@ -161,17 +161,27 @@ export function BlockWrapper({
 
     if (content) {
       return (
-        <Tag style={shell} className={cn(className, "flex min-h-full w-full flex-col")}>
+        <Tag
+          style={shell}
+          className={cn(className, "flex w-full flex-col", hasPublishedBackground(shell) && "min-h-[var(--pb-viewport-fill,100dvh)]")}
+        >
           {renderPublishedBackgroundMedia(
             backgroundVideo,
-            <div className="min-h-full flex-1" style={content}>{children}</div>,
+            <div className="flex flex-1 flex-col" style={content}>{children}</div>,
           )}
         </Tag>
       );
     }
 
     return (
-      <Tag style={shell} className={cn(className, hasPublishedBackground(shell) && "min-h-full w-full")}>
+      <Tag
+        style={shell}
+        className={cn(
+          className,
+          "w-full",
+          hasPublishedBackground(shell) && "min-h-[var(--pb-viewport-fill,100dvh)]",
+        )}
+      >
         {renderPublishedBackgroundMedia(backgroundVideo, children)}
       </Tag>
     );
@@ -224,7 +234,7 @@ export function CanvasWrapper({
   return (
     <BlockWrapper
       {...blockProps}
-      className={cn(enabled ? "min-h-[40px]" : "min-h-full flex-1", className)}
+      className={cn(enabled ? "min-h-[40px]" : "min-h-[var(--pb-viewport-fill,100dvh)] flex-1", className)}
       draggable
     >
       {children}
