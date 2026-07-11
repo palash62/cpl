@@ -49,8 +49,10 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(15);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createInitialMode, setCreateInitialMode] = useState<"blank" | "templates">("blank");
+  const [createInitialTemplateId, setCreateInitialTemplateId] = useState<string | undefined>();
+  const [createInitialName, setCreateInitialName] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
-  const [templateLoadingId, setTemplateLoadingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -109,17 +111,15 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
     router.push(`/advertiser/optin-funnels/${data.id}`);
   }
 
-  async function createFromTemplate(template: OptinFunnelTemplate) {
-    setTemplateLoadingId(template.id);
-    try {
-      await createFunnel({
-        name: template.name,
-        editorType: "BUILDER",
-        pageTemplateId: template.id,
-      });
-    } finally {
-      setTemplateLoadingId(null);
-    }
+  function openCreateDialog(options?: {
+    mode?: "blank" | "templates";
+    templateId?: string;
+    name?: string;
+  }) {
+    setCreateInitialMode(options?.mode ?? "blank");
+    setCreateInitialTemplateId(options?.templateId);
+    setCreateInitialName(options?.name);
+    setCreateOpen(true);
   }
 
   async function archiveFunnel(id: string) {
@@ -167,7 +167,7 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
           <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" disabled>
             <FolderPlus className="h-4 w-4" />
           </Button>
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => openCreateDialog()}>
             <Plus className="mr-2 h-4 w-4" />
             New funnel
           </Button>
@@ -201,8 +201,14 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
                   thankYouEnabled={template.thankYouEnabled}
                   createdAt={template.createdAt}
                   variant="advertiser"
-                  loading={templateLoadingId === template.id || loading}
-                  onUse={() => void createFromTemplate(template)}
+                  loading={loading}
+                  onUse={() =>
+                    openCreateDialog({
+                      mode: "templates",
+                      templateId: template.id,
+                      name: template.name,
+                    })
+                  }
                 />
               ))}
             </div>
@@ -234,7 +240,7 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
                   : "Try a different search term."}
               </p>
               {funnels.length === 0 && (
-                <Button className="mt-6" onClick={() => setCreateOpen(true)}>
+                <Button className="mt-6" onClick={() => openCreateDialog()}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create your first funnel
                 </Button>
@@ -312,6 +318,9 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
         onOpenChange={setCreateOpen}
         loading={loading}
         templates={templates}
+        initialMode={createInitialMode}
+        initialTemplateId={createInitialTemplateId}
+        initialName={createInitialName}
         onCreate={createFunnel}
       />
     </FunnelModuleShell>

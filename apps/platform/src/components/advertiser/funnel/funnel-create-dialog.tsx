@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LayoutTemplate } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { LayoutTemplate, Pencil } from "lucide-react";
 import { FunnelCraftTemplateCard } from "@/components/funnel/funnel-craft-template-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -22,6 +23,9 @@ type FunnelCreateDialogProps = {
   onOpenChange: (open: boolean) => void;
   loading: boolean;
   templates: OptinFunnelTemplate[];
+  initialMode?: CreateMode;
+  initialTemplateId?: string;
+  initialName?: string;
   onCreate: (input: { name: string; editorType: "BUILDER"; pageTemplateId?: string }) => void;
 };
 
@@ -30,115 +34,220 @@ export function FunnelCreateDialog({
   onOpenChange,
   loading,
   templates,
+  initialMode,
+  initialTemplateId,
+  initialName,
   onCreate,
 }: FunnelCreateDialogProps) {
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<CreateMode>("blank");
   const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+
+  const selectedTemplateData = templates.find((t) => t.id === selectedTemplate);
+  const fromTemplateLibrary = Boolean(initialTemplateId);
+  const quickCreate = fromTemplateLibrary && selectedTemplate && !showTemplatePicker;
 
   useEffect(() => {
     if (!open) return;
-    setMode("blank");
-    setName("");
-    setSelectedTemplate(null);
-  }, [open]);
+    const nextMode = initialTemplateId ? "templates" : (initialMode ?? "blank");
+    setMode(nextMode);
+    setName(initialName ?? "");
+    setNameTouched(Boolean(initialName));
+    setSelectedTemplate(initialTemplateId ?? null);
+    setShowTemplatePicker(!initialTemplateId && nextMode === "templates");
+  }, [open, initialMode, initialTemplateId, initialName]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => nameInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [open, quickCreate]);
 
   function handleClose(next: boolean) {
     onOpenChange(next);
   }
 
+  function selectTemplate(templateId: string) {
+    setSelectedTemplate(templateId);
+    setMode("templates");
+    if (!nameTouched) {
+      const template = templates.find((t) => t.id === templateId);
+      if (template) setName(template.name);
+    }
+    setShowTemplatePicker(false);
+  }
+
   function handleCreate() {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) return;
+
     if (mode === "blank") {
-      const trimmed = name.trim();
-      if (!trimmed) return;
       onCreate({ name: trimmed, editorType: "BUILDER" });
       return;
     }
     if (mode === "templates" && selectedTemplate) {
-      const template = templates.find((t) => t.id === selectedTemplate);
       onCreate({
-        name: template?.name ?? "Template Funnel",
+        name: trimmed,
         editorType: "BUILDER",
         pageTemplateId: selectedTemplate,
       });
     }
   }
 
-  const canCreate = mode === "blank" ? name.trim().length > 0 : Boolean(selectedTemplate);
+  const canCreate =
+    mode === "blank"
+      ? name.trim().length >= 2
+      : Boolean(selectedTemplate) && name.trim().length >= 2;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Create new funnel</DialogTitle>
+          <DialogTitle>{quickCreate ? "Name your funnel" : "Create new funnel"}</DialogTitle>
+          <DialogDescription>
+            {quickCreate
+              ? "Pick a name for your funnel. You can rename it later in funnel settings."
+              : "Choose a starting point and give your funnel a name."}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setMode("blank")}
-            className={cn(
-              "rounded-xl border-2 p-4 text-left transition",
-              mode === "blank" ? "border-blue-600 bg-blue-50/50" : "border-slate-200 hover:border-slate-300",
-            )}
-          >
-            <div className="mb-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
-              <Label className="text-xs text-slate-500">Funnel name *</Label>
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setMode("blank");
-                  setName(e.target.value);
-                }}
-                placeholder="e.g. Sales funnel"
-                className="mt-1 h-9 border-slate-200 bg-white"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <p className="font-semibold text-slate-900">From blank</p>
-            <p className="mt-1 text-xs text-slate-500">Design from scratch using the funnel builder.</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMode("templates")}
-            className={cn(
-              "rounded-xl border-2 p-4 text-left transition",
-              mode === "templates" ? "border-blue-600 bg-blue-50/50" : "border-slate-200 hover:border-slate-300",
-            )}
-          >
-            <div className="mb-3 flex h-24 items-center justify-center gap-1 rounded-lg bg-slate-100">
-              <div className="h-14 w-10 rounded bg-blue-200" />
-              <div className="h-14 w-10 rounded bg-teal-200" />
-              <div className="h-14 w-10 rounded bg-violet-200" />
-            </div>
-            <p className="font-semibold text-slate-900">From templates</p>
-            <p className="mt-1 text-xs text-slate-500">Jump start with an awesome prebuilt funnel.</p>
-          </button>
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+          <Label htmlFor="funnel-name" className="text-sm font-medium text-slate-700">
+            Funnel name
+          </Label>
+          <Input
+            id="funnel-name"
+            ref={nameInputRef}
+            value={name}
+            onChange={(e) => {
+              setNameTouched(true);
+              setName(e.target.value);
+            }}
+            placeholder="e.g. Summer promo funnel"
+            className="h-10 border-slate-200 bg-white text-base"
+          />
+          {mode === "templates" && selectedTemplateData && (
+            <p className="text-xs text-slate-500">
+              Based on template: <span className="font-medium text-slate-700">{selectedTemplateData.name}</span>
+            </p>
+          )}
         </div>
 
-        {mode === "templates" && (
-          <div className="grid max-h-[420px] gap-4 overflow-y-auto sm:grid-cols-2">
-            {templates.length === 0 && (
-              <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-                No templates available yet. Ask admin to create templates.
+        {quickCreate ? (
+          <div className="overflow-hidden rounded-xl border border-slate-200">
+            <FunnelCraftTemplateCard
+              id={selectedTemplateData!.id}
+              name={selectedTemplateData!.name}
+              craftState={selectedTemplateData!.craftState}
+              themeJson={selectedTemplateData!.themeJson}
+              thankYouEnabled={selectedTemplateData!.thankYouEnabled}
+              variant="picker"
+              selected
+            />
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-slate-600"
+                onClick={() => setShowTemplatePicker(true)}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Choose a different template
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("blank");
+                  setSelectedTemplate(null);
+                  setShowTemplatePicker(false);
+                }}
+                className={cn(
+                  "rounded-xl border-2 p-4 text-left transition",
+                  mode === "blank"
+                    ? "border-blue-600 bg-blue-50/50"
+                    : "border-slate-200 hover:border-slate-300",
+                )}
+              >
+                <div className="mb-3 flex h-16 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
+                  <LayoutTemplate className="h-7 w-7 text-slate-400" />
+                </div>
+                <p className="font-semibold text-slate-900">Start from blank</p>
+                <p className="mt-1 text-xs text-slate-500">Build your opt-in page from scratch.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("templates");
+                  setShowTemplatePicker(true);
+                }}
+                className={cn(
+                  "rounded-xl border-2 p-4 text-left transition",
+                  mode === "templates"
+                    ? "border-blue-600 bg-blue-50/50"
+                    : "border-slate-200 hover:border-slate-300",
+                )}
+              >
+                <div className="mb-3 flex h-16 items-center justify-center gap-1 rounded-lg bg-slate-100">
+                  <div className="h-12 w-8 rounded bg-blue-200" />
+                  <div className="h-12 w-8 rounded bg-teal-200" />
+                  <div className="h-12 w-8 rounded bg-violet-200" />
+                </div>
+                <p className="font-semibold text-slate-900">Use a template</p>
+                <p className="mt-1 text-xs text-slate-500">Start from a prebuilt layout and customize it.</p>
+              </button>
+            </div>
+
+            {mode === "templates" && showTemplatePicker && (
+              <div className="grid max-h-[360px] gap-4 overflow-y-auto sm:grid-cols-2">
+                {templates.length === 0 && (
+                  <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    No templates available yet. Ask admin to create templates.
+                  </div>
+                )}
+                {templates.map((template) => (
+                  <FunnelCraftTemplateCard
+                    key={template.id}
+                    id={template.id}
+                    name={template.name}
+                    craftState={template.craftState}
+                    themeJson={template.themeJson}
+                    thankYouEnabled={template.thankYouEnabled}
+                    selected={selectedTemplate === template.id}
+                    loading={loading}
+                    variant="picker"
+                    onSelect={() => selectTemplate(template.id)}
+                  />
+                ))}
               </div>
             )}
-            {templates.map((template) => (
-              <FunnelCraftTemplateCard
-                key={template.id}
-                id={template.id}
-                name={template.name}
-                craftState={template.craftState}
-                themeJson={template.themeJson}
-                thankYouEnabled={template.thankYouEnabled}
-                selected={selectedTemplate === template.id}
-                loading={loading}
-                variant="picker"
-                onSelect={() => setSelectedTemplate(template.id)}
-              />
-            ))}
-          </div>
+
+            {mode === "templates" && selectedTemplate && !showTemplatePicker && (
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-sm text-slate-700">
+                  Template: <span className="font-medium">{selectedTemplateData?.name}</span>
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setShowTemplatePicker(true)}
+                >
+                  Change
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
@@ -146,8 +255,7 @@ export function FunnelCreateDialog({
             Cancel
           </Button>
           <Button disabled={!canCreate || loading} onClick={handleCreate}>
-            <LayoutTemplate className="mr-2 h-4 w-4" />
-            Create
+            {loading ? "Creating..." : "Create funnel"}
           </Button>
         </div>
       </DialogContent>

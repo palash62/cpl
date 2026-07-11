@@ -1,19 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthLayout } from "@/components/layout/auth-layout";
-import { getDashboardPath } from "@/lib/auth";
-import type { UserRole } from "@prisma/client";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,6 +25,7 @@ export default function LoginPage() {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
+        callbackUrl: "/",
       });
 
       if (!result?.ok || result.error) {
@@ -36,16 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.refresh();
-      const session = await getSession();
-      const role = session?.user?.role as UserRole | undefined;
-
-      if (role) {
-        router.push(getDashboardPath(role));
-        return;
-      }
-
-      // Full reload if client session lags behind the auth cookie
+      // Full navigation so the server reads the new auth cookie and redirects by role.
       window.location.href = "/";
     } catch {
       setError("Something went wrong. Please try again.");

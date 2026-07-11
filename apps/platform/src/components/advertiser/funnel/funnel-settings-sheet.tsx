@@ -15,7 +15,9 @@ import {
 type FunnelSettingsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entityName: string;
+  entityName?: string;
+  name?: string;
+  onNameChange?: (value: string) => void;
   urlHint: string;
   description?: string;
   thankYouEnabled: boolean;
@@ -34,6 +36,8 @@ export function FunnelSettingsSheet({
   open,
   onOpenChange,
   entityName,
+  name,
+  onNameChange,
   urlHint,
   description = "Configure submit behavior and tracking for this funnel.",
   thankYouEnabled,
@@ -60,8 +64,23 @@ export function FunnelSettingsSheet({
 
         <div className="mt-5 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-sm font-semibold text-slate-900">{entityName}</p>
-            <p className="mt-1 font-mono text-xs text-slate-500">{urlHint}</p>
+            {onNameChange ? (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-600">
+                  Funnel name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={name ?? ""}
+                  onChange={(e) => onNameChange(e.target.value)}
+                  placeholder="e.g. Sales funnel"
+                  className="h-9 border-slate-200 bg-white text-sm"
+                  disabled={saving}
+                />
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-slate-900">{entityName}</p>
+            )}
+            <p className="mt-2 font-mono text-xs text-slate-500">{urlHint}</p>
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 p-3">
@@ -123,7 +142,7 @@ export function FunnelSettingsSheet({
               {saving ? "Saving..." : "Save settings"}
             </Button>
             {message && (
-              <p className={`text-sm ${message.includes("Unable") || message.includes("required") || message.includes("valid") ? "text-red-600" : "text-emerald-600"}`}>
+              <p className={`text-sm ${message.includes("Unable") || message.includes("required") || message.includes("valid") || message.includes("characters") ? "text-red-600" : "text-emerald-600"}`}>
                 {message}
               </p>
             )}

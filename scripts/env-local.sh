@@ -3,6 +3,10 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Use 3010 locally — Cursor often forwards remote production on localhost:3000.
+LOCAL_PLATFORM_PORT="${LOCAL_PLATFORM_PORT:-3010}"
+LOCAL_PLATFORM_URL="http://localhost:${LOCAL_PLATFORM_PORT}"
+
 DATABASE_URL="${DATABASE_URL:-mysql://root:password@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production-64chars-minimum!!}"
 AUTH_SECRET="${AUTH_SECRET:-dev-secret-change-in-production-min-32-chars}"
@@ -24,26 +28,27 @@ cat > "$ROOT/apps/platform/.env" <<EOF
 DATABASE_URL="$DATABASE_URL"
 INTERNAL_SERVICE_TOKEN="$INTERNAL_SERVICE_TOKEN"
 AUTH_SECRET="$AUTH_SECRET"
-AUTH_URL="http://localhost:3000"
+AUTH_URL="$LOCAL_PLATFORM_URL"
 AUTH_TRUST_HOST="true"
-APP_URL="http://localhost:3000"
-PLATFORM_URL="http://localhost:3000"
+APP_URL="$LOCAL_PLATFORM_URL"
+PLATFORM_URL="$LOCAL_PLATFORM_URL"
 TRACKING_URL="http://localhost:3001"
-NEXT_PUBLIC_PLATFORM_URL="http://localhost:3000"
+NEXT_PUBLIC_PLATFORM_URL="$LOCAL_PLATFORM_URL"
 NEXT_PUBLIC_TRACKING_URL="http://localhost:3001"
-PORT=3000
+PORT=$LOCAL_PLATFORM_PORT
 EOF
 
 cat > "$ROOT/apps/tracking/.env" <<EOF
 DATABASE_URL="$DATABASE_URL"
 INTERNAL_SERVICE_TOKEN="$INTERNAL_SERVICE_TOKEN"
 TRACKING_URL="http://localhost:3001"
-PLATFORM_URL="http://localhost:3000"
+PLATFORM_URL="$LOCAL_PLATFORM_URL"
 NEXT_PUBLIC_TRACKING_URL="http://localhost:3001"
-NEXT_PUBLIC_PLATFORM_URL="http://localhost:3000"
+NEXT_PUBLIC_PLATFORM_URL="$LOCAL_PLATFORM_URL"
 PORT=3001
 EOF
 
 echo "Wrote local dev env:"
-echo "  Platform:  http://localhost:3000"
+echo "  Platform:  $LOCAL_PLATFORM_URL"
 echo "  Tracking:  http://localhost:3001"
+echo "  Note: avoid http://localhost:3000 — Cursor may forward that to production."

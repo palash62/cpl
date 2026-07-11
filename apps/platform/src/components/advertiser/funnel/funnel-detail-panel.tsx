@@ -27,6 +27,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   const [activeStepId, setActiveStepId] = useState<FunnelStepId>("optin");
   const [addStepOpen, setAddStepOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [funnelName, setFunnelName] = useState(funnel.name);
   const [thankYouEnabled, setThankYouEnabled] = useState(funnel.thankYouEnabled);
   const [destinationUrl, setDestinationUrl] = useState(funnel.destinationUrl ?? "");
   const [thankYouPixelHtml, setThankYouPixelHtml] = useState(funnel.thankYouPixelHtml ?? "");
@@ -47,6 +48,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       if (!cancelled && res.ok && body.data) {
         const refreshed = body.data as SerializedOptinFunnel;
         setFunnel(refreshed);
+        setFunnelName(refreshed.name);
         setThankYouEnabled(refreshed.thankYouEnabled);
         setDestinationUrl(refreshed.destinationUrl ?? "");
         setThankYouPixelHtml(refreshed.thankYouPixelHtml ?? "");
@@ -95,10 +97,21 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       }
     }
 
+    const trimmedName = funnelName.trim();
+    if (trimmedName.length < 2) {
+      setSettingsMessage("Funnel name must be at least 2 characters.");
+      return false;
+    }
+    if (trimmedName.length > 80) {
+      setSettingsMessage("Funnel name must be 80 characters or fewer.");
+      return false;
+    }
+
     setSavingSettings(true);
     setSettingsMessage(null);
 
     const body = {
+      name: trimmedName,
       thankYouEnabled: nextThankYouEnabled,
       destinationUrl: nextDestinationUrl || null,
       thankYouPixelHtml: patch?.thankYouPixelHtml ?? thankYouPixelHtml,
@@ -120,6 +133,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
     const saved = data.data as SerializedOptinFunnel;
     setFunnel(saved);
+    setFunnelName(saved.name);
     setThankYouEnabled(saved.thankYouEnabled);
     setDestinationUrl(saved.destinationUrl ?? "");
     setSettingsMessage("Settings saved.");
@@ -173,6 +187,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
               onEntityUpdated={(data) => {
                 const saved = data as SerializedOptinFunnel;
                 setFunnel(saved);
+                setFunnelName(saved.name);
                 setThankYouEnabled(saved.thankYouEnabled);
                 setDestinationUrl(saved.destinationUrl ?? "");
                 setThankYouPixelHtml(saved.thankYouPixelHtml ?? "");
@@ -188,7 +203,8 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       <FunnelSettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        entityName={funnel.name}
+        name={funnelName}
+        onNameChange={setFunnelName}
         urlHint={`/o/${funnel.slug}`}
         description={workflow.settingsDescription}
         thankYouEnabled={thankYouEnabled}

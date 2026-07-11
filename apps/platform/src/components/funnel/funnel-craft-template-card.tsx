@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
-import { wrapCraft } from "@/components/advertiser/funnel/funnel-types";
+import { wrapCraft, formatFunnelDateShort } from "@/components/advertiser/funnel/funnel-types";
 import { cn } from "@/lib/utils";
 
 export type FunnelCraftTemplateCardProps = {
@@ -33,11 +33,7 @@ export type FunnelCraftTemplateCardProps = {
 
 function formatCreatedDate(value?: string) {
   if (!value) return null;
-  return new Date(value).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatFunnelDateShort(value);
 }
 
 export function FunnelCraftTemplateCard({

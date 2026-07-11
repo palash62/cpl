@@ -51,11 +51,14 @@ function renderBackgroundStack(
   }
 
   const videoFilter = blurPx > 0 && videoSrc ? `blur(${blurPx}px)` : undefined;
+  const stackClipStyle: CSSProperties = wrapperStyle.borderRadius
+    ? { borderRadius: wrapperStyle.borderRadius }
+    : {};
 
   return {
     wrapperStyle,
     inner: (
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden" style={stackClipStyle}>
         {backgroundLayerStyle ? (
           <div
             aria-hidden

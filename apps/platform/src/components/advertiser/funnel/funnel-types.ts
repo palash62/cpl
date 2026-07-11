@@ -190,12 +190,28 @@ export function funnelStepCount(thankYouEnabled: boolean): number {
   return thankYouEnabled ? 2 : 1;
 }
 
+const funnelDateFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const funnelDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/** SSR-safe: fixed locale + UTC so server and browser render identical text. */
+export function formatFunnelDateShort(iso: string): string {
+  return funnelDateFormatter.format(new Date(iso));
+}
+
 export function formatFunnelDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
+  return funnelDateTimeFormatter.format(new Date(iso));
 }

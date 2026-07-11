@@ -228,6 +228,54 @@ export function parseBackdropBlurPx(backdropFilter?: string): number {
   return match ? parseFloat(match[1]) : 0;
 }
 
+function parseBackgroundColorRgb(color: string): { r: number; g: number; b: number; a?: number } | null {
+  const trimmed = color.trim();
+  const hexMatch = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let hex = hexMatch[1];
+    if (hex.length === 3) {
+      hex = hex
+        .split("")
+        .map((ch) => ch + ch)
+        .join("");
+    }
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16),
+    };
+  }
+
+  const rgbMatch = trimmed.match(
+    /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i,
+  );
+  if (rgbMatch) {
+    return {
+      r: Number(rgbMatch[1]),
+      g: Number(rgbMatch[2]),
+      b: Number(rgbMatch[3]),
+      a: rgbMatch[4] !== undefined ? Number(rgbMatch[4]) : undefined,
+    };
+  }
+
+  return null;
+}
+
+export function toTranslucentBackgroundColor(color: string, alpha = 0.72): string {
+  const rgb = parseBackgroundColorRgb(color);
+  if (!rgb) return color;
+  const finalAlpha = rgb.a !== undefined && rgb.a < 1 ? rgb.a : alpha;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${finalAlpha})`;
+}
+
+export function backdropBlurStyle(blurPx: number): CSSProperties {
+  const blur = `blur(${blurPx}px)`;
+  return {
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
+  };
+}
+
 export function hasMediaBackground(style?: StyleProps): boolean {
   if (!style) return false;
   return Boolean(
@@ -294,7 +342,30 @@ export function splitStylesForBackgroundBlur(
     return { wrapperStyle, blurPx };
   }
 
-  return { wrapperStyle: baseStyle, blurPx };
+  const backgroundColor = styleProps?.backgroundColor?.trim();
+  if (backgroundColor) {
+    const wrapperStyle = { ...baseStyle };
+    const backgroundLayerStyle: CSSProperties = {
+      backgroundColor: toTranslucentBackgroundColor(
+        String(wrapperStyle.backgroundColor ?? backgroundColor),
+      ),
+      ...backdropBlurStyle(blurPx),
+    };
+
+    if (wrapperStyle.borderRadius) {
+      backgroundLayerStyle.borderRadius = wrapperStyle.borderRadius;
+    }
+
+    delete wrapperStyle.backgroundColor;
+    delete wrapperStyle.backdropFilter;
+
+    return { wrapperStyle, backgroundLayerStyle, blurPx };
+  }
+
+  return {
+    wrapperStyle: { ...baseStyle, ...backdropBlurStyle(blurPx) },
+    blurPx,
+  };
 }
 
 export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
