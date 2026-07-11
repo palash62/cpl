@@ -45,6 +45,27 @@ function isNodeMap(value: unknown): value is CraftSerializedState {
   return !!value && typeof value === "object" && "ROOT" in (value as object);
 }
 
+/** Drop nodes missing Craft resolver names (prevents editor deserialize crashes). */
+function dropInvalidCraftNodes(state: CraftSerializedState): CraftSerializedState {
+  const validIds = new Set(
+    Object.entries(state)
+      .filter(([, node]) => Boolean(nodeTypeName(node)))
+      .map(([id]) => id),
+  );
+
+  if (validIds.size === Object.keys(state).length) return state;
+
+  const result: CraftSerializedState = {};
+  for (const id of validIds) {
+    const node = { ...state[id] };
+    if (node.nodes?.length) {
+      node.nodes = node.nodes.filter((childId) => validIds.has(childId));
+    }
+    result[id] = node;
+  }
+  return result;
+}
+
 export function normalizeCraftState(state: CraftSerializedState | { nodes: CraftSerializedState }): CraftSerializedState {
   const nodes = ("nodes" in state ? state.nodes : state) as CraftSerializedState;
   const result: CraftSerializedState = { ...nodes };
@@ -53,7 +74,7 @@ export function normalizeCraftState(state: CraftSerializedState | { nodes: Craft
     delete (node as { events?: unknown }).events;
     result[id] = node;
   }
-  return sanitizeStretchLayoutInCraft(result);
+  return sanitizeStretchLayoutInCraft(dropInvalidCraftNodes(result));
 }
 
 export function wrapPageDocument(craft: CraftSerializedState): PageDocument {

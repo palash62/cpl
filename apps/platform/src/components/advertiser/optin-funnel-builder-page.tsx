@@ -145,11 +145,19 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
     return () => setCraftSavedListener(null);
   }, [setCraftSavedListener]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
+    setLoadError(null);
     fetch(`/api/v1/advertiser/optin-funnels/${funnelId}`)
-      .then((r) => r.json())
-      .then((funnelRes) => {
-        const page = funnelRes.data as SerializedOptinFunnel;
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok || !body?.data) {
+          throw new Error(body?.error?.message ?? "Failed to load funnel");
+        }
+        return body.data as SerializedOptinFunnel;
+      })
+      .then((page) => {
         setFunnel(page);
         setOptinCraft(resolveOptinCraft(page));
         setThankYouCraft(resolveThankYouCraft(page));
@@ -172,6 +180,9 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           ui: "ghl",
           thankYouEnabled: page.thankYouEnabled,
         });
+      })
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load funnel");
       });
   }, [funnelId, setPageMeta, setTheme, setThankYouTheme, setBuilderConfig]);
 
@@ -189,6 +200,21 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
       void switchStep(stepParam);
     }
   }, [stepParam, funnelStep, switchStep]);
+
+  if (loadError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-slate-600">
+        <p>{loadError}</p>
+        <button
+          type="button"
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+          onClick={() => window.location.reload()}
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
 
   if (!funnel || !optinCraft || !thankYouCraft) {
     return (

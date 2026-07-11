@@ -33,12 +33,13 @@ function buildBlockStyle(
 }
 
 function renderBackgroundMedia(backgroundVideo: string | undefined, children: ReactNode) {
-  if (!backgroundVideo) return children;
+  const videoSrc = backgroundVideo?.trim();
+  if (!videoSrc) return children;
 
   return (
     <div className="relative overflow-hidden">
       <video
-        src={backgroundVideo}
+        src={videoSrc}
         autoPlay
         muted
         loop
@@ -78,7 +79,7 @@ export function BlockWrapper({
 
   const style = buildBlockStyle(blockProps, breakpoint, extraStyle);
   const backgroundVideo = blockProps.style?.backgroundVideo
-    ? String(blockProps.style.backgroundVideo)
+    ? String(blockProps.style.backgroundVideo).trim() || undefined
     : undefined;
   const inner = renderBackgroundMedia(backgroundVideo, children);
 

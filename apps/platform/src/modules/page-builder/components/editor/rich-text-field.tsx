@@ -15,7 +15,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { FontSize } from "@tiptap/extension-text-style/font-size";
 import Link from "@tiptap/extension-link";
 import { useRichTextEditorStore } from "@/modules/page-builder/lib/rich-text-editor-store";
-import { sanitizeHtml } from "@/modules/page-builder/lib/sanitize";
+import { sanitizeInlineHtml } from "@/modules/page-builder/lib/sanitize";
 import { cn } from "@/lib/utils";
 
 const InlineDocument = Document.extend({
@@ -52,6 +52,11 @@ export function RichTextField({ value, onChange, editable = false, className }: 
     ],
     content: value || "",
     editable,
+    editorProps: {
+      attributes: {
+        class: cn("pb-rich-text-editor outline-none", className),
+      },
+    },
     onUpdate: ({ editor: ed }) => {
       onChange(ed.getHTML());
     },
@@ -96,7 +101,7 @@ export function RichTextField({ value, onChange, editable = false, className }: 
     return (
       <span
         className={cn("pb-rich-text", className)}
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(value || "") }}
+        dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(value || "") }}
       />
     );
   }
@@ -105,7 +110,7 @@ export function RichTextField({ value, onChange, editable = false, className }: 
 
   return (
     <div
-      className={cn("pb-rich-text-editor", className)}
+      className={cn("pb-rich-text-editor-wrap", className)}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >

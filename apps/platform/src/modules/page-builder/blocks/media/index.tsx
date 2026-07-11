@@ -33,18 +33,21 @@ function ImageSettings() {
   );
 }
 
-export function ImageBlock({ src = "/placeholder.svg", alt = "Image", ...props }: ImageProps) {
+const IMAGE_PLACEHOLDER = "https://placehold.co/800x400/e2e8f0/64748b?text=Image";
+
+export function ImageBlock({ src = IMAGE_PLACEHOLDER, alt = "Image", ...props }: ImageProps) {
+  const resolvedSrc = src?.trim() || IMAGE_PLACEHOLDER;
   return (
     <BlockWrapper {...props} layout={{ width: "100%", ...props.layout }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} style={{ width: "100%", height: "auto", borderRadius: props.style?.borderRadius }} />
+      <img src={resolvedSrc} alt={alt} style={{ width: "100%", height: "auto", borderRadius: props.style?.borderRadius }} />
     </BlockWrapper>
   );
 }
 
 ImageBlock.craft = {
   displayName: "Image",
-  props: { src: "https://placehold.co/800x400/e2e8f0/64748b?text=Image", alt: "Image", style: { borderRadius: "8px" } },
+  props: { src: IMAGE_PLACEHOLDER, alt: "Image", style: { borderRadius: "8px" } },
   related: { settings: ImageSettings },
 };
 
@@ -64,10 +67,11 @@ function VideoSettings() {
 }
 
 export function VideoBlock({ url = "", ...props }: VideoProps) {
+  const embedUrl = url?.trim();
   return (
     <BlockWrapper {...props} layout={{ width: "100%", aspectRatio: "16/9", ...props.layout }}>
-      {url ? (
-        <iframe src={url} title="Video" allowFullScreen className="h-full w-full rounded-lg" style={{ minHeight: 240 }} />
+      {embedUrl ? (
+        <iframe src={embedUrl} title="Video" allowFullScreen className="h-full w-full rounded-lg" style={{ minHeight: 240 }} />
       ) : (
         <div className="flex h-48 items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">Add video embed URL</div>
       )}

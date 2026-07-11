@@ -651,15 +651,22 @@ export function CalendarBlock({
   height = 540,
   ...props
 }: CalendarBlockProps) {
+  const calendarSrc = embedUrl?.trim();
   return (
     <BlockWrapper {...props}>
-      <iframe
-        title="Calendar"
-        src={embedUrl}
-        className="w-full rounded-lg border"
-        style={{ height }}
-        loading="lazy"
-      />
+      {calendarSrc ? (
+        <iframe
+          title="Calendar"
+          src={calendarSrc}
+          className="w-full rounded-lg border"
+          style={{ height }}
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex items-center justify-center rounded-lg border bg-muted text-sm text-muted-foreground" style={{ height }}>
+          Add a calendar embed URL
+        </div>
+      )}
     </BlockWrapper>
   );
 }

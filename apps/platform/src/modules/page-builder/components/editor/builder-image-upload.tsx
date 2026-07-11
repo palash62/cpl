@@ -55,10 +55,10 @@ export function BuilderImageUpload({
 
   return (
     <div className={cn("space-y-2", className)}>
-      {value ? (
+      {value?.trim() ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={value}
+          src={value.trim()}
           alt=""
           className="max-h-24 w-full rounded-md border border-slate-200 object-cover"
         />

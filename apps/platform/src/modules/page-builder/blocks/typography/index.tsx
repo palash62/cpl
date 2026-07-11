@@ -52,12 +52,24 @@ export function Heading({ text = "Heading", level = 2, ...props }: HeadingProps)
   const { actions: { setProp } } = useNode();
 
   return (
-    <BlockWrapper {...props} as={Tag}>
-      <RichTextField
-        value={text ?? ""}
-        editable={enabled}
-        onChange={(html) => setProp((p: HeadingProps) => { p.text = html; })}
-      />
+    <BlockWrapper {...props} as="div">
+      {enabled ? (
+        <div role="heading" aria-level={level} className="m-0">
+          <RichTextField
+            value={text ?? ""}
+            editable
+            onChange={(html) => setProp((p: HeadingProps) => { p.text = html; })}
+          />
+        </div>
+      ) : (
+        <Tag className="m-0">
+          <RichTextField
+            value={text ?? ""}
+            editable={false}
+            onChange={() => {}}
+          />
+        </Tag>
+      )}
     </BlockWrapper>
   );
 }
@@ -97,7 +109,7 @@ export function Paragraph({ text = "Paragraph text", ...props }: ParagraphProps)
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   return (
-    <BlockWrapper {...props} as="p">
+    <BlockWrapper {...props} as="div" className="pb-paragraph">
       <RichTextField
         value={text ?? ""}
         editable={enabled}

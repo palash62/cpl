@@ -3,6 +3,11 @@
   min-width: 1ch;
 }
 
+.pb-paragraph {
+  display: block;
+  width: 100%;
+}
+
 .pb-rich-text-editor .tiptap p,
 .pb-rich-text p {
   margin: 0;

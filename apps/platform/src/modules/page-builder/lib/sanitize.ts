@@ -47,6 +47,19 @@ function ensureStyleHook() {
   hooksRegistered = true;
 }
 
+const INLINE_ALLOWED_TAGS = [
+  "br", "strong", "em", "u", "s", "mark", "sub", "sup", "a", "span",
+];
+
+export function sanitizeInlineHtml(html: string): string {
+  ensureStyleHook();
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: INLINE_ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    ALLOW_DATA_ATTR: false,
+  });
+}
+
 export function sanitizeHtml(html: string): string {
   ensureStyleHook();
   return DOMPurify.sanitize(html, {
