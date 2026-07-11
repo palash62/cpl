@@ -26,6 +26,7 @@ interface TicketConversationProps {
   emptyMessage?: string;
   allowReply?: boolean;
   closedMessage?: string;
+  hideReplyTrigger?: boolean;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
   secondaryActionLoading?: boolean;
@@ -46,6 +47,7 @@ export function TicketConversation({
   emptyMessage = "No messages on this ticket.",
   allowReply = true,
   closedMessage = "This ticket is closed. No further replies can be sent.",
+  hideReplyTrigger = false,
   secondaryActionLabel,
   onSecondaryAction,
   secondaryActionLoading = false,
@@ -132,7 +134,7 @@ export function TicketConversation({
               </Button>
             </div>
           </div>
-        ) : (
+        ) : hideReplyTrigger ? null : (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={onStartReply}>
               Reply

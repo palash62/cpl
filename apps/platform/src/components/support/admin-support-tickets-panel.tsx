@@ -17,6 +17,7 @@ import { PageSection } from "@/components/admin/page-section";
 import { avatarColors, getInitials } from "@/components/admin/admin-ui";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { TicketConversation } from "@/components/support/ticket-conversation";
 import {
   Table,
@@ -285,13 +286,33 @@ export function AdminSupportTicketsPanel() {
                                 replyLabel="Admin reply to user"
                                 allowReply={!isClosed}
                                 closedMessage="This ticket is closed."
-                                secondaryActionLabel="Close Ticket"
-                                onSecondaryAction={
-                                  isClosed ? undefined : () => closeTicket(ticket.id)
-                                }
-                                secondaryActionLoading={closingId === ticket.id}
-                                secondaryActionIcon={<XCircle className="h-3.5 w-3.5" />}
+                                hideReplyTrigger
                               />
+                              {!isClosed && (
+                                <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setReplyingId(ticket.id);
+                                      setReplyBody("");
+                                      setReplyError(null);
+                                    }}
+                                  >
+                                    Reply
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 border-slate-300 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                                    disabled={closingId === ticket.id}
+                                    onClick={() => closeTicket(ticket.id)}
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    {closingId === ticket.id ? "Closing..." : "Close Ticket"}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
