@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { BlockProps, Breakpoint, LayoutProps, TypographyProps } from "@/modules/page-builder/types/block-props";
+import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
 
 export function normalizeCssLength(value: string): string {
   const trimmed = value.trim();
@@ -218,9 +219,6 @@ export function withoutStretchLayout(layout?: LayoutProps): LayoutProps | undefi
 
   return Object.keys(next).length > 0 ? next : undefined;
 }
-
-import type { Breakpoint } from "@/modules/page-builder/types/block-props";
-import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
 
 /** @deprecated Use getCanvasViewportFill from editor-canvas.ts */
 export function getEditorViewportFill(isGhl: boolean, breakpoint: Breakpoint): string {
