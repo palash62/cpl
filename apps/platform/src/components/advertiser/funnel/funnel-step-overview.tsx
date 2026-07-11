@@ -11,9 +11,6 @@ import {
 } from "lucide-react";
 import type { OptinFunnelEditorType } from "@prisma/client";
 import { usesBuilderRenderer } from "@/lib/optin-funnel";
-import { PREVIEW_FALLBACK_FIELDS, DEFAULT_OPTIN_PAGE, type PublicOptinPage } from "@/lib/optin-page";
-import { getOptinTemplate, isOptinTemplateId } from "@/lib/optin-templates";
-import { OptinPageLayout } from "@/components/optin/optin-page-layout";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
 import { funnelCraftPreviewRevision } from "@/components/optin/funnel-craft-preview-frame";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
@@ -91,36 +88,6 @@ function hasOptinDesign(entity: FunnelWorkflowEntity): boolean {
   return !isBlankOrStructuralCraft(entity.craftState);
 }
 
-function templatePreview(entity: FunnelWorkflowEntity, stepId: FunnelStepId): PublicOptinPage | null {
-  if (stepId !== "optin" || !entity.templateId || !isOptinTemplateId(entity.templateId)) {
-    return null;
-  }
-  const template = getOptinTemplate(entity.templateId);
-  return {
-    id: entity.id,
-    slug: entity.slug,
-    title: entity.name,
-    destinationUrl: entity.destinationUrl,
-    campaignId: entity.campaignId ?? null,
-    templateId: entity.templateId,
-    headline: entity.headline || template.headline,
-    subheadline: entity.subheadline || template.subheadline,
-    description: entity.description ?? "Instant access to proven strategies.",
-    ctaText: entity.ctaText || "Get Instant Access",
-    successTitle: entity.successTitle || "You're In!",
-    successMessage: entity.successMessage || "Check your inbox.",
-    badgeText: entity.badgeText ?? template.badgeText,
-    bulletPoints: entity.bulletPoints ?? DEFAULT_OPTIN_PAGE.bulletPoints,
-    primaryColor: entity.primaryColor || template.primaryColor,
-    accentColor: entity.accentColor || template.accentColor,
-    isPublished: entity.isPublished ?? false,
-    campaignName: entity.name,
-    displayTitle: entity.name,
-    fields: PREVIEW_FALLBACK_FIELDS,
-    previewMode: true,
-  };
-}
-
 export function FunnelStepOverview({
   entity,
   workflow,
@@ -138,10 +105,8 @@ export function FunnelStepOverview({
   const editHref = workflow.editPath(entity.id, stepId);
   const { craftState, themeJson } = resolveThumbnail(entity, stepId);
   const thumbnailRevision = funnelCraftPreviewRevision(craftState?.craft, themeJson);
-  const templatePage = templatePreview(entity, stepId);
 
   const showCraft = stepId === "thankYou" ? hasThankYouDesign(entity) : hasOptinDesign(entity);
-  const showTemplate = !showCraft && !!templatePage;
   const isBlankThankYou = stepId === "thankYou" && !hasThankYouDesign(entity);
 
   async function patchEntity(body: Record<string, unknown>) {
@@ -246,20 +211,6 @@ export function FunnelStepOverview({
                     scale={0.28}
                     emptyFallback="blank"
                   />
-                ) : showTemplate && templatePage ? (
-                  <div className="pointer-events-none absolute left-1/2 top-0 h-[720px] w-[960px] origin-top -translate-x-1/2 scale-[0.28]">
-                    <OptinPageLayout
-                      page={templatePage}
-                      thumbnail
-                      data={{}}
-                      setData={() => {}}
-                      honeypot=""
-                      setHoneypot={() => {}}
-                      error=""
-                      status="idle"
-                      onSubmit={(e) => e.preventDefault()}
-                    />
-                  </div>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                     <p className="text-sm text-slate-500">No page design yet</p>

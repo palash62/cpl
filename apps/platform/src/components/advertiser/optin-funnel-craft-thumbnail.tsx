@@ -15,12 +15,15 @@ export function OptinFunnelCraftThumbnail({
   themeJson,
   scale = 0.28,
   emptyFallback = "blank",
+  matchEditorCanvas = true,
 }: {
   craftState: PageDocument | null;
   themeJson?: ThemeJson;
   scale?: number;
   /** Prefer blank canvas when craft is missing — never the optin skeleton with a lead form. */
   emptyFallback?: "blank" | "none";
+  /** Render at fixed 960px canvas like the editor preview (avoids 100dvh crop in cards). */
+  matchEditorCanvas?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const craft =
@@ -68,7 +71,15 @@ export function OptinFunnelCraftThumbnail({
           className="h-full min-h-0"
           style={{ minHeight: frameHeight }}
         >
-          <PageRenderer craftState={craft} theme={theme} fillParent />
+          <PageRenderer
+            craftState={craft}
+            theme={theme}
+            fillParent={matchEditorCanvas}
+            matchEditorCanvas={matchEditorCanvas}
+            compactPreview={matchEditorCanvas}
+            breakpoint="desktop"
+            isGhl
+          />
         </FunnelCraftPreviewFrame>
       </div>
     </div>

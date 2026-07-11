@@ -1,16 +1,21 @@
 "use client";
 
-import { Home, LayoutList, Search } from "lucide-react";
+import { Home, LayoutGrid, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type FunnelListToolbarProps = {
   search: string;
+  searchPlaceholder?: string;
   onSearchChange: (value: string) => void;
 };
 
-export function FunnelListToolbar({ search, onSearchChange }: FunnelListToolbarProps) {
+export function FunnelListToolbar({
+  search,
+  searchPlaceholder = "Search for funnels",
+  onSearchChange,
+}: FunnelListToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
       <div className="flex items-center gap-2">
@@ -20,14 +25,14 @@ export function FunnelListToolbar({ search, onSearchChange }: FunnelListToolbarP
       </div>
       <div className="flex flex-1 items-center justify-end gap-2 sm:max-w-md">
         <Button variant="ghost" size="icon" className={cn("h-8 w-8 text-blue-600")}>
-          <LayoutList className="h-4 w-4" />
+          <LayoutGrid className="h-4 w-4" />
         </Button>
         <div className="relative w-full max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search for funnels"
+            placeholder={searchPlaceholder}
             className="h-9 border-slate-200 bg-white pl-9"
           />
         </div>

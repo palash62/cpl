@@ -4,7 +4,11 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Editor, Frame } from "@craftjs/core";
 import { craftResolver } from "@/modules/page-builder/blocks";
-import { pageShellStyle } from "@/modules/page-builder/lib/theme";
+import {
+  pageBackgroundLayerStyle,
+  pageCanvasShellStyle,
+  pageShellStyle,
+} from "@/modules/page-builder/lib/theme";
 import { previewContentRevision } from "@/modules/page-builder/lib/preview-revision";
 import { PublishedPageProvider } from "@/modules/page-builder/lib/published-page-context";
 import {
@@ -34,6 +38,8 @@ type PageRendererProps = {
   /** Frame preview at the same width/height as the GHL editor canvas. */
   matchEditorCanvas?: boolean;
   isGhl?: boolean;
+  /** Compact layout for card thumbnails (no outer padding). */
+  compactPreview?: boolean;
 };
 
 function craftHasLeadForm(craft: CraftSerializedState): boolean {
@@ -50,6 +56,7 @@ export function PageRenderer({
   breakpoint: breakpointProp,
   matchEditorCanvas = false,
   isGhl = true,
+  compactPreview = false,
 }: PageRendererProps) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -121,21 +128,25 @@ export function PageRenderer({
   const page = matchEditorCanvas ? (
     <div
       className={cn(
-        "flex w-full justify-center overflow-auto bg-slate-50 p-6",
+        "flex w-full justify-center overflow-auto",
+        compactPreview ? "p-0" : "p-6",
         fillParent ? "min-h-0 flex-1" : "min-h-screen",
       )}
+      style={{
+        ...pageBackgroundLayerStyle(theme),
+        ...pageCanvasShellStyle(theme, { viewportFill: editorViewportFill }),
+      }}
     >
       <div
         id="pb-page"
         className={cn(
-          "pb-published-page flex w-full flex-col shadow-lg ring-1 ring-slate-200",
+          "pb-published-page flex w-full flex-col",
           fillParent && "min-h-0",
         )}
         style={{
           maxWidth: canvasMaxWidth,
           minHeight: editorViewportFill,
           width: "100%",
-          ...pageShellStyle(theme, { viewportFill: editorViewportFill }),
         }}
       >
         {pageInner}

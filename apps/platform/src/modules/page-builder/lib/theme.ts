@@ -140,6 +140,27 @@ export function publishedPageCssVars(
   return { ...vars, ...themePageBackgroundStyle(theme) };
 }
 
+/** Full-width page background only (color + image). Used on outer editor/preview layers. */
+export function pageBackgroundLayerStyle(theme: ThemeJson): CSSProperties {
+  return themePageBackgroundStyle(theme);
+}
+
+/** 960px canvas shell: CSS vars + typography, no page background. */
+export function pageCanvasShellStyle(
+  theme: ThemeJson,
+  options?: { viewportFill?: string },
+): CSSProperties {
+  const style: CSSProperties = {
+    ...publishedPageCssVars(theme, { includeBackground: false }),
+    fontFamily: theme.fontFamily,
+    color: "var(--pb-page-text)",
+  };
+  if (options?.viewportFill) {
+    (style as Record<string, string>)["--pb-viewport-fill"] = options.viewportFill;
+  }
+  return style;
+}
+
 /** Shared editor + preview page shell (theme vars, background, text tokens). */
 export function pageShellStyle(
   theme: ThemeJson,

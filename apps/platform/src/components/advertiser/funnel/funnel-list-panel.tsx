@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FolderPlus, LayoutTemplate, Plus } from "lucide-react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import type { OptinFunnelTemplate } from "@/services/optin-funnel.service";
+import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,31 +14,66 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { toast } from "sonner";
+import { readApiErrorMessage } from "@/lib/errors";
+import { FunnelCraftTemplateCard } from "@/components/funnel/funnel-craft-template-card";
 import { FunnelModuleShell } from "./funnel-module-shell";
 import { FunnelListToolbar } from "./funnel-list-toolbar";
-import { FunnelRowActions } from "./funnel-row-actions";
+import { FunnelCard } from "./funnel-card";
 import { FunnelCreateDialog } from "./funnel-create-dialog";
-import { formatFunnelDate, funnelStepCount } from "./funnel-types";
 
 const PAGE_SIZES = [15, 25, 50] as const;
 
-export function FunnelListPanel({ initialFunnels }: { initialFunnels: SerializedOptinFunnel[] }) {
+function normalizeTemplateCraft(template: OptinFunnelTemplate): OptinFunnelTemplate {
+  const raw = template.craftState as unknown;
+  if (raw && typeof raw === "object" && "craft" in raw) {
+    const nested = (raw as { craft?: CraftSerializedState }).craft;
+    if (nested && typeof nested === "object") {
+      return { ...template, craftState: nested };
+    }
+  }
+  return template;
+}
+
+type FunnelListPanelProps = {
+  initialFunnels: SerializedOptinFunnel[];
+  initialTemplates: OptinFunnelTemplate[];
+};
+
+export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelListPanelProps) {
   const router = useRouter();
   const [funnels, setFunnels] = useState(initialFunnels);
+  const [templates, setTemplates] = useState(() => initialTemplates.map(normalizeTemplateCraft));
+  const [templatesLoading, setTemplatesLoading] = useState(initialTemplates.length === 0);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(15);
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [templateLoadingId, setTemplateLoadingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (templates.length === 0) {
+      setTemplatesLoading(true);
+    }
+    fetch("/api/v1/advertiser/optin-funnels/templates")
+      .then((res) => res.json())
+      .then((body) => {
+        if (cancelled) return;
+        setTemplates((body.data ?? []).map(normalizeTemplateCraft));
+      })
+      .catch(() => {
+        // Keep any server-prefetched templates on failure.
+      })
+      .finally(() => {
+        if (!cancelled) setTemplatesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,6 +109,19 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
     router.push(`/advertiser/optin-funnels/${data.id}`);
   }
 
+  async function createFromTemplate(template: OptinFunnelTemplate) {
+    setTemplateLoadingId(template.id);
+    try {
+      await createFunnel({
+        name: template.name,
+        editorType: "BUILDER",
+        pageTemplateId: template.id,
+      });
+    } finally {
+      setTemplateLoadingId(null);
+    }
+  }
+
   async function archiveFunnel(id: string) {
     if (!confirm("Archive this funnel?")) return;
     const res = await fetch(`/api/v1/advertiser/optin-funnels/${id}`, { method: "DELETE" });
@@ -82,6 +131,31 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
     }
     setFunnels((prev) => prev.filter((f) => f.id !== id));
     toast.success("Funnel archived");
+  }
+
+  async function duplicateFunnel(funnel: SerializedOptinFunnel) {
+    setDuplicatingId(funnel.id);
+    try {
+      const res = await fetch(`/api/v1/advertiser/optin-funnels/${funnel.id}/duplicate`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(readApiErrorMessage(body, "Failed to duplicate funnel.", res.status));
+        return;
+      }
+      const data = body?.data;
+      if (!data?.id) {
+        toast.error(readApiErrorMessage(body, "Failed to duplicate funnel.", res.status));
+        return;
+      }
+      toast.success("Funnel duplicated.");
+      router.push(`/advertiser/optin-funnels/${data.id}`);
+    } catch {
+      toast.error("Failed to duplicate funnel. Check your connection and try again.");
+    } finally {
+      setDuplicatingId(null);
+    }
   }
 
   return (
@@ -100,129 +174,144 @@ export function FunnelListPanel({ initialFunnels }: { initialFunnels: Serialized
         </div>
       }
     >
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <FunnelListToolbar search={search} onSearchChange={(v) => { setSearch(v); setPage(1); }} />
-
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-              <LayoutTemplate className="h-7 w-7 text-blue-600" />
-            </div>
-            <p className="text-sm font-medium text-slate-900">
-              {funnels.length === 0 ? "No funnels yet" : "No funnels match your search"}
+      <div className="space-y-8">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-4 py-4">
+            <h2 className="text-lg font-semibold text-slate-900">Template library</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Pick a high-converting layout, then customize it in the funnel builder.
             </p>
-            <p className="mt-1 max-w-sm text-sm text-slate-500">
-              {funnels.length === 0
-                ? "Create your first funnel to start capturing leads with beautiful opt-in pages."
-                : "Try a different search term."}
-            </p>
-            {funnels.length === 0 && (
-              <Button className="mt-6" onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create your first funnel
-              </Button>
-            )}
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Name
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Last updated
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Funnel steps
-                </TableHead>
-                <TableHead className="w-12 px-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageItems.map((funnel) => (
-                <TableRow key={funnel.id}>
-                  <TableCell className="px-4 font-medium">
-                    <Link
-                      href={`/advertiser/optin-funnels/${funnel.id}`}
-                      className="text-slate-900 hover:text-blue-600"
-                    >
-                      {funnel.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-slate-500">{formatFunnelDate(funnel.updatedAt)}</TableCell>
-                  <TableCell className="text-slate-500">
-                    {funnelStepCount(funnel.thankYouEnabled)} Step{funnelStepCount(funnel.thankYouEnabled) === 1 ? "" : "s"}
-                  </TableCell>
-                  <TableCell className="px-4">
-                    <FunnelRowActions
-                      funnelId={funnel.id}
-                      slug={funnel.slug}
-                      isPublished={funnel.isPublished}
-                      onArchive={() => void archiveFunnel(funnel.id)}
-                    />
-                  </TableCell>
-                </TableRow>
+
+          {templatesLoading ? (
+            <div className="px-6 py-12 text-sm text-slate-500">Loading templates...</div>
+          ) : templates.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-slate-500">
+              No templates available yet. Ask your admin to create funnel templates.
+            </div>
+          ) : (
+            <div className="grid gap-5 p-4 sm:grid-cols-2 xl:grid-cols-3">
+              {templates.map((template) => (
+                <FunnelCraftTemplateCard
+                  key={template.id}
+                  id={template.id}
+                  name={template.name}
+                  craftState={template.craftState}
+                  themeJson={template.themeJson}
+                  thankYouEnabled={template.thankYouEnabled}
+                  createdAt={template.createdAt}
+                  variant="advertiser"
+                  loading={templateLoadingId === template.id || loading}
+                  onUse={() => void createFromTemplate(template)}
+                />
               ))}
-            </TableBody>
-          </Table>
-        )}
+            </div>
+          )}
+        </section>
 
-        {filtered.length > 0 && (
-          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
-            <div className="flex items-center gap-2">
-              <span>Rows per page</span>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(v) => {
-                  setPageSize(Number(v) as (typeof PAGE_SIZES)[number]);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-16">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAGE_SIZES.map((size) => (
-                    <SelectItem key={size} value={String(size)}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <span>
-              {rangeStart} – {rangeEnd} of {filtered.length}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-200 px-2 text-slate-700">
-                {currentPage}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </Button>
-            </div>
+        <section>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Your funnels</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Funnels you have created or duplicated from templates.
+            </p>
           </div>
-        )}
+
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <FunnelListToolbar search={search} onSearchChange={(v) => { setSearch(v); setPage(1); }} />
+
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+                <LayoutTemplate className="h-7 w-7 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium text-slate-900">
+                {funnels.length === 0 ? "No funnels yet" : "No funnels match your search"}
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-slate-500">
+                {funnels.length === 0
+                  ? "Create your first funnel or pick a template from the library below."
+                  : "Try a different search term."}
+              </p>
+              {funnels.length === 0 && (
+                <Button className="mt-6" onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create your first funnel
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-5 p-4 sm:grid-cols-2 xl:grid-cols-3">
+              {pageItems.map((funnel) => (
+                <FunnelCard
+                  key={funnel.id}
+                  funnel={funnel}
+                  duplicating={duplicatingId === funnel.id}
+                  onDuplicate={() => void duplicateFunnel(funnel)}
+                  onArchive={() => void archiveFunnel(funnel.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>Rows per page</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => {
+                    setPageSize(Number(v) as (typeof PAGE_SIZES)[number]);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <span>
+                {rangeStart} – {rangeEnd} of {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-200 px-2 text-slate-700">
+                  {currentPage}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        </section>
       </div>
 
       <FunnelCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         loading={loading}
+        templates={templates}
         onCreate={createFunnel}
       />
     </FunnelModuleShell>

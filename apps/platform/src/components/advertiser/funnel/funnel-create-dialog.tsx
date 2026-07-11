@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LayoutTemplate } from "lucide-react";
-import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
+import { FunnelCraftTemplateCard } from "@/components/funnel/funnel-craft-template-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ThemeJson } from "@/modules/page-builder/lib/theme";
-import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
+import type { OptinFunnelTemplate } from "@/services/optin-funnel.service";
 import { cn } from "@/lib/utils";
 
 type CreateMode = "blank" | "templates";
@@ -22,38 +21,29 @@ type FunnelCreateDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loading: boolean;
+  templates: OptinFunnelTemplate[];
   onCreate: (input: { name: string; editorType: "BUILDER"; pageTemplateId?: string }) => void;
 };
 
-type FunnelTemplate = {
-  id: string;
-  name: string;
-  craftState: CraftSerializedState;
-  themeJson: ThemeJson;
-};
-
-export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: FunnelCreateDialogProps) {
+export function FunnelCreateDialog({
+  open,
+  onOpenChange,
+  loading,
+  templates,
+  onCreate,
+}: FunnelCreateDialogProps) {
   const [mode, setMode] = useState<CreateMode>("blank");
   const [name, setName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [templates, setTemplates] = useState<FunnelTemplate[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/v1/advertiser/optin-funnels/templates")
-      .then((r) => r.json())
-      .then((body) => setTemplates(body.data ?? []))
-      .catch(() => setTemplates([]));
-  }, [open]);
-
-  function reset() {
     setMode("blank");
     setName("");
     setSelectedTemplate(null);
-  }
+  }, [open]);
 
   function handleClose(next: boolean) {
-    if (!next) reset();
     onOpenChange(next);
   }
 
@@ -128,45 +118,25 @@ export function FunnelCreateDialog({ open, onOpenChange, loading, onCreate }: Fu
         </div>
 
         {mode === "templates" && (
-          <div className="grid max-h-64 gap-3 overflow-y-auto sm:grid-cols-2">
+          <div className="grid max-h-[420px] gap-4 overflow-y-auto sm:grid-cols-2">
             {templates.length === 0 && (
               <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
                 No templates available yet. Ask admin to create templates.
               </div>
             )}
             {templates.map((template) => (
-              <div
+              <FunnelCraftTemplateCard
                 key={template.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedTemplate(template.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedTemplate(template.id);
-                  }
-                }}
-                className={cn(
-                  "flex cursor-pointer gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-                  selectedTemplate === template.id
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300",
-                )}
-              >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
-                  <div className="pointer-events-none absolute left-1/2 top-0 w-[480px] origin-top -translate-x-1/2 scale-[0.18]">
-                    <OptinFunnelCraftThumbnail
-                      craftState={{ craft: template.craftState, meta: { schemaVersion: 1, editorBreakPoint: "desktop" } }}
-                      themeJson={template.themeJson}
-                      scale={1}
-                    />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-900">{template.name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">Existing template</p>
-                </div>
-              </div>
+                id={template.id}
+                name={template.name}
+                craftState={template.craftState}
+                themeJson={template.themeJson}
+                thankYouEnabled={template.thankYouEnabled}
+                selected={selectedTemplate === template.id}
+                loading={loading}
+                variant="picker"
+                onSelect={() => setSelectedTemplate(template.id)}
+              />
             ))}
           </div>
         )}

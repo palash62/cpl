@@ -14,7 +14,11 @@ import { PageSettingsDrawer } from "@/modules/page-builder/components/editor/pag
 import { AssetPickerModal } from "@/modules/page-builder/components/editor/asset-picker-modal";
 import { useAutosave } from "@/modules/page-builder/hooks/use-autosave";
 import { useBuilderKeyboard } from "@/modules/page-builder/hooks/use-builder-keyboard";
-import { isDarkBackground, pageShellStyle } from "@/modules/page-builder/lib/theme";
+import {
+  isDarkBackground,
+  pageBackgroundLayerStyle,
+  pageCanvasShellStyle,
+} from "@/modules/page-builder/lib/theme";
 import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { getBuilderChrome } from "@/modules/page-builder/lib/builder-chrome";
@@ -83,25 +87,33 @@ export function LandingPageBuilder({
                   }}
                 />
               )}
-              <div className="relative flex flex-1 items-start justify-center overflow-auto p-6">
-                <div
-                  className={cn(
-                    "relative flex w-full flex-col transition-all duration-300",
-                    isGhl ? "shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
-                    chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
-                    !isGhl && "ring-1 ring-white/10",
-                    !isDesktop && "overflow-hidden rounded-xl",
-                    darkCanvas ? "text-slate-100" : "text-slate-900",
-                  )}
-                  style={{
-                    maxWidth: canvasWidth ?? (isGhl ? GHL_DESKTOP_CANVAS_WIDTH : "100%"),
-                    minHeight: viewportFill,
-                    ...pageShellStyle(theme, { viewportFill }),
-                  }}
-                >
-                  <Frame data={resolvedCraftState as never}>
-                    <Element is={CanvasRoot} canvas />
-                  </Frame>
+              <div
+                className="relative flex flex-1 overflow-auto"
+                style={{
+                  ...pageBackgroundLayerStyle(theme),
+                  ...pageCanvasShellStyle(theme, { viewportFill }),
+                  minHeight: "100%",
+                }}
+              >
+                <div className="flex w-full justify-center p-6">
+                  <div
+                    className={cn(
+                      "relative flex w-full flex-col transition-all duration-300",
+                      isGhl ? "shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
+                      chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
+                      !isGhl && "ring-1 ring-white/10",
+                      !isDesktop && "overflow-hidden rounded-xl",
+                      darkCanvas ? "text-slate-100" : "text-slate-900",
+                    )}
+                    style={{
+                      maxWidth: canvasWidth ?? (isGhl ? GHL_DESKTOP_CANVAS_WIDTH : "100%"),
+                      minHeight: viewportFill,
+                    }}
+                  >
+                    <Frame data={resolvedCraftState as never}>
+                      <Element is={CanvasRoot} canvas />
+                    </Frame>
+                  </div>
                 </div>
               </div>
             </div>

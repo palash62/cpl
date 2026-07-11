@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LayoutTemplate } from "lucide-react";
-import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
+import { FunnelCraftTemplateCard } from "@/components/funnel/funnel-craft-template-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,6 +23,7 @@ type AdminTemplate = {
   name: string;
   craftState: CraftSerializedState;
   themeJson: ThemeJson;
+  thankYouEnabled?: boolean;
 };
 
 type AdminFunnelTemplateCreateDialogProps = {
@@ -51,14 +52,14 @@ export function AdminFunnelTemplateCreateDialog({
       .catch(() => setTemplates([]));
   }, [open]);
 
-  function reset() {
+  useEffect(() => {
+    if (!open) return;
     setMode("blank");
     setName("");
     setSelectedTemplate(null);
-  }
+  }, [open]);
 
   function handleClose(next: boolean) {
-    if (!next) reset();
     onOpenChange(next);
   }
 
@@ -134,48 +135,25 @@ export function AdminFunnelTemplateCreateDialog({
         </div>
 
         {mode === "templates" && (
-          <div className="grid max-h-64 gap-3 overflow-y-auto sm:grid-cols-2">
+          <div className="grid max-h-[420px] gap-4 overflow-y-auto sm:grid-cols-2">
             {templates.length === 0 && (
               <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
                 No templates available yet. Create a blank template first.
               </div>
             )}
             {templates.map((template) => (
-              <div
+              <FunnelCraftTemplateCard
                 key={template.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedTemplate(template.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedTemplate(template.id);
-                  }
-                }}
-                className={cn(
-                  "flex cursor-pointer gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-                  selectedTemplate === template.id
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300",
-                )}
-              >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
-                  <div className="pointer-events-none absolute left-1/2 top-0 w-[480px] origin-top -translate-x-1/2 scale-[0.18]">
-                    <OptinFunnelCraftThumbnail
-                      craftState={{
-                        craft: template.craftState,
-                        meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
-                      }}
-                      themeJson={template.themeJson}
-                      scale={1}
-                    />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-900">{template.name}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">Existing system template</p>
-                </div>
-              </div>
+                id={template.id}
+                name={template.name}
+                craftState={template.craftState}
+                themeJson={template.themeJson}
+                thankYouEnabled={template.thankYouEnabled}
+                selected={selectedTemplate === template.id}
+                loading={loading}
+                variant="picker"
+                onSelect={() => setSelectedTemplate(template.id)}
+              />
             ))}
           </div>
         )}

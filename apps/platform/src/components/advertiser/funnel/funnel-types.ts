@@ -1,5 +1,5 @@
 import type { OptinFunnelEditorType } from "@prisma/client";
-import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { usesBuilderRenderer, type SerializedOptinFunnel } from "@/lib/optin-funnel";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { CraftSerializedState, PageDocument } from "@/modules/page-builder/types/page-document";
 import type { OptinFunnelTemplate } from "@/services/optin-funnel.service";
@@ -51,7 +51,7 @@ export type FunnelWorkflowConfig = {
   thankYouRedirectHint?: (slug: string) => string;
 };
 
-function wrapCraft(craft: CraftSerializedState | PageDocument | null | undefined): PageDocument | null {
+export function wrapCraft(craft: CraftSerializedState | PageDocument | null | undefined): PageDocument | null {
   if (!craft) return null;
   if (typeof craft === "object" && "craft" in craft) {
     return craft as PageDocument;
@@ -60,6 +60,33 @@ function wrapCraft(craft: CraftSerializedState | PageDocument | null | undefined
     craft: craft as CraftSerializedState,
     meta: { schemaVersion: 1, editorBreakPoint: "desktop" },
   };
+}
+
+function craftNodeName(node: unknown): string | null {
+  if (!node || typeof node !== "object") return null;
+  return (node as { type?: { resolvedName?: string } }).type?.resolvedName ?? null;
+}
+
+function isBlankOrStructuralCraft(craftState: PageDocument | null): boolean {
+  const craft = craftState?.craft;
+  if (!craft || Object.keys(craft).length <= 1) return true;
+
+  const structural = new Set(["CanvasRoot", "Section", "Container", "Row", "Column"]);
+  return !Object.values(craft).some((node) => {
+    const name = craftNodeName(node);
+    return !!name && !structural.has(name);
+  });
+}
+
+export function funnelHasOptinPreview(funnel: SerializedOptinFunnel): boolean {
+  const entity = toFunnelWorkflowEntityFromFunnel(funnel);
+  if (entity.editorType) {
+    return usesBuilderRenderer({
+      editorType: entity.editorType as OptinFunnelEditorType,
+      craftState: entity.craftState,
+    });
+  }
+  return !isBlankOrStructuralCraft(entity.craftState);
 }
 
 export function toFunnelWorkflowEntityFromFunnel(funnel: SerializedOptinFunnel): FunnelWorkflowEntity {

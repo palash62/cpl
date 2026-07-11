@@ -1,33 +1,49 @@
 "use client";
 
-import { Eye, LayoutTemplate, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LayoutTemplate } from "lucide-react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
 import { funnelCraftPreviewRevision } from "@/components/optin/funnel-craft-preview-frame";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ButtonLink } from "@/components/ui/button-link";
+import { FunnelRowActions } from "./funnel-row-actions";
 import {
+  formatFunnelDate,
   funnelHasOptinPreview,
+  funnelStepCount,
   toFunnelWorkflowEntityFromFunnel,
-} from "@/components/advertiser/funnel/funnel-types";
+} from "./funnel-types";
 
-export function OptinFunnelCard({
-  funnel,
-  onArchive,
-}: {
+type FunnelCardProps = {
   funnel: SerializedOptinFunnel;
-  onArchive: (id: string) => void;
-}) {
+  duplicating?: boolean;
+  onDuplicate: () => void;
+  onArchive: () => void;
+};
+
+export function FunnelCard({ funnel, duplicating, onDuplicate, onArchive }: FunnelCardProps) {
+  const router = useRouter();
+  const steps = funnelStepCount(funnel.thankYouEnabled);
   const entity = toFunnelWorkflowEntityFromFunnel(funnel);
   const showPreview = funnelHasOptinPreview(funnel);
   const themeJson = entity.themeJson ?? DEFAULT_THEME;
   const thumbnailRevision = funnelCraftPreviewRevision(entity.craftState?.craft, themeJson);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+    <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => router.push(`/advertiser/optin-funnels/${funnel.id}`)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push(`/advertiser/optin-funnels/${funnel.id}`);
+          }
+        }}
+        className="relative aspect-[16/10] cursor-pointer overflow-hidden bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+      >
         {showPreview && entity.craftState ? (
           <OptinFunnelCraftThumbnail
             key={thumbnailRevision}
@@ -53,33 +69,24 @@ export function OptinFunnelCard({
             </Badge>
           )}
         </div>
+
+        <div className="absolute right-2 top-2 z-20" onClick={(e) => e.stopPropagation()}>
+          <FunnelRowActions
+            funnelId={funnel.id}
+            slug={funnel.slug}
+            duplicating={duplicating}
+            onDuplicate={onDuplicate}
+            onArchive={onArchive}
+          />
+        </div>
       </div>
 
-      <div className="space-y-3 p-4">
-        <div>
-          <h3 className="font-semibold text-slate-900">{funnel.name}</h3>
-          <p className="mt-0.5 font-mono text-xs text-slate-500">/o/{funnel.slug}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href={`/advertiser/optin-funnels/${funnel.id}`} size="sm" variant="outline">
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </ButtonLink>
-          <a
-            href={`/o/${funnel.slug}?preview=1&frame=1`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-3 text-sm hover:bg-slate-50"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Preview
-          </a>
-          <Button size="sm" variant="outline" className="text-red-600" onClick={() => onArchive(funnel.id)}>
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Archive
-          </Button>
-        </div>
+      <div className="border-t border-slate-100 px-4 py-3">
+        <p className="font-semibold text-slate-900">{funnel.name}</p>
+        <p className="mt-0.5 font-mono text-xs text-slate-500">/o/{funnel.slug}</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Updated {formatFunnelDate(funnel.updatedAt)} · {steps} step{steps === 1 ? "" : "s"}
+        </p>
       </div>
     </div>
   );

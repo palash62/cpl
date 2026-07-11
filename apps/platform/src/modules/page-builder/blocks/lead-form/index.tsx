@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, ReactNode, CSSProperties } from "react";
 import { useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { CanvasWrapper, BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
@@ -20,7 +20,23 @@ import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
 import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
-import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
+import type { BlockProps, ButtonAppearanceProps, TypographyProps } from "@/modules/page-builder/types/block-props";
+
+const FORM_INPUT_STYLE: CSSProperties = {
+  color: "var(--pb-input-text, #0f172a)",
+  background: "var(--pb-input-bg, #ffffff)",
+  borderColor: "var(--pb-input-border, #cbd5e1)",
+  font: "inherit",
+  colorScheme: "light",
+};
+
+function formFieldWrapperColor(typography?: TypographyProps): CSSProperties {
+  return { color: typography?.color ?? "inherit" };
+}
+
+function formSurfaceTextColor(typography?: TypographyProps): string {
+  return typography?.color ?? "var(--pb-form-surface-text, #0f172a)";
+}
 
 type LeadFormProps = BlockProps & {
   children?: ReactNode;
@@ -144,7 +160,7 @@ export function LeadForm({
         )}
         style={{
           background: "var(--pb-form-surface-bg, #ffffff)",
-          color: "var(--pb-form-surface-text, #0f172a)",
+          color: formSurfaceTextColor(props.typography),
         }}
       >
         {formBody}
@@ -292,7 +308,7 @@ export function FormInput({
   ...props
 }: FormFieldProps) {
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
         {label}{required && <span className="text-red-500"> *</span>}
         <input
@@ -301,12 +317,7 @@ export function FormInput({
           required={required}
           placeholder={placeholder}
           className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 placeholder:text-slate-400"
-          style={{
-            color: "var(--pb-input-text, #0f172a)",
-            background: "var(--pb-input-bg, #ffffff)",
-            borderColor: "var(--pb-input-border, #cbd5e1)",
-            font: "inherit",
-          }}
+          style={FORM_INPUT_STYLE}
         />
       </label>
     </BlockWrapper>
@@ -321,7 +332,7 @@ FormInput.craft = {
 
 export function FormTextarea({ name = "message", label = "Message", required = false, placeholder = "", ...props }: FormFieldProps) {
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
         {label}{required && <span className="text-red-500"> *</span>}
         <textarea
@@ -329,12 +340,7 @@ export function FormTextarea({ name = "message", label = "Message", required = f
           required={required}
           placeholder={placeholder}
           className="mt-1 min-h-[80px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 placeholder:text-slate-400"
-          style={{
-            color: "var(--pb-input-text, #0f172a)",
-            background: "var(--pb-input-bg, #ffffff)",
-            borderColor: "var(--pb-input-border, #cbd5e1)",
-            font: "inherit",
-          }}
+          style={FORM_INPUT_STYLE}
         />
       </label>
     </BlockWrapper>
@@ -349,7 +355,7 @@ FormTextarea.craft = {
 
 export function FormCheckbox({ name = "agree", label = "I agree", ...props }: FormFieldProps) {
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="flex items-center gap-2">
         <input type="checkbox" name={name} value="yes" />
         {label}
@@ -366,7 +372,7 @@ FormCheckbox.craft = {
 
 export function FormRadio({ name = "choice", label = "Choose", options = [{ label: "Option A", value: "a" }], ...props }: FormFieldProps) {
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <fieldset>
         <legend>{label}</legend>
         {options.map((opt) => (
@@ -388,19 +394,14 @@ FormRadio.craft = {
 
 export function FormSelect({ name = "select", label = "Select", options = [{ label: "Option 1", value: "1" }], required = false, ...props }: FormFieldProps) {
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
         {label}
         <select
           name={name}
           required={required}
           className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
-          style={{
-            color: "var(--pb-input-text, #0f172a)",
-            background: "var(--pb-input-bg, #ffffff)",
-            borderColor: "var(--pb-input-border, #cbd5e1)",
-            font: "inherit",
-          }}
+          style={FORM_INPUT_STYLE}
         >
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>

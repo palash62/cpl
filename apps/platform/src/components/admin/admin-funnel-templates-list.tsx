@@ -13,14 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -31,6 +23,7 @@ import type { CraftSerializedState } from "@/modules/page-builder/types/page-doc
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import { cn } from "@/lib/utils";
 import { readApiErrorMessage } from "@/lib/errors";
+import { FunnelCraftTemplateCard } from "@/components/funnel/funnel-craft-template-card";
 import { FunnelListToolbar } from "@/components/advertiser/funnel/funnel-list-toolbar";
 import { FunnelModuleShell } from "@/components/advertiser/funnel/funnel-module-shell";
 import { AdminFunnelTemplateCreateDialog } from "@/components/admin/admin-funnel-template-create-dialog";
@@ -43,6 +36,7 @@ type TemplateCard = {
   createdAt: string;
   craftState: CraftSerializedState;
   themeJson: ThemeJson;
+  thankYouEnabled?: boolean;
 };
 
 export function AdminFunnelTemplatesList() {
@@ -152,6 +146,51 @@ export function AdminFunnelTemplatesList() {
     toast.success("Template deleted.");
   }
 
+  function renderTemplateActions(template: TemplateCard) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className={cn(
+            buttonVariants({ variant: "secondary", size: "icon" }),
+            "h-8 w-8 bg-white/95 text-slate-600 shadow-sm hover:bg-white",
+          )}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => router.push(`/admin/funnel-templates/${template.id}`)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Open template
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() =>
+              window.open(`/admin/funnel-templates/${template.id}/preview`, "_blank", "noopener,noreferrer")
+            }
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Preview
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={duplicatingId === template.id}
+            onClick={() => void duplicateTemplate(template)}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-red-600 focus:text-red-600"
+            disabled={deletingId === template.id}
+            onClick={() => void deleteTemplate(template)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   return (
     <FunnelModuleShell
       title="Funnel Templates"
@@ -171,6 +210,7 @@ export function AdminFunnelTemplatesList() {
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <FunnelListToolbar
           search={search}
+          searchPlaceholder="Search for templates"
           onSearchChange={(value) => {
             setSearch(value);
             setPage(1);
@@ -191,76 +231,21 @@ export function AdminFunnelTemplatesList() {
             </p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Name
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Created
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Type
-                </TableHead>
-                <TableHead className="w-12 px-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageItems.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="px-4 font-medium">
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/admin/funnel-templates/${template.id}`)}
-                      className="text-slate-900 hover:text-blue-600"
-                    >
-                      {template.name}
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-slate-500">
-                    {new Date(template.createdAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-slate-500">System template</TableCell>
-                  <TableCell className="px-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 text-slate-500")}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => router.push(`/admin/funnel-templates/${template.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Open template
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => window.open(`/admin/funnel-templates/${template.id}/preview`, "_blank", "noopener,noreferrer")}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={duplicatingId === template.id}
-                          onClick={() => void duplicateTemplate(template)}
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600"
-                          disabled={deletingId === template.id}
-                          onClick={() => void deleteTemplate(template)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="grid gap-5 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {pageItems.map((template) => (
+              <FunnelCraftTemplateCard
+                key={template.id}
+                id={template.id}
+                name={template.name}
+                craftState={template.craftState}
+                themeJson={template.themeJson}
+                thankYouEnabled={template.thankYouEnabled}
+                createdAt={template.createdAt}
+                variant="admin"
+                actions={renderTemplateActions(template)}
+              />
+            ))}
+          </div>
         )}
 
         {filtered.length > 0 && (

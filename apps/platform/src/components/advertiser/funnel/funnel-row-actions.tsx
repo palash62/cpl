@@ -1,8 +1,8 @@
 "use client";
 
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Copy, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,14 +15,16 @@ import { cn } from "@/lib/utils";
 type FunnelRowActionsProps = {
   funnelId: string;
   slug: string;
-  isPublished: boolean;
+  duplicating?: boolean;
+  onDuplicate: () => void;
   onArchive: () => void;
 };
 
 export function FunnelRowActions({
   funnelId,
   slug,
-  isPublished,
+  duplicating = false,
+  onDuplicate,
   onArchive,
 }: FunnelRowActionsProps) {
   const router = useRouter();
@@ -39,12 +41,18 @@ export function FunnelRowActions({
           <Pencil className="mr-2 h-4 w-4" />
           Open funnel
         </DropdownMenuItem>
-        {isPublished && (
-          <DropdownMenuItem onClick={() => window.open(`/o/${slug}`, "_blank", "noreferrer")}>
-            <Eye className="mr-2 h-4 w-4" />
-            Preview live
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem
+          onClick={() =>
+            window.open(`/o/${slug}?preview=1&frame=1`, "_blank", "noopener,noreferrer")
+          }
+        >
+          <Eye className="mr-2 h-4 w-4" />
+          Preview
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={duplicating} onClick={onDuplicate}>
+          <Copy className="mr-2 h-4 w-4" />
+          Duplicate
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={onArchive}>
           <Trash2 className="mr-2 h-4 w-4" />
