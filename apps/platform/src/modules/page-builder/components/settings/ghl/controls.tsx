@@ -16,24 +16,23 @@ export function WidthControl({
   onChange: (value: string) => void;
 }) {
   const numeric = parseInt(value.replace(/[^\d]/g, ""), 10);
-  const parsed = Number.isFinite(numeric) ? Math.max(0, numeric) : 100;
-  const unit = value.includes("px") ? "px" : value === "auto" ? "auto" : "%";
-  const sliderMax = unit === "px" ? 1200 : 100;
-  const sliderValue = unit === "px" ? Math.min(parsed, sliderMax) : Math.min(parsed, 100);
+  const parsed = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+  const unit = value === "auto" ? "auto" : "px";
+  const sliderMax = 1200;
+  const sliderValue = Math.min(parsed, sliderMax);
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label className={GHL_FIELD_LABEL}>{label}</label>
         <div className="flex gap-0.5">
-          {(["%", "px", "auto"] as const).map((u) => (
+          {(["px", "auto"] as const).map((u) => (
             <button
               key={u}
               type="button"
               onClick={() => {
                 if (u === "auto") onChange("auto");
-                else if (u === "%") onChange(`${Math.min(parsed, 100)}%`);
-                else onChange(`${Math.min(parsed, 1200)}px`);
+                else onChange(`${Math.min(parsed, sliderMax)}px`);
               }}
               className={cn(
                 "rounded px-1.5 py-0.5 text-[10px] font-medium leading-none",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import {
   blockPropsToStyle,
   expandSpacingShorthand,
@@ -10,6 +11,10 @@ import {
   publishedSectionLayout,
   resolveColumnsGrid,
   resolveSectionPadding,
+  resolveFullWidthForBreakpoint,
+  resolveTypographyForBreakpoint,
+  seedBreakpointOverridesBeforeDesktopEdit,
+  setFullWidthAtBreakpoint,
   shouldStretchPublishedWrapper,
   withoutStretchLayout,
 } from "./responsive";
@@ -216,6 +221,38 @@ describe("shouldStretchPublishedWrapper", () => {
   });
 });
 
+describe("seedBreakpointOverridesBeforeDesktopEdit", () => {
+  it("seeds tablet and mobile with base value when they have no override", () => {
+    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
+      layout: { width: "200px" },
+    };
+    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
+    expect(props.responsive?.tablet?.layout?.width).toBe("200px");
+    expect(props.responsive?.mobile?.layout?.width).toBe("200px");
+  });
+
+  it("does not overwrite an existing tablet or mobile override", () => {
+    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
+      layout: { width: "200px" },
+      responsive: {
+        tablet: { layout: { width: "150px" } },
+        mobile: { layout: { width: "120px" } },
+      },
+    };
+    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
+    expect(props.responsive?.tablet?.layout?.width).toBe("150px");
+    expect(props.responsive?.mobile?.layout?.width).toBe("120px");
+  });
+
+  it("no-ops when base value is undefined", () => {
+    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
+      layout: {},
+    };
+    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
+    expect(props.responsive).toBeUndefined();
+  });
+});
+
 describe("resolveSectionPadding", () => {
   it("tightens default section padding on smaller breakpoints", () => {
     expect(resolveSectionPadding({ padding: "40px 20px" }, "mobile")).toEqual({
@@ -249,5 +286,75 @@ describe("getEditorViewportFill", () => {
     expect(getEditorViewportFill(false, "desktop")).toBe("calc(100vh - 12rem)");
     expect(getEditorViewportFill(true, "tablet")).toBe("600px");
     expect(getEditorViewportFill(true, "mobile")).toBe("640px");
+  });
+});
+
+describe("resolveTypographyForBreakpoint", () => {
+  it("returns base typography on desktop", () => {
+    const props = { typography: { fontSize: "16px", color: "#000" } };
+    expect(resolveTypographyForBreakpoint(props, "desktop")).toEqual({
+      fontSize: "16px",
+      color: "#000",
+    });
+  });
+
+  it("merges tablet typography overrides", () => {
+    const props = {
+      typography: { fontSize: "16px", color: "#000" },
+      responsive: { tablet: { typography: { fontSize: "20px" } } },
+    };
+    expect(resolveTypographyForBreakpoint(props, "tablet")).toEqual({
+      fontSize: "20px",
+      color: "#000",
+    });
+  });
+
+  it("merges mobile typography overrides", () => {
+    const props = {
+      typography: { fontSize: "16px" },
+      responsive: { mobile: { typography: { fontSize: "14px" } } },
+    };
+    expect(resolveTypographyForBreakpoint(props, "mobile")).toEqual({ fontSize: "14px" });
+  });
+});
+
+describe("resolveFullWidthForBreakpoint", () => {
+  it("returns base fullWidth on desktop", () => {
+    expect(resolveFullWidthForBreakpoint({ fullWidth: true }, "desktop")).toBe(true);
+    expect(resolveFullWidthForBreakpoint({ fullWidth: false }, "desktop")).toBe(false);
+  });
+
+  it("uses tablet override when set", () => {
+    const props = {
+      fullWidth: true,
+      responsive: { tablet: { fullWidth: false } },
+    };
+    expect(resolveFullWidthForBreakpoint(props, "tablet")).toBe(false);
+    expect(resolveFullWidthForBreakpoint(props, "desktop")).toBe(true);
+  });
+
+  it("uses mobile override when set", () => {
+    const props = {
+      fullWidth: false,
+      responsive: { mobile: { fullWidth: true } },
+    };
+    expect(resolveFullWidthForBreakpoint(props, "mobile")).toBe(true);
+  });
+});
+
+describe("setFullWidthAtBreakpoint", () => {
+  it("writes tablet override without changing desktop base", () => {
+    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: false };
+    setFullWidthAtBreakpoint((cb) => cb(props), true, "tablet");
+    expect(props.fullWidth).toBe(false);
+    expect(props.responsive?.tablet?.fullWidth).toBe(true);
+  });
+
+  it("seeds tablet/mobile before desktop edit", () => {
+    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: true };
+    setFullWidthAtBreakpoint((cb) => cb(props), false, "desktop");
+    expect(props.fullWidth).toBe(false);
+    expect(props.responsive?.tablet?.fullWidth).toBe(true);
+    expect(props.responsive?.mobile?.fullWidth).toBe(true);
   });
 });

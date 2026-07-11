@@ -18,6 +18,7 @@ import {
 } from "@/modules/page-builder/lib/builder-panel-styles";
 import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { seedBreakpointOverridesBeforeDesktopEdit } from "@/modules/page-builder/lib/responsive";
 import { cn } from "@/lib/utils";
 
 function setNestedProp(
@@ -29,6 +30,7 @@ function setNestedProp(
 ) {
   setProp((props: BlockProps) => {
     if (breakpoint === "desktop") {
+      seedBreakpointOverridesBeforeDesktopEdit(props, bucket, key);
       const current = { ...((props[bucket] as Record<string, string | number | undefined>) ?? {}) };
       current[key] = value;
       (props as Record<string, unknown>)[bucket] = current;
@@ -44,6 +46,16 @@ function setNestedProp(
       [breakpoint]: { ...existing, [bucket]: bucketCurrent },
     };
   });
+}
+
+export function setBlockPropAtBreakpoint(
+  setProp: (cb: (props: BlockProps) => void) => void,
+  bucket: "typography" | "layout" | "style",
+  key: string,
+  value: string | number,
+  breakpoint: Breakpoint,
+) {
+  setNestedProp(setProp, bucket, key, value, breakpoint);
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {

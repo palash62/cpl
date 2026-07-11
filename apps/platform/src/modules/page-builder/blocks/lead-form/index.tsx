@@ -10,6 +10,7 @@ import {
   FieldInput,
   BUILDER_CHECKBOX_LABEL,
   BUILDER_FIELD_INPUT,
+  setBlockPropAtBreakpoint,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
 import { cn } from "@/lib/utils";
 import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
@@ -22,10 +23,18 @@ import {
 } from "@/modules/page-builder/lib/button-layout";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
-import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
+import {
+  withoutStretchLayout,
+  resolveFullWidthForBreakpoint,
+  resolveTypographyForBreakpoint,
+  setFullWidthAtBreakpoint,
+} from "@/modules/page-builder/lib/responsive";
 import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
-import type { BlockProps, ButtonAppearanceProps, TypographyProps } from "@/modules/page-builder/types/block-props";
+import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
+import type { BlockProps, Breakpoint, ButtonAppearanceProps, TypographyProps } from "@/modules/page-builder/types/block-props";
 
 const FORM_INPUT_STYLE: CSSProperties = {
   color: "var(--pb-input-text, #0f172a)",
@@ -428,17 +437,31 @@ type SubmitProps = BlockProps & {
 };
 
 function SubmitButtonSettings() {
+  const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
+  const settingsLayout = useBuilderSettingsLayout();
+  const isGhl = settingsLayout === "ghl";
+  const activeBreakpoint: Breakpoint = isGhl ? styleBreakpoint : "desktop";
   const {
     text,
     fullWidth,
     typography,
+    responsive,
     actions: { setProp },
   } = useNode((node) => ({
     text: node.data.props.text as string,
     fullWidth: Boolean(node.data.props.fullWidth),
     typography: node.data.props.typography as BlockProps["typography"],
+    responsive: node.data.props.responsive as BlockProps["responsive"],
   }));
-  const fontSizePx = parseButtonFontSizePx(typography?.fontSize);
+  const typographyForBp = resolveTypographyForBreakpoint(
+    { typography, responsive } as BlockProps,
+    activeBreakpoint,
+  );
+  const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize);
+  const fullWidthForBp = resolveFullWidthForBreakpoint(
+    { fullWidth, responsive },
+    activeBreakpoint,
+  );
 
   return (
     <div className="space-y-3">
@@ -465,9 +488,13 @@ function SubmitButtonSettings() {
           step={1}
           value={fontSizePx}
           onChange={(e) =>
-            setProp((p: SubmitProps) => {
-              p.typography = { ...(p.typography ?? {}), fontSize: `${e.target.value}px` };
-            })
+            setBlockPropAtBreakpoint(
+              setProp,
+              "typography",
+              "fontSize",
+              `${e.target.value}px`,
+              activeBreakpoint,
+            )
           }
           className="h-1.5 w-full accent-blue-600"
         />
@@ -476,12 +503,8 @@ function SubmitButtonSettings() {
         <input
           type="checkbox"
           className="accent-blue-600"
-          checked={fullWidth}
-          onChange={(e) =>
-            setProp((p: SubmitProps) => {
-              p.fullWidth = e.target.checked;
-            })
-          }
+          checked={fullWidthForBp}
+          onChange={(e) => setFullWidthAtBreakpoint(setProp, e.target.checked, activeBreakpoint)}
         />
         Full width
       </label>
@@ -500,12 +523,18 @@ export function SubmitButton({
   const theme = usePageTheme();
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
-  const fontSizePx = parseButtonFontSizePx(props.typography?.fontSize);
+  const breakpoint = useRenderBreakpoint();
+  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint);
+  const isFullWidth = resolveFullWidthForBreakpoint(
+    { fullWidth, responsive: props.responsive },
+    breakpoint,
+  );
+  const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize);
   const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);
   const buttonStyle = buildButtonLayoutStyle({
     fontSizePx,
-    fullWidth,
-    baseStyle: resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
+    fullWidth: isFullWidth,
+    baseStyle: resolveButtonStyle(theme, buttonAppearance, typographyForBp?.color),
     editorMode: enabled,
   });
 
@@ -513,7 +542,7 @@ export function SubmitButton({
     <BlockWrapper
       {...props}
       draggable
-      typography={{ ...props.typography, fontSize: `${fontSizePx}px` }}
+      typography={{ ...typographyForBp, fontSize: `${fontSizePx}px` }}
       layout={{ textAlign: "center", ...props.layout }}
     >
       <button

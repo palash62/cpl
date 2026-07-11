@@ -36,6 +36,7 @@ import {
 } from "@/modules/page-builder/lib/builder-panel-styles";
 import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
+import { seedBreakpointOverridesBeforeDesktopEdit } from "@/modules/page-builder/lib/responsive";
 
 function GhlStylesPanel() {
   const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
@@ -67,6 +68,7 @@ function GhlStylesPanel() {
   function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
+        seedBreakpointOverridesBeforeDesktopEdit(props, "layout", key);
         props.layout = { ...(props.layout ?? {}), [key]: value };
         return;
       }
@@ -84,6 +86,7 @@ function GhlStylesPanel() {
     const nextValue = key === "opacity" ? parseFloat(value) || 1 : value;
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
+        seedBreakpointOverridesBeforeDesktopEdit(props, "style", key);
         props.style = { ...(props.style ?? {}), [key]: nextValue };
         return;
       }
@@ -146,7 +149,7 @@ function GhlStylesPanel() {
           {isSection ? "Section Size" : "Container Size"}
         </p>
         <div className="space-y-2.5">
-          <WidthControl label="Width" value={String(layoutSafe.width ?? "100%")} onChange={(v) => setLayoutProp("width", v)} />
+          <WidthControl label="Width" value={String(layoutSafe.width ?? "auto")} onChange={(v) => setLayoutProp("width", v)} />
           <WidthControl
             label={isSection ? "Min Height" : "Height"}
             value={String(isSection ? (layoutSafe.minHeight ?? "auto") : (layoutSafe.height ?? "auto"))}

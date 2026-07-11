@@ -211,6 +211,86 @@ export function shouldStretchPublishedWrapper(layout?: LayoutProps): boolean {
   return width === "100%";
 }
 
+type ResponsiveBucket = "typography" | "layout" | "style";
+
+export function seedBreakpointOverridesBeforeDesktopEdit(
+  props: BlockProps,
+  bucket: ResponsiveBucket,
+  key: string,
+): void {
+  const baseValue = (props[bucket] as Record<string, unknown> | undefined)?.[key];
+  if (baseValue === undefined) return;
+
+  for (const bp of ["tablet", "mobile"] as const) {
+    const existing = props.responsive?.[bp]?.[bucket] as Record<string, unknown> | undefined;
+    if (existing?.[key] !== undefined) continue;
+
+    props.responsive = {
+      ...(props.responsive ?? {}),
+      [bp]: {
+        ...(props.responsive?.[bp] ?? {}),
+        [bucket]: { ...(existing ?? {}), [key]: baseValue },
+      },
+    };
+  }
+}
+
+export function resolveTypographyForBreakpoint(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+): TypographyProps {
+  const scaled = applyBreakpointTypographyScale(props, breakpoint);
+  const base = scaled.typography ?? {};
+  if (breakpoint === "desktop") return base;
+  return { ...base, ...(scaled.responsive?.[breakpoint]?.typography ?? {}) };
+}
+
+export function resolveFullWidthForBreakpoint(
+  props: { fullWidth?: boolean; responsive?: BlockProps["responsive"] },
+  breakpoint: Breakpoint,
+): boolean {
+  if (breakpoint !== "desktop") {
+    const override = props.responsive?.[breakpoint]?.fullWidth;
+    if (override !== undefined) return Boolean(override);
+  }
+  return Boolean(props.fullWidth);
+}
+
+function seedFullWidthBeforeDesktopEdit(props: BlockProps & { fullWidth?: boolean }): void {
+  if (props.fullWidth === undefined) return;
+
+  for (const bp of ["tablet", "mobile"] as const) {
+    const existing = props.responsive?.[bp];
+    if (existing?.fullWidth !== undefined) continue;
+
+    props.responsive = {
+      ...(props.responsive ?? {}),
+      [bp]: { ...(existing ?? {}), fullWidth: props.fullWidth },
+    };
+  }
+}
+
+export function setFullWidthAtBreakpoint(
+  setProp: (cb: (props: BlockProps & { fullWidth?: boolean }) => void) => void,
+  value: boolean,
+  breakpoint: Breakpoint,
+): void {
+  setProp((props) => {
+    if (breakpoint === "desktop") {
+      seedFullWidthBeforeDesktopEdit(props);
+      props.fullWidth = value;
+      return;
+    }
+    props.responsive = {
+      ...(props.responsive ?? {}),
+      [breakpoint]: {
+        ...(props.responsive?.[breakpoint] ?? {}),
+        fullWidth: value,
+      },
+    };
+  });
+}
+
 export function withoutStretchLayout(layout?: LayoutProps): LayoutProps | undefined {
   if (!layout) return undefined;
 

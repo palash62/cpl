@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
-import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
+import { StandardSettings, FieldLabel, FieldInput, setBlockPropAtBreakpoint } from "@/modules/page-builder/components/settings/shared/block-settings";
 import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
 import { ButtonLabelContent } from "@/modules/page-builder/components/editor/button-label-content";
 import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
@@ -17,7 +17,15 @@ import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
 import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
-import type { BlockProps, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
+import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
+import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
+import {
+  resolveFullWidthForBreakpoint,
+  resolveTypographyForBreakpoint,
+  setFullWidthAtBreakpoint,
+} from "@/modules/page-builder/lib/responsive";
+import type { BlockProps, Breakpoint, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
 
 type CtaProps = BlockProps & {
@@ -31,7 +39,11 @@ type CtaProps = BlockProps & {
 };
 
 function CtaSettings() {
-  const { text, href, openInNewTab, fullWidth, typography, buttonSize, actions: { setProp } } = useNode((node) => ({
+  const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
+  const settingsLayout = useBuilderSettingsLayout();
+  const isGhl = settingsLayout === "ghl";
+  const activeBreakpoint: Breakpoint = isGhl ? styleBreakpoint : "desktop";
+  const { text, href, openInNewTab, fullWidth, typography, buttonSize, responsive, actions: { setProp } } = useNode((node) => ({
     text: node.data.props.text as string,
     href: node.data.props.href as string,
     openInNewTab: Boolean(node.data.props.openInNewTab),
@@ -40,8 +52,17 @@ function CtaSettings() {
       node.data.props.buttonSize === "full",
     typography: node.data.props.typography as BlockProps["typography"],
     buttonSize: node.data.props.buttonSize as CtaProps["buttonSize"],
+    responsive: node.data.props.responsive as BlockProps["responsive"],
   }));
-  const fontSizePx = parseButtonFontSizePx(typography?.fontSize, buttonSize);
+  const typographyForBp = resolveTypographyForBreakpoint(
+    { typography, responsive } as BlockProps,
+    activeBreakpoint,
+  );
+  const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize, buttonSize);
+  const fullWidthForBp = resolveFullWidthForBreakpoint(
+    { fullWidth, responsive },
+    activeBreakpoint,
+  );
 
   return (
     <div className="space-y-3">
@@ -81,10 +102,13 @@ function CtaSettings() {
           step={1}
           value={fontSizePx}
           onChange={(e) =>
-            setProp((p: CtaProps) => {
-              p.typography = { ...(p.typography ?? {}), fontSize: `${e.target.value}px` };
-              if (p.buttonSize && p.buttonSize !== "full") p.buttonSize = undefined;
-            })
+            setBlockPropAtBreakpoint(
+              setProp,
+              "typography",
+              "fontSize",
+              `${e.target.value}px`,
+              activeBreakpoint,
+            )
           }
           className="h-1.5 w-full accent-blue-600"
         />
@@ -93,13 +117,15 @@ function CtaSettings() {
         <input
           type="checkbox"
           className="accent-blue-600"
-          checked={fullWidth}
-          onChange={(e) =>
-            setProp((p: CtaProps) => {
-              p.fullWidth = e.target.checked;
-              if (p.buttonSize === "full") p.buttonSize = undefined;
-            })
-          }
+          checked={fullWidthForBp}
+          onChange={(e) => {
+            setFullWidthAtBreakpoint(setProp, e.target.checked, activeBreakpoint);
+            if (e.target.checked === false) {
+              setProp((p: CtaProps) => {
+                if (p.buttonSize === "full") p.buttonSize = undefined;
+              });
+            }
+          }}
         />
         Full width
       </label>
@@ -122,9 +148,14 @@ export function CtaButton({
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   const published = usePublishedPage();
+  const breakpoint = useRenderBreakpoint();
   const normalizedHref = (href ?? "").trim();
-  const isFullWidth = fullWidth || buttonSize === "full";
-  const fontSizePx = parseButtonFontSizePx(props.typography?.fontSize, buttonSize);
+  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint);
+  const isFullWidth = resolveFullWidthForBreakpoint(
+    { fullWidth, responsive: props.responsive },
+    breakpoint,
+  ) || buttonSize === "full";
+  const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize, buttonSize);
   const isExternalHttp =
     /^https?:\/\//i.test(normalizedHref) || normalizedHref.startsWith("//");
   const actsAsOptinSubmit =
@@ -140,7 +171,7 @@ export function CtaButton({
   const buttonStyle = buildButtonLayoutStyle({
     fontSizePx,
     fullWidth: isFullWidth,
-    baseStyle: resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
+    baseStyle: resolveButtonStyle(theme, buttonAppearance, typographyForBp?.color),
     editorMode: enabled,
     asLink: true,
   });
@@ -159,7 +190,7 @@ export function CtaButton({
   return (
     <BlockWrapper
       {...props}
-      typography={{ ...props.typography, fontSize: `${fontSizePx}px` }}
+      typography={{ ...typographyForBp, fontSize: `${fontSizePx}px` }}
       layout={{ textAlign: "center", ...props.layout }}
     >
       {enabled ? (

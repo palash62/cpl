@@ -70,6 +70,7 @@ export type ResponsiveOverrides = Partial<{
   layout: LayoutProps;
   style: StyleProps;
   visible: boolean;
+  fullWidth?: boolean;
 }>;
 
 export type BlockProps = {
