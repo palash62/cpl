@@ -4,7 +4,7 @@ import type { CraftSerializedState } from "@/modules/page-builder/types/page-doc
 export type CraftNodeInput = {
   id: string;
   type: CraftBlockName;
-  parent: string;
+  parent: string | null;
   children?: string[];
   props?: Record<string, unknown>;
   isCanvas?: boolean;
