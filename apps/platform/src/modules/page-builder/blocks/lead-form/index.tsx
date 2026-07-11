@@ -15,6 +15,11 @@ import { cn } from "@/lib/utils";
 import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
 import { ButtonLabelContent } from "@/modules/page-builder/components/editor/button-label-content";
 import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
+import {
+  buildButtonLayoutStyle,
+  buttonIconSizePx,
+  parseButtonFontSizePx,
+} from "@/modules/page-builder/lib/button-layout";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { buttonStyleFromTheme } from "@/modules/page-builder/lib/theme";
 import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
@@ -418,16 +423,22 @@ FormSelect.craft = {
 
 type SubmitProps = BlockProps & {
   text?: string;
+  fullWidth?: boolean;
   buttonAppearance?: ButtonAppearanceProps;
 };
 
 function SubmitButtonSettings() {
   const {
     text,
+    fullWidth,
+    typography,
     actions: { setProp },
   } = useNode((node) => ({
     text: node.data.props.text as string,
+    fullWidth: Boolean(node.data.props.fullWidth),
+    typography: node.data.props.typography as BlockProps["typography"],
   }));
+  const fontSizePx = parseButtonFontSizePx(typography?.fontSize);
 
   return (
     <div className="space-y-3">
@@ -442,25 +453,74 @@ function SubmitButtonSettings() {
           }
         />
       </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>Button size</FieldLabel>
+          <span className="text-[11px] text-slate-500">{fontSizePx}px</span>
+        </div>
+        <input
+          type="range"
+          min={12}
+          max={48}
+          step={1}
+          value={fontSizePx}
+          onChange={(e) =>
+            setProp((p: SubmitProps) => {
+              p.typography = { ...(p.typography ?? {}), fontSize: `${e.target.value}px` };
+            })
+          }
+          className="h-1.5 w-full accent-blue-600"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          className="accent-blue-600"
+          checked={fullWidth}
+          onChange={(e) =>
+            setProp((p: SubmitProps) => {
+              p.fullWidth = e.target.checked;
+            })
+          }
+        />
+        Full width
+      </label>
       <ButtonAppearancePanel />
       <StandardSettings />
     </div>
   );
 }
 
-export function SubmitButton({ text = "Submit", buttonAppearance, ...props }: SubmitProps) {
+export function SubmitButton({
+  text = "Submit",
+  fullWidth = false,
+  buttonAppearance,
+  ...props
+}: SubmitProps) {
   const theme = usePageTheme();
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
+  const fontSizePx = parseButtonFontSizePx(props.typography?.fontSize);
   const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);
+  const buttonStyle = buildButtonLayoutStyle({
+    fontSizePx,
+    fullWidth,
+    baseStyle: resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
+    editorMode: enabled,
+  });
 
   return (
-    <BlockWrapper {...props} draggable>
+    <BlockWrapper
+      {...props}
+      draggable
+      typography={{ ...props.typography, fontSize: `${fontSizePx}px` }}
+      layout={{ textAlign: "center", ...props.layout }}
+    >
       <button
         type={enabled ? "button" : "submit"}
         form={enabled ? undefined : "pb-optin-form"}
-        style={resolveButtonStyle(theme, buttonAppearance, props.typography?.color)}
-        className={cn("w-full px-4 py-2.5", hoverClass)}
+        style={buttonStyle}
+        className={hoverClass}
       >
         <ButtonLabelContent
           text={text ?? ""}
@@ -468,6 +528,7 @@ export function SubmitButton({ text = "Submit", buttonAppearance, ...props }: Su
           onChange={(html) => setProp((p: SubmitProps) => { p.text = html; })}
           icon={buttonAppearance?.icon}
           iconPosition={buttonAppearance?.iconPosition}
+          iconSize={buttonIconSizePx(fontSizePx)}
         />
       </button>
     </BlockWrapper>
@@ -476,6 +537,10 @@ export function SubmitButton({ text = "Submit", buttonAppearance, ...props }: Su
 
 SubmitButton.craft = {
   displayName: "Submit Button",
-  props: { text: "Get Instant Access" },
+  props: {
+    text: "Get Instant Access",
+    fullWidth: false,
+    typography: { fontSize: "16px" },
+  },
   related: { settings: SubmitButtonSettings },
 };

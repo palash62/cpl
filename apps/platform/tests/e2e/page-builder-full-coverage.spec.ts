@@ -83,13 +83,17 @@ test.describe("Full coverage page builder — admin", () => {
     await expect(previewParagraph).toBeVisible();
     await assertStyleParity(editorParagraph, previewParagraph, "color");
 
-    const previewCta = previewPage.getByRole("button", { name: "[BLOCK:CtaButton]" });
-    await expect(previewCta).toBeVisible();
-    await assertStyleParity(editorCta, previewCta, "backgroundColor");
-
     const previewSubmit = previewPage.getByRole("button", { name: "[BLOCK:SubmitButton]" });
     await expect(previewSubmit).toBeVisible();
     await assertStyleParity(editorSubmit, previewSubmit, "backgroundColor");
+    await assertStyleParity(editorSubmit, previewSubmit, "fontSize");
+    await assertStyleParity(editorSubmit, previewSubmit, "width");
+
+    const previewCta = previewPage.getByRole("button", { name: "[BLOCK:CtaButton]" });
+    await expect(previewCta).toBeVisible();
+    await assertStyleParity(editorCta, previewCta, "backgroundColor");
+    await assertStyleParity(editorCta, previewCta, "fontSize");
+    await assertStyleParity(editorCta, previewCta, "width");
 
     await expect(previewPage.getByText("960px")).toBeVisible();
   });

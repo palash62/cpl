@@ -7,6 +7,12 @@ import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder
 import { ButtonAppearancePanel } from "@/modules/page-builder/components/settings/ghl/button-appearance-panel";
 import { ButtonLabelContent } from "@/modules/page-builder/components/editor/button-label-content";
 import { hoverEffectClass, resolveButtonStyle } from "@/modules/page-builder/lib/button-appearance";
+import {
+  buildButtonLayoutStyle,
+  buttonIconSizePx,
+  parseButtonFontSizePx,
+  type ButtonLegacySize,
+} from "@/modules/page-builder/lib/button-layout";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
 import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
 import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
@@ -21,23 +27,8 @@ type CtaProps = BlockProps & {
   fullWidth?: boolean;
   buttonAppearance?: ButtonAppearanceProps;
   /** @deprecated Prefer typography.fontSize + fullWidth; kept for older craft JSON. */
-  buttonSize?: "small" | "medium" | "large" | "full";
+  buttonSize?: ButtonLegacySize;
 };
-
-function parseCtaFontSizePx(value: string | undefined, legacySize?: CtaProps["buttonSize"]): number {
-  if (value) {
-    const trimmed = value.trim();
-    if (trimmed.endsWith("rem")) {
-      const n = parseFloat(trimmed);
-      if (Number.isFinite(n)) return Math.min(48, Math.max(12, Math.round(n * 16)));
-    }
-    const n = parseFloat(trimmed);
-    if (Number.isFinite(n)) return Math.min(48, Math.max(12, Math.round(n)));
-  }
-  if (legacySize === "small") return 14;
-  if (legacySize === "large") return 20;
-  return 16;
-}
 
 function CtaSettings() {
   const { text, href, openInNewTab, fullWidth, typography, buttonSize, actions: { setProp } } = useNode((node) => ({
@@ -50,7 +41,7 @@ function CtaSettings() {
     typography: node.data.props.typography as BlockProps["typography"],
     buttonSize: node.data.props.buttonSize as CtaProps["buttonSize"],
   }));
-  const fontSizePx = parseCtaFontSizePx(typography?.fontSize, buttonSize);
+  const fontSizePx = parseButtonFontSizePx(typography?.fontSize, buttonSize);
 
   return (
     <div className="space-y-3">
@@ -133,9 +124,7 @@ export function CtaButton({
   const published = usePublishedPage();
   const normalizedHref = (href ?? "").trim();
   const isFullWidth = fullWidth || buttonSize === "full";
-  const fontSizePx = parseCtaFontSizePx(props.typography?.fontSize, buttonSize);
-  const padY = Math.max(8, Math.round(fontSizePx * 0.55));
-  const padX = Math.max(12, Math.round(fontSizePx * 1.35));
+  const fontSizePx = parseButtonFontSizePx(props.typography?.fontSize, buttonSize);
   const isExternalHttp =
     /^https?:\/\//i.test(normalizedHref) || normalizedHref.startsWith("//");
   const actsAsOptinSubmit =
@@ -148,20 +137,13 @@ export function CtaButton({
       normalizedHref === "#pb-optin-form");
 
   const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);
-  const buttonStyle = {
-    ...resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
-    fontSize: `${fontSizePx}px`,
-    lineHeight: 1.25,
-    padding: `${padY}px ${padX}px`,
-    display: isFullWidth ? "flex" : "inline-flex",
-    width: isFullWidth ? "100%" : "auto",
-    maxWidth: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    boxSizing: "border-box" as const,
-    textDecoration: "none",
-    cursor: enabled ? "default" : undefined,
-  };
+  const buttonStyle = buildButtonLayoutStyle({
+    fontSizePx,
+    fullWidth: isFullWidth,
+    baseStyle: resolveButtonStyle(theme, buttonAppearance, props.typography?.color),
+    editorMode: enabled,
+    asLink: true,
+  });
 
   const label = (
     <ButtonLabelContent
@@ -170,7 +152,7 @@ export function CtaButton({
       onChange={(html) => setProp((p: CtaProps) => { p.text = html; })}
       icon={buttonAppearance?.icon}
       iconPosition={buttonAppearance?.iconPosition}
-      iconSize={Math.max(14, Math.round(fontSizePx * 0.95))}
+      iconSize={buttonIconSizePx(fontSizePx)}
     />
   );
 

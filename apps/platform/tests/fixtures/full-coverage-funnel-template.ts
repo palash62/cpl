@@ -378,6 +378,7 @@ export function buildFullCoverageCraft(): CraftSerializedState {
       props: {
         text: "[BLOCK:SubmitButton]",
         buttonAppearance: { backgroundColor: "#D4AF37", textColor: "#ffffff" },
+        typography: { fontSize: "16px" },
       },
     }),
   };

@@ -81,10 +81,14 @@ export async function assertMarkersVisible(page: Page, markers: string[]) {
 export async function assertStyleParity(
   editorLocator: Locator,
   previewLocator: Locator,
-  property: "color" | "backgroundColor",
+  property: "color" | "backgroundColor" | "fontSize" | "width",
 ) {
   const editorValue = await editorLocator.evaluate((el, prop) => getComputedStyle(el)[prop], property);
   const previewValue = await previewLocator.evaluate((el, prop) => getComputedStyle(el)[prop], property);
+  if (property === "fontSize" || property === "width") {
+    expect(previewValue).toBe(editorValue);
+    return;
+  }
   expect(normalizeRgb(previewValue)).toBe(normalizeRgb(editorValue));
 }
 
