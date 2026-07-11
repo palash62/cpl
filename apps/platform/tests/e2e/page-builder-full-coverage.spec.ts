@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   assertMarkersVisible,
+  assertOffsetWidthParity,
   assertStyleParity,
   FULL_COVERAGE_TEMPLATE_NAME,
   loginAsAdmin,
@@ -66,6 +67,7 @@ test.describe("Full coverage page builder — admin", () => {
     await expect(editorSubmit).toBeVisible();
     const editorSubmitBg = await editorSubmit.evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(normalizeRgb(editorSubmitBg)).toBe(normalizeRgb(GOLD));
+    const editorSubmitWrapper = editorSubmit.locator("xpath=..");
 
     const previewPage = await openPreviewPopup(page);
     await expect(previewPage.getByText(FULL_COVERAGE_TEMPLATE_NAME)).toBeVisible({ timeout: 15_000 });
@@ -88,6 +90,8 @@ test.describe("Full coverage page builder — admin", () => {
     await assertStyleParity(editorSubmit, previewSubmit, "backgroundColor");
     await assertStyleParity(editorSubmit, previewSubmit, "fontSize");
     await assertStyleParity(editorSubmit, previewSubmit, "width");
+    const previewSubmitWrapper = previewSubmit.locator("xpath=..");
+    await assertOffsetWidthParity(editorSubmitWrapper, previewSubmitWrapper);
 
     const previewCta = previewPage.getByRole("button", { name: "[BLOCK:CtaButton]" });
     await expect(previewCta).toBeVisible();

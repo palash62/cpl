@@ -92,6 +92,12 @@ export async function assertStyleParity(
   expect(normalizeRgb(previewValue)).toBe(normalizeRgb(editorValue));
 }
 
+export async function assertOffsetWidthParity(editorLocator: Locator, previewLocator: Locator) {
+  const editorWidth = await editorLocator.evaluate((el) => el.offsetWidth);
+  const previewWidth = await previewLocator.evaluate((el) => el.offsetWidth);
+  expect(previewWidth).toBe(editorWidth);
+}
+
 export async function openPreviewPopup(editorPage: Page) {
   const popupPromise = editorPage.waitForEvent("popup", { timeout: 90_000 });
   await editorPage.getByRole("button", { name: "Preview" }).click();

@@ -10,6 +10,7 @@ import {
   publishedSectionLayout,
   resolveColumnsGrid,
   resolveSectionPadding,
+  shouldStretchPublishedWrapper,
   withoutStretchLayout,
 } from "./responsive";
 
@@ -203,6 +204,15 @@ describe("resolveColumnsGrid", () => {
         mobile: { layout: { gridTemplateColumns: "repeat(2, 1fr)" } },
       }),
     ).toBe("repeat(2, 1fr)");
+  });
+});
+
+describe("shouldStretchPublishedWrapper", () => {
+  it("only stretches when width is explicitly 100%", () => {
+    expect(shouldStretchPublishedWrapper(undefined)).toBe(false);
+    expect(shouldStretchPublishedWrapper({ width: "40%" })).toBe(false);
+    expect(shouldStretchPublishedWrapper({ width: "200px" })).toBe(false);
+    expect(shouldStretchPublishedWrapper({ width: "100%" })).toBe(true);
   });
 });
 

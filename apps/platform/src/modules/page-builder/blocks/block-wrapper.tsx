@@ -3,7 +3,7 @@
 import type { ReactNode, CSSProperties, ElementType } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import { cn } from "@/lib/utils";
-import { mergeBlockStyles } from "@/modules/page-builder/lib/responsive";
+import { mergeBlockStyles, shouldStretchPublishedWrapper } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
@@ -85,7 +85,10 @@ export function BlockWrapper({
 
   if (!enabled) {
     return (
-      <Tag style={style} className={cn(className, "w-full")}>
+      <Tag
+        style={style}
+        className={cn(className, shouldStretchPublishedWrapper(blockProps.layout) && "w-full")}
+      >
         {inner}
       </Tag>
     );
@@ -118,11 +121,15 @@ export function CanvasWrapper({
   ...blockProps
 }: BlockWrapperProps) {
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const stretchPublished = shouldStretchPublishedWrapper(blockProps.layout);
 
   return (
     <BlockWrapper
       {...blockProps}
-      className={cn(enabled ? "min-h-[40px]" : "w-full", className)}
+      className={cn(
+        enabled ? "min-h-[40px]" : stretchPublished && "w-full",
+        className,
+      )}
       draggable
     >
       {children}

@@ -206,6 +206,11 @@ export function isStretchLayoutValue(value: string): boolean {
   return normalized.includes("calc(100");
 }
 
+export function shouldStretchPublishedWrapper(layout?: LayoutProps): boolean {
+  const width = layout?.width?.trim();
+  return width === "100%";
+}
+
 export function withoutStretchLayout(layout?: LayoutProps): LayoutProps | undefined {
   if (!layout) return undefined;
 
