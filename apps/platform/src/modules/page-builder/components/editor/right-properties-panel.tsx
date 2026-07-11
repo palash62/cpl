@@ -36,7 +36,13 @@ import {
 } from "@/modules/page-builder/lib/builder-panel-styles";
 import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
-import { seedBreakpointOverridesBeforeDesktopEdit } from "@/modules/page-builder/lib/responsive";
+import {
+  isFullWidthLayout,
+  resolveGhlAlignDisplay,
+  seedBreakpointOverridesBeforeDesktopEdit,
+  shouldUseTextAlignForGhlAlign,
+} from "@/modules/page-builder/lib/responsive";
+import { ListAppearancePanel } from "@/modules/page-builder/components/settings/ghl/list-appearance-panel";
 
 function GhlStylesPanel() {
   const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
@@ -45,6 +51,7 @@ function GhlStylesPanel() {
   const {
     displayName,
     layout,
+    typography,
     style,
     responsive,
     visible,
@@ -53,6 +60,7 @@ function GhlStylesPanel() {
   } = useNode((node) => ({
     displayName: String(node.data.displayName ?? node.data.type ?? "Element"),
     layout: node.data.props.layout as BlockProps["layout"],
+    typography: node.data.props.typography as BlockProps["typography"],
     style: node.data.props.style as BlockProps["style"],
     responsive: node.data.props.responsive as BlockProps["responsive"],
     visible: node.data.props.visible as boolean | undefined,
@@ -61,9 +69,11 @@ function GhlStylesPanel() {
 
   const breakpointOverride = styleBreakpoint === "desktop" ? undefined : responsive?.[styleBreakpoint];
   const layoutSafe = { ...(layout ?? {}), ...(breakpointOverride?.layout ?? {}) };
+  const typographySafe = { ...(typography ?? {}), ...(breakpointOverride?.typography ?? {}) };
   const styleSafe = { ...(style ?? {}), ...(breakpointOverride?.style ?? {}) };
   const isSection = displayName === "Section";
   const supportsInlineText = RICH_TEXT_BLOCK_NAMES.has(displayName);
+  const useTextAlignForAlign = shouldUseTextAlignForGhlAlign(displayName, layoutSafe.width, RICH_TEXT_BLOCK_NAMES);
 
   function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
     setProp((props: BlockProps) => {
@@ -105,6 +115,36 @@ function GhlStylesPanel() {
       props.visible = next;
     });
   }
+
+  function setTypographyProp(key: keyof NonNullable<BlockProps["typography"]>, value: string) {
+    setProp((props: BlockProps) => {
+      if (styleBreakpoint === "desktop") {
+        seedBreakpointOverridesBeforeDesktopEdit(props, "typography", key);
+        props.typography = { ...(props.typography ?? {}), [key]: value };
+        return;
+      }
+      props.responsive = {
+        ...(props.responsive ?? {}),
+        [styleBreakpoint]: {
+          ...(props.responsive?.[styleBreakpoint] ?? {}),
+          typography: { ...(props.responsive?.[styleBreakpoint]?.typography ?? {}), [key]: value },
+        },
+      };
+    });
+  }
+
+  function setAlignValue(value: string) {
+    if (useTextAlignForAlign) {
+      setTypographyProp("textAlign", value);
+      setLayoutProp("textAlign", value);
+    } else {
+      setLayoutProp("blockAlign", value);
+    }
+  }
+
+  const alignDisplayValue = normalizeAlignValue(
+    resolveGhlAlignDisplay(typographySafe, layoutSafe, layoutSafe.width),
+  );
 
   function setMobileVisible(next: boolean) {
     setProp((props: BlockProps) => {
@@ -157,8 +197,8 @@ function GhlStylesPanel() {
           />
           <AlignControl
             label="Align"
-            value={normalizeAlignValue(String(layoutSafe.blockAlign ?? "left"))}
-            onChange={(v) => setLayoutProp("blockAlign", v)}
+            value={alignDisplayValue}
+            onChange={setAlignValue}
           />
         </div>
       </div>
@@ -201,6 +241,8 @@ function GhlStylesPanel() {
       </div>
 
       {supportsInlineText ? <InlineTextFormattingPanel /> : null}
+
+      {displayName === "List" ? <ListAppearancePanel /> : null}
 
       <div className={GHL_SECTION_CARD}>
         <p className={GHL_SECTION_TITLE}>Typography</p>

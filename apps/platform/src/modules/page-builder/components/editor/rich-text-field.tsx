@@ -2,25 +2,20 @@
 
 import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
 import Bold from "@tiptap/extension-bold";
 import Italic from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
 import Underline from "@tiptap/extension-underline";
-import HardBreak from "@tiptap/extension-hard-break";
 import Highlight from "@tiptap/extension-highlight";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { FontSize } from "@tiptap/extension-text-style/font-size";
 import Link from "@tiptap/extension-link";
 import { useRichTextEditorStore } from "@/modules/page-builder/lib/rich-text-editor-store";
+import { InlineDocument, EnterHardBreak } from "@/modules/page-builder/lib/rich-text-extensions";
 import { sanitizeInlineHtml } from "@/modules/page-builder/lib/sanitize";
 import { cn } from "@/lib/utils";
-
-const InlineDocument = Document.extend({
-  content: "inline*",
-});
 
 type RichTextFieldProps = {
   value: string;
@@ -43,7 +38,7 @@ export function RichTextField({ value, onChange, editable = false, className }: 
       Italic,
       Strike,
       Underline,
-      HardBreak,
+      EnterHardBreak,
       TextStyle,
       FontSize,
       Color,

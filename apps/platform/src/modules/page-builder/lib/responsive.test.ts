@@ -13,9 +13,12 @@ import {
   resolveSectionPadding,
   resolveFullWidthForBreakpoint,
   resolveTypographyForBreakpoint,
+  resolveGhlAlignDisplay,
   seedBreakpointOverridesBeforeDesktopEdit,
   setFullWidthAtBreakpoint,
   shouldStretchPublishedWrapper,
+  shouldUseTextAlignForGhlAlign,
+  isFullWidthLayout,
   withoutStretchLayout,
 } from "./responsive";
 
@@ -121,6 +124,42 @@ describe("blockPropsToStyle", () => {
     });
     expect(style.textAlign).toBe("center");
     expect(style.margin).toBeUndefined();
+  });
+});
+
+describe("isFullWidthLayout", () => {
+  it("treats unset, 100%, and auto as full width", () => {
+    expect(isFullWidthLayout(undefined)).toBe(true);
+    expect(isFullWidthLayout("100%")).toBe(true);
+    expect(isFullWidthLayout("auto")).toBe(true);
+    expect(isFullWidthLayout("50%")).toBe(false);
+    expect(isFullWidthLayout("400px")).toBe(false);
+  });
+});
+
+describe("shouldUseTextAlignForGhlAlign", () => {
+  it("uses text align for full-width text blocks", () => {
+    expect(shouldUseTextAlignForGhlAlign("Paragraph", "100%")).toBe(true);
+    expect(shouldUseTextAlignForGhlAlign("List", undefined)).toBe(true);
+    expect(shouldUseTextAlignForGhlAlign("Section", "100%")).toBe(false);
+    expect(shouldUseTextAlignForGhlAlign("Paragraph", "400px")).toBe(false);
+  });
+});
+
+describe("resolveGhlAlignDisplay", () => {
+  it("reads typography.textAlign for full-width blocks", () => {
+    expect(
+      resolveGhlAlignDisplay({ textAlign: "center" }, { width: "100%" }, "100%"),
+    ).toBe("center");
+    expect(
+      resolveGhlAlignDisplay({ textAlign: "right" }, {}, "auto"),
+    ).toBe("right");
+  });
+
+  it("reads blockAlign for narrow blocks", () => {
+    expect(
+      resolveGhlAlignDisplay({}, { blockAlign: "center", width: "50%" }, "50%"),
+    ).toBe("center");
   });
 });
 

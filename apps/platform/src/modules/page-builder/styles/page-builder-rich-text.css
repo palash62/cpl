@@ -8,6 +8,14 @@
   width: 100%;
 }
 
+.pb-list {
+  width: 100%;
+}
+
+.pb-list > li:last-child {
+  margin-bottom: 0 !important;
+}
+
 .pb-rich-text-editor .tiptap p,
 .pb-rich-text p {
   margin: 0;

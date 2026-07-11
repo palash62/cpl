@@ -1,6 +1,6 @@
 "use client";
 
-import type { ElementType } from "react";
+import type { CSSProperties, ElementType } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import {
@@ -10,8 +10,17 @@ import {
   BUILDER_CHECKBOX_LABEL,
   BUILDER_FIELD_INPUT,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
+import { ListItemEditor } from "@/modules/page-builder/components/settings/shared/list-editor";
+import { ListAppearancePanel } from "@/modules/page-builder/components/settings/ghl/list-appearance-panel";
 import { RichTextField } from "@/modules/page-builder/components/editor/rich-text-field";
 import { stripHtmlToPlain } from "@/modules/page-builder/lib/rich-text";
+import {
+  ListMarker,
+  listAlignItemsFromTextAlign,
+  parseMarkerSizePx,
+  usesFlexListMarkers,
+  type ListMarkerStyle,
+} from "@/modules/page-builder/lib/list-marker";
 import { cn } from "@/lib/utils";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 
@@ -128,27 +137,48 @@ Paragraph.craft = {
   related: { settings: ParagraphSettings },
 };
 
-type ListProps = BlockProps & { items?: string[]; ordered?: boolean };
+type ListProps = BlockProps & {
+  items?: string[];
+  ordered?: boolean;
+  markerStyle?: ListMarkerStyle;
+  markerIcon?: string;
+  markerColor?: string;
+  markerSize?: string;
+  itemGap?: string;
+};
 
 function ListSettings() {
   const { items, ordered, actions: { setProp } } = useNode((node) => ({
     items: node.data.props.items as string[],
     ordered: node.data.props.ordered as boolean,
   }));
+  const listItems = (items ?? []).map((item) => ({ text: stripHtmlToPlain(item) }));
+
   return (
     <div className="space-y-3">
+      <p className="text-[11px] leading-snug text-slate-500">
+        Click item text on the canvas to edit inline. Use the fields below to add or remove lines.
+      </p>
       <label className={BUILDER_CHECKBOX_LABEL}>
-        <input type="checkbox" className="accent-indigo-500" checked={!!ordered} onChange={(e) => setProp((p: ListProps) => { p.ordered = e.target.checked; })} />
+        <input
+          type="checkbox"
+          className="accent-indigo-500"
+          checked={!!ordered}
+          onChange={(e) => setProp((p: ListProps) => { p.ordered = e.target.checked; })}
+        />
         Ordered list
       </label>
-      <div className="space-y-1.5">
-        <FieldLabel>Items (one per line)</FieldLabel>
-        <textarea
-          className={cn("w-full min-h-[100px] rounded-md border px-2 py-1.5 text-sm", BUILDER_FIELD_INPUT)}
-          value={(items ?? []).map(stripHtmlToPlain).join("\n")}
-          onChange={(e) => setProp((p: ListProps) => { p.items = e.target.value.split("\n").filter(Boolean); })}
-        />
-      </div>
+      <ListItemEditor
+        items={listItems}
+        fields={[{ key: "text", label: "Item text", multiline: true }]}
+        onChange={(next) =>
+          setProp((p: ListProps) => {
+            p.items = next.map((row) => row.text).filter(Boolean);
+          })
+        }
+        createItem={() => ({ text: "New item" })}
+      />
+      <ListAppearancePanel compact />
       <StandardSettings />
     </div>
   );
@@ -158,37 +188,111 @@ function ListItem({
   item,
   index,
   enabled,
+  ordered,
+  markerStyle,
+  markerIcon,
+  markerColor,
+  markerSizePx,
+  itemGap,
+  useFlex,
   onChange,
 }: {
   item: string;
   index: number;
   enabled: boolean;
+  ordered: boolean;
+  markerStyle: ListMarkerStyle;
+  markerIcon?: string;
+  markerColor?: string;
+  markerSizePx: number;
+  itemGap: string;
+  useFlex: boolean;
   onChange: (index: number, html: string) => void;
 }) {
+  if (!useFlex) {
+    return (
+      <li>
+        <RichTextField
+          value={item}
+          editable={enabled}
+          onChange={(html) => onChange(index, html)}
+        />
+      </li>
+    );
+  }
+
+  const effectiveStyle = markerStyle === "number" || (ordered && markerStyle !== "disc")
+    ? "number"
+    : markerStyle;
+
   return (
-    <li>
+    <li
+      className="flex items-start"
+      style={{ gap: itemGap, marginBottom: itemGap }}
+    >
+      <ListMarker
+        style={effectiveStyle}
+        icon={markerIcon}
+        color={markerColor}
+        sizePx={markerSizePx}
+        index={index}
+        ordered={ordered}
+      />
       <RichTextField
         value={item}
         editable={enabled}
+        className="min-w-0 flex-1"
         onChange={(html) => onChange(index, html)}
       />
     </li>
   );
 }
 
-export function List({ items = ["Item one", "Item two"], ordered = false, ...props }: ListProps) {
+export function List({
+  items = ["Item one", "Item two"],
+  ordered = false,
+  markerStyle = "disc",
+  markerIcon,
+  markerColor,
+  markerSize,
+  itemGap = "12px",
+  ...props
+}: ListProps) {
   const Tag = ordered ? "ol" : "ul";
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
 
+  const useFlex = usesFlexListMarkers(markerStyle, ordered);
+  const textAlign = props.typography?.textAlign ?? props.layout?.textAlign;
+  const markerSizePx = parseMarkerSizePx(markerSize, props.typography?.fontSize);
+
+  const listExtraStyle: CSSProperties = useFlex
+    ? {
+        listStyle: "none",
+        padding: 0,
+        margin: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: listAlignItemsFromTextAlign(textAlign),
+        width: "100%",
+      }
+    : {};
+
   return (
-    <BlockWrapper {...props} as={Tag}>
+    <BlockWrapper {...props} as={Tag} className="pb-list" extraStyle={listExtraStyle}>
       {(items ?? []).map((item, i) => (
         <ListItem
           key={i}
           item={item}
           index={i}
           enabled={enabled}
+          ordered={ordered}
+          markerStyle={markerStyle}
+          markerIcon={markerIcon}
+          markerColor={markerColor}
+          markerSizePx={markerSizePx}
+          itemGap={itemGap}
+          useFlex={useFlex}
           onChange={(index, html) =>
             setProp((p: ListProps) => {
               const next = [...(p.items ?? [])];
@@ -207,6 +311,8 @@ List.craft = {
   props: {
     items: ["Benefit one", "Benefit two", "Benefit three"],
     ordered: false,
+    markerStyle: "disc",
+    itemGap: "12px",
     typography: { color: "#334155", lineHeight: "1.5" },
   },
   related: { settings: ListSettings },

@@ -13,6 +13,11 @@ describe("sanitizeInlineHtml", () => {
     expect(sanitizeInlineHtml("<em>one</em>")).toBe("<em>one</em>");
     expect(sanitizeInlineHtml(html)).toContain('href="https://x.com"');
   });
+
+  it("preserves br tags for multi-line rich text", () => {
+    const html = "Line one<br>Line two";
+    expect(sanitizeInlineHtml(html)).toBe("Line one<br>Line two");
+  });
 });
 
 describe("sanitizeHtml", () => {

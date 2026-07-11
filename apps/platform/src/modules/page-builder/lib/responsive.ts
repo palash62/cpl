@@ -54,10 +54,42 @@ function resolveBlockAlign(layout?: LayoutProps): "left" | "center" | "right" | 
   return undefined;
 }
 
-function shouldApplyBlockAlignment(width?: string): boolean {
-  if (!width) return false;
+export function isFullWidthLayout(width?: string): boolean {
+  if (!width) return true;
   const w = width.trim();
-  return w !== "100%" && w !== "auto";
+  return w === "100%" || w === "auto";
+}
+
+function shouldApplyBlockAlignment(width?: string): boolean {
+  return !isFullWidthLayout(width);
+}
+
+/** Whether GHL Align should drive typography.textAlign (full-width text blocks). */
+export function shouldUseTextAlignForGhlAlign(
+  displayName: string,
+  width?: string,
+  textBlockNames?: ReadonlySet<string>,
+): boolean {
+  const names = textBlockNames ?? new Set(["Heading", "Paragraph", "List"]);
+  return names.has(displayName) && isFullWidthLayout(width);
+}
+
+export function resolveGhlAlignDisplay(
+  typography?: TypographyProps,
+  layout?: LayoutProps,
+  width?: string,
+): "left" | "center" | "right" {
+  if (isFullWidthLayout(width)) {
+    const textAlign = typography?.textAlign ?? resolveTextAlign(layout, typography);
+    if (textAlign === "center") return "center";
+    if (textAlign === "right" || textAlign === "end") return "right";
+    return "left";
+  }
+  return (
+    layout?.blockAlign
+    ?? toHorizontalBlockAlign(resolveTextAlign(layout, typography))
+    ?? "left"
+  );
 }
 
 function toHorizontalBlockAlign(

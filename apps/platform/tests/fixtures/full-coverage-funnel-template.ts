@@ -232,9 +232,11 @@ export function buildFullCoverageCraft(): CraftSerializedState {
       type: "List",
       parent: "cont_typography",
       props: {
-        items: ["Typography block", "Media block", "Marketing block"],
+        items: ["[BLOCK:List-item-1]", "[BLOCK:List-item-2]", "[BLOCK:List-item-3]"],
         ordered: false,
-        typography: { color: "#fde68a" },
+        markerStyle: "check",
+        markerColor: "#22c55e",
+        typography: { color: "#fde68a", textAlign: "center" },
       },
     }),
   };
