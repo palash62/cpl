@@ -93,8 +93,8 @@ export async function assertStyleParity(
 }
 
 export async function assertOffsetWidthParity(editorLocator: Locator, previewLocator: Locator) {
-  const editorWidth = await editorLocator.evaluate((el) => el.offsetWidth);
-  const previewWidth = await previewLocator.evaluate((el) => el.offsetWidth);
+  const editorWidth = await editorLocator.evaluate((el) => (el as HTMLElement).offsetWidth);
+  const previewWidth = await previewLocator.evaluate((el) => (el as HTMLElement).offsetWidth);
   expect(previewWidth).toBe(editorWidth);
 }
 
