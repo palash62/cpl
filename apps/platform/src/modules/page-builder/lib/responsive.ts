@@ -216,20 +216,21 @@ type ResponsiveBucket = "typography" | "layout" | "style";
 export function seedBreakpointOverridesBeforeDesktopEdit(
   props: BlockProps,
   bucket: ResponsiveBucket,
-  key: string,
+  key: PropertyKey,
 ): void {
-  const baseValue = (props[bucket] as Record<string, unknown> | undefined)?.[key];
+  const keyStr = String(key);
+  const baseValue = (props[bucket] as Record<string, unknown> | undefined)?.[keyStr];
   if (baseValue === undefined) return;
 
   for (const bp of ["tablet", "mobile"] as const) {
     const existing = props.responsive?.[bp]?.[bucket] as Record<string, unknown> | undefined;
-    if (existing?.[key] !== undefined) continue;
+    if (existing?.[keyStr] !== undefined) continue;
 
     props.responsive = {
       ...(props.responsive ?? {}),
       [bp]: {
         ...(props.responsive?.[bp] ?? {}),
-        [bucket]: { ...(existing ?? {}), [key]: baseValue },
+        [bucket]: { ...(existing ?? {}), [keyStr]: baseValue },
       },
     };
   }
