@@ -1,5 +1,11 @@
 import type { CSSProperties } from "react";
-import type { BlockProps, Breakpoint, LayoutProps, TypographyProps } from "@/modules/page-builder/types/block-props";
+import type {
+  BlockProps,
+  Breakpoint,
+  LayoutProps,
+  StyleProps,
+  TypographyProps,
+} from "@/modules/page-builder/types/block-props";
 import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas";
 
 export function normalizeCssLength(value: string): string {
@@ -214,6 +220,81 @@ export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
   if (s?.opacity !== undefined) style.opacity = s.opacity;
 
   return style;
+}
+
+export function parseBackdropBlurPx(backdropFilter?: string): number {
+  if (!backdropFilter) return 0;
+  const match = backdropFilter.match(/blur\(\s*(\d+(?:\.\d+)?)\s*px\s*\)/i);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+export function hasMediaBackground(style?: StyleProps): boolean {
+  if (!style) return false;
+  return Boolean(
+    style.backgroundImage?.trim() ||
+      style.backgroundGradient?.trim() ||
+      style.backgroundVideo?.trim(),
+  );
+}
+
+export function splitStylesForBackgroundBlur(
+  baseStyle: CSSProperties,
+  styleProps?: StyleProps,
+): {
+  wrapperStyle: CSSProperties;
+  backgroundLayerStyle?: CSSProperties;
+  blurPx: number;
+} {
+  const blurPx = parseBackdropBlurPx(styleProps?.backdropFilter);
+  if (blurPx <= 0) {
+    return { wrapperStyle: baseStyle, blurPx: 0 };
+  }
+
+  const hasStaticMedia = Boolean(
+    styleProps?.backgroundImage?.trim() || styleProps?.backgroundGradient?.trim(),
+  );
+  const hasVideo = Boolean(styleProps?.backgroundVideo?.trim());
+
+  if (hasStaticMedia) {
+    const wrapperStyle = { ...baseStyle };
+    const backgroundLayerStyle: CSSProperties = {};
+
+    if (wrapperStyle.backgroundImage) {
+      backgroundLayerStyle.backgroundImage = wrapperStyle.backgroundImage;
+      delete wrapperStyle.backgroundImage;
+    }
+    if (wrapperStyle.background) {
+      backgroundLayerStyle.background = wrapperStyle.background;
+      delete wrapperStyle.background;
+    }
+    if (wrapperStyle.backgroundSize) {
+      backgroundLayerStyle.backgroundSize = wrapperStyle.backgroundSize;
+      delete wrapperStyle.backgroundSize;
+    }
+    if (wrapperStyle.backgroundPosition) {
+      backgroundLayerStyle.backgroundPosition = wrapperStyle.backgroundPosition;
+      delete wrapperStyle.backgroundPosition;
+    }
+    if (wrapperStyle.backgroundRepeat) {
+      backgroundLayerStyle.backgroundRepeat = wrapperStyle.backgroundRepeat;
+      delete wrapperStyle.backgroundRepeat;
+    }
+
+    delete wrapperStyle.backdropFilter;
+
+    backgroundLayerStyle.filter = `blur(${blurPx}px)`;
+    backgroundLayerStyle.transform = "scale(1.08)";
+
+    return { wrapperStyle, backgroundLayerStyle, blurPx };
+  }
+
+  if (hasVideo) {
+    const wrapperStyle = { ...baseStyle };
+    delete wrapperStyle.backdropFilter;
+    return { wrapperStyle, blurPx };
+  }
+
+  return { wrapperStyle: baseStyle, blurPx };
 }
 
 export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {

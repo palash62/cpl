@@ -18,6 +18,9 @@ import {
   setFullWidthAtBreakpoint,
   shouldStretchPublishedWrapper,
   shouldUseTextAlignForGhlAlign,
+  hasMediaBackground,
+  parseBackdropBlurPx,
+  splitStylesForBackgroundBlur,
   isFullWidthLayout,
   withoutStretchLayout,
 } from "./responsive";
@@ -395,5 +398,94 @@ describe("setFullWidthAtBreakpoint", () => {
     expect(props.fullWidth).toBe(false);
     expect(props.responsive?.tablet?.fullWidth).toBe(true);
     expect(props.responsive?.mobile?.fullWidth).toBe(true);
+  });
+});
+
+describe("background blur helpers", () => {
+  it("parseBackdropBlurPx extracts px from blur() value", () => {
+    expect(parseBackdropBlurPx("blur(20px)")).toBe(20);
+    expect(parseBackdropBlurPx("blur( 12px )")).toBe(12);
+    expect(parseBackdropBlurPx("")).toBe(0);
+    expect(parseBackdropBlurPx(undefined)).toBe(0);
+  });
+
+  it("hasMediaBackground detects image, gradient, and video", () => {
+    expect(hasMediaBackground({ backgroundImage: "https://example.com/a.jpg" })).toBe(true);
+    expect(hasMediaBackground({ backgroundGradient: "linear-gradient(#000, #fff)" })).toBe(true);
+    expect(hasMediaBackground({ backgroundVideo: "https://example.com/v.mp4" })).toBe(true);
+    expect(hasMediaBackground({ backgroundColor: "#fff" })).toBe(false);
+  });
+
+  it("splitStylesForBackgroundBlur moves image bg to layer with filter blur", () => {
+    const baseStyle = blockPropsToStyle({
+      style: {
+        backgroundImage: "https://example.com/bg.jpg",
+        backgroundSize: "cover",
+        backdropFilter: "blur(20px)",
+      },
+    });
+    const { wrapperStyle, backgroundLayerStyle, blurPx } = splitStylesForBackgroundBlur(baseStyle, {
+      backgroundImage: "https://example.com/bg.jpg",
+      backdropFilter: "blur(20px)",
+    });
+
+    expect(blurPx).toBe(20);
+    expect(wrapperStyle.backgroundImage).toBeUndefined();
+    expect(wrapperStyle.backdropFilter).toBeUndefined();
+    expect(backgroundLayerStyle?.backgroundImage).toBe("url(https://example.com/bg.jpg)");
+    expect(backgroundLayerStyle?.backgroundSize).toBe("cover");
+    expect(backgroundLayerStyle?.filter).toBe("blur(20px)");
+    expect(backgroundLayerStyle?.transform).toBe("scale(1.08)");
+  });
+
+  it("splitStylesForBackgroundBlur leaves wrapper unchanged when blur is zero", () => {
+    const baseStyle = blockPropsToStyle({
+      style: {
+        backgroundImage: "https://example.com/bg.jpg",
+        backdropFilter: "",
+      },
+    });
+    const result = splitStylesForBackgroundBlur(baseStyle, {
+      backgroundImage: "https://example.com/bg.jpg",
+    });
+
+    expect(result.blurPx).toBe(0);
+    expect(result.backgroundLayerStyle).toBeUndefined();
+    expect(result.wrapperStyle.backgroundImage).toBe("url(https://example.com/bg.jpg)");
+  });
+
+  it("splitStylesForBackgroundBlur keeps backdropFilter for color-only frosted glass", () => {
+    const baseStyle = blockPropsToStyle({
+      style: {
+        backgroundColor: "rgba(255,255,255,0.5)",
+        backdropFilter: "blur(12px)",
+      },
+    });
+    const result = splitStylesForBackgroundBlur(baseStyle, {
+      backgroundColor: "rgba(255,255,255,0.5)",
+      backdropFilter: "blur(12px)",
+    });
+
+    expect(result.blurPx).toBe(12);
+    expect(result.backgroundLayerStyle).toBeUndefined();
+    expect(result.wrapperStyle.backdropFilter).toBe("blur(12px)");
+    expect(result.wrapperStyle.backgroundColor).toBe("rgba(255,255,255,0.5)");
+  });
+
+  it("splitStylesForBackgroundBlur strips backdropFilter for video blur", () => {
+    const baseStyle = blockPropsToStyle({
+      style: {
+        backgroundColor: "#000",
+        backdropFilter: "blur(16px)",
+      },
+    });
+    const result = splitStylesForBackgroundBlur(baseStyle, {
+      backgroundVideo: "https://example.com/v.mp4",
+      backdropFilter: "blur(16px)",
+    });
+
+    expect(result.blurPx).toBe(16);
+    expect(result.backgroundLayerStyle).toBeUndefined();
+    expect(result.wrapperStyle.backdropFilter).toBeUndefined();
   });
 });

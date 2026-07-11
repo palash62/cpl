@@ -3,7 +3,7 @@
 import type { ReactNode, CSSProperties, ElementType } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import { cn } from "@/lib/utils";
-import { mergeBlockStyles, shouldStretchPublishedWrapper } from "@/modules/page-builder/lib/responsive";
+import { mergeBlockStyles, shouldStretchPublishedWrapper, splitStylesForBackgroundBlur } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
@@ -32,23 +32,52 @@ function buildBlockStyle(
   return style;
 }
 
-function renderBackgroundMedia(backgroundVideo: string | undefined, children: ReactNode) {
-  const videoSrc = backgroundVideo?.trim();
-  if (!videoSrc) return children;
-
-  return (
-    <div className="relative overflow-hidden">
-      <video
-        src={videoSrc}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="relative">{children}</div>
-    </div>
+function renderBackgroundStack(
+  children: ReactNode,
+  blockStyle: BlockProps["style"],
+  resolvedStyle: CSSProperties,
+): { wrapperStyle: CSSProperties; inner: ReactNode } {
+  const { wrapperStyle, backgroundLayerStyle, blurPx } = splitStylesForBackgroundBlur(
+    resolvedStyle,
+    blockStyle,
   );
+  const videoSrc = blockStyle?.backgroundVideo
+    ? String(blockStyle.backgroundVideo).trim() || undefined
+    : undefined;
+  const needsStack = Boolean(backgroundLayerStyle || videoSrc);
+
+  if (!needsStack) {
+    return { wrapperStyle, inner: children };
+  }
+
+  const videoFilter = blurPx > 0 && videoSrc ? `blur(${blurPx}px)` : undefined;
+
+  return {
+    wrapperStyle,
+    inner: (
+      <div className="relative overflow-hidden">
+        {backgroundLayerStyle ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={backgroundLayerStyle}
+          />
+        ) : null}
+        {videoSrc ? (
+          <video
+            src={videoSrc}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            style={videoFilter ? { filter: videoFilter } : undefined}
+          />
+        ) : null}
+        <div className="relative">{children}</div>
+      </div>
+    ),
+  };
 }
 
 type BlockWrapperProps = BlockProps & {
@@ -77,16 +106,13 @@ export function BlockWrapper({
 
   if (blockProps.visible === false && !enabled) return null;
 
-  const style = buildBlockStyle(blockProps, breakpoint, extraStyle);
-  const backgroundVideo = blockProps.style?.backgroundVideo
-    ? String(blockProps.style.backgroundVideo).trim() || undefined
-    : undefined;
-  const inner = renderBackgroundMedia(backgroundVideo, children);
+  const baseStyle = buildBlockStyle(blockProps, breakpoint, extraStyle);
+  const { wrapperStyle, inner } = renderBackgroundStack(children, blockProps.style, baseStyle);
 
   if (!enabled) {
     return (
       <Tag
-        style={style}
+        style={wrapperStyle}
         className={cn(className, shouldStretchPublishedWrapper(blockProps.layout) && "w-full")}
       >
         {inner}
@@ -102,7 +128,7 @@ export function BlockWrapper({
           else connect(ref);
         }
       }}
-      style={style}
+      style={wrapperStyle}
       className={cn(
         className,
         !isGhl && selected && "ring-2 ring-indigo-500 ring-offset-1",
