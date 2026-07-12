@@ -164,6 +164,7 @@ function scaleSpacingValue(value: string, factor: number): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "0" || trimmed === "auto") return trimmed;
   const px = parseFontSizePx(trimmed);
+  if (px === null) return trimmed;
   if (!/^-?[\d.]+px$/i.test(normalizeCssLength(trimmed)) && !/^-?[\d.]+$/.test(trimmed)) {
     return trimmed;
   }
