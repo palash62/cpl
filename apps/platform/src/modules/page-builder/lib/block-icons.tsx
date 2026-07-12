@@ -45,6 +45,7 @@ import {
   CalendarDays,
   PanelTop,
   Code,
+  Code2,
   Paintbrush,
   Link2,
   Type,
@@ -101,6 +102,7 @@ export const BLOCK_ICONS: Record<CraftBlockName, LucideIcon> = {
   SocialYouTube: Play,
   SocialIconsGroup: PanelTop,
   HtmlBlock: Code,
+  CustomCode: Code2,
   CustomCss: Paintbrush,
   EmbedCode: Link2,
 };

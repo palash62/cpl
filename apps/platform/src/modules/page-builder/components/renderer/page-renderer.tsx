@@ -171,7 +171,7 @@ export function PageRenderer({
     onLeadSubmit,
     formJson,
     theme,
-    breakpoint: matchEditorCanvas ? breakpoint : undefined,
+    breakpoint: breakpointProp,
     matchEditorCanvas,
     isGhl,
   };

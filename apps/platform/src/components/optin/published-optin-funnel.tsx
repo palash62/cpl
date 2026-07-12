@@ -91,7 +91,7 @@ function PublishedOptinFunnelContent({
       landingPageSlug={slug}
       formJson={formJson}
       fillParent={previewMode && matchEditorCanvas}
-      breakpoint={previewMode && matchEditorCanvas ? breakpoint : undefined}
+      breakpoint={previewMode ? breakpoint : undefined}
       matchEditorCanvas={previewMode && matchEditorCanvas}
       isGhl
       onLeadSubmit={previewMode ? undefined : handleSubmit}

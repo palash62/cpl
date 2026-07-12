@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import { parseViewAsCookie, VIEW_AS_COOKIE } from "@/lib/view-as";
+import { isPublicPreviewRequest } from "@/lib/public-preview-paths";
 
 declare module "next-auth" {
   interface Session {
@@ -87,7 +88,12 @@ export const authConfig = {
     },
     async authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
+      const preview = request.nextUrl.searchParams.get("preview");
       const viewAs = await parseViewAsCookie(request.cookies.get(VIEW_AS_COOKIE)?.value);
+
+      if (isPublicPreviewRequest(pathname, preview)) {
+        return true;
+      }
 
       if (
         publicPaths.some((p) => pathname.startsWith(p)) ||

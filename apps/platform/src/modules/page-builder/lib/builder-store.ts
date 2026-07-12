@@ -30,6 +30,7 @@ type BuilderUIState = {
   pageSettingsOpen: boolean;
   assetPickerOpen: boolean;
   assetPickerOnSelect: ((url: string) => void) | null;
+  customCodeEditorNodeId: string | null;
   insertTargetNodeId: string | null;
   saveStatus: SaveStatus;
   theme: ThemeJson;
@@ -52,6 +53,8 @@ type BuilderUIState = {
   setPageSettingsOpen: (open: boolean) => void;
   setAssetPickerOpen: (open: boolean) => void;
   openAssetPicker: (onSelect?: (url: string) => void) => void;
+  openCustomCodeEditor: (nodeId: string) => void;
+  closeCustomCodeEditor: () => void;
   setInsertTargetNodeId: (id: string | null) => void;
   setStyleBreakpoint: (bp: Breakpoint) => void;
   setSaveStatus: (status: SaveStatus) => void;
@@ -84,6 +87,7 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
   pageSettingsOpen: false,
   assetPickerOpen: false,
   assetPickerOnSelect: null,
+  customCodeEditorNodeId: null,
   insertTargetNodeId: null,
   saveStatus: "idle",
   theme: DEFAULT_THEME,
@@ -116,6 +120,8 @@ export const useBuilderStore = create<BuilderUIState>((set) => ({
         : { assetPickerOpen: false, assetPickerOnSelect: null },
     ),
   openAssetPicker: (onSelect) => set({ assetPickerOpen: true, assetPickerOnSelect: onSelect ?? null }),
+  openCustomCodeEditor: (customCodeEditorNodeId) => set({ customCodeEditorNodeId }),
+  closeCustomCodeEditor: () => set({ customCodeEditorNodeId: null }),
   setInsertTargetNodeId: (insertTargetNodeId) => set({ insertTargetNodeId }),
   setStyleBreakpoint: (styleBreakpoint) => set({ styleBreakpoint }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),

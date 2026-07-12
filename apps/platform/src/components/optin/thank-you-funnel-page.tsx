@@ -87,7 +87,7 @@ function ThankYouFunnelPageContent({
         landingPageSlug={page.slug}
         formJson={null}
         fillParent={matchEditorCanvas}
-        breakpoint={matchEditorCanvas ? breakpoint : undefined}
+        breakpoint={page.previewMode ? breakpoint : undefined}
         matchEditorCanvas={matchEditorCanvas}
         isGhl
       />

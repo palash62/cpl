@@ -51,6 +51,7 @@ import {
   SocialIconsGroup,
 } from "@/modules/page-builder/blocks/social";
 import { HtmlBlock, CustomCss, EmbedCode } from "@/modules/page-builder/blocks/advanced";
+import { CustomCode } from "@/modules/page-builder/blocks/advanced/custom-code-block";
 
 export const craftResolver = {
   CanvasRoot,
@@ -104,6 +105,7 @@ export const craftResolver = {
   HtmlBlock,
   CustomCss,
   EmbedCode,
+  CustomCode,
 };
 
 export type CraftBlockName = keyof typeof craftResolver;
@@ -193,6 +195,7 @@ export const COMPONENT_LIBRARY: Array<{
     category: "Advanced",
     items: [
       { name: "HtmlBlock", label: "HTML Block" },
+      { name: "CustomCode", label: "Custom Code" },
       { name: "CustomCss", label: "Custom CSS" },
       { name: "EmbedCode", label: "Embed Code" },
     ],

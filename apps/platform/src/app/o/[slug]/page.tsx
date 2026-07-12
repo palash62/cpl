@@ -3,9 +3,8 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { OptinLandingPage } from "@/components/optin/optin-landing-page";
 import { PublishedOptinFunnel } from "@/components/optin/published-optin-funnel";
-import { getSession } from "@/lib/session";
 import {
-  getAdvertiserOptinFunnelPreview,
+  getOptinFunnelPreviewBySlug,
   getPublicOptinFunnel,
   getPublishedBuilderFunnel,
 } from "@/services/optin-funnel.service";
@@ -69,10 +68,7 @@ export default async function PublicOptinFunnelPage({
   const { preview } = await searchParams;
 
   if (preview === "1") {
-    const session = await getSession();
-    if (!session || session.user.role !== "ADVERTISER") notFound();
-
-    const draft = await getAdvertiserOptinFunnelPreview(slug, session.user.id);
+    const draft = await getOptinFunnelPreviewBySlug(slug);
     if (!draft) notFound();
 
     if (usesBuilderRenderer(draft)) {

@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { COMPONENT_LIBRARY, craftResolver, type CraftBlockName } from "@/modules/page-builder/blocks";
 import { buildRowElement } from "@/modules/page-builder/lib/build-row-element";
 import { useInsertBlock } from "@/modules/page-builder/hooks/use-insert-block";
+import { getQuickAddPreset } from "@/modules/page-builder/lib/quick-add-presets";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { BLOCK_ICONS } from "@/modules/page-builder/lib/block-icons";
 import { GHL_GROUP_TITLE } from "@/modules/page-builder/lib/builder-panel-styles";
@@ -46,7 +47,7 @@ const QUICK_ADD_ITEMS: Array<{ name: CraftBlockName; label: string; group: strin
   { name: "Columns", label: "3 Column", group: "Rows" },
   { name: "Columns", label: "4 Column", group: "Rows" },
   { name: "Heading", label: "Headline", group: "Text" },
-  { name: "Paragraph", label: "Sub-Headline", group: "Text" },
+  { name: "Heading", label: "Sub-Headline", group: "Text" },
   { name: "Paragraph", label: "Paragraph", group: "Text" },
   { name: "List", label: "Bullet list", group: "Text" },
   { name: "CtaButton", label: "Button", group: "Form" },
@@ -76,6 +77,7 @@ const QUICK_ADD_ITEMS: Array<{ name: CraftBlockName; label: string; group: strin
   { name: "ImageFeature", label: "Image Feature", group: "Blocks" },
   { name: "Section", label: "Section", group: "Layout" },
   { name: "HtmlBlock", label: "Custom HTML", group: "Advanced" },
+  { name: "CustomCode", label: "Custom Code", group: "Advanced" },
 ];
 
 const ROW_COLUMNS = [1, 2, 3, 4, 5, 6];
@@ -100,7 +102,14 @@ function GridTile({
     if (name === "Columns" && columns) {
       return buildRowElement(columns);
     }
-    return <Element is={Component} canvas={CANVAS_BLOCKS.has(name)} />;
+    const preset = getQuickAddPreset(label);
+    return (
+      <Element
+        is={Component}
+        canvas={CANVAS_BLOCKS.has(name)}
+        {...preset}
+      />
+    );
   }
 
   return (
@@ -112,7 +121,8 @@ function GridTile({
       }}
       onClick={() => {
         if (insertTargetNodeId) {
-          insertBlock(name, columns ? { columns } : undefined);
+          const preset = getQuickAddPreset(label);
+          insertBlock(name, columns ? { columns, preset } : { preset });
         }
       }}
       className={cn(

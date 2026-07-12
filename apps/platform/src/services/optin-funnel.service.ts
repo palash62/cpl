@@ -1083,6 +1083,17 @@ export async function getAdvertiserOptinFunnelPreview(slug: string, advertiserId
   return buildPublicOptinFunnel(page, page.campaign, { previewMode: true });
 }
 
+export async function getOptinFunnelPreviewBySlug(slug: string) {
+  const page = await prisma.advertiserOptinPage.findFirst({
+    where: { slug },
+    include: {
+      campaign: { include: { fields: { orderBy: { sortOrder: "asc" } } } },
+    },
+  });
+  if (!page) return null;
+  return buildPublicOptinFunnel(page, page.campaign, { previewMode: true });
+}
+
 function buildThankYouFunnelPayload(
   page: {
     id: string;
@@ -1118,6 +1129,21 @@ export async function getAdvertiserThankYouFunnelPreview(
 ): Promise<PublicThankYouFunnel | null> {
   const page = await prisma.advertiserOptinPage.findFirst({
     where: { slug, advertiserId },
+    include: { campaign: true },
+  });
+  if (!page) return null;
+
+  return buildThankYouFunnelPayload(page, {
+    leadId: null,
+    previewMode: true,
+  });
+}
+
+export async function getThankYouFunnelPreviewBySlug(
+  slug: string,
+): Promise<PublicThankYouFunnel | null> {
+  const page = await prisma.advertiserOptinPage.findFirst({
+    where: { slug },
     include: { campaign: true },
   });
   if (!page) return null;

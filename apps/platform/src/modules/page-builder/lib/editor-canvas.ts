@@ -24,3 +24,10 @@ export function getCanvasWidthLabel(bp: Breakpoint, isGhl: boolean): string {
   if (width) return `${width}px`;
   return "Full width";
 }
+
+/** Map real viewport width to responsive breakpoint (not canvas simulation widths). */
+export function viewportWidthToBreakpoint(width: number): Breakpoint {
+  if (width < BREAKPOINT_WIDTHS.tablet) return "mobile";
+  if (width < BREAKPOINT_WIDTHS.desktop) return "tablet";
+  return "desktop";
+}

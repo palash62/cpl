@@ -5,6 +5,7 @@ import {
   getCanvasViewportFill,
   getCanvasWidthLabel,
   parseBreakpointParam,
+  viewportWidthToBreakpoint,
 } from "@/modules/page-builder/lib/editor-canvas";
 
 describe("editor-canvas", () => {
@@ -32,5 +33,14 @@ describe("editor-canvas", () => {
   it("formats canvas width labels for preview toolbar", () => {
     expect(getCanvasWidthLabel("desktop", true)).toBe("960px");
     expect(getCanvasWidthLabel("tablet", true)).toBe("768px");
+  });
+
+  it("maps viewport widths to breakpoints using layout thresholds", () => {
+    expect(viewportWidthToBreakpoint(390)).toBe("mobile");
+    expect(viewportWidthToBreakpoint(767)).toBe("mobile");
+    expect(viewportWidthToBreakpoint(768)).toBe("tablet");
+    expect(viewportWidthToBreakpoint(820)).toBe("tablet");
+    expect(viewportWidthToBreakpoint(1280)).toBe("desktop");
+    expect(viewportWidthToBreakpoint(1440)).toBe("desktop");
   });
 });

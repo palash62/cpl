@@ -141,7 +141,9 @@ export function advertiserFunnelWorkflow(): FunnelWorkflowConfig {
     apiBasePath: "/api/v1/advertiser/optin-funnels",
     editPath: (id, step) => `/advertiser/optin-funnels/${id}/edit?step=${step}`,
     previewPath: (_id, step) =>
-      step === "thankYou" ? `/o/{slug}/thank-you?preview=1` : `/o/{slug}?preview=1`,
+      step === "thankYou"
+        ? `/o/{slug}/thank-you?preview=1&frame=1&bp=desktop`
+        : `/o/{slug}?preview=1&frame=1&bp=desktop`,
     backHref: "/advertiser/optin-funnels",
     showPublishHint: true,
     settingsDescription: "Configure submit behavior and tracking for this funnel.",
@@ -155,8 +157,8 @@ export function adminFunnelWorkflow(templateId: string): FunnelWorkflowConfig {
     editPath: (id, step) => `/admin/funnel-templates/${id}/edit?step=${step}`,
     previewPath: (id, step) =>
       step === "thankYou"
-        ? `/admin/funnel-templates/${id}/preview?step=thankYou`
-        : `/admin/funnel-templates/${id}/preview`,
+        ? `/admin/funnel-templates/${id}/preview?step=thankYou&frame=1&bp=desktop`
+        : `/admin/funnel-templates/${id}/preview?frame=1&bp=desktop`,
     backHref: "/admin/funnel-templates",
     showPublishHint: false,
     settingsDescription: "Configure submit behavior and tracking for this template.",

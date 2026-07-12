@@ -12,6 +12,7 @@ import { PreviewModal } from "@/modules/page-builder/components/editor/preview-m
 import { VersionHistoryDrawer } from "@/modules/page-builder/components/editor/version-history-drawer";
 import { PageSettingsDrawer } from "@/modules/page-builder/components/editor/page-settings-drawer";
 import { AssetPickerModal } from "@/modules/page-builder/components/editor/asset-picker-modal";
+import { CustomCodeEditorModal } from "@/modules/page-builder/components/custom-code/custom-code-editor-modal";
 import { useAutosave } from "@/modules/page-builder/hooks/use-autosave";
 import { useBuilderKeyboard } from "@/modules/page-builder/hooks/use-builder-keyboard";
 import {
@@ -126,6 +127,7 @@ export function LandingPageBuilder({
             />
           )}
           <PreviewModal pageSlug={pageSlug} />
+          <CustomCodeEditorModal />
           <VersionHistoryDrawer pageId={pageId} />
           <PageSettingsDrawer />
           <AssetPickerModal />

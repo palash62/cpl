@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { getSession } from "@/lib/session";
 import { FunnelTemplatePreview } from "@/components/admin/funnel-template-preview";
 import { getOptinFunnelTemplateByAdmin } from "@/services/optin-funnel.service";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
@@ -16,14 +15,11 @@ export default async function AdminFunnelTemplatePreviewPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ step?: string; bp?: string; frame?: string }>;
 }) {
-  const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") notFound();
-
   const { id } = await params;
   const query = await searchParams;
   const step = query.step === "thankYou" ? "thankYou" : "optin";
-  const breakpoint = parseBreakpointParam(query.bp);
-  const matchEditorCanvas = query.frame === "1";
+  const breakpoint = parseBreakpointParam(query.bp ?? "desktop");
+  const matchEditorCanvas = query.frame !== "0";
   let template;
   try {
     template = await getOptinFunnelTemplateByAdmin(id);

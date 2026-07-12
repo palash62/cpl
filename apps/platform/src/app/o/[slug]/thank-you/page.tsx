@@ -1,9 +1,8 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ThankYouFunnelPage } from "@/components/optin/thank-you-funnel-page";
-import { getSession } from "@/lib/session";
 import {
-  getAdvertiserThankYouFunnelPreview,
+  getThankYouFunnelPreviewBySlug,
   getPublicThankYouFunnel,
 } from "@/services/optin-funnel.service";
 
@@ -27,10 +26,7 @@ export default async function OptinThankYouPage({
   const origin = await getOrigin();
 
   if (preview === "1") {
-    const session = await getSession();
-    if (!session || session.user.role !== "ADVERTISER") notFound();
-
-    const draft = await getAdvertiserThankYouFunnelPreview(slug, session.user.id);
+    const draft = await getThankYouFunnelPreviewBySlug(slug);
     if (!draft) notFound();
 
     return <ThankYouFunnelPage page={draft} origin={origin} />;

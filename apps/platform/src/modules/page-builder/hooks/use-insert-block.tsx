@@ -6,6 +6,7 @@ import { Element, useEditor } from "@craftjs/core";
 import { craftResolver, type CraftBlockName } from "@/modules/page-builder/blocks";
 import { buildRowElement } from "@/modules/page-builder/lib/build-row-element";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import type { QuickAddPreset } from "@/modules/page-builder/lib/quick-add-presets";
 
 const CANVAS_BLOCKS = new Set(["Section", "Container", "Columns", "Column", "LeadForm"]);
 
@@ -15,7 +16,7 @@ export function useInsertBlock() {
   const setInsertTargetNodeId = useBuilderStore((s) => s.setInsertTargetNodeId);
 
   const insertBlock = useCallback(
-    (name: CraftBlockName, options?: { columns?: number }) => {
+    (name: CraftBlockName, options?: { columns?: number; preset?: QuickAddPreset }) => {
       const targetId = insertTargetNodeId ?? query.getEvent("selected").first();
       if (!targetId) return false;
 
@@ -28,7 +29,15 @@ export function useInsertBlock() {
         element = buildRowElement(options.columns);
       } else {
         const Component = craftResolver[name];
-        element = <Element is={Component} canvas={CANVAS_BLOCKS.has(name)} {...(options ?? {})} />;
+        const { columns: _columns, preset, ...rest } = options ?? {};
+        element = (
+          <Element
+            is={Component}
+            canvas={CANVAS_BLOCKS.has(name)}
+            {...preset}
+            {...rest}
+          />
+        );
       }
 
       const tree = query.parseReactElement(element).toNodeTree();

@@ -164,7 +164,7 @@ export function AdminFunnelTemplatesList() {
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() =>
-              window.open(`/admin/funnel-templates/${template.id}/preview`, "_blank", "noopener,noreferrer")
+              window.open(`/admin/funnel-templates/${template.id}/preview?frame=1&bp=desktop`, "_blank", "noopener,noreferrer")
             }
           >
             <Eye className="mr-2 h-4 w-4" />
