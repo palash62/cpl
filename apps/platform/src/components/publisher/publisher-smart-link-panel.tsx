@@ -20,13 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type EligibleCampaign = {
-  id: string;
-  name: string;
-  cpl: number;
-  estimatedPayout: number;
-};
-
 type SourceStat = {
   source: string;
   leads: number;
@@ -36,14 +29,14 @@ type SourceStat = {
 export function PublisherSmartLinkPanel({
   slug,
   trackingBaseUrl,
-  eligible,
+  activeCampaignCount,
   sourceBreakdown,
   globalLinkUrl: initialGlobalLinkUrl,
   platformGlobalLinkUrl,
 }: {
   slug: string;
   trackingBaseUrl: string;
-  eligible: EligibleCampaign[];
+  activeCampaignCount: number;
   sourceBreakdown: SourceStat[];
   globalLinkUrl: string | null;
   platformGlobalLinkUrl: string | null;
@@ -139,38 +132,8 @@ export function PublisherSmartLinkPanel({
           </Button>
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          {eligible.length} active campaign{eligible.length === 1 ? "" : "s"} in rotation
+          {activeCampaignCount} active campaign{activeCampaignCount === 1 ? "" : "s"} in rotation
         </p>
-        {eligible.length > 0 && (
-          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Campaign</TableHead>
-                  <TableHead className="text-right">Advertiser CPL</TableHead>
-                  <TableHead className="text-right">Est. payout per paid lead</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {eligible.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell className="font-medium text-slate-700">{campaign.name}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      ${campaign.cpl.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                      ${campaign.estimatedPayout.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-              Estimates use the current publisher payout percentage and Tier 1 range. The final
-              payout uses the lead&apos;s country.
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="rounded-[18px] border border-slate-200/80 border-t-[3px] border-t-indigo-500 bg-white p-6 shadow-sm">

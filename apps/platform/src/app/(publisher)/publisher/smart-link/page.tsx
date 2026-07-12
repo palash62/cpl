@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { calculatePublisherPayout, getTrackingUrl } from "@cpl/shared";
+import { getTrackingUrl } from "@cpl/shared";
 import { getSession } from "@/lib/session";
 import { getPublisherSmartLinkDashboard } from "@/services/smart-link.service";
 import { RoleHero } from "@/components/layout/role-hero";
@@ -12,26 +12,8 @@ export default async function PublisherSmartLinkPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const {
-    smartLink,
-    eligible,
-    sourceBreakdown,
-    globalLinkUrl,
-    platformGlobalLinkUrl,
-    platformSettings,
-  } =
+  const { smartLink, eligible, sourceBreakdown, globalLinkUrl, platformGlobalLinkUrl } =
     await getPublisherSmartLinkDashboard(session.user.id);
-
-  const eligibleCampaigns = eligible.map((campaign) => ({
-    id: campaign.id,
-    name: campaign.name,
-    cpl: Number(campaign.cpl),
-    estimatedPayout: calculatePublisherPayout(
-      Number(campaign.cpl),
-      "US",
-      platformSettings,
-    ).publisherAmount,
-  }));
 
   return (
     <div className="space-y-6">
@@ -49,7 +31,7 @@ export default async function PublisherSmartLinkPage() {
       <PublisherSmartLinkPanel
         slug={smartLink.slug}
         trackingBaseUrl={getTrackingUrl()}
-        eligible={eligibleCampaigns}
+        activeCampaignCount={eligible.length}
         sourceBreakdown={sourceBreakdown}
         globalLinkUrl={globalLinkUrl}
         platformGlobalLinkUrl={platformGlobalLinkUrl}

@@ -59,14 +59,20 @@ function readPercent(value: unknown): number | null {
   return Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : null;
 }
 
+function resolvePublisherPayoutPercent(map: Record<string, unknown>): number {
+  const configured = readPercent(map.publisher_payout_percent);
+  if (configured !== null) return configured;
+
+  const legacyPlatformFee = readPercent(map.platform_fee_percent);
+  if (legacyPlatformFee !== null && legacyPlatformFee > 0) {
+    return 100 - legacyPlatformFee;
+  }
+
+  return DEFAULTS.publisherPayoutPercent;
+}
+
 export function parsePlatformSettings(map: Record<string, unknown>): PlatformSettingsConfig {
-  const configuredPublisherPercent = readPercent(map.publisher_payout_percent);
-  const legacyPlatformFeePercent = readPercent(map.platform_fee_percent);
-  const publisherPayoutPercent =
-    configuredPublisherPercent ??
-    (legacyPlatformFeePercent === null
-      ? DEFAULTS.publisherPayoutPercent
-      : 100 - legacyPlatformFeePercent);
+  const publisherPayoutPercent = resolvePublisherPayoutPercent(map);
   const minPayoutAmount = Number(map.min_payout_amount);
   const duplicateWindowDays = Number(map.duplicate_window_days);
   const legacyMin = Number.isFinite(minPayoutAmount) ? minPayoutAmount : DEFAULTS.minPayoutAmount;

@@ -18,10 +18,22 @@ describe("calculatePublisherPayout (@cpl/shared)", () => {
     expect(result.tier).toBe("tier1");
   });
 
-  it("caps publisher payout at CPL when tier floor exceeds CPL", () => {
+  it("applies 70% for low-CPL tier1 US lead without tier floor bump", () => {
     const result = calculatePublisherPayout(0.5, "US", settings);
-    expect(result.publisherAmount).toBe(0.5);
-    expect(result.platformFee).toBe(0);
+    expect(result.publisherAmount).toBe(0.35);
+    expect(result.platformFee).toBe(0.15);
+  });
+
+  it("applies 70% for $0.60 CPL tier1 US lead", () => {
+    const result = calculatePublisherPayout(0.6, "US", settings);
+    expect(result.publisherAmount).toBe(0.42);
+    expect(result.platformFee).toBe(0.18);
+  });
+
+  it("caps publisher payout at tier max when percent exceeds it", () => {
+    const result = calculatePublisherPayout(5, "US", settings);
+    expect(result.publisherAmount).toBe(2.5);
+    expect(result.platformFee).toBe(2.5);
   });
 
   it("clamps tier3 lead within tier max", () => {
@@ -60,6 +72,16 @@ describe("calculatePublisherPayout platform re-export parity", () => {
 });
 
 describe("parsePlatformSettings payout compatibility", () => {
+  it("treats legacy platform_fee_percent 0 as invalid and defaults to 70%", () => {
+    const parsed = parsePlatformSettings({
+      publisher_payout_percent: null,
+      platform_fee_percent: 0,
+    });
+
+    expect(parsed.publisherPayoutPercent).toBe(70);
+    expect(calculatePublisherPayout(1, "US", parsed).publisherAmount).toBe(0.7);
+  });
+
   it("converts a legacy 30% platform fee into a 70% publisher payout", () => {
     const parsed = parsePlatformSettings({
       publisher_payout_percent: null,

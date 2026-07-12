@@ -51,7 +51,7 @@ export function calculatePublisherPayout(
 
   if (tier) {
     const range = tierRange(settings, tier);
-    publisherAmount = Math.min(Math.max(publisherAmount, range.min), range.max);
+    publisherAmount = Math.min(publisherAmount, range.max);
   }
 
   publisherAmount = Math.min(publisherAmount, cpl);
