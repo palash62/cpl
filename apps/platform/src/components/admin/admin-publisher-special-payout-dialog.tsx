@@ -135,8 +135,9 @@ export function AdminPublisherSpecialPayoutDialog({
 
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Set a different minimum publisher payout per country tier. Smart Link only rotates
-            campaigns where estimated payout meets the tier minimum for the visitor&apos;s country.
+            Set a different minimum publisher payout per country tier for Smart Link rotation.
+            This filters which campaigns appear in the publisher&apos;s Smart Link — it does not
+            change the amount credited when a lead is paid.
           </p>
 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">

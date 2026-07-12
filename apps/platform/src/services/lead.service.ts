@@ -1042,13 +1042,6 @@ export async function listPublisherSubIdLeadReport(filters: {
     existing.totalLeads += 1;
     if (lead.status === "APPROVED") {
       existing.approvedLeads += 1;
-      if (shouldCreditPublisherForLead(lead)) {
-        existing.earnings += calculatePublisherPayout(
-          Number(lead.campaign.cpl),
-          lead.country,
-          platformSettings,
-        ).publisherAmount;
-      }
     } else if (lead.status === "PAID") {
       existing.paidLeads += 1;
       const credited = creditedByLeadId.get(lead.id);

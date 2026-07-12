@@ -67,6 +67,16 @@ describe("sumPublisherEarningsForLeads", () => {
     expect(sumPublisherEarningsForLeads(leads, credited, settings)).toBe(2.6);
   });
 
+  it("skips APPROVED leads without ledger credits", () => {
+    const leads = [
+      { ...makeLead("lead-1", 1), status: "APPROVED" },
+      makeLead("lead-2", 1),
+    ];
+    const credited = new Map([["lead-2", 0.7]]);
+
+    expect(sumPublisherEarningsForLeads(leads, credited, settings)).toBe(0.7);
+  });
+
   it("skips leads that should not credit the publisher wallet", () => {
     const leads = [
       makeLead("lead-1", 1),

@@ -1,4 +1,4 @@
-import { TIER_COUNTRIES, type CountryTier } from "./tiers";
+import { calculatePublisherPayout, resolveCountryTier } from "@cpl/shared";
 
 export type TierPayoutRange = { min: number; max: number };
 
@@ -54,38 +54,4 @@ export function parsePlatformSettings(map: Record<string, unknown>): PlatformSet
   };
 }
 
-export function resolveCountryTier(countryCode: string | null | undefined): CountryTier | null {
-  if (!countryCode?.trim()) return null;
-  const code = countryCode.trim().toUpperCase();
-  for (const tier of ["tier1", "tier2", "tier3"] as CountryTier[]) {
-    if ((TIER_COUNTRIES[tier] as readonly string[]).includes(code)) {
-      return tier;
-    }
-  }
-  return null;
-}
-
-function tierRange(settings: PlatformSettingsConfig, tier: CountryTier): TierPayoutRange {
-  if (tier === "tier1") return settings.tier1;
-  if (tier === "tier2") return settings.tier2;
-  return settings.tier3;
-}
-
-export function calculatePublisherPayout(
-  cpl: number,
-  countryCode: string | null | undefined,
-  settings: PlatformSettingsConfig,
-) {
-  let publisherAmount = (cpl * settings.publisherPayoutPercent) / 100;
-  const tier = resolveCountryTier(countryCode);
-
-  if (tier) {
-    const range = tierRange(settings, tier);
-    publisherAmount = Math.min(Math.max(publisherAmount, range.min), range.max);
-  }
-
-  publisherAmount = Math.round(publisherAmount * 100) / 100;
-  const platformFee = Math.round((cpl - publisherAmount) * 100) / 100;
-
-  return { publisherAmount, platformFee, tier };
-}
+export { calculatePublisherPayout, resolveCountryTier };

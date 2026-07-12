@@ -93,8 +93,9 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
       />
 
       <PublisherInfoBanner>
-        Earnings are credited when leads are approved. Request a payout once your available balance
-        meets the platform minimum, then track payout status on the Payouts tab.
+        Earnings are credited to your wallet when leads are paid. Approved leads show an estimated
+        payout until payment completes. Request a payout once your available balance meets the
+        platform minimum.
       </PublisherInfoBanner>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

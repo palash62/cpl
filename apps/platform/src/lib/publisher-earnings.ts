@@ -13,6 +13,7 @@ type PublisherEarningLead = {
   publisher: { role: string } | null;
 };
 
+/** Sum wallet-credited earnings for PAID leads only. */
 export function sumPublisherEarningsForLeads(
   leads: PublisherEarningLead[],
   creditedByLeadId: Map<string, number>,
@@ -21,6 +22,7 @@ export function sumPublisherEarningsForLeads(
   let total = 0;
 
   for (const lead of leads) {
+    if (lead.status !== "PAID") continue;
     if (!shouldCreditPublisherForLead(lead)) continue;
     const credited = creditedByLeadId.get(lead.id);
     total +=
@@ -41,7 +43,7 @@ export async function getPublisherEarningsForRange(
     prisma.lead.findMany({
       where: {
         publisherId,
-        status: { in: ["APPROVED", "PAID"] },
+        status: "PAID",
         createdAt: { gte: from, lte: to },
       },
       select: {

@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { debitWallet, getPlatformSettings } from "@/services/wallet.service";
+import {
+  debitWalletForPayout,
+  getPlatformSettings,
+  holdWalletFunds,
+  releaseWalletHold,
+} from "@/services/wallet.service";
 import { Errors } from "@/lib/errors";
 import { getMinPayoutForMethod } from "@/lib/platform-settings";
 import { isPendingPayoutStatus, PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
@@ -79,20 +84,25 @@ export async function requestPayout(
     where: { userId: publisherId },
   });
 
-  if (Number(wallet.balance) < amount) {
+  const available = Number(wallet.balance) - Number(wallet.holdBalance);
+  if (available < amount) {
     throw Errors.insufficientFunds();
   }
 
-  const payout = await prisma.payout.create({
-    data: {
-      publisherId,
-      amount,
-      method,
-      paymentDetails: paymentDetails as Prisma.InputJsonValue,
-      idempotencyKey,
-      status: "PENDING",
-    },
-    include: { publisher: { select: { id: true, name: true, email: true } } },
+  const payout = await prisma.$transaction(async (tx) => {
+    await holdWalletFunds(tx, publisherId, amount);
+
+    return tx.payout.create({
+      data: {
+        publisherId,
+        amount,
+        method,
+        paymentDetails: paymentDetails as Prisma.InputJsonValue,
+        idempotencyKey,
+        status: "PENDING",
+      },
+      include: { publisher: { select: { id: true, name: true, email: true } } },
+    });
   });
 
   void notifyAdminAlert({
@@ -115,11 +125,10 @@ export async function approvePayout(payoutId: string, adminId: string) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await debitWallet(
+    await debitWalletForPayout(
       tx,
       payout.publisherId,
       Number(payout.amount),
-      "payout",
       payoutId,
       "Payout processed",
     );
@@ -169,6 +178,8 @@ export async function rejectPayout(payoutId: string, adminId: string, reason: st
   }
 
   await prisma.$transaction(async (tx) => {
+    await releaseWalletHold(tx, payout.publisherId, Number(payout.amount));
+
     await tx.payout.update({
       where: { id: payoutId },
       data: {

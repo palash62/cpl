@@ -90,6 +90,76 @@ export async function debitWallet(
   return newBalance;
 }
 
+export async function holdWalletFunds(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const available = Number(wallet.balance) - Number(wallet.holdBalance);
+  if (available < amount) {
+    throw new Error("INSUFFICIENT_FUNDS");
+  }
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: { holdBalance: Number(wallet.holdBalance) + amount },
+  });
+}
+
+export async function releaseWalletHold(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      holdBalance: Math.max(0, Number(wallet.holdBalance) - amount),
+    },
+  });
+}
+
+/** Debit balance and release the matching hold (payout approval). */
+export async function debitWalletForPayout(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+  referenceId: string,
+  description?: string,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const balance = Number(wallet.balance);
+  const hold = Number(wallet.holdBalance);
+
+  if (balance < amount || hold < amount) {
+    throw new Error("INSUFFICIENT_FUNDS");
+  }
+
+  const newBalance = balance - amount;
+  const newHold = hold - amount;
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: { balance: newBalance, holdBalance: newHold },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: wallet.id,
+      type: "DEBIT",
+      amount,
+      balanceAfter: newBalance,
+      referenceType: "payout",
+      referenceId,
+      description,
+    },
+  });
+
+  return newBalance;
+}
+
 export async function ensurePublisherWallet(
   userId: string,
   tx?: Prisma.TransactionClient,

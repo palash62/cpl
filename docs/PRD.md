@@ -558,15 +558,18 @@ Export: CSV, PDF (Phase 1.5). Charts via Recharts. Redis cache for aggregations.
 ```
 Advertiser deposits $1000 → +1000 advertiser wallet
 Lead approved at $5 CPL (10% fee) → -5.00 advertiser, +4.50 publisher, +0.50 platform
+(lead status becomes PAID; publisher wallet is credited at payment time, not at approval)
 ```
+
+Publisher earnings totals and reports use PAID ledger credits. Approved leads may show an estimated payout until payment completes.
 
 ### Payout Flow
 
-1. Publisher balance ≥ min threshold ($50)
-2. Submit payout request
+1. Publisher available balance (balance minus hold) ≥ method minimum
+2. Submit payout request — amount is held until admin decision
 3. Admin reviews (fraud check, KYC)
-4. Process via Stripe Connect / bank transfer
-5. Debit publisher wallet, mark completed
+4. Approve: debit publisher wallet and release hold; reject: release hold only
+5. Process via Stripe Connect / bank transfer / Wise
 
 ### Error Handling
 

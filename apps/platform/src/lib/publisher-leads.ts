@@ -77,13 +77,25 @@ export function formatPublisherLeadPayout(
 ): { label: string; className: string } {
   const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
-  if (lead.status === "PAID" || lead.status === "APPROVED") {
+  if (lead.status === "PAID") {
     const amount =
       creditedAmount ??
       calculatePublisherPayout(Number(lead.campaign.cpl), lead.country, settings).publisherAmount;
     return {
       label: currency.format(amount),
       className: "font-semibold text-emerald-700",
+    };
+  }
+
+  if (lead.status === "APPROVED") {
+    const amount = calculatePublisherPayout(
+      Number(lead.campaign.cpl),
+      lead.country,
+      settings,
+    ).publisherAmount;
+    return {
+      label: `${currency.format(amount)} est.`,
+      className: "text-emerald-700",
     };
   }
 
