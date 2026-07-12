@@ -1,8 +1,9 @@
+import { lookupIpCountry as sharedLookupIpCountry } from "@cpl/shared";
 import type { RuleOutcome } from "../types/result";
-import type { FraudConfig } from "../types/config";
 import { DEFAULT_FRAUD_CONFIG } from "../config/defaults";
 
 const VPN_HOSTING_ASN_KEYWORDS = ["hosting", "datacenter", "cloud", "vpn"];
+const ELV_VERIFY_URL = "https://apps.emaillistverify.com/api/verifyEmail";
 
 /** Optional IPinfo lookup when FRAUD_IP_API_KEY is set. */
 export async function checkIpWithProvider(ip: string): Promise<RuleOutcome | null> {
@@ -52,48 +53,89 @@ export function resolveCountryFromIpProvider(data: { country?: string }) {
   return data.country?.toUpperCase();
 }
 
-/** Optional email validation when FRAUD_EMAIL_API_KEY is set (Abstract API style). */
+/** Map EmailListVerify plain-text status to a fraud rule outcome. */
+export function mapEmailListVerifyStatus(status: string): RuleOutcome | null {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === "ok") return null;
+
+  if (normalized === "disposable") {
+    return {
+      rule: "disposable_email",
+      passed: false,
+      riskDelta: DEFAULT_FRAUD_CONFIG.weights.disposable_email,
+      hardFail: true,
+      details: "Disposable email (EmailListVerify)",
+    };
+  }
+
+  if (normalized === "role") {
+    return {
+      rule: "role_email",
+      passed: false,
+      riskDelta: DEFAULT_FRAUD_CONFIG.weights.role_email,
+      hardFail: false,
+      details: "Role email (EmailListVerify)",
+    };
+  }
+
+  if (normalized === "accept_all" || normalized === "ok_for_all") {
+    return {
+      rule: "role_email",
+      passed: false,
+      riskDelta: DEFAULT_FRAUD_CONFIG.weights.role_email,
+      hardFail: false,
+      details: `Catch-all domain (${normalized}, EmailListVerify)`,
+    };
+  }
+
+  if (
+    normalized === "invalid" ||
+    normalized === "invalid_mx" ||
+    normalized === "email_disabled" ||
+    normalized === "dead_server"
+  ) {
+    return {
+      rule: "email_format",
+      passed: false,
+      riskDelta: 30,
+      hardFail: false,
+      details: `Invalid email (${normalized}, EmailListVerify)`,
+    };
+  }
+
+  if (normalized === "unknown") return null;
+
+  return null;
+}
+
+/** Optional email validation when FRAUD_EMAIL_API_KEY is set (EmailListVerify). */
 export async function checkEmailWithProvider(email: string): Promise<RuleOutcome | null> {
   const apiKey = process.env.FRAUD_EMAIL_API_KEY?.trim();
   if (!apiKey) return null;
 
   try {
-    const url = `https://emailvalidation.abstractapi.com/v1/?api_key=${apiKey}&email=${encodeURIComponent(email)}`;
+    const url = `${ELV_VERIFY_URL}?secret=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(email)}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return null;
-    const data = (await res.json()) as {
-      is_disposable_email?: { value?: boolean };
-      is_role_email?: { value?: boolean };
-      deliverability?: string;
-    };
 
-    if (data.is_disposable_email?.value) {
-      return {
-        rule: "disposable_email",
-        passed: false,
-        riskDelta: DEFAULT_FRAUD_CONFIG.weights.disposable_email,
-        hardFail: true,
-        details: "Disposable email (provider)",
-      };
+    const status = await res.text();
+    const normalized = status.trim().toLowerCase();
+
+    if (
+      normalized === "key_not_valid" ||
+      normalized === "incorrect" ||
+      normalized === "missing parameters"
+    ) {
+      console.warn(`[fraud] EmailListVerify error: ${status.trim()}`);
+      return null;
     }
 
-    if (data.is_role_email?.value) {
-      return {
-        rule: "role_email",
-        passed: false,
-        riskDelta: DEFAULT_FRAUD_CONFIG.weights.role_email,
-        hardFail: false,
-        details: "Role email (provider)",
-      };
-    }
-
-    return null;
+    return mapEmailListVerifyStatus(status);
   } catch {
     return null;
   }
 }
-
-import { lookupIpCountry as sharedLookupIpCountry } from "@cpl/shared";
 
 export async function lookupIpCountry(ip: string): Promise<string | undefined> {
   return sharedLookupIpCountry(ip);

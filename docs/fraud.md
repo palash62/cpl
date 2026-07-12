@@ -45,7 +45,7 @@ Campaigns with very high rejection rates also notify admins.
 Set these environment variables for enhanced checks (built-in rules still run if keys are missing):
 
 - `FRAUD_IP_API_KEY` — IPinfo for VPN/proxy and country lookup
-- `FRAUD_EMAIL_API_KEY` — Abstract-style email validation API
+- `FRAUD_EMAIL_API_KEY` — EmailListVerify API key (apps.emaillistverify.com)
 
 ## Admin tools
 

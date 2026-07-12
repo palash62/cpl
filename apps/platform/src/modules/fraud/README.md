@@ -46,7 +46,7 @@ Stored in `platform_settings` under key `fraud_config`. Loaded via `getFraudConf
 Environment:
 
 - `FRAUD_IP_API_KEY` — optional IPinfo token
-- `FRAUD_EMAIL_API_KEY` — optional email validation API key
+- `FRAUD_EMAIL_API_KEY` — optional EmailListVerify API key (apps.emaillistverify.com)
 
 ## Dependency boundaries
 
