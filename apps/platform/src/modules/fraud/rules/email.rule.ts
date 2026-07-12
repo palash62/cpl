@@ -1,16 +1,16 @@
 import { isValidEmail } from "@/lib/validations";
+import { resolveLeadEmail } from "@/lib/lead-email";
 import { DISPOSABLE_EMAIL_DOMAINS, ROLE_EMAIL_PREFIXES } from "../data/disposable-domains";
 import type { FraudEvaluationContext } from "../types/context";
 import type { FraudConfig } from "../types/config";
 import type { RuleOutcome } from "../types/result";
-import { checkEmailWithProvider } from "../providers/registry";
 
 export async function emailRule(
   ctx: FraudEvaluationContext,
   config: FraudConfig,
 ): Promise<RuleOutcome[]> {
   const outcomes: RuleOutcome[] = [];
-  const email = ctx.data.email?.toLowerCase().trim();
+  const email = resolveLeadEmail(ctx.data);
   if (!email) return outcomes;
 
   if (!isValidEmail(email)) {
@@ -46,9 +46,6 @@ export async function emailRule(
       details: "Role-based email address",
     });
   }
-
-  const provider = await checkEmailWithProvider(email);
-  if (provider) outcomes.push(provider);
 
   return outcomes;
 }

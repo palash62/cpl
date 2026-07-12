@@ -69,7 +69,7 @@ export function RegisterForm() {
       return;
     }
 
-    router.push("/login?registered=true");
+    router.push("/login?registered=verify");
   }
 
   return (

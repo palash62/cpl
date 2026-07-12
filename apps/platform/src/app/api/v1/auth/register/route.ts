@@ -2,10 +2,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/errors";
+import { validateEmailDeliverability } from "@/lib/email-deliverability";
 import { resolveReferrerId } from "@/services/referral.service";
 import { createEmailVerificationToken } from "@/services/auth-token.service";
 import {
-  notifyAdminAlert,
   notifyEmailVerification,
   notifyReferralSignup,
   notifyWelcome,
@@ -23,8 +23,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const email = parsed.data.email.trim().toLowerCase();
+    const deliverability = await validateEmailDeliverability(email);
+    if (!deliverability.ok) {
+      return Response.json(
+        { error: { code: "VALIDATION_INVALID_EMAIL", message: deliverability.reason, status: 422 } },
+        { status: 422 },
+      );
+    }
+
     const existing = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
+      where: { email },
     });
 
     if (existing) {
@@ -41,7 +50,7 @@ export async function POST(request: Request) {
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
-          email: parsed.data.email,
+          email,
           passwordHash,
           name: parsed.data.name,
           role,
@@ -78,14 +87,6 @@ export async function POST(request: Request) {
         verifyToken,
       );
 
-      const roleLabel = "advertiser";
-      await notifyAdminAlert({
-        title: `New ${roleLabel} registration`,
-        message: `${user.name} (${user.email}) registered and is pending review.`,
-        actionPath: "/admin/advertisers",
-        metadata: { userId: user.id, role: user.role },
-      });
-
       if (referredById) {
         const referrer = await prisma.user.findUnique({
           where: { id: referredById },
@@ -98,7 +99,10 @@ export async function POST(request: Request) {
     })();
 
     return Response.json(
-      { user: { id: user.id, email: user.email, role: user.role, status: user.status } },
+      {
+        user: { id: user.id, email: user.email, role: user.role, status: user.status },
+        message: "Check your email to verify and activate your account.",
+      },
       { status: 201 },
     );
   } catch (error) {

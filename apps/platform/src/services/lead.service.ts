@@ -23,6 +23,8 @@ import { endOfDay, startOfDay } from "date-fns";
 import { calculatePublisherPayout } from "@/lib/platform-settings";
 import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
 import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
+import { resolveLeadEmail, withResolvedLeadEmail } from "@/lib/lead-email";
+import { validateEmailDeliverability } from "@/lib/email-deliverability";
 
 type LeadValidationField = {
   fieldName: string;
@@ -224,16 +226,27 @@ async function createAndProcessLead(input: {
   headerCountry?: string;
 }) {
   const settings = await getPlatformSettings();
-  const formCountry = extractCountry(input.data);
+  const validationFields =
+    input.validationFields ?? campaignFieldsToValidationFields(input.campaign.fields);
+  const leadData = withResolvedLeadEmail(input.data, validationFields);
+
+  const email = resolveLeadEmail(leadData, validationFields);
+  if (email) {
+    const deliverability = await validateEmailDeliverability(email);
+    if (!deliverability.ok) {
+      throw Errors.validation(deliverability.reason, "email");
+    }
+  }
+
+  const formCountry = extractCountry(leadData);
   const targeting =
     typeof input.campaign.targeting === "object" && input.campaign.targeting
       ? (input.campaign.targeting as Record<string, unknown>)
       : {};
 
   const validation = validateLead({
-    data: input.data,
-    campaignFields:
-      input.validationFields ?? campaignFieldsToValidationFields(input.campaign.fields),
+    data: leadData,
+    campaignFields: validationFields,
     existingEmails: [],
     existingPhones: [],
     honeypot: input.honeypot,
@@ -243,7 +256,7 @@ async function createAndProcessLead(input: {
     campaignId: input.campaignId,
     publisherId: input.publisherId,
     trackingLinkId: input.trackingLinkId,
-    data: input.data,
+    data: leadData,
     ip: input.ip,
     userAgent: input.userAgent,
     country: formCountry,
@@ -279,7 +292,7 @@ async function createAndProcessLead(input: {
       publisherId: input.publisherId,
       trackingLinkId: input.trackingLinkId,
       status: "VALIDATING",
-      data: input.data,
+      data: leadData,
       score: validation.score,
       riskScore: fraud.riskScore,
       fraudDecision: fraud.fraudDecision,

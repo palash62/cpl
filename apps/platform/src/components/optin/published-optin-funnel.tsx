@@ -70,6 +70,10 @@ function PublishedOptinFunnelContent({
         throw new Error(body.error?.message ?? "Submission failed");
       }
 
+      if (body.lead?.status === "REJECTED") {
+        throw new Error("This submission could not be accepted. Please check your details and try again.");
+      }
+
       const leadId = body.lead?.id as string | undefined;
       if (thankYouEnabled && leadId) {
         window.location.assign(`/o/${slug}/thank-you?lead_id=${leadId}&txn_id=${leadId}`);

@@ -42,6 +42,22 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
   );
 }
 
+export function EmailVerifiedBadge({ verified }: { verified: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-medium",
+        verified
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-50 text-slate-600",
+      )}
+    >
+      {verified ? "Email verified" : "Email not verified"}
+    </Badge>
+  );
+}
+
 export function LeadStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     CAPTURED: "border-slate-200 bg-slate-50 text-slate-600",

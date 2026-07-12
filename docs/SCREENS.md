@@ -21,7 +21,7 @@
 | 2 | Register | `/register` | Done | Role toggle Advertiser/Publisher |
 | 3 | Forgot Password | `/forgot-password` | Planned | Email input, success state |
 | 4 | Reset Password | `/reset-password?token=` | Planned | Token validation |
-| 5 | Email Verification | `/verify-email` | Planned | Pending/success/expired |
+| 5 | Email Verification | `/verify-email` | Done | Advertiser auto-activates; publisher awaits admin |
 | 6 | 404 Not Found | — | Done | Branded, link to login |
 | 7 | 403 Forbidden | — | Planned | Access denied message |
 | 8 | 500 Error | — | Planned | Retry + support link |

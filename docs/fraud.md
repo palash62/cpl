@@ -47,6 +47,8 @@ Set these environment variables for enhanced checks (built-in rules still run if
 - `FRAUD_IP_API_KEY` — IPinfo for VPN/proxy and country lookup
 - `FRAUD_EMAIL_API_KEY` — EmailListVerify API key (apps.emaillistverify.com)
 
+EmailListVerify is also used at **account signup** (advertiser registration and admin-created publishers) to reject disposable or undeliverable addresses before an account is created.
+
 ## Admin tools
 
 - **Fraud Center** (`/admin/fraud`) — metrics, high-risk queue, IP blocklist, settings

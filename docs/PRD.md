@@ -133,7 +133,7 @@ Advertisers need qualified leads at predictable CPL. Publishers need trusted cam
 
 ## 4. Core Features (MVP)
 
-1. **Authentication & RBAC** — Role-based access, email verification, 2FA (Phase 1.5)
+1. **Authentication & RBAC** — Role-based access, email verification (advertisers auto-activate after verify; publishers verify email then await admin approval), 2FA (Phase 1.5)
 2. **Campaign Management** — CRUD, status lifecycle, CPL pricing, caps, geo rules
 3. **Publisher Assignment** — Auto-approve or admin-approved publisher access per campaign
 4. **Tracking Links** — Unique publisher/campaign URLs with click tracking

@@ -11,6 +11,7 @@ function VerifyEmailContent() {
   const token = searchParams.get("token") ?? "";
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -29,6 +30,7 @@ function VerifyEmailContent() {
         }
         setStatus("success");
         setMessage(data?.message ?? "Email verified successfully.");
+        setRole(data?.role ?? null);
       })
       .catch(() => {
         setStatus("error");
@@ -48,6 +50,11 @@ function VerifyEmailContent() {
         <Alert variant="destructive">
           <AlertDescription>{message}</AlertDescription>
         </Alert>
+      )}
+      {status === "success" && role === "PUBLISHER" && (
+        <p className="authMuted mt-3 text-sm">
+          An admin will review your publisher account before you can sign in.
+        </p>
       )}
     </>
   );

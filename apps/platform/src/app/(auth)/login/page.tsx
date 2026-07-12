@@ -1,26 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthLayout } from "@/components/layout/auth-layout";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const registered = searchParams.get("registered");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState(
+    registered === "verify"
+      ? "Account created. Check your email to verify and activate your advertiser account."
+      : "",
+  );
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+
+  async function handleResend() {
+    if (!email.trim()) {
+      setError("Enter your email address to resend verification.");
+      return;
+    }
+
+    setResending(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/v1/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json().catch(() => null);
+      setInfo(data?.message ?? "If an unverified account exists, a new verification link has been sent.");
+      setShowResend(false);
+    } catch {
+      setError("Unable to resend verification email. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setShowResend(false);
 
     try {
+      const check = await fetch("/api/v1/auth/credentials-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+      const checkData = await check.json().catch(() => null);
+
+      if (!check.ok) {
+        const code = checkData?.error?.code;
+        setError(checkData?.error?.message ?? "Invalid email or password");
+        if (code === "EMAIL_NOT_VERIFIED") {
+          setShowResend(true);
+        }
+        return;
+      }
+
       const result = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
@@ -33,7 +88,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Full navigation so the server reads the new auth cookie and redirects by role.
       window.location.href = "/";
     } catch {
       setError("Something went wrong. Please try again.");
@@ -49,6 +103,11 @@ export default function LoginPage() {
       description="Sign in to your LeadVix account and manage verified lead campaigns."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {info && (
+          <Alert>
+            <AlertDescription>{info}</AlertDescription>
+          </Alert>
+        )}
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -85,6 +144,17 @@ export default function LoginPage() {
         <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
+        {showResend && (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto w-full"
+            disabled={resending}
+            onClick={() => void handleResend()}
+          >
+            {resending ? "Sending..." : "Resend verification email"}
+          </Button>
+        )}
       </form>
       <p className="authMuted mt-4 text-center">
         Don&apos;t have an account?{" "}
@@ -93,5 +163,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="authMuted text-sm">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

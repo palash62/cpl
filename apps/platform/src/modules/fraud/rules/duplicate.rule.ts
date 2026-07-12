@@ -1,10 +1,11 @@
+import { resolveLeadEmail } from "@/lib/lead-email";
 import type { FraudEvaluationContext } from "../types/context";
 import type { FraudConfig } from "../types/config";
 import type { RuleOutcome } from "../types/result";
 
 export function duplicateRule(ctx: FraudEvaluationContext, config: FraudConfig): RuleOutcome[] {
   const outcomes: RuleOutcome[] = [];
-  const email = ctx.data.email?.toLowerCase().trim();
+  const email = resolveLeadEmail(ctx.data);
 
   if (config.enabledRules.duplicate_email && email) {
     const dup = ctx.existingEmails.includes(email);

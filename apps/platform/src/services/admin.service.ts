@@ -7,6 +7,8 @@ import crypto from "crypto";
 import {
   serializePublisherSpecialTierPayouts,
 } from "@/lib/publisher-special-payout";
+import { validateEmailDeliverability } from "@/lib/email-deliverability";
+import { createEmailVerificationToken } from "@/services/auth-token.service";
 import {
   parsePlatformSettings,
   platformSettingsToUpdates,
@@ -17,6 +19,7 @@ import {
   notifyAccountSuspended,
   notifyAdminAlert,
   notifyApproved,
+  notifyEmailVerification,
   notifyPublisherCredentials,
   notifyRejected,
   notifyUserById,
@@ -73,6 +76,7 @@ export async function listUsers(filters: {
         name: true,
         role: true,
         status: true,
+        emailVerified: true,
         createdAt: true,
         advertiserProfile: { select: { company: true } },
         publisherProfile: {
@@ -358,14 +362,20 @@ export async function createPublisherAccount(data: {
     throw new AppError("AUTH_EMAIL_EXISTS", "Email already registered", 422);
   }
 
+  const email = data.email.trim().toLowerCase();
+  const deliverability = await validateEmailDeliverability(email);
+  if (!deliverability.ok) {
+    throw new AppError("VALIDATION_INVALID_EMAIL", deliverability.reason, 422);
+  }
+
   const tempPassword = generateTempPassword();
   const passwordHash = await bcrypt.hash(tempPassword, 12);
-  const status = data.status ?? "ACTIVE";
+  const status = data.status ?? "PENDING";
 
   const user = await prisma.user.create({
     data: {
       name: data.name,
-      email: data.email,
+      email,
       passwordHash,
       role: "PUBLISHER",
       status,
@@ -394,12 +404,20 @@ export async function createPublisherAccount(data: {
     },
   });
 
-  void notifyPublisherCredentials({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    tempPassword,
-  });
+  void (async () => {
+    await notifyPublisherCredentials({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      tempPassword,
+    });
+
+    const verifyToken = await createEmailVerificationToken(user.id);
+    await notifyEmailVerification(
+      { id: user.id, email: user.email, name: user.name },
+      verifyToken,
+    );
+  })();
 
   return { user, tempPassword };
 }

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+import { getLoginBlock } from "@/lib/auth-login-gate";
 import { consumeImpersonationToken } from "@/services/impersonation.service";
 
 export { ROLE_ROUTES, getDashboardPath } from "@/lib/auth.config";
@@ -21,10 +22,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await prisma.user.findUnique({
-          where: { email: String(credentials.email) },
+          where: { email: String(credentials.email).trim().toLowerCase() },
         });
 
-        if (!user || user.status !== "ACTIVE") return null;
+        if (!user) return null;
 
         const valid = await bcrypt.compare(
           String(credentials.password),
@@ -32,6 +33,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
 
         if (!valid) return null;
+
+        if (getLoginBlock(user)) return null;
+        if (user.status !== "ACTIVE") return null;
 
         return {
           id: user.id,

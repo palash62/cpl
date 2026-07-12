@@ -19,6 +19,7 @@ import {
   SpamScoreBadge,
   SpamScoreGuide,
   UserStatusBadge,
+  EmailVerifiedBadge,
 } from "@/components/admin/admin-ui";
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
 import { UserStatusActions } from "@/components/admin/user-status-actions";
@@ -199,7 +200,13 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                         </span>
                       </TableCell>
                       <TableCell className="px-4 py-4">
-                        <UserStatusBadge status={publisher.status} />
+                        <div className="flex flex-col gap-1.5">
+                          <UserStatusBadge status={publisher.status} />
+                          <EmailVerifiedBadge verified={!!publisher.emailVerified} />
+                          {publisher.status === "PENDING" && publisher.emailVerified && (
+                            <span className="text-xs text-emerald-700">Ready for admin approval</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-slate-500">
                         {format(new Date(publisher.createdAt), "MMM d, yyyy")}
@@ -241,7 +248,7 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                           <AdminLoginAsButton
                             userId={publisher.id}
                             userName={publisher.name}
-                            disabled={publisher.status === "SUSPENDED"}
+                            disabled={publisher.status !== "ACTIVE"}
                           />
                           <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
                         </div>

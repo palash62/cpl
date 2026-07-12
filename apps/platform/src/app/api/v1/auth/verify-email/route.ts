@@ -1,7 +1,19 @@
 import { errorResponse } from "@/lib/errors";
-import { AppError } from "@/lib/errors";
-import { verifyEmailSchema } from "@/lib/validations";
-import { consumeEmailVerificationToken } from "@/services/auth-token.service";
+import { verifyEmailSchema, loginSchema } from "@/lib/validations";
+import {
+  consumeEmailVerificationToken,
+  type VerifiedUser,
+} from "@/services/auth-token.service";
+
+function verificationMessage(user: VerifiedUser) {
+  if (user.role === "ADVERTISER" && user.status === "ACTIVE") {
+    return "Email verified — your account is active. Sign in to continue.";
+  }
+  if (user.role === "PUBLISHER") {
+    return "Email verified — your account is pending admin approval.";
+  }
+  return "Email verified successfully.";
+}
 
 export async function GET(request: Request) {
   try {
@@ -23,7 +35,12 @@ export async function GET(request: Request) {
       );
     }
 
-    return Response.json({ success: true, message: "Email verified successfully." });
+    return Response.json({
+      success: true,
+      message: verificationMessage(user),
+      role: user.role,
+      status: user.status,
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -43,12 +60,18 @@ export async function POST(request: Request) {
 
     const user = await consumeEmailVerificationToken(parsed.data.token);
     if (!user) {
-      return errorResponse(
-        new AppError("AUTH_INVALID_TOKEN", "This verification link is invalid or has expired", 422),
+      return Response.json(
+        { error: { code: "AUTH_INVALID_TOKEN", message: "This verification link is invalid or has expired", status: 422 } },
+        { status: 422 },
       );
     }
 
-    return Response.json({ success: true, message: "Email verified successfully." });
+    return Response.json({
+      success: true,
+      message: verificationMessage(user),
+      role: user.role,
+      status: user.status,
+    });
   } catch (error) {
     return errorResponse(error);
   }

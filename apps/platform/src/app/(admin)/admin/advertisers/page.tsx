@@ -88,7 +88,7 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
         description={
           hasFilters
             ? `Showing ${advertisers.length} filtered result${advertisers.length === 1 ? "" : "s"}`
-            : "View and manage all registered advertisers on the platform"
+            : "View and manage advertiser accounts. New signups activate automatically after email verification."
         }
         icon={Building2}
         gradient="revenue"
@@ -165,7 +165,12 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
                         </span>
                       </TableCell>
                       <TableCell className="px-4 py-4">
-                        <UserStatusBadge status={advertiser.status} />
+                        <div className="flex flex-col gap-1.5">
+                          <UserStatusBadge status={advertiser.status} />
+                          {advertiser.status === "PENDING" && !advertiser.emailVerified && (
+                            <span className="text-xs text-amber-700">Awaiting email verification</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-slate-500">
                         {format(new Date(advertiser.createdAt), "MMM d, yyyy")}
@@ -184,9 +189,11 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
                           <AdminLoginAsButton
                             userId={advertiser.id}
                             userName={advertiser.name}
-                            disabled={advertiser.status === "SUSPENDED"}
+                            disabled={advertiser.status !== "ACTIVE"}
                           />
-                          <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+                          {!(advertiser.status === "PENDING" && !advertiser.emailVerified) && (
+                            <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

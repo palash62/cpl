@@ -27,7 +27,7 @@ export function AdminCreatePublisherForm() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [status, setStatus] = useState("ACTIVE");
+  const [status, setStatus] = useState("PENDING");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function AdminCreatePublisherForm() {
       return;
     }
 
-    setSuccess("Publisher account created.");
+    setSuccess("Publisher account created. They will receive login credentials and a verification email.");
     setTempPassword(data?.data?.tempPassword ?? null);
     router.refresh();
     setName("");
@@ -251,9 +251,12 @@ export function AdminCreatePublisherForm() {
             "focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15",
           )}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING">Pending</option>
+          <option value="PENDING">Pending (verify email, then admin approval)</option>
+          <option value="ACTIVE">Active (skip approval)</option>
         </select>
+        <p className="text-xs text-slate-500">
+          Publishers must verify their email. Pending accounts still need admin approval before they can sign in.
+        </p>
       </div>
 
       <Button

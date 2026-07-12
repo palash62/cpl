@@ -110,6 +110,7 @@ export function LeadForm({
 }: LeadFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const theme = usePageTheme();
   const published = usePublishedPage();
@@ -122,12 +123,15 @@ export function LeadForm({
     e.preventDefault();
     if (!slug || !submitHandler) return;
     setLoading(true);
+    setError("");
     const formData = new FormData(e.currentTarget);
     const data: Record<string, string> = {};
     formData.forEach((v, k) => { if (k !== "honeypot") data[k] = String(v); });
     try {
       await submitHandler(data);
       setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setLoading(false);
     }
@@ -147,6 +151,11 @@ export function LeadForm({
 
   const formBody = (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
       <input type="text" name="honeypot" className="hidden" tabIndex={-1} autoComplete="off" />
       {children}
       {!children && <p className="opacity-60">Drop form fields here</p>}
