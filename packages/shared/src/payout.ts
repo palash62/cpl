@@ -30,6 +30,10 @@ export function resolveCountryTier(countryCode: string | null | undefined): Coun
   return null;
 }
 
+function normalizeMath(value: number) {
+  return Number(value.toPrecision(12));
+}
+
 export function calculatePublisherPayout(
   cpl: number,
   countryCode: string | null | undefined,
@@ -42,11 +46,10 @@ export function calculatePublisherPayout(
   }
 
   // Publisher payout = CPL × admin-configured publisher payout percent.
-  const publisherAmount =
-    Math.round(
-      Math.min(cpl, (cpl * settings.publisherPayoutPercent) / 100) * 100,
-    ) / 100;
-  const platformFee = Math.round(Math.max(0, cpl - publisherAmount) * 100) / 100;
+  const publisherAmount = normalizeMath(
+    Math.min(cpl, (cpl * settings.publisherPayoutPercent) / 100),
+  );
+  const platformFee = normalizeMath(Math.max(0, cpl - publisherAmount));
 
   return { publisherAmount, platformFee, tier };
 }

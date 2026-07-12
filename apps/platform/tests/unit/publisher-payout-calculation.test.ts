@@ -30,6 +30,16 @@ describe("calculatePublisherPayout (@cpl/shared)", () => {
     expect(result.platformFee).toBe(0.18);
   });
 
+
+  it("does not round fractional-cent publisher payouts", () => {
+    const result = calculatePublisherPayout(0.7, "US", {
+      ...settings,
+      publisherPayoutPercent: 45,
+    });
+    expect(result.publisherAmount).toBeCloseTo(0.315, 10);
+    expect(result.platformFee).toBeCloseTo(0.385, 10);
+  });
+
   it("uses the configured publisher payout percent from admin settings", () => {
     const result = calculatePublisherPayout(1, "US", {
       ...settings,

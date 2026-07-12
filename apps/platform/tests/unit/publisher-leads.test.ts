@@ -33,6 +33,11 @@ describe("publisher-leads extractLeadCountry re-export", () => {
     expect(formatPublisherLeadPayout(lead, settings, 0.7).label).toBe("$0.70");
   });
 
+
+  it("shows fractional-cent payouts without rounding to cents", () => {
+    expect(formatPublisherLeadPayout(lead, settings, 0.315).label).toBe("$0.315");
+  });
+
   it("shows a $0.70 estimate only for approved leads", () => {
     expect(
       formatPublisherLeadPayout({ ...lead, status: "APPROVED" }, settings).label,

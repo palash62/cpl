@@ -75,7 +75,12 @@ export function formatPublisherLeadPayout(
   settings: PlatformSettingsConfig,
   creditedAmount?: number,
 ): { label: string; className: string } {
-  const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+  const currency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
 
   if (lead.status === "PAID") {
     const amount =
