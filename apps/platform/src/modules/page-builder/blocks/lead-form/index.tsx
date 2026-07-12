@@ -456,11 +456,13 @@ function SubmitButtonSettings() {
   const typographyForBp = resolveTypographyForBreakpoint(
     { typography, responsive } as BlockProps,
     activeBreakpoint,
+    { blockType: "Submit Button" },
   );
   const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize);
   const fullWidthForBp = resolveFullWidthForBreakpoint(
     { fullWidth, responsive },
     activeBreakpoint,
+    { blockType: "Submit Button" },
   );
 
   return (
@@ -524,10 +526,11 @@ export function SubmitButton({
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const { actions: { setProp } } = useNode();
   const breakpoint = useRenderBreakpoint();
-  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint);
+  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint, { blockType: "Submit Button" });
   const isFullWidth = resolveFullWidthForBreakpoint(
     { fullWidth, responsive: props.responsive },
     breakpoint,
+    { blockType: "Submit Button" },
   );
   const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize);
   const hoverClass = hoverEffectClass(buttonAppearance?.hoverEffect);

@@ -1,7 +1,7 @@
 import type { CraftSerializedState, PageDocument } from "@/modules/page-builder/types/page-document";
 import { buildBlankPageWithRow, normalizeRowColumnState } from "@/modules/page-builder/lib/row-column";
-import { withoutStretchLayout } from "@/modules/page-builder/lib/responsive";
-import type { LayoutProps } from "@/modules/page-builder/types/block-props";
+import { withoutStretchLayout, stripRedundantResponsiveOverrides } from "@/modules/page-builder/lib/responsive";
+import type { BlockProps, LayoutProps } from "@/modules/page-builder/types/block-props";
 
 const LAYOUT_SANITIZE_TYPES = new Set(["Section", "Container", "Column", "LeadForm"]);
 
@@ -66,6 +66,27 @@ function dropInvalidCraftNodes(state: CraftSerializedState): CraftSerializedStat
   return result;
 }
 
+function stripResponsiveOverridesInCraft(state: CraftSerializedState): CraftSerializedState {
+  let changed = false;
+  const result: CraftSerializedState = { ...state };
+
+  for (const [id, node] of Object.entries(state)) {
+    const props = node.props as BlockProps | undefined;
+    if (!props?.responsive) continue;
+
+    const stripped = stripRedundantResponsiveOverrides(props, nodeTypeName(node));
+    if (stripped === props) continue;
+
+    result[id] = {
+      ...node,
+      props: stripped,
+    };
+    changed = true;
+  }
+
+  return changed ? result : state;
+}
+
 export function normalizeCraftState(state: CraftSerializedState | { nodes: CraftSerializedState }): CraftSerializedState {
   const nodes = ("nodes" in state ? state.nodes : state) as CraftSerializedState;
   const result: CraftSerializedState = { ...nodes };
@@ -74,7 +95,7 @@ export function normalizeCraftState(state: CraftSerializedState | { nodes: Craft
     delete (node as { events?: unknown }).events;
     result[id] = node;
   }
-  return sanitizeStretchLayoutInCraft(dropInvalidCraftNodes(result));
+  return stripResponsiveOverridesInCraft(sanitizeStretchLayoutInCraft(dropInvalidCraftNodes(result)));
 }
 
 export function wrapPageDocument(craft: CraftSerializedState): PageDocument {

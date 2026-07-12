@@ -57,11 +57,13 @@ function CtaSettings() {
   const typographyForBp = resolveTypographyForBreakpoint(
     { typography, responsive } as BlockProps,
     activeBreakpoint,
+    { blockType: "CTA Button" },
   );
   const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize, buttonSize);
   const fullWidthForBp = resolveFullWidthForBreakpoint(
     { fullWidth, responsive },
     activeBreakpoint,
+    { blockType: "CTA Button" },
   );
 
   return (
@@ -150,10 +152,11 @@ export function CtaButton({
   const published = usePublishedPage();
   const breakpoint = useRenderBreakpoint();
   const normalizedHref = (href ?? "").trim();
-  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint);
+  const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint, { blockType: "CTA Button" });
   const isFullWidth = resolveFullWidthForBreakpoint(
     { fullWidth, responsive: props.responsive },
     breakpoint,
+    { blockType: "CTA Button" },
   ) || buttonSize === "full";
   const fontSizePx = parseButtonFontSizePx(typographyForBp?.fontSize, buttonSize);
   const isExternalHttp =

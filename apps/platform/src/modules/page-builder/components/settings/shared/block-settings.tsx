@@ -18,7 +18,7 @@ import {
 } from "@/modules/page-builder/lib/builder-panel-styles";
 import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
-import { seedBreakpointOverridesBeforeDesktopEdit } from "@/modules/page-builder/lib/responsive";
+import { resolveEffectiveTypography } from "@/modules/page-builder/lib/responsive";
 import { cn } from "@/lib/utils";
 
 function setNestedProp(
@@ -30,7 +30,6 @@ function setNestedProp(
 ) {
   setProp((props: BlockProps) => {
     if (breakpoint === "desktop") {
-      seedBreakpointOverridesBeforeDesktopEdit(props, bucket, key);
       const current = { ...((props[bucket] as Record<string, string | number | undefined>) ?? {}) };
       current[key] = value;
       (props as Record<string, unknown>)[bucket] = current;
@@ -172,9 +171,10 @@ export function TypographyFields() {
     typography: node.data.props.typography as BlockProps["typography"],
     responsive: node.data.props.responsive as BlockProps["responsive"],
   }));
-  const override =
-    activeBreakpoint === "desktop" ? undefined : responsive?.[activeBreakpoint]?.typography;
-  const t = { ...(typography ?? {}), ...(override ?? {}) };
+  const t = resolveEffectiveTypography(
+    { typography, responsive },
+    activeBreakpoint,
+  ) ?? {};
   const fontSizePx = parseFontSizePx(t.fontSize);
   const fontFamilyValue = t.fontFamily ?? "";
   const knownFamily = FONT_FAMILY_OPTIONS.some((opt) => opt.value === fontFamilyValue);

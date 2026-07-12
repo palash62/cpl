@@ -14,7 +14,7 @@ import { getCanvasViewportFill } from "@/modules/page-builder/lib/editor-canvas"
 import {
   publishedSectionLayout,
   resolveColumnsGrid,
-  resolveSectionPadding,
+  resolveEffectiveLayout,
   withoutStretchLayout,
 } from "@/modules/page-builder/lib/responsive";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
@@ -33,10 +33,8 @@ export function Section({ children, ...props }: SectionProps) {
   const breakpoint = useActiveBreakpoint();
   const showEmpty = enabled && childCount === 0;
   const sanitizedLayout =
-    resolveSectionPadding(
-      withoutStretchLayout(props.layout),
-      breakpoint,
-      props.responsive,
+    withoutStretchLayout(
+      resolveEffectiveLayout(props, breakpoint, { blockType: "Section" }),
     ) ?? {};
 
   return (
@@ -69,8 +67,10 @@ export function Container({ children, ...props }: SectionProps) {
     childCount: node.data.nodes?.length ?? 0,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const breakpoint = useActiveBreakpoint();
   const showEmpty = enabled && childCount === 0;
-  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
+  const effectiveLayout = resolveEffectiveLayout(props, breakpoint, { blockType: "Container" }) ?? {};
+  const sanitizedLayout = withoutStretchLayout(effectiveLayout) ?? {};
 
   return (
     <CanvasWrapper
@@ -104,7 +104,8 @@ export function Columns({
 }: SectionProps & { columns?: number }) {
   const breakpoint = useActiveBreakpoint();
   const label = columns === 1 ? "1 Column Row" : `${columns} Column Row`;
-  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
+  const effectiveLayout = resolveEffectiveLayout(props, breakpoint, { blockType: "Columns" }) ?? {};
+  const sanitizedLayout = withoutStretchLayout(effectiveLayout) ?? {};
 
   return (
     <CanvasWrapper
@@ -144,10 +145,12 @@ export function Column({
     childCount: node.data.nodes?.length ?? 0,
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const breakpoint = useActiveBreakpoint();
   const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
   const label = `${labels[columnIndex - 1] ?? `${columnIndex}th`} Column`;
   const showEmpty = enabled && childCount === 0;
-  const sanitizedLayout = withoutStretchLayout(props.layout) ?? {};
+  const effectiveLayout = resolveEffectiveLayout(props, breakpoint, { blockType: "Column" }) ?? {};
+  const sanitizedLayout = withoutStretchLayout(effectiveLayout) ?? {};
 
   return (
     <CanvasWrapper

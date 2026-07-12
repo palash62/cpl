@@ -4,6 +4,7 @@ import type { ReactNode, CSSProperties, ElementType } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import { cn } from "@/lib/utils";
 import { mergeBlockStyles, shouldStretchPublishedWrapper, splitStylesForBackgroundBlur } from "@/modules/page-builder/lib/responsive";
+import type { EffectiveBlockPropsContext } from "@/modules/page-builder/lib/responsive";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
@@ -14,9 +15,10 @@ function buildBlockStyle(
   blockProps: BlockProps,
   breakpoint: Breakpoint,
   extraStyle?: CSSProperties,
+  context?: EffectiveBlockPropsContext,
 ): CSSProperties {
   const style: CSSProperties = {
-    ...mergeBlockStyles(blockProps, breakpoint),
+    ...mergeBlockStyles(blockProps, breakpoint, context),
     ...extraStyle,
   };
 
@@ -99,9 +101,10 @@ export function BlockWrapper({
   extraStyle,
   ...blockProps
 }: BlockWrapperProps) {
-  const { connectors: { connect, drag }, selected, hovered } = useNode((node) => ({
+  const { connectors: { connect, drag }, selected, hovered, displayName } = useNode((node) => ({
     selected: node.events.selected,
     hovered: node.events.hovered,
+    displayName: String(node.data.displayName ?? ""),
   }));
   const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
   const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
@@ -109,7 +112,12 @@ export function BlockWrapper({
 
   if (blockProps.visible === false && !enabled) return null;
 
-  const baseStyle = buildBlockStyle(blockProps, breakpoint, extraStyle);
+  const baseStyle = buildBlockStyle(
+    blockProps,
+    breakpoint,
+    extraStyle,
+    displayName ? { blockType: displayName } : undefined,
+  );
   const { wrapperStyle, inner } = renderBackgroundStack(children, blockProps.style, baseStyle);
 
   if (!enabled) {

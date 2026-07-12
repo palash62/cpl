@@ -38,8 +38,10 @@ import type { BlockProps, Breakpoint } from "@/modules/page-builder/types/block-
 import { cn } from "@/lib/utils";
 import {
   isFullWidthLayout,
+  resolveEffectiveBlockProps,
   resolveGhlAlignDisplay,
-  seedBreakpointOverridesBeforeDesktopEdit,
+  clearResponsiveOverridesAtBreakpoint,
+  hasResponsiveOverrides,
   shouldUseTextAlignForGhlAlign,
 } from "@/modules/page-builder/lib/responsive";
 import { ListAppearancePanel } from "@/modules/page-builder/components/settings/ghl/list-appearance-panel";
@@ -67,10 +69,14 @@ function GhlStylesPanel() {
     mobileVisible: (node.data.props.responsive as BlockProps["responsive"])?.mobile?.visible,
   }));
 
-  const breakpointOverride = styleBreakpoint === "desktop" ? undefined : responsive?.[styleBreakpoint];
-  const layoutSafe = { ...(layout ?? {}), ...(breakpointOverride?.layout ?? {}) };
-  const typographySafe = { ...(typography ?? {}), ...(breakpointOverride?.typography ?? {}) };
-  const styleSafe = { ...(style ?? {}), ...(breakpointOverride?.style ?? {}) };
+  const effective = resolveEffectiveBlockProps(
+    { layout, typography, style, responsive, visible },
+    styleBreakpoint,
+    { blockType: displayName },
+  );
+  const layoutSafe = effective.layout ?? {};
+  const typographySafe = effective.typography ?? {};
+  const styleSafe = effective.style ?? {};
   const isSection = displayName === "Section";
   const supportsInlineText = RICH_TEXT_BLOCK_NAMES.has(displayName);
   const useTextAlignForAlign = shouldUseTextAlignForGhlAlign(displayName, layoutSafe.width, RICH_TEXT_BLOCK_NAMES);
@@ -78,7 +84,6 @@ function GhlStylesPanel() {
   function setLayoutProp(key: keyof NonNullable<BlockProps["layout"]>, value: string) {
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
-        seedBreakpointOverridesBeforeDesktopEdit(props, "layout", key);
         props.layout = { ...(props.layout ?? {}), [key]: value };
         return;
       }
@@ -96,7 +101,6 @@ function GhlStylesPanel() {
     const nextValue = key === "opacity" ? parseFloat(value) || 1 : value;
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
-        seedBreakpointOverridesBeforeDesktopEdit(props, "style", key);
         props.style = { ...(props.style ?? {}), [key]: nextValue };
         return;
       }
@@ -119,7 +123,6 @@ function GhlStylesPanel() {
   function setTypographyProp(key: keyof NonNullable<BlockProps["typography"]>, value: string) {
     setProp((props: BlockProps) => {
       if (styleBreakpoint === "desktop") {
-        seedBreakpointOverridesBeforeDesktopEdit(props, "typography", key);
         props.typography = { ...(props.typography ?? {}), [key]: value };
         return;
       }
@@ -155,6 +158,13 @@ function GhlStylesPanel() {
     });
   }
 
+  function resetBreakpointOverrides() {
+    if (styleBreakpoint === "desktop") return;
+    setProp((props: BlockProps) => {
+      clearResponsiveOverridesAtBreakpoint(props, styleBreakpoint);
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex gap-0.5 rounded-md bg-slate-100 p-0.5">
@@ -175,6 +185,21 @@ function GhlStylesPanel() {
           </button>
         ))}
       </div>
+
+      {styleBreakpoint !== "desktop" ? (
+        <div className="rounded-md border border-blue-100 bg-blue-50/70 px-2.5 py-2 text-[11px] leading-snug text-blue-800">
+          Auto-adapted from desktop. Change a value here to override for this device.
+          {hasResponsiveOverrides({ responsive }, styleBreakpoint) ? (
+            <button
+              type="button"
+              onClick={resetBreakpointOverrides}
+              className="mt-1.5 block text-[11px] font-medium text-blue-700 underline underline-offset-2"
+            >
+              Reset to auto
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className={GHL_SECTION_CARD}>
         <p className={GHL_SECTION_TITLE}>Spacing</p>

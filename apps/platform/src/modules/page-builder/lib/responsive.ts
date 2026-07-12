@@ -135,27 +135,289 @@ function applyHorizontalBlockAlignment(
   }
 }
 
-export function mergeBlockStyles(
-  props: BlockProps,
-  breakpoint: Breakpoint = "desktop",
-): CSSProperties {
-  const scaledProps = applyBreakpointTypographyScale(props, breakpoint);
-  const base = blockPropsToStyle(scaledProps);
-  const override = scaledProps.responsive?.[breakpoint];
-  if (!override) return base;
+export type EffectiveBlockPropsContext = {
+  blockType?: string;
+};
 
-  if (override.visible === false) {
-    return { ...base, display: "none" };
+export type EffectiveBlockProps = {
+  typography?: TypographyProps;
+  layout?: LayoutProps;
+  style?: StyleProps;
+  visible?: boolean;
+  fullWidth?: boolean;
+};
+
+const SPACING_SCALE: Record<Breakpoint, number> = {
+  desktop: 1,
+  tablet: 0.85,
+  mobile: 0.7,
+};
+
+const FULL_WIDTH_MOBILE_BLOCKS = new Set([
+  "CTA Button",
+  "Submit Button",
+  "Lead Form",
+]);
+
+
+function scaleSpacingValue(value: string, factor: number): string {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "0" || trimmed === "auto") return trimmed;
+  const px = parseFontSizePx(trimmed);
+  if (!/^-?[\d.]+px$/i.test(normalizeCssLength(trimmed)) && !/^-?[\d.]+$/.test(trimmed)) {
+    return trimmed;
+  }
+  return `${Math.max(0, Math.round(px * factor))}px`;
+}
+
+function scaleSpacingShorthand(shorthand: string, factor: number): string {
+  const parts = shorthand.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return shorthand;
+  return expandSpacingShorthand(parts.map((part) => scaleSpacingValue(part, factor))).join(" ");
+}
+
+function autoWidthForBreakpoint(
+  width: string | undefined,
+  breakpoint: Breakpoint,
+): Pick<LayoutProps, "width" | "maxWidth"> {
+  if (breakpoint === "desktop" || !width) return {};
+  const normalized = width.trim();
+  if (normalized === "100%" || normalized === "auto") return {};
+  const pxMatch = normalized.match(/^([\d.]+)px$/i);
+  if (pxMatch) return { width: "100%", maxWidth: "100%" };
+  const pctMatch = normalized.match(/^([\d.]+)%$/);
+  if (pctMatch && Number(pctMatch[1]) < 100) return { width: "100%", maxWidth: "100%" };
+  return {};
+}
+
+function computeAutoTypography(
+  typography: TypographyProps | undefined,
+  breakpoint: Breakpoint,
+): TypographyProps | undefined {
+  if (!typography || breakpoint === "desktop") return typography;
+  const fontSize = typography.fontSize;
+  if (!fontSize) return typography;
+  return { ...typography, fontSize: scaleFontSizeForBreakpoint(fontSize, breakpoint) };
+}
+
+function computeAutoLayout(
+  layout: LayoutProps | undefined,
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): LayoutProps | undefined {
+  if (!layout || breakpoint === "desktop") return layout;
+
+  const factor = SPACING_SCALE[breakpoint];
+  const next: LayoutProps = { ...layout };
+
+  if (next.padding) next.padding = scaleSpacingShorthand(next.padding, factor);
+  if (next.margin) next.margin = scaleSpacingShorthand(next.margin, factor);
+  if (next.gap) next.gap = scaleSpacingValue(next.gap, factor);
+
+  Object.assign(next, autoWidthForBreakpoint(next.width, breakpoint));
+
+  if (breakpoint === "mobile" && next.flexDirection === "row") {
+    next.flexDirection = "column";
+  }
+
+  if (context?.blockType === "Section") {
+    return resolveSectionPadding(next, breakpoint, undefined) ?? next;
+  }
+
+  if (context?.blockType === "Image") {
+    next.maxWidth = next.maxWidth ?? "100%";
+    if (next.width && next.width !== "100%") next.width = "100%";
+    if (next.height?.trim().endsWith("px")) next.height = "auto";
+  }
+
+  return next;
+}
+
+function computeAutoFullWidth(
+  props: BlockProps & { fullWidth?: boolean },
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): boolean | undefined {
+  if (breakpoint === "mobile" && context?.blockType && FULL_WIDTH_MOBILE_BLOCKS.has(context.blockType)) {
+    return true;
+  }
+  return props.fullWidth;
+}
+
+export function computeAutoEffectiveBlockProps(
+  props: BlockProps & { fullWidth?: boolean },
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): EffectiveBlockProps {
+  if (breakpoint === "desktop") {
+    return {
+      typography: props.typography,
+      layout: props.layout,
+      style: props.style,
+      visible: props.visible,
+      fullWidth: props.fullWidth,
+    };
   }
 
   return {
-    ...base,
-    ...blockPropsToStyle({
-      typography: override.typography,
-      layout: override.layout,
-      style: override.style,
-    }),
+    typography: computeAutoTypography(props.typography, breakpoint),
+    layout: computeAutoLayout(props.layout, breakpoint, context),
+    style: props.style,
+    visible: props.visible,
+    fullWidth: computeAutoFullWidth(props, breakpoint, context),
   };
+}
+
+export function resolveEffectiveBlockProps(
+  props: BlockProps & { fullWidth?: boolean },
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): EffectiveBlockProps {
+  const auto = computeAutoEffectiveBlockProps(props, breakpoint, context);
+  const override = props.responsive?.[breakpoint];
+  if (!override) return auto;
+
+  return {
+    typography: { ...(auto.typography ?? {}), ...(override.typography ?? {}) },
+    layout: { ...(auto.layout ?? {}), ...(override.layout ?? {}) },
+    style: { ...(auto.style ?? {}), ...(override.style ?? {}) },
+    visible: override.visible !== undefined ? override.visible : auto.visible,
+    fullWidth: override.fullWidth !== undefined ? override.fullWidth : auto.fullWidth,
+  };
+}
+
+export function resolveEffectiveLayout(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): LayoutProps | undefined {
+  return resolveEffectiveBlockProps(props, breakpoint, context).layout;
+}
+
+export function resolveEffectiveTypography(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): TypographyProps | undefined {
+  return resolveEffectiveBlockProps(props, breakpoint, context).typography;
+}
+
+export function resolveEffectiveStyle(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
+): StyleProps | undefined {
+  return resolveEffectiveBlockProps(props, breakpoint, context).style;
+}
+
+export function hasResponsiveOverrides(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+): boolean {
+  const override = props.responsive?.[breakpoint];
+  if (!override) return false;
+  return Boolean(
+    override.typography && Object.keys(override.typography).length > 0
+    || override.layout && Object.keys(override.layout).length > 0
+    || override.style && Object.keys(override.style).length > 0
+    || override.visible !== undefined
+    || override.fullWidth !== undefined,
+  );
+}
+
+export function clearResponsiveOverridesAtBreakpoint(
+  props: BlockProps,
+  breakpoint: Breakpoint,
+): void {
+  if (!props.responsive?.[breakpoint]) return;
+  const next = { ...props.responsive };
+  delete next[breakpoint];
+  props.responsive = Object.keys(next).length > 0 ? next : undefined;
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function stripBucketOverrides<T extends Record<string, unknown>>(
+  overrideBucket: T | undefined,
+  autoBucket: T | undefined,
+): T | undefined {
+  if (!overrideBucket) return undefined;
+  const next = { ...overrideBucket };
+  for (const key of Object.keys(next)) {
+    if (valuesEqual(next[key], autoBucket?.[key])) {
+      delete next[key];
+    }
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+export function stripRedundantResponsiveOverrides(
+  props: BlockProps & { fullWidth?: boolean },
+  blockType?: string,
+): BlockProps & { fullWidth?: boolean } {
+  if (!props.responsive) return props;
+
+  const next: BlockProps & { fullWidth?: boolean } = { ...props, responsive: { ...props.responsive } };
+  const context = blockType ? { blockType } : undefined;
+
+  for (const breakpoint of ["tablet", "mobile"] as const) {
+    const override = next.responsive?.[breakpoint];
+    if (!override) continue;
+
+    const auto = computeAutoEffectiveBlockProps(
+      { ...props, responsive: undefined },
+      breakpoint,
+      context,
+    );
+
+    const strippedTypography = stripBucketOverrides(override.typography, auto.typography);
+    const strippedLayout = stripBucketOverrides(override.layout, auto.layout);
+    const strippedStyle = stripBucketOverrides(override.style, auto.style);
+
+    const strippedOverride = {
+      ...(strippedTypography ? { typography: strippedTypography } : {}),
+      ...(strippedLayout ? { layout: strippedLayout } : {}),
+      ...(strippedStyle ? { style: strippedStyle } : {}),
+      ...(override.visible !== undefined && !valuesEqual(override.visible, auto.visible)
+        ? { visible: override.visible }
+        : {}),
+      ...(override.fullWidth !== undefined && !valuesEqual(override.fullWidth, auto.fullWidth)
+        ? { fullWidth: override.fullWidth }
+        : {}),
+    };
+
+    if (Object.keys(strippedOverride).length === 0) {
+      delete next.responsive![breakpoint];
+    } else {
+      next.responsive![breakpoint] = strippedOverride;
+    }
+  }
+
+  if (next.responsive && Object.keys(next.responsive).length === 0) {
+    delete next.responsive;
+  }
+
+  return next;
+}
+
+export function mergeBlockStyles(
+  props: BlockProps,
+  breakpoint: Breakpoint = "desktop",
+  context?: EffectiveBlockPropsContext,
+): CSSProperties {
+  const effective = resolveEffectiveBlockProps(props, breakpoint, context);
+
+  if (effective.visible === false) {
+    return { display: "none" };
+  }
+
+  return blockPropsToStyle({
+    typography: effective.typography,
+    layout: effective.layout,
+    style: effective.style,
+  });
 }
 
 export function blockPropsToStyle(props: Partial<BlockProps>): CSSProperties {
@@ -423,37 +685,21 @@ export function seedBreakpointOverridesBeforeDesktopEdit(
 export function resolveTypographyForBreakpoint(
   props: BlockProps,
   breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
 ): TypographyProps {
-  const scaled = applyBreakpointTypographyScale(props, breakpoint);
-  const base = scaled.typography ?? {};
-  if (breakpoint === "desktop") return base;
-  return { ...base, ...(scaled.responsive?.[breakpoint]?.typography ?? {}) };
+  return resolveEffectiveBlockProps(props, breakpoint, context).typography ?? {};
 }
 
 export function resolveFullWidthForBreakpoint(
   props: { fullWidth?: boolean; responsive?: BlockProps["responsive"] },
   breakpoint: Breakpoint,
+  context?: EffectiveBlockPropsContext,
 ): boolean {
-  if (breakpoint !== "desktop") {
-    const override = props.responsive?.[breakpoint]?.fullWidth;
-    if (override !== undefined) return Boolean(override);
-  }
-  return Boolean(props.fullWidth);
+  return Boolean(
+    resolveEffectiveBlockProps(props as BlockProps, breakpoint, context).fullWidth,
+  );
 }
 
-function seedFullWidthBeforeDesktopEdit(props: BlockProps & { fullWidth?: boolean }): void {
-  if (props.fullWidth === undefined) return;
-
-  for (const bp of ["tablet", "mobile"] as const) {
-    const existing = props.responsive?.[bp];
-    if (existing?.fullWidth !== undefined) continue;
-
-    props.responsive = {
-      ...(props.responsive ?? {}),
-      [bp]: { ...(existing ?? {}), fullWidth: props.fullWidth },
-    };
-  }
-}
 
 export function setFullWidthAtBreakpoint(
   setProp: (cb: (props: BlockProps & { fullWidth?: boolean }) => void) => void,
@@ -462,7 +708,6 @@ export function setFullWidthAtBreakpoint(
 ): void {
   setProp((props) => {
     if (breakpoint === "desktop") {
-      seedFullWidthBeforeDesktopEdit(props);
       props.fullWidth = value;
       return;
     }
@@ -552,24 +797,4 @@ function scaleFontSizeForBreakpoint(fontSize: string, breakpoint: Breakpoint): s
   if (px === null) return fontSize;
   const factor = breakpoint === "mobile" ? 0.75 : 0.88;
   return `${Math.round(px * factor)}px`;
-}
-
-function applyBreakpointTypographyScale(
-  props: BlockProps,
-  breakpoint: Breakpoint,
-): BlockProps {
-  if (breakpoint === "desktop" || props.responsive?.[breakpoint]?.typography?.fontSize) {
-    return props;
-  }
-
-  const fontSize = props.typography?.fontSize;
-  if (!fontSize) return props;
-
-  return {
-    ...props,
-    typography: {
-      ...props.typography,
-      fontSize: scaleFontSizeForBreakpoint(fontSize, breakpoint),
-    },
-  };
 }

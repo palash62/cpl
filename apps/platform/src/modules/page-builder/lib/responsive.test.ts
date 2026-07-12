@@ -10,14 +10,15 @@ import {
   normalizeSpacing,
   publishedSectionLayout,
   resolveColumnsGrid,
+  resolveEffectiveBlockProps,
   resolveSectionPadding,
   resolveFullWidthForBreakpoint,
   resolveTypographyForBreakpoint,
   resolveGhlAlignDisplay,
-  seedBreakpointOverridesBeforeDesktopEdit,
   setFullWidthAtBreakpoint,
   shouldStretchPublishedWrapper,
   shouldUseTextAlignForGhlAlign,
+  stripRedundantResponsiveOverrides,
   hasMediaBackground,
   parseBackdropBlurPx,
   splitStylesForBackgroundBlur,
@@ -265,34 +266,79 @@ describe("shouldStretchPublishedWrapper", () => {
   });
 });
 
-describe("seedBreakpointOverridesBeforeDesktopEdit", () => {
-  it("seeds tablet and mobile with base value when they have no override", () => {
-    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
-      layout: { width: "200px" },
-    };
-    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
-    expect(props.responsive?.tablet?.layout?.width).toBe("200px");
-    expect(props.responsive?.mobile?.layout?.width).toBe("200px");
-  });
-
-  it("does not overwrite an existing tablet or mobile override", () => {
-    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
-      layout: { width: "200px" },
-      responsive: {
-        tablet: { layout: { width: "150px" } },
-        mobile: { layout: { width: "120px" } },
+describe("resolveEffectiveBlockProps", () => {
+  it("auto-scales typography and width on mobile without overrides", () => {
+    const effective = resolveEffectiveBlockProps(
+      {
+        typography: { fontSize: "32px" },
+        layout: { width: "400px", padding: "40px 20px", margin: "20px 10px", gap: "16px" },
       },
-    };
-    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
-    expect(props.responsive?.tablet?.layout?.width).toBe("150px");
-    expect(props.responsive?.mobile?.layout?.width).toBe("120px");
+      "mobile",
+    );
+
+    expect(effective.typography?.fontSize).toBe("24px");
+    expect(effective.layout?.width).toBe("100%");
+    expect(effective.layout?.maxWidth).toBe("100%");
+    expect(effective.layout?.padding).toBe("28px 14px 28px 14px");
+    expect(effective.layout?.margin).toBe("14px 7px 14px 7px");
+    expect(effective.layout?.gap).toBe("11px");
   });
 
-  it("no-ops when base value is undefined", () => {
-    const props: import("@/modules/page-builder/types/block-props").BlockProps = {
-      layout: {},
-    };
-    seedBreakpointOverridesBeforeDesktopEdit(props, "layout", "width");
+  it("keeps explicit breakpoint overrides over auto rules", () => {
+    const effective = resolveEffectiveBlockProps(
+      {
+        typography: { fontSize: "32px" },
+        layout: { width: "400px" },
+        responsive: {
+          mobile: {
+            typography: { fontSize: "18px" },
+            layout: { width: "300px" },
+          },
+        },
+      },
+      "mobile",
+    );
+
+    expect(effective.typography?.fontSize).toBe("18px");
+    expect(effective.layout?.width).toBe("300px");
+  });
+
+  it("defaults CTA buttons to full width on mobile", () => {
+    const effective = resolveEffectiveBlockProps(
+      { fullWidth: false },
+      "mobile",
+      { blockType: "CTA Button" },
+    );
+    expect(effective.fullWidth).toBe(true);
+  });
+});
+
+describe("stripRedundantResponsiveOverrides", () => {
+  it("removes overrides that match auto-computed values", () => {
+    const props = {
+      layout: { width: "400px" },
+      responsive: {
+        mobile: { layout: { width: "100%", maxWidth: "100%" } },
+      },
+    } as BlockProps;
+
+    const stripped = stripRedundantResponsiveOverrides(props);
+    expect(stripped.responsive).toBeUndefined();
+  });
+});
+
+describe("setFullWidthAtBreakpoint", () => {
+  it("writes tablet override without changing desktop base", () => {
+    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: false };
+    setFullWidthAtBreakpoint((cb) => cb(props), true, "tablet");
+    expect(props.fullWidth).toBe(false);
+    expect(props.responsive?.tablet?.fullWidth).toBe(true);
+  });
+
+  it("updates desktop base without seeding tablet/mobile overrides", () => {
+    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: true };
+    setFullWidthAtBreakpoint((cb) => cb(props), false, "desktop");
+    expect(props.fullWidth).toBe(false);
     expect(props.responsive).toBeUndefined();
   });
 });
@@ -377,29 +423,10 @@ describe("resolveFullWidthForBreakpoint", () => {
     expect(resolveFullWidthForBreakpoint(props, "desktop")).toBe(true);
   });
 
-  it("uses mobile override when set", () => {
-    const props = {
-      fullWidth: false,
-      responsive: { mobile: { fullWidth: true } },
-    };
-    expect(resolveFullWidthForBreakpoint(props, "mobile")).toBe(true);
-  });
-});
-
-describe("setFullWidthAtBreakpoint", () => {
-  it("writes tablet override without changing desktop base", () => {
-    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: false };
-    setFullWidthAtBreakpoint((cb) => cb(props), true, "tablet");
-    expect(props.fullWidth).toBe(false);
-    expect(props.responsive?.tablet?.fullWidth).toBe(true);
-  });
-
-  it("seeds tablet/mobile before desktop edit", () => {
-    const props: BlockProps & { fullWidth?: boolean } = { fullWidth: true };
-    setFullWidthAtBreakpoint((cb) => cb(props), false, "desktop");
-    expect(props.fullWidth).toBe(false);
-    expect(props.responsive?.tablet?.fullWidth).toBe(true);
-    expect(props.responsive?.mobile?.fullWidth).toBe(true);
+  it("defaults mobile CTA buttons to full width", () => {
+    expect(
+      resolveFullWidthForBreakpoint({ fullWidth: false }, "mobile", { blockType: "CTA Button" }),
+    ).toBe(true);
   });
 });
 
