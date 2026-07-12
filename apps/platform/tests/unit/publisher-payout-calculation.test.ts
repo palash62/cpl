@@ -30,10 +30,22 @@ describe("calculatePublisherPayout (@cpl/shared)", () => {
     expect(result.platformFee).toBe(0.18);
   });
 
-  it("caps publisher payout at tier max when percent exceeds it", () => {
-    const result = calculatePublisherPayout(5, "US", settings);
-    expect(result.publisherAmount).toBe(2.5);
-    expect(result.platformFee).toBe(2.5);
+  it("uses the configured publisher payout percent from admin settings", () => {
+    const result = calculatePublisherPayout(1, "US", {
+      ...settings,
+      publisherPayoutPercent: 65,
+    });
+    expect(result.publisherAmount).toBe(0.65);
+    expect(result.platformFee).toBe(0.35);
+  });
+
+  it("never pays more than CPL", () => {
+    const result = calculatePublisherPayout(1, "US", {
+      ...settings,
+      publisherPayoutPercent: 100,
+    });
+    expect(result.publisherAmount).toBe(1);
+    expect(result.platformFee).toBe(0);
   });
 
   it("clamps tier3 lead within tier max", () => {

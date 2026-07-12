@@ -117,8 +117,8 @@ export function PlatformSettingsForm() {
           <h3 className="text-sm font-semibold text-slate-900">Publisher payout</h3>
         </div>
         <p className="text-sm text-slate-500">
-          Publisher earnings are calculated as a percentage of the advertiser CPL, then clamped to the
-          tier payout range for the lead&apos;s country.
+          Publisher payout per lead is calculated as CPL multiplied by this percentage (for example,
+          $1.00 CPL at 70% pays the publisher $0.70). Changes apply to new paid leads after you save.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
@@ -179,7 +179,9 @@ export function PlatformSettingsForm() {
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-[var(--theme-primary)]" />
-          <h3 className="text-sm font-semibold text-slate-900">Tier payout ranges (USD per lead)</h3>
+          <h3 className="text-sm font-semibold text-slate-900">
+            Tier payout ranges for advertiser bid guidance (USD per lead)
+          </h3>
         </div>
         <div className="grid gap-3">
           <TierPayoutRow
