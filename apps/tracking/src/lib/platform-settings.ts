@@ -25,21 +25,32 @@ const DEFAULTS: PlatformSettingsConfig = {
 function readRange(map: Record<string, unknown>, prefix: string, fallback: TierPayoutRange): TierPayoutRange {
   const min = Number(map[`${prefix}_payout_min`]);
   const max = Number(map[`${prefix}_payout_max`]);
-  return {
-    min: Number.isFinite(min) ? min : fallback.min,
-    max: Number.isFinite(max) ? max : fallback.max,
-  };
+  const resolvedMin = Number.isFinite(min) ? min : fallback.min;
+  const resolvedMax = Number.isFinite(max) ? max : fallback.max;
+  return resolvedMin <= resolvedMax
+    ? { min: resolvedMin, max: resolvedMax }
+    : { min: resolvedMax, max: resolvedMin };
+}
+
+function readPercent(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const percent = Number(value);
+  return Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : null;
 }
 
 export function parsePlatformSettings(map: Record<string, unknown>): PlatformSettingsConfig {
-  const publisherPayoutPercent = Number(map.publisher_payout_percent);
+  const configuredPublisherPercent = readPercent(map.publisher_payout_percent);
+  const legacyPlatformFeePercent = readPercent(map.platform_fee_percent);
+  const publisherPayoutPercent =
+    configuredPublisherPercent ??
+    (legacyPlatformFeePercent === null
+      ? DEFAULTS.publisherPayoutPercent
+      : 100 - legacyPlatformFeePercent);
   const minPayoutAmount = Number(map.min_payout_amount);
   const duplicateWindowDays = Number(map.duplicate_window_days);
 
   return {
-    publisherPayoutPercent: Number.isFinite(publisherPayoutPercent)
-      ? publisherPayoutPercent
-      : DEFAULTS.publisherPayoutPercent,
+    publisherPayoutPercent,
     minPayoutAmount: Number.isFinite(minPayoutAmount) ? minPayoutAmount : DEFAULTS.minPayoutAmount,
     tier1: readRange(map, "tier1", DEFAULTS.tier1),
     tier2: readRange(map, "tier2", DEFAULTS.tier2),

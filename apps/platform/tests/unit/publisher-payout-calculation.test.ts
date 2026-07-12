@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculatePublisherPayout } from "@cpl/shared";
 import type { PayoutCalculationSettings } from "@cpl/shared";
+import { parsePlatformSettings } from "@/lib/platform-settings";
 
 const settings: PayoutCalculationSettings = {
   publisherPayoutPercent: 70,
@@ -53,15 +54,37 @@ describe("calculatePublisherPayout platform re-export parity", () => {
   it("matches shared module via platform-settings", async () => {
     const { calculatePublisherPayout: platformCalc } = await import("@/lib/platform-settings");
     const shared = calculatePublisherPayout(1.25, "IN", settings);
-    const platform = platformCalc(1.25, "IN", {
-      ...settings,
-      minPayoutAmount: 50,
-      minPayoutWise: 50,
-      minPayoutBankTransfer: 100,
-      minPayoutStripeConnect: 50,
-      globalLinkUrl: null,
-      duplicateWindowDays: 30,
-    });
+    const platform = platformCalc(1.25, "IN", settings);
     expect(platform).toEqual(shared);
+  });
+});
+
+describe("parsePlatformSettings payout compatibility", () => {
+  it("converts a legacy 30% platform fee into a 70% publisher payout", () => {
+    const parsed = parsePlatformSettings({
+      publisher_payout_percent: null,
+      platform_fee_percent: 30,
+    });
+
+    expect(parsed.publisherPayoutPercent).toBe(70);
+    expect(calculatePublisherPayout(1, "US", parsed).publisherAmount).toBe(0.7);
+  });
+
+  it("prefers the configured publisher payout over a legacy platform fee", () => {
+    const parsed = parsePlatformSettings({
+      publisher_payout_percent: 65,
+      platform_fee_percent: 30,
+    });
+
+    expect(parsed.publisherPayoutPercent).toBe(65);
+  });
+
+  it("normalizes reversed tier payout ranges", () => {
+    const parsed = parsePlatformSettings({
+      tier1_payout_min: 2.5,
+      tier1_payout_max: 0.7,
+    });
+
+    expect(parsed.tier1).toEqual({ min: 0.7, max: 2.5 });
   });
 });

@@ -303,6 +303,7 @@ export async function getPublisherSmartLinkDashboard(publisherId: string) {
     sourceBreakdown,
     globalLinkUrl: publisherProfile?.globalLinkUrl?.trim() || null,
     platformGlobalLinkUrl: platformSettings.globalLinkUrl,
+    platformSettings,
   };
 }
 

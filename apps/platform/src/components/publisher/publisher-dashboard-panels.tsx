@@ -1,7 +1,8 @@
 import { format } from "date-fns";
 import { FileText } from "lucide-react";
-import { formatCurrency, LeadStatusBadge } from "@/components/admin/admin-ui";
+import { LeadStatusBadge } from "@/components/admin/admin-ui";
 import { PageSection } from "@/components/admin/page-section";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -15,7 +16,8 @@ interface RecentLead {
   id: string;
   status: string;
   createdAt: Date;
-  payoutAmount: number;
+  payoutLabel: string;
+  payoutClassName: string;
 }
 
 export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
@@ -51,8 +53,10 @@ export function PublisherRecentLeadsTable({ leads }: { leads: RecentLead[] }) {
                 <TableCell className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
                   {format(lead.createdAt, "MMM d, yyyy HH:mm")}
                 </TableCell>
-                <TableCell className="px-4 py-4 text-right font-semibold text-[var(--theme-primary)]">
-                  {formatCurrency(lead.payoutAmount)}
+                <TableCell
+                  className={cn("px-4 py-4 text-right text-sm", lead.payoutClassName)}
+                >
+                  {lead.payoutLabel}
                 </TableCell>
                 <TableCell className="px-6 py-4">
                   <LeadStatusBadge status={lead.status} />

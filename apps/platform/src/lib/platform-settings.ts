@@ -1,5 +1,5 @@
 import type { PayoutMethod } from "@prisma/client";
-import type { CountryTier, TierPayoutRange } from "@cpl/shared";
+import type { TierPayoutRange } from "@cpl/shared";
 
 export {
   calculatePublisherPayout,
@@ -41,10 +41,11 @@ const DEFAULTS: PlatformSettingsConfig = {
 function readRange(map: Record<string, unknown>, prefix: string, fallback: TierPayoutRange): TierPayoutRange {
   const min = Number(map[`${prefix}_payout_min`]);
   const max = Number(map[`${prefix}_payout_max`]);
-  return {
-    min: Number.isFinite(min) ? min : fallback.min,
-    max: Number.isFinite(max) ? max : fallback.max,
-  };
+  const resolvedMin = Number.isFinite(min) ? min : fallback.min;
+  const resolvedMax = Number.isFinite(max) ? max : fallback.max;
+  return resolvedMin <= resolvedMax
+    ? { min: resolvedMin, max: resolvedMax }
+    : { min: resolvedMax, max: resolvedMin };
 }
 
 function readNumber(map: Record<string, unknown>, key: string, fallback: number): number {
@@ -52,16 +53,26 @@ function readNumber(map: Record<string, unknown>, key: string, fallback: number)
   return Number.isFinite(value) ? value : fallback;
 }
 
+function readPercent(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const percent = Number(value);
+  return Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : null;
+}
+
 export function parsePlatformSettings(map: Record<string, unknown>): PlatformSettingsConfig {
-  const publisherPayoutPercent = Number(map.publisher_payout_percent);
+  const configuredPublisherPercent = readPercent(map.publisher_payout_percent);
+  const legacyPlatformFeePercent = readPercent(map.platform_fee_percent);
+  const publisherPayoutPercent =
+    configuredPublisherPercent ??
+    (legacyPlatformFeePercent === null
+      ? DEFAULTS.publisherPayoutPercent
+      : 100 - legacyPlatformFeePercent);
   const minPayoutAmount = Number(map.min_payout_amount);
   const duplicateWindowDays = Number(map.duplicate_window_days);
   const legacyMin = Number.isFinite(minPayoutAmount) ? minPayoutAmount : DEFAULTS.minPayoutAmount;
 
   return {
-    publisherPayoutPercent: Number.isFinite(publisherPayoutPercent)
-      ? publisherPayoutPercent
-      : DEFAULTS.publisherPayoutPercent,
+    publisherPayoutPercent,
     minPayoutAmount: legacyMin,
     minPayoutWise: readNumber(map, "min_payout_wise", legacyMin || DEFAULTS.minPayoutWise),
     minPayoutBankTransfer: readNumber(map, "min_payout_bank_transfer", legacyMin || DEFAULTS.minPayoutBankTransfer),

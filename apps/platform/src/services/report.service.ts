@@ -13,6 +13,7 @@ import {
   type PublisherPeriod,
 } from "@/lib/publisher-periods";
 import { getPublisherEarningsForRange } from "@/lib/publisher-earnings";
+import { formatPublisherLeadPayout } from "@/lib/publisher-leads";
 import { reconcilePublisherLeadCreditsForUser } from "@/services/wallet.service";
 import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay } from "date-fns";
 
@@ -294,14 +295,14 @@ export async function getPublisherDashboardData(
 
   const recentLeads = recentLeadsRaw.map((lead) => {
     const creditedAmount = creditedByLeadId.get(lead.id);
-    const payoutAmount =
-      creditedAmount ??
-      calculatePublisherPayout(
-        Number(lead.campaign.cpl),
-        lead.country,
-        platformSettings,
-      ).publisherAmount;
-    return { id: lead.id, status: lead.status, createdAt: lead.createdAt, payoutAmount };
+    const payout = formatPublisherLeadPayout(lead, platformSettings, creditedAmount);
+    return {
+      id: lead.id,
+      status: lead.status,
+      createdAt: lead.createdAt,
+      payoutLabel: payout.label,
+      payoutClassName: payout.className,
+    };
   });
 
   const availableBalance = wallet

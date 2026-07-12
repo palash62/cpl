@@ -197,7 +197,7 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
 
           <PageSection
             title="Earnings Ledger"
-            description="Credit entries from approved leads"
+            description="Credit entries from paid leads"
             icon={History}
             gradient="leads"
           >
@@ -219,7 +219,7 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
                   {!ledger || ledger.data.length === 0 ? (
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={5} className="px-6 py-16 text-center text-slate-500">
-                        No earnings yet. Approved leads will appear here.
+                        No earnings yet. Paid leads will appear here.
                       </TableCell>
                     </TableRow>
                   ) : (
