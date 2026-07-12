@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Breakpoint } from "@/modules/page-builder/types/block-props";
 import { BREAKPOINT_WIDTHS } from "@/modules/page-builder/lib/responsive";
 
@@ -23,6 +24,19 @@ export function getCanvasWidthLabel(bp: Breakpoint, isGhl: boolean): string {
   const width = getCanvasMaxWidth(bp, isGhl);
   if (width) return `${width}px`;
   return "Full width";
+}
+
+/** Fixed canvas width for editor/preview frames — avoids w-full fighting flex centering. */
+export function getCanvasFrameWidthStyle(bp: Breakpoint, isGhl: boolean): CSSProperties {
+  const fixedWidth = getCanvasMaxWidth(bp, isGhl);
+  if (fixedWidth == null) {
+    return { width: "100%", maxWidth: "100%" };
+  }
+  return {
+    width: fixedWidth,
+    maxWidth: "100%",
+    flexShrink: 0,
+  };
 }
 
 /** Map real viewport width to responsive breakpoint (not canvas simulation widths). */

@@ -12,7 +12,7 @@ import {
 import { previewContentRevision } from "@/modules/page-builder/lib/preview-revision";
 import { PublishedPageProvider } from "@/modules/page-builder/lib/published-page-context";
 import {
-  getCanvasMaxWidth,
+  getCanvasFrameWidthStyle,
   getCanvasViewportFill,
 } from "@/modules/page-builder/lib/editor-canvas";
 import type { CraftSerializedState } from "@/modules/page-builder/types/page-document";
@@ -73,7 +73,9 @@ export function PageRenderer({
     : fillParent
       ? "calc(100dvh - 2.5rem)"
       : "100dvh";
-  const canvasMaxWidth = matchEditorCanvas ? getCanvasMaxWidth(breakpoint, isGhl) : undefined;
+  const canvasFrameStyle = matchEditorCanvas
+    ? getCanvasFrameWidthStyle(breakpoint, isGhl)
+    : undefined;
 
   async function handleImplicitSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -140,13 +142,12 @@ export function PageRenderer({
       <div
         id="pb-page"
         className={cn(
-          "pb-published-page flex w-full flex-col",
+          "pb-published-page flex shrink-0 flex-col",
           fillParent && "min-h-0",
         )}
         style={{
-          maxWidth: canvasMaxWidth,
+          ...canvasFrameStyle,
           minHeight: editorViewportFill,
-          width: "100%",
         }}
       >
         {pageInner}
