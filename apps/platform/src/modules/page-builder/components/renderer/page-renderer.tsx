@@ -132,7 +132,7 @@ export function PageRenderer({
       className={cn(
         "flex w-full justify-center overflow-auto",
         compactPreview ? "p-0" : "p-6",
-        fillParent ? "min-h-0 flex-1" : "min-h-screen",
+        fillParent ? "min-h-0 flex-1 items-start" : "min-h-screen",
       )}
       style={{
         ...pageBackgroundLayerStyle(theme),

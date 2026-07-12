@@ -88,7 +88,7 @@ export function LandingPageBuilder({
                 />
               )}
               <div
-                className="relative flex flex-1 overflow-auto"
+                className="relative flex flex-1 items-start overflow-auto"
                 style={{
                   ...pageBackgroundLayerStyle(theme),
                   ...pageCanvasShellStyle(theme, { viewportFill }),
@@ -102,7 +102,7 @@ export function LandingPageBuilder({
                       isGhl ? "shadow-lg ring-1 ring-slate-200" : "shadow-2xl",
                       chromeTheme === "light" && !isGhl && "ring-1 ring-slate-200",
                       !isGhl && "ring-1 ring-white/10",
-                      !isDesktop && "overflow-hidden rounded-xl",
+                      !isDesktop && "overflow-x-hidden rounded-xl",
                       darkCanvas ? "text-slate-100" : "text-slate-900",
                     )}
                     style={{
