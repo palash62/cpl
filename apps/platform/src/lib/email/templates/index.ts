@@ -4,11 +4,16 @@ type BaseParams = { appUrl: string; recipientName?: string };
 
 export function renderWelcomeEmail(params: BaseParams & { role: string }) {
   const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
+  const roleLabel = params.role.toLowerCase();
+  const isAdvertiser = params.role.toUpperCase() === "ADVERTISER";
+  const nextStep = isAdvertiser
+    ? "Please verify your email to activate your account. We sent you a verification link — click it to get started."
+    : "Your account is pending review. We will email you when it is activated.";
   const body = `<p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 12px;">Thanks for registering on LeadVix as a <strong>${params.role.toLowerCase()}</strong>.</p>
-    <p style="margin:0;">Your account is pending review. We will email you when it is activated.</p>
-    ${buttonHtml("Open dashboard", params.appUrl)}`;
-  const text = `${greeting}\n\nThanks for registering as a ${params.role.toLowerCase()}. Your account is pending review.\n\n${params.appUrl}`;
+    <p style="margin:0 0 12px;">Thanks for registering on LeadVix as a <strong>${roleLabel}</strong>.</p>
+    <p style="margin:0;">${nextStep}</p>
+    ${buttonHtml(isAdvertiser ? "Open LeadVix" : "Open dashboard", params.appUrl)}`;
+  const text = `${greeting}\n\nThanks for registering as a ${roleLabel}. ${nextStep}\n\n${params.appUrl}`;
   return {
     subject: "Welcome to LeadVix",
     html: emailLayout(body, params.appUrl),
@@ -31,15 +36,18 @@ export function renderAdminAlertEmail(
   };
 }
 
-export function renderApprovedEmail(params: BaseParams & { itemLabel: string; details?: string }) {
+export function renderApprovedEmail(
+  params: BaseParams & { itemLabel: string; details?: string; statusLabel?: string },
+) {
   const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
+  const statusLabel = params.statusLabel ?? "approved";
   const body = `<p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 12px;">Your <strong>${params.itemLabel}</strong> has been <span style="color:#059669;font-weight:600;">approved</span>.</p>
+    <p style="margin:0 0 12px;">Your <strong>${params.itemLabel}</strong> has been <span style="color:#059669;font-weight:600;">${statusLabel}</span>.</p>
     ${params.details ? `<p style="margin:0;">${params.details}</p>` : ""}
     ${buttonHtml("View dashboard", params.appUrl)}`;
-  const text = `${greeting}\n\nYour ${params.itemLabel} has been approved.${params.details ? `\n${params.details}` : ""}\n\n${params.appUrl}`;
+  const text = `${greeting}\n\nYour ${params.itemLabel} has been ${statusLabel}.${params.details ? `\n${params.details}` : ""}\n\n${params.appUrl}`;
   return {
-    subject: `${params.itemLabel} approved`,
+    subject: `${params.itemLabel} ${statusLabel}`,
     html: emailLayout(body, params.appUrl),
     text,
   };

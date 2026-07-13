@@ -32,42 +32,45 @@ async function deliver(params: {
   notificationTitle?: string;
   notificationBody?: string;
 }) {
-  const tasks: Promise<unknown>[] = [
-    sendEmail({
-      to: params.to,
-      subject: params.subject,
-      html: params.html,
-      text: params.text,
-      template: params.template,
-      metadata: params.metadata,
-      replyTo: params.replyTo,
-    }),
-  ];
+  const result = await sendEmail({
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    template: params.template,
+    metadata: params.metadata,
+    replyTo: params.replyTo,
+  });
 
   if (params.userId && params.notificationType && params.notificationTitle && params.notificationBody) {
-    tasks.push(
-      createNotification(
+    try {
+      await createNotification(
         params.userId,
         params.notificationType,
         params.notificationTitle,
         params.notificationBody,
-      ),
-    );
+      );
+    } catch {
+      // In-app notification must not break email delivery
+    }
   }
 
-  await Promise.allSettled(tasks);
+  return result;
 }
 
 export async function notifyWelcome(user: { id: string; email: string; name: string; role: string }) {
+  const isAdvertiser = user.role.toUpperCase() === "ADVERTISER";
   const rendered = renderWelcomeEmail({ ...(await baseParams(user.name)), role: user.role });
-  await deliver({
+  return deliver({
     to: user.email,
     ...rendered,
     template: "welcome",
     userId: user.id,
     notificationType: "auth.welcome",
     notificationTitle: "Welcome to LeadVix",
-    notificationBody: "Your account is pending review. We will notify you when it is activated.",
+    notificationBody: isAdvertiser
+      ? "Check your email and verify your address to activate your account."
+      : "Your account is pending review. We will notify you when it is activated.",
   });
 }
 
@@ -75,16 +78,17 @@ export async function notifyAccountActivated(user: { id: string; email: string; 
   const rendered = renderApprovedEmail({
     ...(await baseParams(user.name)),
     itemLabel: "Account",
-    details: "You can now sign in and use the platform.",
+    statusLabel: "activated",
+    details: "Your email is verified and your account is now active. You can sign in and use the platform.",
   });
-  await deliver({
+  return deliver({
     to: user.email,
     ...rendered,
     template: "approved",
     userId: user.id,
     notificationType: "account.activated",
     notificationTitle: "Account activated",
-    notificationBody: "Your account has been approved and is now active.",
+    notificationBody: "Your email is verified and your account is now active.",
   });
 }
 
@@ -163,7 +167,7 @@ export async function notifyEmailVerification(user: { id: string; email: string;
   const config = await getResolvedEmailConfig();
   const verifyUrl = `${config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
   const rendered = renderEmailVerificationEmail({ ...(await baseParams(user.name)), verifyUrl });
-  await deliver({
+  return deliver({
     to: user.email,
     ...rendered,
     template: "email_verification",

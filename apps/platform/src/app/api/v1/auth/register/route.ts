@@ -74,27 +74,48 @@ export async function POST(request: Request) {
     });
 
     void (async () => {
-      await notifyWelcome({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      });
-
-      const verifyToken = await createEmailVerificationToken(user.id);
-      await notifyEmailVerification(
-        { id: user.id, email: user.email, name: user.name },
-        verifyToken,
-      );
-
-      if (referredById) {
-        const referrer = await prisma.user.findUnique({
-          where: { id: referredById },
-          select: { id: true, email: true, name: true },
+      try {
+        const welcome = await notifyWelcome({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
         });
-        if (referrer) {
-          await notifyReferralSignup(referrer, { name: user.name, email: user.email });
+        if (!welcome.sent) {
+          console.error("[register:email] welcome failed", {
+            userId: user.id,
+            skipped: welcome.skipped,
+            error: welcome.error,
+          });
         }
+
+        const verifyToken = await createEmailVerificationToken(user.id);
+        const verification = await notifyEmailVerification(
+          { id: user.id, email: user.email, name: user.name },
+          verifyToken,
+        );
+        if (!verification.sent) {
+          console.error("[register:email] verification failed", {
+            userId: user.id,
+            skipped: verification.skipped,
+            error: verification.error,
+          });
+        }
+
+        if (referredById) {
+          const referrer = await prisma.user.findUnique({
+            where: { id: referredById },
+            select: { id: true, email: true, name: true },
+          });
+          if (referrer) {
+            await notifyReferralSignup(referrer, { name: user.name, email: user.email });
+          }
+        }
+      } catch (error) {
+        console.error("[register:email] unexpected failure", {
+          userId: user.id,
+          error: error instanceof Error ? error.message : error,
+        });
       }
     })();
 
