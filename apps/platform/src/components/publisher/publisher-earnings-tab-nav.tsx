@@ -24,6 +24,12 @@ export function PublisherEarningsTabNav({ active }: { active: PublisherEarningsT
     params.set("tab", tab);
     params.delete("page");
     params.delete("sort");
+    if (tab === "earnings") {
+      params.delete("status");
+      params.delete("method");
+      params.delete("from");
+      params.delete("to");
+    }
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });

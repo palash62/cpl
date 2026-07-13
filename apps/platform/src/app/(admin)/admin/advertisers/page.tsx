@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 import { Building2, Mail, Megaphone, UserCheck, Users, Wallet } from "lucide-react";
 import type { UserStatus } from "@prisma/client";
-import { listUsers } from "@/services/admin.service";
+import { listUsers, getUserDeleteEligibility } from "@/services/admin.service";
+import { getSession } from "@/lib/session";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -15,6 +16,8 @@ import {
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
 import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
+import { AdminCreateAdvertiserDialog } from "@/components/admin/admin-create-advertiser-dialog";
+import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Eye } from "lucide-react";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
@@ -42,6 +45,8 @@ interface PageProps {
 }
 
 export default async function AdminAdvertisersPage({ searchParams }: PageProps) {
+  const session = await getSession();
+  const adminId = session?.user?.id ?? "";
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
 
@@ -75,6 +80,10 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
         description="Manage advertiser accounts, wallet balances, and account status"
         badge={`${meta.total} total account${meta.total === 1 ? "" : "s"}`}
       />
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <AdminCreateAdvertiserDialog />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <GradientStatCard variant="revenue" label="Combined Wallet Balance" value={formatCurrency(totalBalance)} icon={Wallet} />
@@ -128,6 +137,15 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
               <TableBody>
                 {advertisers.map((advertiser, index) => {
                   const balance = Number(advertiser.wallet?.balance ?? 0);
+                  const deleteEligibility = getUserDeleteEligibility(
+                    {
+                      id: advertiser.id,
+                      role: advertiser.role,
+                      wallet: advertiser.wallet,
+                      _count: advertiser._count,
+                    },
+                    adminId,
+                  );
                   return (
                     <TableRow key={advertiser.id} className="border-slate-100 transition-colors hover:bg-blue-50/40">
                       <TableCell className="px-6 py-4">
@@ -194,6 +212,12 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
                           {!(advertiser.status === "PENDING" && !advertiser.emailVerified) && (
                             <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
                           )}
+                          <AdminDeleteUserDialog
+                            userId={advertiser.id}
+                            userName={advertiser.name}
+                            role="ADVERTISER"
+                            disabledReason={deleteEligibility.reason}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

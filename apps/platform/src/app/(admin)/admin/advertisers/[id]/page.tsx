@@ -8,7 +8,9 @@ import {
   Megaphone,
   Wallet,
 } from "lucide-react";
-import { getAdvertiserDetail } from "@/services/admin.service";
+import { getAdvertiserDetail, getUserDeleteEligibility } from "@/services/admin.service";
+import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import {
@@ -19,6 +21,7 @@ import {
 import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import { AdminManualDepositDialog } from "@/components/admin/admin-manual-deposit-dialog";
+import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
 import { ButtonLink } from "@/components/ui/button-link";
 import { formatDepositMethod } from "@/lib/deposit";
 import {
@@ -39,11 +42,41 @@ interface PageProps {
 
 export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const advertiser = await getAdvertiserDetail(id);
+  const session = await getSession();
+  const adminId = session?.user?.id ?? "";
+
+  const [advertiser, activityCounts] = await Promise.all([
+    getAdvertiserDetail(id),
+    prisma.user.findUnique({
+      where: { id },
+      select: {
+        role: true,
+        _count: { select: { campaigns: true, deposits: true } },
+      },
+    }),
+  ]);
 
   if (!advertiser) {
     notFound();
   }
+
+  const deleteEligibility = getUserDeleteEligibility(
+    {
+      id: advertiser.id,
+      role: activityCounts?.role ?? "ADVERTISER",
+      wallet: advertiser.wallet
+        ? {
+            balance: advertiser.wallet.balance,
+            holdBalance: advertiser.wallet.holdBalance,
+          }
+        : null,
+      _count: {
+        campaigns: activityCounts?._count.campaigns ?? advertiser._count.campaigns,
+        deposits: activityCounts?._count.deposits ?? 0,
+      },
+    },
+    adminId,
+  );
 
   const balance = Number(advertiser.wallet?.balance ?? 0);
   const company = advertiser.advertiserProfile?.company ?? "—";
@@ -71,6 +104,12 @@ export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
           disabled={advertiser.status === "SUSPENDED"}
         />
         <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
+        <AdminDeleteUserDialog
+          userId={advertiser.id}
+          userName={advertiser.name}
+          role="ADVERTISER"
+          disabledReason={deleteEligibility.reason}
+        />
         <AdminManualDepositDialog userId={advertiser.id} userName={advertiser.name} />
       </div>
 

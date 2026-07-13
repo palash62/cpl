@@ -53,7 +53,7 @@ function envConfig(): Omit<EmailConfig, "source"> {
   const adminAlertEmail = process.env.ADMIN_ALERT_EMAIL?.trim() || PLATFORM_EMAILS.admin;
   const supportEmail = process.env.SUPPORT_EMAIL?.trim() || PLATFORM_EMAILS.support;
   const appUrl =
-    process.env.APP_URL?.trim() || process.env.AUTH_URL?.trim() || "http://localhost:3000";
+    process.env.APP_URL?.trim() || process.env.AUTH_URL?.trim() || "http://localhost:3010";
 
   return {
     enabled: Boolean(host),

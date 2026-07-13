@@ -21,6 +21,9 @@ import {
   type PublisherEarningsTab,
 } from "@/components/publisher/publisher-earnings-tab-nav";
 import { PublisherPayoutsSortHeader } from "@/components/publisher/publisher-payouts-sort-header";
+import { PublisherPayoutsFilters } from "@/components/publisher/publisher-payouts-filters";
+import { formatPayoutMethod } from "@/lib/payout";
+import { payoutDetailsSummary } from "@/lib/payout-payment-details";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
   Table,
@@ -32,11 +35,32 @@ import {
 } from "@/components/ui/table";
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; page?: string; sort?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    page?: string;
+    sort?: string;
+    status?: string;
+    method?: string;
+    from?: string;
+    to?: string;
+  }>;
 }
 
 function shortLedgerId(id: string) {
   return id.slice(-8).toUpperCase();
+}
+
+function shortPayoutId(id: string) {
+  return id.slice(-8).toUpperCase();
+}
+
+function hasPayoutFilters(params: {
+  status?: string;
+  method?: string;
+  from?: string;
+  to?: string;
+}) {
+  return Boolean(params.status || params.method || params.from || params.to);
 }
 
 function parseTab(tab?: string): PublisherEarningsTab {
@@ -77,8 +101,19 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
 
   const payoutsResult =
     tab === "payouts"
-      ? await listPayouts({ publisherId: userId, page, limit })
+      ? await listPayouts({
+          publisherId: userId,
+          status: params.status,
+          method: params.method,
+          dateFrom: params.from ? new Date(params.from) : undefined,
+          dateTo: params.to ? new Date(params.to) : undefined,
+          sort: params.sort,
+          page,
+          limit,
+        })
       : null;
+
+  const payoutFiltersActive = hasPayoutFilters(params);
 
   const totalEarned =
     tab === "earnings" && ledger ? ledger.totalEarned : wallet.balance;
@@ -268,7 +303,12 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
           description={`${payoutsResult?.meta.total ?? 0} payout request${payoutsResult?.meta.total === 1 ? "" : "s"} total`}
           icon={Banknote}
           gradient="revenue"
+          contentClassName="p-0"
         >
+          <Suspense fallback={null}>
+            <PublisherPayoutsFilters />
+          </Suspense>
+
           {!payoutsResult || payoutsResult.data.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
               <div
@@ -277,20 +317,32 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
               >
                 <Banknote className="h-7 w-7 text-[var(--theme-primary)]" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">No payout history yet</h3>
-              <p className="mt-1 max-w-sm text-sm text-slate-500">
-                Once you have available earnings, you can request a payout.
-              </p>
-              <ButtonLink
-                href="/publisher/payouts/request"
-                className="mt-4 h-9 gap-1.5 rounded-lg bg-[var(--theme-primary)] px-4 text-sm hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" />
-                Request Payout
-              </ButtonLink>
+              {payoutFiltersActive ? (
+                <>
+                  <h3 className="text-lg font-semibold text-slate-900">No payouts match your filters</h3>
+                  <p className="mt-1 max-w-sm text-sm text-slate-500">
+                    Try adjusting the status, method, or date range, then apply again.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-slate-900">No payout history yet</h3>
+                  <p className="mt-1 max-w-sm text-sm text-slate-500">
+                    Once you have available earnings, you can request a payout.
+                  </p>
+                  <ButtonLink
+                    href="/publisher/payouts/request"
+                    className="mt-4 h-9 gap-1.5 rounded-lg bg-[var(--theme-primary)] px-4 text-sm hover:opacity-90"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Request Payout
+                  </ButtonLink>
+                </>
+              )}
             </div>
           ) : (
             <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow
@@ -312,6 +364,7 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
                         <PublisherPayoutsSortHeader field="method" label="Method" />
                       </Suspense>
                     </TableHead>
+                    <TableHead className="h-11 px-4 text-slate-600">Destination</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">
                       <Suspense fallback={<span>Status</span>}>
                         <PublisherPayoutsSortHeader field="status" label="Status" />
@@ -326,14 +379,22 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
                       key={payout.id}
                       className="border-slate-100 transition-colors hover:bg-blue-50/40"
                     >
-                      <TableCell className="px-6 py-4 text-sm text-slate-700">
-                        {format(payout.createdAt, "MMM d, yyyy HH:mm")}
+                      <TableCell className="px-6 py-4">
+                        <p className="text-sm text-slate-700">
+                          {format(payout.createdAt, "MMM d, yyyy HH:mm")}
+                        </p>
+                        <p className="font-mono text-xs text-slate-400">
+                          {shortPayoutId(payout.id)}
+                        </p>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
                         {formatCurrency(Number(payout.amount))}
                       </TableCell>
-                      <TableCell className="px-4 py-4 text-sm capitalize text-slate-600">
-                        {payout.method.toLowerCase().replace("_", " ")}
+                      <TableCell className="px-4 py-4 text-sm text-slate-600">
+                        {formatPayoutMethod(payout.method)}
+                      </TableCell>
+                      <TableCell className="max-w-[180px] truncate px-4 py-4 text-xs text-slate-500">
+                        {payoutDetailsSummary(payout.method, payout.paymentDetails)}
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="space-y-1">
@@ -350,6 +411,7 @@ export default async function PublisherEarningsPage({ searchParams }: PageProps)
                   ))}
                 </TableBody>
               </Table>
+              </div>
               <Suspense>
                 <UsersTablePagination
                   page={payoutsResult.meta.page}

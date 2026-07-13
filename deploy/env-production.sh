@@ -10,6 +10,18 @@ DATABASE_URL="${DATABASE_URL:-mysql://cpl:cpl_dev_pass@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-change-me-to-a-random-64-char-secret}"
 AUTH_SECRET="${AUTH_SECRET:-change-me-auth-secret-min-32-characters}"
 
+# Transactional email (verification, welcome, password reset) — pick Mailgun OR SMTP.
+MAILGUN_API_KEY="${MAILGUN_API_KEY:-}"
+MAILGUN_DOMAIN="${MAILGUN_DOMAIN:-}"
+MAILGUN_FROM="${MAILGUN_FROM:-}"
+SMTP_HOST="${SMTP_HOST:-}"
+SMTP_PORT="${SMTP_PORT:-587}"
+SMTP_USER="${SMTP_USER:-}"
+SMTP_PASS="${SMTP_PASS:-}"
+SMTP_FROM="${SMTP_FROM:-}"
+ADMIN_ALERT_EMAIL="${ADMIN_ALERT_EMAIL:-}"
+SUPPORT_EMAIL="${SUPPORT_EMAIL:-}"
+
 # Append Prisma pool limits if not already present.
 if [[ "$DATABASE_URL" != *"connection_limit="* ]]; then
   if [[ "$DATABASE_URL" == *"?"* ]]; then
@@ -38,6 +50,16 @@ NEXT_PUBLIC_TRACKING_URL="$TRACKING_URL"
 PORT=3000
 NODE_ENV=production
 FRAUD_EMAIL_API_KEY="${FRAUD_EMAIL_API_KEY:-}"
+MAILGUN_API_KEY="$MAILGUN_API_KEY"
+MAILGUN_DOMAIN="$MAILGUN_DOMAIN"
+MAILGUN_FROM="$MAILGUN_FROM"
+SMTP_HOST="$SMTP_HOST"
+SMTP_PORT="$SMTP_PORT"
+SMTP_USER="$SMTP_USER"
+SMTP_PASS="$SMTP_PASS"
+SMTP_FROM="$SMTP_FROM"
+ADMIN_ALERT_EMAIL="$ADMIN_ALERT_EMAIL"
+SUPPORT_EMAIL="$SUPPORT_EMAIL"
 EOF
 
 cat > "$ROOT/apps/tracking/.env" <<EOF

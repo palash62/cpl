@@ -8,6 +8,26 @@ import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
 export { resetEmailTransport };
 export { isMailgunConfigured, getMailgunConfig };
 
+export type EmailProviderStatus = {
+  provider: "mailgun" | "smtp" | "none";
+  source: "database" | "environment" | "none";
+  configured: boolean;
+};
+
+export async function getEmailProviderStatus(): Promise<EmailProviderStatus> {
+  if (isMailgunConfigured()) {
+    return { provider: "mailgun", source: "environment", configured: true };
+  }
+
+  const smtpConfig = await getResolvedEmailConfig();
+  const transport = getTransporterForConfig(smtpConfig);
+  if (transport) {
+    return { provider: "smtp", source: smtpConfig.source, configured: true };
+  }
+
+  return { provider: "none", source: "none", configured: false };
+}
+
 async function logEmail(
   input: SendEmailInput,
   status: "sent" | "failed" | "skipped",
@@ -29,34 +49,11 @@ async function logEmail(
   }
 }
 
-export async function sendEmail(
+async function sendViaSmtp(
   input: SendEmailInput,
-): Promise<{ sent: boolean; skipped?: boolean; error?: string; provider?: "mailgun" | "smtp" }> {
-  const smtpConfig = await getResolvedEmailConfig();
-
-  if (isMailgunConfigured()) {
-    const mailgun = getMailgunConfig()!;
-    const result = await sendViaMailgun({
-      to: input.to,
-      from: mailgun.from,
-      subject: input.subject,
-      html: input.html,
-      text: input.text,
-      replyTo: input.replyTo,
-    });
-
-    if (result.ok) {
-      await logEmail(input, "sent");
-      return { sent: true, provider: "mailgun" };
-    }
-
-    console.error("[email:failed]", input.to, input.subject, result.error);
-    await logEmail(input, "failed", result.error);
-    return { sent: false, error: result.error, provider: "mailgun" };
-  }
-
+  smtpConfig: Awaited<ReturnType<typeof getResolvedEmailConfig>>,
+): Promise<{ sent: boolean; skipped?: boolean; error?: string; provider?: "smtp" }> {
   const transport = getTransporterForConfig(smtpConfig);
-
   if (!transport) {
     console.info("[email:skipped]", {
       to: input.to,
@@ -85,6 +82,41 @@ export async function sendEmail(
     await logEmail(input, "failed", message);
     return { sent: false, error: message, provider: "smtp" };
   }
+}
+
+export async function sendEmail(
+  input: SendEmailInput,
+): Promise<{ sent: boolean; skipped?: boolean; error?: string; provider?: "mailgun" | "smtp" }> {
+  const smtpConfig = await getResolvedEmailConfig();
+
+  if (isMailgunConfigured()) {
+    const mailgun = getMailgunConfig()!;
+    const result = await sendViaMailgun({
+      to: input.to,
+      from: mailgun.from,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      replyTo: input.replyTo,
+    });
+
+    if (result.ok) {
+      await logEmail(input, "sent");
+      return { sent: true, provider: "mailgun" };
+    }
+
+    console.error("[email:mailgun-failed]", input.to, input.subject, result.error);
+    const smtpFallback = getTransporterForConfig(smtpConfig);
+    if (smtpFallback) {
+      console.info("[email:mailgun-fallback-smtp]", input.to, input.subject);
+      return sendViaSmtp(input, smtpConfig);
+    }
+
+    await logEmail(input, "failed", result.error);
+    return { sent: false, error: result.error, provider: "mailgun" };
+  }
+
+  return sendViaSmtp(input, smtpConfig);
 }
 
 export async function getAdminAlertEmail() {

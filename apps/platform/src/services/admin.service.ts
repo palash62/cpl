@@ -14,12 +14,14 @@ import {
   platformSettingsToUpdates,
   settingsConfigToApi,
 } from "@/lib/platform-settings";
+import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import {
   notifyAccountActivated,
   notifyAccountSuspended,
   notifyAdminAlert,
   notifyApproved,
   notifyEmailVerification,
+  notifyAdvertiserCredentials,
   notifyPublisherCredentials,
   notifyRejected,
   notifyUserById,
@@ -101,8 +103,8 @@ export async function listUsers(filters: {
             tier3SpecialPayout: true,
           },
         },
-        wallet: { select: { balance: true } },
-        _count: { select: { campaigns: true, leads: true } },
+        wallet: { select: { balance: true, holdBalance: true } },
+        _count: { select: { campaigns: true, leads: true, deposits: true, payouts: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
@@ -113,7 +115,12 @@ export async function listUsers(filters: {
 
   const serialized = data.map((user) => ({
     ...user,
-    wallet: user.wallet ? { balance: Number(user.wallet.balance) } : null,
+    wallet: user.wallet
+      ? {
+          balance: Number(user.wallet.balance),
+          holdBalance: Number(user.wallet.holdBalance),
+        }
+      : null,
     publisherProfile: user.publisherProfile
       ? {
           ...user.publisherProfile,
@@ -420,6 +427,225 @@ export async function createPublisherAccount(data: {
   })();
 
   return { user, tempPassword };
+}
+
+export async function createAdvertiserAccount(data: {
+  name: string;
+  email: string;
+  company: string;
+  industry?: string;
+  status?: UserStatus;
+}) {
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+    select: { id: true },
+  });
+
+  if (existing) {
+    throw new AppError("AUTH_EMAIL_EXISTS", "Email already registered", 422);
+  }
+
+  const email = data.email.trim().toLowerCase();
+  const deliverability = await validateEmailDeliverability(email);
+  if (!deliverability.ok) {
+    throw new AppError("VALIDATION_INVALID_EMAIL", deliverability.reason, 422);
+  }
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 12);
+  const status = data.status ?? "ACTIVE";
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.name,
+      email,
+      passwordHash,
+      role: "ADVERTISER",
+      status,
+      wallet: { create: {} },
+      advertiserProfile: {
+        create: {
+          company: data.company,
+          industry: data.industry || undefined,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      advertiserProfile: { select: { company: true, industry: true } },
+    },
+  });
+
+  void (async () => {
+    await notifyAdvertiserCredentials({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      tempPassword,
+    });
+
+    const verifyToken = await createEmailVerificationToken(user.id);
+    await notifyEmailVerification(
+      { id: user.id, email: user.email, name: user.name },
+      verifyToken,
+    );
+  })();
+
+  return { user, tempPassword };
+}
+
+export type UserDeleteEligibilityInput = {
+  id: string;
+  role: UserRole;
+  wallet?: { balance: number; holdBalance: number } | null;
+  _count: {
+    campaigns?: number;
+    leads?: number;
+    deposits?: number;
+    payouts?: number;
+  };
+};
+
+export function getUserDeleteEligibility(
+  user: UserDeleteEligibilityInput,
+  adminId: string,
+  options?: { hasPendingPayout?: boolean },
+): { canDelete: boolean; reason?: string } {
+  if (user.role === "ADMIN") {
+    return { canDelete: false, reason: "Admin accounts cannot be deleted" };
+  }
+
+  if (user.id === adminId) {
+    return { canDelete: false, reason: "You cannot delete your own account" };
+  }
+
+  const balance = Number(user.wallet?.balance ?? 0);
+  const hold = Number(user.wallet?.holdBalance ?? 0);
+  if (balance > 0 || hold > 0) {
+    return {
+      canDelete: false,
+      reason: "Account has a wallet balance or funds on hold",
+    };
+  }
+
+  if (user.role === "ADVERTISER") {
+    if ((user._count.campaigns ?? 0) > 0) {
+      return {
+        canDelete: false,
+        reason: `Account has ${user._count.campaigns} campaign(s)`,
+      };
+    }
+    if ((user._count.deposits ?? 0) > 0) {
+      return {
+        canDelete: false,
+        reason: `Account has ${user._count.deposits} deposit(s)`,
+      };
+    }
+  }
+
+  if (user.role === "PUBLISHER") {
+    if ((user._count.leads ?? 0) > 0) {
+      return {
+        canDelete: false,
+        reason: `Account has ${user._count.leads} lead(s)`,
+      };
+    }
+    if ((user._count.payouts ?? 0) > 0) {
+      return {
+        canDelete: false,
+        reason: `Account has ${user._count.payouts} payout request(s)`,
+      };
+    }
+    if (options?.hasPendingPayout) {
+      return {
+        canDelete: false,
+        reason: "Account has a pending payout request",
+      };
+    }
+  }
+
+  return { canDelete: true };
+}
+
+export async function deleteManagedUser(userId: string, adminId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+      email: true,
+      name: true,
+      wallet: { select: { balance: true, holdBalance: true } },
+      _count: { select: { campaigns: true, leads: true, deposits: true, payouts: true } },
+    },
+  });
+
+  if (!user) {
+    throw new AppError("NOT_FOUND", "User not found", 404);
+  }
+
+  const pendingPayout =
+    user.role === "PUBLISHER"
+      ? await prisma.payout.findFirst({
+          where: {
+            publisherId: userId,
+            status: { in: [...PENDING_PAYOUT_STATUSES] },
+          },
+          select: { id: true },
+        })
+      : null;
+
+  const eligibility = getUserDeleteEligibility(
+    {
+      id: user.id,
+      role: user.role,
+      wallet: user.wallet
+        ? {
+            balance: Number(user.wallet.balance),
+            holdBalance: Number(user.wallet.holdBalance),
+          }
+        : null,
+      _count: user._count,
+    },
+    adminId,
+    { hasPendingPayout: Boolean(pendingPayout) },
+  );
+
+  if (!eligibility.canDelete) {
+    throw new AppError(
+      "USER_DELETE_BLOCKED",
+      eligibility.reason ?? "This account cannot be deleted",
+      422,
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.impersonationToken.deleteMany({
+      where: { OR: [{ adminId: userId }, { targetUserId: userId }] },
+    });
+    await tx.passwordResetToken.deleteMany({ where: { userId } });
+    await tx.emailVerificationToken.deleteMany({ where: { userId } });
+    await tx.notification.deleteMany({ where: { userId } });
+    await tx.ticketMessage.deleteMany({ where: { senderId: userId } });
+    await tx.supportTicket.deleteMany({ where: { userId } });
+    await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: "user.deleted",
+        entityType: "user",
+        entityId: userId,
+        metadata: { email: user.email, role: user.role },
+      },
+    });
+    await tx.user.delete({ where: { id: userId } });
+  });
+
+  return { id: userId };
 }
 
 export async function approvePublisher(userId: string, adminId: string) {

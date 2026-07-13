@@ -296,29 +296,88 @@ export async function listPayoutPublisherOptions() {
   });
 }
 
+function payoutOrderBy(sort?: string): Prisma.PayoutOrderByWithRelationInput {
+  switch (sort) {
+    case "created_asc":
+      return { createdAt: "asc" };
+    case "amount_asc":
+      return { amount: "asc" };
+    case "amount_desc":
+      return { amount: "desc" };
+    case "status_asc":
+      return { status: "asc" };
+    case "status_desc":
+      return { status: "desc" };
+    case "method_asc":
+      return { method: "asc" };
+    case "method_desc":
+      return { method: "desc" };
+    case "created_desc":
+    default:
+      return { createdAt: "desc" };
+  }
+}
+
 export async function listPayouts(filters: {
   publisherId?: string;
   status?: string;
+  method?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  sort?: string;
   page?: number;
   limit?: number;
 }) {
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
-  const where = {
-    ...(filters.publisherId && { publisherId: filters.publisherId }),
-    ...(filters.status && { status: filters.status as never }),
-  };
+  const page = Math.max(1, filters.page ?? 1);
+  const limit = Math.min(50, Math.max(1, filters.limit ?? 20));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.PayoutWhereInput = {};
+
+  if (filters.publisherId) {
+    where.publisherId = filters.publisherId;
+  }
+
+  if (filters.status && filters.status !== "all") {
+    where.status = filters.status as never;
+  }
+
+  if (filters.method && filters.method !== "all") {
+    where.method = filters.method as never;
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {};
+    if (filters.dateFrom) {
+      const from = new Date(filters.dateFrom);
+      from.setHours(0, 0, 0, 0);
+      where.createdAt.gte = from;
+    }
+    if (filters.dateTo) {
+      const to = new Date(filters.dateTo);
+      to.setHours(23, 59, 59, 999);
+      where.createdAt.lte = to;
+    }
+  }
 
   const [data, total] = await Promise.all([
     prisma.payout.findMany({
       where,
       include: { publisher: { select: { name: true, email: true } } },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
+      orderBy: payoutOrderBy(filters.sort),
+      skip,
       take: limit,
     }),
     prisma.payout.count({ where }),
   ]);
 
-  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return {
+    data,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
 }

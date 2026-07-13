@@ -32,6 +32,7 @@ export function PublisherPayoutsSortHeader({
   const nextSort = isAsc ? desc : asc;
 
   const params = new URLSearchParams(searchParams.toString());
+  params.set("tab", "payouts");
   params.set("sort", nextSort);
   params.delete("page");
 

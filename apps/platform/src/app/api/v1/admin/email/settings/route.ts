@@ -2,11 +2,15 @@ import { withAuth } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
 import { smtpSettingsSchema } from "@/lib/validations";
 import { getSmtpSettingsForAdmin, updateSmtpSettings } from "@/services/smtp-settings.service";
+import { getEmailProviderStatus } from "@/services/email.service";
 
 export async function GET() {
   return withAuth(async () => {
-    const data = await getSmtpSettingsForAdmin();
-    return Response.json({ data });
+    const [data, providerStatus] = await Promise.all([
+      getSmtpSettingsForAdmin(),
+      getEmailProviderStatus(),
+    ]);
+    return Response.json({ data: { ...data, providerStatus } });
   }, ["ADMIN"]);
 }
 
@@ -25,7 +29,8 @@ export async function PATCH(request: Request) {
       }
 
       const data = await updateSmtpSettings(parsed.data, session.user.id);
-      return Response.json({ data });
+      const providerStatus = await getEmailProviderStatus();
+      return Response.json({ data: { ...data, providerStatus } });
     } catch (error) {
       return errorResponse(error);
     }

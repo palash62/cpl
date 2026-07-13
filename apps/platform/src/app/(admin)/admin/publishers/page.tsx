@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 import { Mail, Megaphone, ShieldAlert, UserCheck, Users, Share2 } from "lucide-react";
 import type { UserStatus } from "@prisma/client";
-import { listUsers } from "@/services/admin.service";
+import { listUsers, getUserDeleteEligibility } from "@/services/admin.service";
+import { getSession } from "@/lib/session";
 import { getPublisherSpamScoresByIds } from "@/modules/fraud/repositories/quality.repo";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
@@ -21,6 +22,7 @@ import {
   UserStatusBadge,
   EmailVerifiedBadge,
 } from "@/components/admin/admin-ui";
+import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
 import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
@@ -48,6 +50,8 @@ interface PageProps {
 }
 
 export default async function AdminPublishersPage({ searchParams }: PageProps) {
+  const session = await getSession();
+  const adminId = session?.user?.id ?? "";
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
 
@@ -157,6 +161,15 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
               <TableBody>
                 {publishers.map((publisher, index) => {
                   const balance = Number(publisher.wallet?.balance ?? 0);
+                  const deleteEligibility = getUserDeleteEligibility(
+                    {
+                      id: publisher.id,
+                      role: publisher.role,
+                      wallet: publisher.wallet,
+                      _count: publisher._count,
+                    },
+                    adminId,
+                  );
                   const spamScore = resolveSpamScore(
                     publisher.id,
                     publisher.publisherProfile?.spamScore,
@@ -251,6 +264,12 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
                             disabled={publisher.status !== "ACTIVE"}
                           />
                           <UserStatusActions userId={publisher.id} currentStatus={publisher.status} />
+                          <AdminDeleteUserDialog
+                            userId={publisher.id}
+                            userName={publisher.name}
+                            role="PUBLISHER"
+                            disabledReason={deleteEligibility.reason}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

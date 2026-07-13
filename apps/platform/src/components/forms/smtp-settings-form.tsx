@@ -21,6 +21,11 @@ type SmtpSettings = {
   appUrl: string;
   enabled: boolean;
   source: "database" | "environment" | "none";
+  providerStatus?: {
+    provider: "mailgun" | "smtp" | "none";
+    source: "database" | "environment" | "none";
+    configured: boolean;
+  };
 };
 
 const SOURCE_LABELS: Record<SmtpSettings["source"], string> = {
@@ -106,8 +111,18 @@ export function SmtpSettingsForm() {
 
   return (
     <div className="space-y-6">
+      {settings.providerStatus && !settings.providerStatus.configured && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Verification and password emails will not send until Mailgun or SMTP is configured.
+            AWS SES (below) is for marketing campaigns only.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
         {SOURCE_LABELS[settings.source]}
+        {settings.providerStatus?.provider === "mailgun" && " · Mailgun active via environment"}
       </p>
 
       <form onSubmit={save} className="space-y-6">

@@ -36,18 +36,8 @@ export default function AdminSettingsPage() {
         </div>
       </PageSection>
       <PageSection
-        title="Email Marketing (AWS SES)"
-        description="Configure SES for advertiser autoresponder and drip campaigns"
-        icon={Cloud}
-        gradient="leads"
-      >
-        <div className="p-6">
-          <SesSettingsForm />
-        </div>
-      </PageSection>
-      <PageSection
         title="Email (SMTP)"
-        description="Configure outbound mail, test delivery, and review recent messages"
+        description="Transactional mail — verification, welcome, password reset. Test delivery and review recent messages."
         icon={Mail}
         gradient="leads"
       >
@@ -57,6 +47,16 @@ export default function AdminSettingsPage() {
             <h3 className="text-sm font-semibold text-slate-900">Recent email log</h3>
             <EmailLogsTable />
           </div>
+        </div>
+      </PageSection>
+      <PageSection
+        title="Email Marketing (AWS SES)"
+        description="Advertiser autoresponder and drip campaigns only — not used for account verification"
+        icon={Cloud}
+        gradient="leads"
+      >
+        <div className="p-6">
+          <SesSettingsForm />
         </div>
       </PageSection>
     </div>

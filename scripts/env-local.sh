@@ -36,6 +36,17 @@ TRACKING_URL="http://localhost:3001"
 NEXT_PUBLIC_PLATFORM_URL="$LOCAL_PLATFORM_URL"
 NEXT_PUBLIC_TRACKING_URL="http://localhost:3001"
 PORT=$LOCAL_PLATFORM_PORT
+# Transactional email (uncomment one provider to test locally):
+# Mailgun (preferred):
+# MAILGUN_API_KEY="key-..."
+# MAILGUN_DOMAIN="mg.example.com"
+# MAILGUN_FROM="LeadVix <noreply@mg.example.com>"
+# SMTP (e.g. Mailtrap):
+# SMTP_HOST="sandbox.smtp.mailtrap.io"
+# SMTP_PORT="587"
+# SMTP_USER="..."
+# SMTP_PASS="..."
+# SMTP_FROM="LeadVix <noreply@leadvix.local>"
 EOF
 
 cat > "$ROOT/apps/tracking/.env" <<EOF

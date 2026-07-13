@@ -1,7 +1,13 @@
 import { withAuth, parsePagination } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
-import { adminCreatePublisherSchema } from "@/lib/validations";
-import { createPublisherAccount, listUsers, updateUserStatus } from "@/services/admin.service";
+import { adminCreateAdvertiserSchema, adminCreatePublisherSchema } from "@/lib/validations";
+import {
+  createAdvertiserAccount,
+  createPublisherAccount,
+  deleteManagedUser,
+  listUsers,
+  updateUserStatus,
+} from "@/services/admin.service";
 import type { UserRole, UserStatus } from "@prisma/client";
 
 export async function GET(request: Request) {
@@ -35,8 +41,22 @@ export async function POST(request: Request) {
   return withAuth(async () => {
     try {
       const body = await request.json();
-      const parsed = adminCreatePublisherSchema.safeParse(body);
+      const role = body?.role === "ADVERTISER" ? "ADVERTISER" : "PUBLISHER";
 
+      if (role === "ADVERTISER") {
+        const parsed = adminCreateAdvertiserSchema.safeParse(body);
+        if (!parsed.success) {
+          const message = parsed.error.issues[0]?.message ?? "Please check the form and try again";
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message, status: 422 } },
+            { status: 422 },
+          );
+        }
+        const result = await createAdvertiserAccount(parsed.data);
+        return Response.json({ data: result }, { status: 201 });
+      }
+
+      const parsed = adminCreatePublisherSchema.safeParse(body);
       if (!parsed.success) {
         const message = parsed.error.issues[0]?.message ?? "Please check the form and try again";
         return Response.json(
@@ -47,6 +67,32 @@ export async function POST(request: Request) {
 
       const result = await createPublisherAccount(parsed.data);
       return Response.json({ data: result }, { status: 201 });
+    } catch (error) {
+      return errorResponse(error);
+    }
+  }, ["ADMIN"]);
+}
+
+export async function DELETE(request: Request) {
+  return withAuth(async (session) => {
+    try {
+      const { searchParams } = new URL(request.url);
+      let userId = searchParams.get("userId") ?? undefined;
+
+      if (!userId) {
+        const body = await request.json().catch(() => null);
+        userId = body?.userId;
+      }
+
+      if (!userId) {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "userId is required", status: 422 } },
+          { status: 422 },
+        );
+      }
+
+      const result = await deleteManagedUser(userId, session.user.id);
+      return Response.json({ data: result });
     } catch (error) {
       return errorResponse(error);
     }

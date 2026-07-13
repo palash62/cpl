@@ -390,6 +390,14 @@ export const adminCreatePublisherSchema = z.object({
   status: z.enum(["ACTIVE", "PENDING"]).optional(),
 });
 
+export const adminCreateAdvertiserSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().email("Enter a valid email address"),
+  company: z.string().trim().min(2, "Company name must be at least 2 characters"),
+  industry: z.string().trim().max(120).optional(),
+  status: z.enum(["ACTIVE", "PENDING"]).optional(),
+});
+
 const webhookConfigSchema = z.object({
   url: z.string().url("Enter a valid webhook URL"),
   method: z.enum(["POST", "PUT"]).optional(),

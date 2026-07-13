@@ -118,6 +118,25 @@ export async function notifyPublisherCredentials(user: {
   name: string;
   tempPassword: string;
 }) {
+  await notifyAccountCredentials({ ...user, roleLabel: "Publisher" });
+}
+
+export async function notifyAdvertiserCredentials(user: {
+  id: string;
+  email: string;
+  name: string;
+  tempPassword: string;
+}) {
+  await notifyAccountCredentials({ ...user, roleLabel: "Advertiser" });
+}
+
+async function notifyAccountCredentials(user: {
+  id: string;
+  email: string;
+  name: string;
+  tempPassword: string;
+  roleLabel: string;
+}) {
   const rendered = renderCredentialsEmail({
     ...(await baseParams(user.name)),
     email: user.email,
@@ -129,7 +148,7 @@ export async function notifyPublisherCredentials(user: {
     template: "credentials",
     userId: user.id,
     notificationType: "auth.credentials",
-    notificationTitle: "Publisher account created",
+    notificationTitle: `${user.roleLabel} account created`,
     notificationBody: "Check your email for your temporary password.",
   });
 }
