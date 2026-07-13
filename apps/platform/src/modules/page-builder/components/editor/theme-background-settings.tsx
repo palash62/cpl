@@ -1,8 +1,9 @@
 "use client";
 
 import { useActivePageTheme } from "@/modules/page-builder/hooks/use-active-page-theme";
-import type { ThemeJson } from "@/modules/page-builder/lib/theme";
+import { DEFAULT_THEME, type ThemeJson } from "@/modules/page-builder/lib/theme";
 import { BuilderImageUpload } from "@/modules/page-builder/components/editor/builder-image-upload";
+import { ColorField } from "@/modules/page-builder/components/settings/ghl/controls";
 import { cn } from "@/lib/utils";
 
 type ThemeBackgroundSettingsProps = {
@@ -17,15 +18,22 @@ export function ThemeBackgroundSettings({ compact, labelClass }: ThemeBackground
     setTheme({ ...theme, ...patch });
   }
 
+  const pageBg = theme.backgroundColor ?? "";
+  const isDefaultBg =
+    pageBg.trim().toLowerCase() === DEFAULT_THEME.backgroundColor.toLowerCase();
+
   return (
     <div className={cn("space-y-3", compact ? "p-1" : "")}>
-      <div className="flex items-center justify-between gap-2">
-        <span className={cn("text-[11px] font-medium text-slate-600", labelClass)}>Page background color</span>
-        <input
-          type="color"
-          value={theme.backgroundColor}
-          onChange={(e) => patchTheme({ backgroundColor: e.target.value })}
-          className="h-7 w-7 cursor-pointer rounded border border-slate-200"
+      <div className={cn(labelClass && "[&_label]:text-inherit")}>
+        <ColorField
+          label="Page background color"
+          value={pageBg}
+          onChange={(v) => patchTheme({ backgroundColor: v || DEFAULT_THEME.backgroundColor })}
+          onClear={() => patchTheme({ backgroundColor: DEFAULT_THEME.backgroundColor })}
+          placeholder={DEFAULT_THEME.backgroundColor}
+          fallbackHex={DEFAULT_THEME.backgroundColor}
+          clearLabel="Remove color"
+          showClear={!isDefaultBg && Boolean(pageBg.trim())}
         />
       </div>
 

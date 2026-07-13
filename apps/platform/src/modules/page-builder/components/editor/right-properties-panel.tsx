@@ -100,15 +100,52 @@ function GhlStylesPanel() {
   function setStyleProp(key: string, value: string) {
     const nextValue = key === "opacity" ? parseFloat(value) || 1 : value;
     setProp((props: BlockProps) => {
+      const shouldClear =
+        key !== "opacity" && (value === "" || value === undefined);
       if (styleBreakpoint === "desktop") {
-        props.style = { ...(props.style ?? {}), [key]: nextValue };
+        const next = { ...(props.style ?? {}) } as Record<string, string | number | undefined>;
+        if (shouldClear) delete next[key];
+        else next[key] = nextValue;
+        props.style = next as BlockProps["style"];
         return;
       }
+      const existing = props.responsive?.[styleBreakpoint] ?? {};
+      const styleCurrent = {
+        ...((existing.style as Record<string, string | number | undefined> | undefined) ?? {}),
+      };
+      if (shouldClear) delete styleCurrent[key];
+      else styleCurrent[key] = nextValue;
       props.responsive = {
         ...(props.responsive ?? {}),
         [styleBreakpoint]: {
-          ...(props.responsive?.[styleBreakpoint] ?? {}),
-          style: { ...(props.responsive?.[styleBreakpoint]?.style ?? {}), [key]: nextValue },
+          ...existing,
+          style: styleCurrent as BlockProps["style"],
+        },
+      };
+    });
+  }
+
+  function setTypographyProp(key: keyof NonNullable<BlockProps["typography"]>, value: string) {
+    setProp((props: BlockProps) => {
+      const shouldClear = value === "";
+      if (styleBreakpoint === "desktop") {
+        const next = { ...(props.typography ?? {}) } as Record<string, string | undefined>;
+        if (shouldClear) delete next[key];
+        else next[key] = value;
+        props.typography = next as BlockProps["typography"];
+        return;
+      }
+      const existing = props.responsive?.[styleBreakpoint] ?? {};
+      const typographyCurrent = {
+        ...((existing.typography as Record<string, string | undefined> | undefined) ?? {}),
+      };
+      if (shouldClear) delete typographyCurrent[key];
+      else typographyCurrent[key] = value;
+      props.responsive = {
+        ...(props.responsive ?? {}),
+        [styleBreakpoint]: {
+          ...existing,
+          typography: typographyCurrent as BlockProps["typography"],
         },
       };
     });
@@ -117,22 +154,6 @@ function GhlStylesPanel() {
   function setDesktopVisible(next: boolean) {
     setProp((props: BlockProps) => {
       props.visible = next;
-    });
-  }
-
-  function setTypographyProp(key: keyof NonNullable<BlockProps["typography"]>, value: string) {
-    setProp((props: BlockProps) => {
-      if (styleBreakpoint === "desktop") {
-        props.typography = { ...(props.typography ?? {}), [key]: value };
-        return;
-      }
-      props.responsive = {
-        ...(props.responsive ?? {}),
-        [styleBreakpoint]: {
-          ...(props.responsive?.[styleBreakpoint] ?? {}),
-          typography: { ...(props.responsive?.[styleBreakpoint]?.typography ?? {}), [key]: value },
-        },
-      };
     });
   }
 

@@ -3,6 +3,7 @@
 import { useNode } from "@craftjs/core";
 import { GHL_FIELD_LABEL, GHL_SECTION_CARD, GHL_SECTION_TITLE } from "@/modules/page-builder/lib/builder-panel-styles";
 import { BUTTON_ICON_OPTIONS } from "@/modules/page-builder/lib/button-icons";
+import { ColorField } from "@/modules/page-builder/components/settings/ghl/controls";
 import type { ListMarkerStyle } from "@/modules/page-builder/lib/list-marker";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
@@ -23,17 +24,6 @@ type ListAppearanceProps = BlockProps & {
   markerSize?: string;
   itemGap?: string;
 };
-
-function normalizeHex(value: string | undefined, fallback: string): string {
-  if (!value) return fallback;
-  const t = value.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(t)) return t;
-  if (/^#[0-9a-fA-F]{3}$/.test(t)) {
-    const [, r, g, b] = t;
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  return fallback;
-}
 
 export function ListAppearancePanel({ compact = false }: { compact?: boolean }) {
   const { markerStyle, markerIcon, markerColor, markerSize, itemGap, actions: { setProp } } = useNode(
@@ -94,16 +84,19 @@ export function ListAppearancePanel({ compact = false }: { compact?: boolean }) 
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <label className={GHL_FIELD_LABEL}>Marker color</label>
-          <input
-            type="color"
-            className="h-8 w-full cursor-pointer rounded border border-slate-200"
-            value={normalizeHex(markerColor, "#22c55e")}
-            onChange={(e) => patch({ markerColor: e.target.value })}
-          />
-        </div>
+      <div className="space-y-2">
+        <ColorField
+          label="Marker color"
+          value={markerColor ?? ""}
+          onChange={(v) => patch({ markerColor: v.trim() || undefined })}
+          onClear={() =>
+            setProp((props: ListAppearanceProps) => {
+              delete props.markerColor;
+            })
+          }
+          placeholder="#22c55e"
+          fallbackHex="#22c55e"
+        />
         <div className="space-y-1">
           <label className={GHL_FIELD_LABEL}>Marker size (px)</label>
           <input

@@ -16,6 +16,7 @@ import {
   resolveTypographyForBreakpoint,
   resolveGhlAlignDisplay,
   setFullWidthAtBreakpoint,
+  shouldStretchEditorChrome,
   shouldStretchPublishedWrapper,
   shouldUseTextAlignForGhlAlign,
   stripRedundantResponsiveOverrides,
@@ -263,6 +264,26 @@ describe("shouldStretchPublishedWrapper", () => {
     expect(shouldStretchPublishedWrapper({ width: "40%" })).toBe(false);
     expect(shouldStretchPublishedWrapper({ width: "200px" })).toBe(false);
     expect(shouldStretchPublishedWrapper({ width: "100%" })).toBe(true);
+  });
+});
+
+describe("shouldStretchEditorChrome", () => {
+  it("stretches layout shells even when stored props omit width 100%", () => {
+    expect(shouldStretchEditorChrome("Container")).toBe(true);
+    expect(shouldStretchEditorChrome("Custom Code")).toBe(true);
+    expect(shouldStretchEditorChrome("Section")).toBe(true);
+    expect(shouldStretchEditorChrome("1st Column")).toBe(true);
+    expect(shouldStretchEditorChrome("2 Column Row")).toBe(true);
+  });
+
+  it("stretches when layout width is 100%", () => {
+    expect(shouldStretchEditorChrome("Heading", { width: "100%" })).toBe(true);
+  });
+
+  it("does not stretch intrinsic content blocks", () => {
+    expect(shouldStretchEditorChrome("Heading")).toBe(false);
+    expect(shouldStretchEditorChrome("CTA Button")).toBe(false);
+    expect(shouldStretchEditorChrome("Submit Button", { width: "200px" })).toBe(false);
   });
 });
 

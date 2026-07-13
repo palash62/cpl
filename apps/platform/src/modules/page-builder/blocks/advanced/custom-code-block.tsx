@@ -9,7 +9,6 @@ import {
   StandardSettings,
   FieldLabel,
   FieldInput,
-  BUILDER_FIELD_INPUT,
 } from "@/modules/page-builder/components/settings/shared/block-settings";
 import { CustomCodePreviewFrame } from "@/modules/page-builder/components/custom-code/custom-code-preview-frame";
 import {
@@ -70,13 +69,13 @@ function CustomCodeSettings() {
       <div className="space-y-1.5">
         <FieldLabel>Min height</FieldLabel>
         <FieldInput
-          value={iframeMinHeight ?? "240px"}
+          value={iframeMinHeight ?? ""}
           onChange={(e) =>
             setProp((p: CustomCodeProps) => {
               p.iframeMinHeight = e.target.value;
             })
           }
-          placeholder="240px"
+          placeholder="optional (e.g. 240px)"
         />
       </div>
       <StandardSettings />
@@ -88,7 +87,7 @@ export function CustomCode({
   html = CUSTOM_CODE_DEFAULT_HTML,
   css = "",
   js = "",
-  iframeMinHeight = "240px",
+  iframeMinHeight = "",
   autoOpenEditor = false,
   ...props
 }: CustomCodeProps) {
@@ -117,31 +116,39 @@ export function CustomCode({
     () => buildCustomCodeSrcdoc(html ?? "", css ?? "", js ?? ""),
     [html, css, js],
   );
+  const previewKey = useMemo(
+    () => `${(html ?? "").length}:${(css ?? "").length}:${(js ?? "").length}:${(html ?? "").slice(0, 32)}:${(css ?? "").slice(0, 32)}`,
+    [html, css, js],
+  );
   const hasContent = hasCustomCodeContent(html ?? "", css ?? "", js ?? "");
   const showEditOverlay = enabled && (selected || hovered);
+  const minHeight = iframeMinHeight.trim() || undefined;
 
   return (
     <BlockWrapper
       {...props}
       draggable={false}
-      layout={{ width: "100%", minHeight: iframeMinHeight, ...props.layout }}
+      layout={{
+        width: "100%",
+        ...(minHeight ? { minHeight } : {}),
+        ...props.layout,
+      }}
     >
       <div
-        className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
-        style={{ minHeight: iframeMinHeight }}
+        className="relative w-full"
+        style={minHeight ? { minHeight } : undefined}
       >
         {hasContent ? (
           <CustomCodePreviewFrame
             srcDoc={srcDoc}
+            previewKey={previewKey}
+            autoHeight
             pointerEventsNone={enabled}
-            minHeight={iframeMinHeight}
+            minHeight={minHeight}
             title="Custom code block"
           />
         ) : (
-          <div
-            className="flex items-center justify-center bg-muted/40 text-sm text-muted-foreground"
-            style={{ minHeight: iframeMinHeight }}
-          >
+          <div className="flex items-center justify-center py-3 text-sm text-muted-foreground">
             Add custom HTML, CSS, and JavaScript
           </div>
         )}
@@ -149,7 +156,7 @@ export function CustomCode({
         {showEditOverlay ? (
           <div
             className={cn(
-              "absolute inset-0 flex items-center justify-center bg-slate-900/5 transition-opacity",
+              "pointer-events-none absolute inset-0 transition-opacity",
               selected ? "opacity-100" : "opacity-0 hover:opacity-100",
             )}
           >
@@ -157,7 +164,7 @@ export function CustomCode({
               type="button"
               size="sm"
               variant="secondary"
-              className="gap-1.5 shadow-sm"
+              className="pointer-events-auto absolute right-2 bottom-2 gap-1.5 shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 openCustomCodeEditor(id);
@@ -179,8 +186,9 @@ CustomCode.craft = {
     html: CUSTOM_CODE_DEFAULT_HTML,
     css: "",
     js: "",
-    iframeMinHeight: "240px",
+    iframeMinHeight: "",
     autoOpenEditor: true,
+    layout: { width: "100%" },
   },
   related: { settings: CustomCodeSettings },
 };

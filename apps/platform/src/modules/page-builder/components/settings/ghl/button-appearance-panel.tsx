@@ -3,6 +3,7 @@
 import { useNode } from "@craftjs/core";
 import { GHL_FIELD_LABEL, GHL_SECTION_CARD, GHL_SECTION_TITLE } from "@/modules/page-builder/lib/builder-panel-styles";
 import { BUTTON_ICON_OPTIONS } from "@/modules/page-builder/lib/button-icons";
+import { ColorField } from "@/modules/page-builder/components/settings/ghl/controls";
 import type { ButtonAppearanceProps, BlockProps } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
 
@@ -39,9 +40,17 @@ export function ButtonAppearancePanel() {
     });
   }
 
+  function clearAppearanceKey(key: keyof ButtonAppearanceProps) {
+    setProp((props: BlockProps) => {
+      const next = { ...(props.buttonAppearance as ButtonAppearanceProps ?? {}) };
+      delete next[key];
+      props.buttonAppearance = next;
+    });
+  }
+
   function setBorder(width: string, style: string, color: string) {
     if (!width || width === "0") {
-      patch({ border: undefined });
+      clearAppearanceKey("border");
       return;
     }
     patch({ border: `${width}px ${style} ${color}` });
@@ -56,25 +65,23 @@ export function ButtonAppearancePanel() {
     <div className={cn(GHL_SECTION_CARD, "space-y-3")}>
       <p className={GHL_SECTION_TITLE}>Button appearance</p>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <label className={GHL_FIELD_LABEL}>Background</label>
-          <input
-            type="color"
-            className="h-8 w-full cursor-pointer rounded border border-slate-200"
-            value={normalizeHex(a.backgroundColor, "#6366f1")}
-            onChange={(e) => patch({ backgroundColor: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className={GHL_FIELD_LABEL}>Text color</label>
-          <input
-            type="color"
-            className="h-8 w-full cursor-pointer rounded border border-slate-200"
-            value={normalizeHex(a.textColor, "#ffffff")}
-            onChange={(e) => patch({ textColor: e.target.value })}
-          />
-        </div>
+      <div className="space-y-2">
+        <ColorField
+          label="Background"
+          value={a.backgroundColor ?? ""}
+          onChange={(v) => (v.trim() ? patch({ backgroundColor: v }) : clearAppearanceKey("backgroundColor"))}
+          onClear={() => clearAppearanceKey("backgroundColor")}
+          placeholder="#6366f1"
+          fallbackHex="#6366f1"
+        />
+        <ColorField
+          label="Text color"
+          value={a.textColor ?? ""}
+          onChange={(v) => (v.trim() ? patch({ textColor: v }) : clearAppearanceKey("textColor"))}
+          onClear={() => clearAppearanceKey("textColor")}
+          placeholder="#ffffff"
+          fallbackHex="#ffffff"
+        />
       </div>
 
       <div className="space-y-1.5">

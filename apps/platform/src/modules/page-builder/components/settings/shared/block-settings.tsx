@@ -19,6 +19,7 @@ import {
 import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
 import { resolveEffectiveTypography } from "@/modules/page-builder/lib/responsive";
+import { ColorField } from "@/modules/page-builder/components/settings/ghl/controls";
 import { cn } from "@/lib/utils";
 
 function setNestedProp(
@@ -29,17 +30,20 @@ function setNestedProp(
   breakpoint: Breakpoint = "desktop",
 ) {
   setProp((props: BlockProps) => {
+    const shouldClear = value === "" || value === undefined;
     if (breakpoint === "desktop") {
       const current = { ...((props[bucket] as Record<string, string | number | undefined>) ?? {}) };
-      current[key] = value;
+      if (shouldClear) delete current[key];
+      else current[key] = value;
       (props as Record<string, unknown>)[bucket] = current;
       return;
     }
     const existing = props.responsive?.[breakpoint] ?? {};
     const bucketCurrent = {
       ...((existing[bucket] as Record<string, string | number | undefined> | undefined) ?? {}),
-      [key]: value,
     };
+    if (shouldClear) delete bucketCurrent[key];
+    else bucketCurrent[key] = value;
     props.responsive = {
       ...(props.responsive ?? {}),
       [breakpoint]: { ...existing, [bucket]: bucketCurrent },
@@ -134,18 +138,6 @@ function parseFontSizePx(value: string | undefined): number {
   }
   const n = parseFloat(trimmed);
   return Number.isFinite(n) ? Math.round(n) : 16;
-}
-
-/** Native color inputs need a #rrggbb value. */
-function normalizeHexColor(value: string | undefined): string {
-  if (!value) return "#000000";
-  const trimmed = value.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
-  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
-    const [, r, g, b] = trimmed;
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  return "#000000";
 }
 
 function FieldSelect({ className, ...props }: React.ComponentProps<"select">) {
@@ -249,25 +241,14 @@ export function TypographyFields() {
 
       <div className={cn(isGhl ? "space-y-1" : "space-y-1.5")}>
         <FieldLabel>Color</FieldLabel>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="color"
-            value={normalizeHexColor(t.color)}
-            onChange={(e) =>
-              setNestedProp(setProp, "typography", "color", e.target.value, activeBreakpoint)
-            }
-            className="h-8 w-8 shrink-0 cursor-pointer rounded border border-slate-200 bg-transparent p-0.5"
-            title="Pick color"
-          />
-          <FieldInput
-            value={String(t.color ?? "")}
-            placeholder="#000000"
-            onChange={(e) =>
-              setNestedProp(setProp, "typography", "color", e.target.value, activeBreakpoint)
-            }
-            className="flex-1"
-          />
-        </div>
+        <ColorField
+          value={String(t.color ?? "")}
+          onChange={(v) => setNestedProp(setProp, "typography", "color", v, activeBreakpoint)}
+          onClear={() => setNestedProp(setProp, "typography", "color", "", activeBreakpoint)}
+          placeholder="#000000"
+          fallbackHex="#000000"
+          clearLabel="Remove color"
+        />
       </div>
 
       {[
@@ -328,8 +309,14 @@ export function StyleFields() {
 
   return (
     <div className="space-y-2.5 pt-2">
+      <ColorField
+        label="Background"
+        value={String(s.backgroundColor ?? "")}
+        onChange={(v) => setNestedProp(setProp, "style", "backgroundColor", v)}
+        onClear={() => setNestedProp(setProp, "style", "backgroundColor", "")}
+        placeholder="#ffffff"
+      />
       {[
-        ["backgroundColor", "Background"],
         ["backgroundImage", "BG image URL"],
         ["backgroundGradient", "Gradient"],
         ["border", "Border"],

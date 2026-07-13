@@ -6,6 +6,8 @@ import { ArrowDown, ArrowUp, Copy, Settings2, Trash2 } from "lucide-react";
 import { isGhlBuilderMode } from "@/modules/page-builder/lib/builder-mode";
 import { cloneNodeTree } from "@/modules/page-builder/lib/clone-node-tree";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
+import { shouldStretchEditorChrome } from "@/modules/page-builder/lib/responsive";
+import type { LayoutProps } from "@/modules/page-builder/types/block-props";
 import { cn } from "@/lib/utils";
 
 function stopCraftSelect(e: MouseEvent) {
@@ -26,15 +28,17 @@ function onToolbarPointerDown(e: PointerEvent, action: () => void) {
 }
 
 function GhlNodeChrome({ children }: { children: ReactNode }) {
-  const { id, selected, hovered, displayName, parent } = useNode((node) => ({
+  const { id, selected, hovered, displayName, parent, layout } = useNode((node) => ({
     selected: node.events.selected,
     hovered: node.events.hovered,
     displayName: String(node.data.displayName ?? node.data.name ?? node.data.type ?? "Element"),
     parent: node.data.parent as string | null,
+    layout: (node.data.props as { layout?: LayoutProps } | undefined)?.layout,
   }));
 
   const { actions, query } = useEditor();
   const setPropertiesTab = useBuilderStore((s) => s.setPropertiesTab);
+  const stretch = shouldStretchEditorChrome(displayName, layout);
 
   function moveSibling(direction: -1 | 1) {
     if (!parent) return;
@@ -75,6 +79,7 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
       data-craft-node={id}
       className={cn(
         "relative",
+        stretch && "w-full min-w-0",
         selected && "z-20 ring-2 ring-orange-400 ring-offset-1",
         !selected && hovered && "z-10 ring-1 ring-orange-300 ring-offset-1",
       )}
@@ -159,9 +164,11 @@ function GhlNodeChrome({ children }: { children: ReactNode }) {
 export function RenderNode({ render }: { render: ReactNode }) {
   const isGhl = useBuilderStore((s) => isGhlBuilderMode(s.builderConfig));
 
-  const { id, selected, hovered } = useNode((node) => ({
+  const { id, selected, hovered, displayName, layout } = useNode((node) => ({
     selected: node.events.selected,
     hovered: node.events.hovered,
+    displayName: String(node.data.displayName ?? node.data.name ?? node.data.type ?? "Element"),
+    layout: (node.data.props as { layout?: LayoutProps } | undefined)?.layout,
   }));
 
   if (id === "ROOT") return <>{render}</>;
@@ -170,11 +177,14 @@ export function RenderNode({ render }: { render: ReactNode }) {
     return <GhlNodeChrome>{render}</GhlNodeChrome>;
   }
 
+  const stretch = shouldStretchEditorChrome(displayName, layout);
+
   return (
     <div
       data-craft-node={id}
       className={cn(
         "relative transition-shadow",
+        stretch && "w-full min-w-0",
         selected && "z-10 ring-2 ring-indigo-500 ring-offset-2",
         !selected && hovered && "ring-1 ring-indigo-400/60 ring-offset-1",
       )}

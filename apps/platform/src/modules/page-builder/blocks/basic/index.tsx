@@ -91,7 +91,7 @@ export function Container({ children, ...props }: SectionProps) {
 Container.craft = {
   displayName: "Container",
   props: {
-    layout: { maxWidth: "1200px", margin: "0 auto", padding: "0 16px" },
+    layout: { maxWidth: "1200px", margin: "0 auto", padding: "0 16px", width: "100%" },
   },
   rules: { canDrag: () => true, canMoveIn: () => true },
   related: { settings: StandardSettings },

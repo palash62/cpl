@@ -658,6 +658,31 @@ export function shouldStretchPublishedWrapper(layout?: LayoutProps): boolean {
   return width === "100%";
 }
 
+/** Layout shells that force width:100% at render but may omit it from stored craft props. */
+const EDITOR_CHROME_STRETCH_NAMES = new Set([
+  "Section",
+  "Container",
+  "Columns",
+  "Custom Code",
+  "Lead Form",
+  "Page",
+]);
+
+/**
+ * Whether Craft editor chrome should `w-full` so it doesn't shrink-wrap under
+ * Section's `alignItems: center` (preview has no chrome and stretches correctly).
+ */
+export function shouldStretchEditorChrome(
+  displayName: string,
+  layout?: LayoutProps,
+): boolean {
+  if (shouldStretchPublishedWrapper(layout)) return true;
+  if (EDITOR_CHROME_STRETCH_NAMES.has(displayName)) return true;
+  if (/Column Row$/.test(displayName)) return true;
+  if (/^\d+(st|nd|rd|th) Column$/.test(displayName)) return true;
+  return false;
+}
+
 type ResponsiveBucket = "typography" | "layout" | "style";
 
 export function seedBreakpointOverridesBeforeDesktopEdit(

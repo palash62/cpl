@@ -6,6 +6,77 @@ import { BuilderImageUpload } from "@/modules/page-builder/components/editor/bui
 import { normalizeCssLength, normalizeSpacing } from "@/modules/page-builder/lib/responsive";
 import { GHL_FIELD_LABEL } from "@/modules/page-builder/lib/builder-panel-styles";
 
+/** Native `<input type="color">` needs a #rrggbb value for the swatch only. */
+export function normalizeHexColorInput(value: string | undefined, fallback = "#ffffff"): string {
+  if (!value?.trim()) return fallback;
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const [, r, g, b] = trimmed;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return fallback;
+}
+
+/** Color picker + text field with optional clear (same idea as background image remove). */
+export function ColorField({
+  label,
+  value,
+  onChange,
+  onClear,
+  placeholder = "#ffffff",
+  fallbackHex = "#ffffff",
+  clearLabel = "Remove color",
+  showClear,
+  className,
+}: {
+  label?: string;
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
+  placeholder?: string;
+  fallbackHex?: string;
+  clearLabel?: string;
+  /** When omitted, clear shows whenever value is non-empty. */
+  showClear?: boolean;
+  className?: string;
+}) {
+  const hasValue = Boolean(value?.trim());
+  const canClear = showClear ?? hasValue;
+  const clear = onClear ?? (() => onChange(""));
+
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      {label ? <label className={GHL_FIELD_LABEL}>{label}</label> : null}
+      <div className="flex items-center gap-1.5">
+        <input
+          type="color"
+          value={normalizeHexColorInput(value, fallbackHex)}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 w-8 shrink-0 cursor-pointer rounded border border-slate-200 bg-transparent p-0.5"
+          title="Pick color"
+        />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-[11px]"
+        />
+        {canClear ? (
+          <button
+            type="button"
+            onClick={clear}
+            className="h-8 shrink-0 rounded-md px-2 text-[11px] font-medium text-red-600 hover:bg-red-50"
+            title={clearLabel}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function WidthControl({
   label,
   value,
@@ -219,20 +290,13 @@ export function BackgroundPanel({
               onChange={(v) => onChange("backgroundGradient", v)}
             />
           ) : (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="color"
-                value={String(style.backgroundColor ?? "#ffffff")}
-                onChange={(e) => onChange("backgroundColor", e.target.value)}
-                className="h-8 w-8 cursor-pointer rounded border border-slate-200"
-              />
-              <input
-                value={String(style.backgroundColor ?? "")}
-                onChange={(e) => onChange("backgroundColor", e.target.value)}
-                placeholder="#ffffff"
-                className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-[11px]"
-              />
-            </div>
+            <ColorField
+              value={String(style.backgroundColor ?? "")}
+              onChange={(v) => onChange("backgroundColor", v)}
+              onClear={() => onChange("backgroundColor", "")}
+              placeholder="#ffffff"
+              clearLabel="Remove color"
+            />
           )}
         </div>
       )}
