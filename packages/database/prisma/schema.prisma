@@ -87,6 +87,7 @@ enum PayoutMethod {
   WISE
   BANK_TRANSFER
   STRIPE_CONNECT
+  PAYPAL // legacy rows — keep for existing payout records
 }
 
 enum TicketStatus {
