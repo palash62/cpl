@@ -1,10 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import type { SendEmailInput } from "@/lib/email/types";
+import { getMailgunConfig, isMailgunConfigured, sendViaMailgun } from "@/lib/email/mailgun";
 import { getTransporterForConfig, resetEmailTransport } from "@/lib/email/transport";
 import { prisma } from "@/lib/prisma";
 import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
 
 export { resetEmailTransport };
+export { isMailgunConfigured, getMailgunConfig };
 
 async function logEmail(
   input: SendEmailInput,
@@ -27,9 +29,33 @@ async function logEmail(
   }
 }
 
-export async function sendEmail(input: SendEmailInput): Promise<{ sent: boolean; skipped?: boolean }> {
-  const config = await getResolvedEmailConfig();
-  const transport = getTransporterForConfig(config);
+export async function sendEmail(
+  input: SendEmailInput,
+): Promise<{ sent: boolean; skipped?: boolean; error?: string; provider?: "mailgun" | "smtp" }> {
+  const smtpConfig = await getResolvedEmailConfig();
+
+  if (isMailgunConfigured()) {
+    const mailgun = getMailgunConfig()!;
+    const result = await sendViaMailgun({
+      to: input.to,
+      from: mailgun.from,
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+      replyTo: input.replyTo,
+    });
+
+    if (result.ok) {
+      await logEmail(input, "sent");
+      return { sent: true, provider: "mailgun" };
+    }
+
+    console.error("[email:failed]", input.to, input.subject, result.error);
+    await logEmail(input, "failed", result.error);
+    return { sent: false, error: result.error, provider: "mailgun" };
+  }
+
+  const transport = getTransporterForConfig(smtpConfig);
 
   if (!transport) {
     console.info("[email:skipped]", {
@@ -44,7 +70,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ sent: boolean;
 
   try {
     await transport.sendMail({
-      from: config.from,
+      from: smtpConfig.from,
       to: input.to,
       subject: input.subject,
       html: input.html,
@@ -52,12 +78,12 @@ export async function sendEmail(input: SendEmailInput): Promise<{ sent: boolean;
       ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     });
     await logEmail(input, "sent");
-    return { sent: true };
+    return { sent: true, provider: "smtp" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown email error";
     console.error("[email:failed]", input.to, input.subject, message);
     await logEmail(input, "failed", message);
-    return { sent: false };
+    return { sent: false, error: message, provider: "smtp" };
   }
 }
 
@@ -82,11 +108,14 @@ export async function getSupportEmail() {
 export async function testSmtpConnection(testTo?: string) {
   resetEmailTransport();
   const config = await getResolvedEmailConfig();
+  const mailgunReady = isMailgunConfigured();
   const transport = getTransporterForConfig(config);
-  if (!transport) {
+
+  if (!mailgunReady && !transport) {
     return {
       ok: false,
-      message: "SMTP is not configured. Save SMTP settings below or set SMTP_HOST in .env.",
+      message:
+        "Email is not configured. Set MAILGUN_API_KEY + MAILGUN_DOMAIN, or SMTP settings / SMTP_HOST.",
     };
   }
 
@@ -97,16 +126,19 @@ export async function testSmtpConnection(testTo?: string) {
 
   const result = await sendEmail({
     to,
-    subject: "LeadVix SMTP test",
-    html: `<p>SMTP test successful at ${new Date().toISOString()}</p>`,
-    text: `SMTP test successful at ${new Date().toISOString()}`,
+    subject: mailgunReady ? "LeadVix Mailgun test" : "LeadVix SMTP test",
+    html: `<p>Email test successful at ${new Date().toISOString()}</p>`,
+    text: `Email test successful at ${new Date().toISOString()}`,
     template: "generic",
-    metadata: { kind: "smtp_test" },
+    metadata: { kind: mailgunReady ? "mailgun_test" : "smtp_test" },
   });
 
   return result.sent
-    ? { ok: true, message: `Test email sent to ${to}` }
-    : { ok: false, message: "Failed to send test email. Check server logs." };
+    ? { ok: true, message: `Test email sent to ${to} via ${result.provider ?? "email"}` }
+    : {
+        ok: false,
+        message: result.error ?? "Failed to send test email. Check server logs.",
+      };
 }
 
 export async function listEmailLogs(page = 1, limit = 20) {
