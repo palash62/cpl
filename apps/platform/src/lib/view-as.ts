@@ -130,10 +130,17 @@ export function shouldApplyViewAs(pathname: string, referer: string | null, role
   if (pathname.startsWith("/publisher") && role === "PUBLISHER") return true;
   if (pathname.startsWith("/advertiser") && role === "ADVERTISER") return true;
 
-  if (pathname.startsWith("/api/v1/")) {
-    if (referer?.includes("/publisher") && role === "PUBLISHER") return true;
-    if (referer?.includes("/advertiser") && role === "ADVERTISER") return true;
-  }
+  const refererPath = referer ? safeRefererPathname(referer) : null;
+  if (refererPath?.startsWith("/publisher") && role === "PUBLISHER") return true;
+  if (refererPath?.startsWith("/advertiser") && role === "ADVERTISER") return true;
 
   return false;
+}
+
+function safeRefererPathname(referer: string): string | null {
+  try {
+    return new URL(referer).pathname;
+  } catch {
+    return null;
+  }
 }

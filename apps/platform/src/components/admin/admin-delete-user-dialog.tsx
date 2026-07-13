@@ -40,6 +40,7 @@ export function AdminDeleteUserDialog({
 
     const res = await fetch(`/api/v1/admin/users?userId=${encodeURIComponent(userId)}`, {
       method: "DELETE",
+      credentials: "include",
     });
     const data = await res.json().catch(() => ({}));
 

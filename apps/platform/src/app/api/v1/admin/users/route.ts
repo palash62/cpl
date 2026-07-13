@@ -1,4 +1,4 @@
-import { withAuth, parsePagination } from "@/lib/api-handler";
+import { withAuth, withRealAdmin, parsePagination } from "@/lib/api-handler";
 import { errorResponse } from "@/lib/errors";
 import { adminCreateAdvertiserSchema, adminCreatePublisherSchema } from "@/lib/validations";
 import {
@@ -30,15 +30,15 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  return withAuth(async (session) => {
+  return withRealAdmin(async (session) => {
     const body = await request.json();
     const user = await updateUserStatus(body.userId, body.status, session.user.id);
     return Response.json({ data: user });
-  }, ["ADMIN"]);
+  });
 }
 
 export async function POST(request: Request) {
-  return withAuth(async () => {
+  return withRealAdmin(async () => {
     try {
       const body = await request.json();
       const role = body?.role === "ADVERTISER" ? "ADVERTISER" : "PUBLISHER";
@@ -70,11 +70,11 @@ export async function POST(request: Request) {
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADMIN"]);
+  });
 }
 
 export async function DELETE(request: Request) {
-  return withAuth(async (session) => {
+  return withRealAdmin(async (session) => {
     try {
       const { searchParams } = new URL(request.url);
       let userId = searchParams.get("userId") ?? undefined;
@@ -96,5 +96,5 @@ export async function DELETE(request: Request) {
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADMIN"]);
+  });
 }

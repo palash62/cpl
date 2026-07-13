@@ -1,5 +1,5 @@
 import { errorResponse } from "@/lib/errors";
-import { requireApiAuth } from "@/lib/session";
+import { requireApiAuth, requireRealAdmin } from "@/lib/session";
 import type { UserRole } from "@prisma/client";
 
 export async function withAuth<T>(
@@ -9,6 +9,18 @@ export async function withAuth<T>(
   const { error, session } = await requireApiAuth(roles);
   if (error || !session) return errorResponse(error ?? new Error("Unauthorized"));
   try {
+    return await handler(session);
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+/** Admin mutations — always uses the real admin session, never view-as impersonation. */
+export async function withRealAdmin<T>(
+  handler: (session: NonNullable<Awaited<ReturnType<typeof requireRealAdmin>>>) => Promise<T>,
+) {
+  try {
+    const session = await requireRealAdmin();
     return await handler(session);
   } catch (err) {
     return errorResponse(err);

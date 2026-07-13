@@ -2,6 +2,28 @@
 # Write production .env files for leadvix.io + leadgenlink.site (HTTP).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PLATFORM_ENV="$ROOT/apps/platform/.env"
+
+read_existing_env() {
+  local key="$1"
+  if [ ! -f "$PLATFORM_ENV" ]; then
+    return 0
+  fi
+  grep -E "^${key}=" "$PLATFORM_ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
+}
+
+preserve_env() {
+  local key="$1"
+  local current="${!key:-}"
+  if [ -n "$current" ] && [[ "$current" != change-me* ]]; then
+    return 0
+  fi
+  local existing
+  existing="$(read_existing_env "$key")"
+  if [ -n "$existing" ] && [[ "$existing" != change-me* ]]; then
+    printf -v "$key" '%s' "$existing"
+  fi
+}
 
 PLATFORM_URL="${PLATFORM_URL:-https://leadvix.io}"
 TRACKING_URL="${TRACKING_URL:-https://leadgenlink.site}"
@@ -9,6 +31,19 @@ TRACKING_URL="${TRACKING_URL:-https://leadgenlink.site}"
 DATABASE_URL="${DATABASE_URL:-mysql://cpl:cpl_dev_pass@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-change-me-to-a-random-64-char-secret}"
 AUTH_SECRET="${AUTH_SECRET:-change-me-auth-secret-min-32-characters}"
+
+preserve_env AUTH_SECRET
+preserve_env INTERNAL_SERVICE_TOKEN
+preserve_env MAILGUN_API_KEY
+preserve_env MAILGUN_DOMAIN
+preserve_env MAILGUN_FROM
+preserve_env SMTP_HOST
+preserve_env SMTP_USER
+preserve_env SMTP_PASS
+preserve_env SMTP_FROM
+preserve_env ADMIN_ALERT_EMAIL
+preserve_env SUPPORT_EMAIL
+preserve_env FRAUD_EMAIL_API_KEY
 
 # Transactional email (verification, welcome, password reset) — pick Mailgun OR SMTP.
 MAILGUN_API_KEY="${MAILGUN_API_KEY:-}"

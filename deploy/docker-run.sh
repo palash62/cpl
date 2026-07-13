@@ -66,7 +66,7 @@ else
 fi
 
 echo "==> Starting containers (runtime only, no --build)..."
-"${COMPOSE[@]}" up -d --no-build --pull never
+"${COMPOSE[@]}" up -d --no-build --pull never --force-recreate
 
 echo "==> Running containers:"
 "${COMPOSE[@]}" ps
@@ -78,15 +78,16 @@ echo ""
 echo "Images: $CPL_PLATFORM_IMAGE | $CPL_TRACKING_IMAGE"
 echo "Memory caps: platform 900m | tracking 500m"
 echo ""
-echo "Build images on your laptop (not on this VPS):"
-echo "  bash deploy/docker-build-images.sh && bash deploy/docker-push.sh"
-echo "  # or save offline: SAVE_TAR=1 bash deploy/docker-build-images.sh"
-echo "  # then scp deploy/cpl-docker-images.tar here and:"
-echo "  IMAGE_SOURCE=tar bash deploy/docker-run.sh"
-echo ""
 echo "After pulling new images, sync the database schema on this host:"
 echo "  cd $ROOT && npm run db:push"
 echo "  ${COMPOSE[@]} restart"
+echo ""
+echo "Update checklist (when code/env changed on GitHub):"
+echo "  1. git pull"
+echo "  2. export MAILGUN_API_KEY MAILGUN_DOMAIN MAILGUN_FROM (and AUTH_SECRET if first run)"
+echo "  3. bash deploy/env-production.sh   # preserves existing secrets when not exported"
+echo "  4. bash deploy/docker-run.sh"
+echo "  5. npm run db:push"
 echo ""
 echo "First run or recovery (env + seed + smoke test):"
 echo "  bash $ROOT/deploy/bootstrap-production.sh"
