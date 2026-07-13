@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Ban, CheckCircle2, ClipboardList, MapPin, ShieldAlert, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ type PublisherRow = {
 };
 
 export function AdminPublisherReviewDialog({ publisher }: { publisher: PublisherRow }) {
+  const router = useRouter();
   const profile = publisher.publisherProfile;
   const spamScore = profile?.spamScore ?? null;
   const highSpam = spamScore !== null && spamScoreLevel(spamScore) === "high";
@@ -51,14 +53,29 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [note, setNote] = useState(
     highSpam ? `High spam score (${spamScore}/100) — traffic quality below platform standards.` : "",
   );
   const [status, setStatus] = useState(publisher.status);
 
+  useEffect(() => {
+    setStatus(publisher.status);
+  }, [publisher.status, publisher.id]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setStatus(publisher.status);
+      setError(null);
+      setSuccess(null);
+    }
+  }
+
   async function sendDecision(action: "approve" | "reject") {
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const res = await fetch("/api/v1/admin/publishers/decision", {
       method: "POST",
@@ -78,14 +95,22 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
       return;
     }
 
-    setStatus(action === "approve" ? "ACTIVE" : "SUSPENDED");
+    const nextStatus = action === "approve" ? "ACTIVE" : "SUSPENDED";
+    setStatus(nextStatus);
     if (action === "approve") {
       setNote("");
+      setSuccess("Publisher approved successfully.");
+    } else {
+      setSuccess("Publisher rejected and account suspended.");
     }
+    router.refresh();
   }
 
+  const isApproved = status === "ACTIVE";
+  const isRejected = status === "SUSPENDED";
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button variant="outline" size="sm" className="h-8 gap-1">Review</Button>}>
         <ClipboardList className="h-3.5 w-3.5" />
         Review
@@ -223,6 +248,11 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
                   {error}
                 </p>
               )}
+              {success && (
+                <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  {success}
+                </p>
+              )}
               <div className="mt-4 space-y-3">
                 <textarea
                   value={note}
@@ -251,18 +281,18 @@ export function AdminPublisherReviewDialog({ publisher }: { publisher: Publisher
           <div className="flex flex-wrap gap-2 sm:justify-end">
             <Button
               type="button"
-              disabled={loading}
+              disabled={loading || isApproved}
               onClick={() => sendDecision("approve")}
-              className="gap-1 bg-emerald-600 hover:bg-emerald-600/90"
+              className="gap-1 bg-emerald-600 hover:bg-emerald-600/90 disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" />
-              Approve
+              {loading ? "..." : isApproved ? "Approved" : "Approve"}
             </Button>
             <Button
               type="button"
-              disabled={loading}
+              disabled={loading || isApproved || isRejected}
               onClick={() => sendDecision("reject")}
-              className="gap-1 bg-red-600 hover:bg-red-600/90"
+              className="gap-1 bg-red-600 hover:bg-red-600/90 disabled:opacity-50"
             >
               <Ban className="h-4 w-4" />
               Reject

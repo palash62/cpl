@@ -16,6 +16,26 @@ export const registerSchema = z
     path: ["role"],
   });
 
+export const publisherRegisterSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  website: z
+    .string()
+    .trim()
+    .optional()
+    .refine((val) => !val || z.string().url().safeParse(val).success, {
+      message: "Enter a valid website URL",
+    }),
+  trafficSource: z.string().trim().max(120).optional(),
+  country: z.string().trim().max(120).optional(),
+  addressLine1: z.string().trim().max(160).optional(),
+  addressLine2: z.string().trim().max(160).optional(),
+  city: z.string().trim().max(120).optional(),
+  state: z.string().trim().max(120).optional(),
+  postalCode: z.string().trim().max(40).optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

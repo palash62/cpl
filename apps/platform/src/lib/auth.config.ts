@@ -33,10 +33,12 @@ export function getDashboardPath(role: UserRole): string {
 const publicPaths = [
   "/login",
   "/register",
+  "/register/publisher",
   "/forgot-password",
   "/reset-password",
   "/verify-email",
   "/api/v1/auth/register",
+  "/api/v1/auth/register/publisher",
   "/api/v1/auth/forgot-password",
   "/api/v1/auth/reset-password",
   "/api/v1/auth/verify-email",

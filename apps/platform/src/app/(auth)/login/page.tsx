@@ -19,7 +19,9 @@ function LoginForm() {
   const [info, setInfo] = useState(
     registered === "verify"
       ? "Account created. Check your email to verify and activate your advertiser account."
-      : "",
+      : registered === "publisher-verify"
+        ? "Application submitted. Check your email to verify your address. After verification, an admin will review your publisher application."
+        : "",
   );
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -159,7 +161,7 @@ function LoginForm() {
       <p className="authMuted mt-4 text-center">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="authLink hover:underline">
-          Register
+          Create an account
         </Link>
       </p>
     </AuthLayout>

@@ -172,6 +172,12 @@ export function RegisterForm() {
           Sign in
         </Link>
       </p>
+      <p className="authMuted mt-2 text-center text-sm">
+        Want to publish leads?{" "}
+        <Link href="/register/publisher" className="authLink hover:underline">
+          Apply as publisher
+        </Link>
+      </p>
     </AuthLayout>
   );
 }
