@@ -58,15 +58,41 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const { page, limit } = parsePagination(searchParams);
 
-    const result = await listCampaigns({
-      advertiserId: session.user.role === "ADVERTISER" ? session.user.id : searchParams.get("advertiserId") ?? undefined,
-      status: (searchParams.get("status") as never) ?? undefined,
-      page,
-      limit,
-    });
+    if (session.user.role === "ADVERTISER") {
+      const result = await listCampaigns({
+        advertiserId: session.user.id,
+        status: (searchParams.get("status") as never) ?? undefined,
+        page,
+        limit,
+        includeAdvertiserEmail: true,
+      });
+      return Response.json(result);
+    }
 
-    return Response.json(result);
-  });
+    if (session.user.role === "PUBLISHER") {
+      const result = await listCampaigns({
+        publisherId: session.user.id,
+        status: (searchParams.get("status") as never) ?? undefined,
+        page,
+        limit,
+        includeAdvertiserEmail: false,
+      });
+      return Response.json(result);
+    }
+
+    if (session.user.role === "ADMIN") {
+      const result = await listCampaigns({
+        advertiserId: searchParams.get("advertiserId") ?? undefined,
+        status: (searchParams.get("status") as never) ?? undefined,
+        page,
+        limit,
+        includeAdvertiserEmail: true,
+      });
+      return Response.json(result);
+    }
+
+    return Response.json({ error: { code: "PERMISSION_DENIED", status: 403 } }, { status: 403 });
+  }, ["ADMIN", "ADVERTISER", "PUBLISHER"]);
 }
 
 export async function POST(request: Request) {

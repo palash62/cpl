@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { getLoginBlock } from "@/lib/auth-login-gate";
 import { consumeImpersonationToken } from "@/services/impersonation.service";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export { ROLE_ROUTES, getDashboardPath } from "@/lib/auth.config";
 
@@ -18,8 +19,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const ip =
+          request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+          request?.headers?.get?.("x-real-ip") ||
+          "unknown";
+        const limited = checkRateLimit(`login:${ip}`, 20, 60_000);
+        if (!limited.allowed) return null;
 
         const user = await prisma.user.findUnique({
           where: { email: String(credentials.email).trim().toLowerCase() },
@@ -42,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          tokenVersion: user.tokenVersion ?? 0,
         };
       },
     }),
@@ -62,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: result.user.email,
           name: result.user.name,
           role: result.user.role,
+          tokenVersion: result.user.tokenVersion ?? 0,
           impersonatorId: result.impersonatorId,
         };
       },

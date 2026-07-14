@@ -583,13 +583,35 @@ export async function submitLandingLead(input: {
   });
 }
 
+export function canActorUpdateLeadStatus(input: {
+  isAdmin?: boolean;
+  campaignAdvertiserId: string;
+  actorId: string;
+}) {
+  return Boolean(input.isAdmin || input.campaignAdvertiserId === input.actorId);
+}
+
 export async function updateLeadStatus(
   leadId: string,
   status: "APPROVED" | "REJECTED",
   actorId: string,
   reason?: string,
+  options?: { isAdmin?: boolean },
 ) {
-  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
+  const lead = await prisma.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    include: { campaign: { select: { advertiserId: true } } },
+  });
+
+  if (
+    !canActorUpdateLeadStatus({
+      isAdmin: options?.isAdmin,
+      campaignAdvertiserId: lead.campaign.advertiserId,
+      actorId,
+    })
+  ) {
+    throw Errors.forbidden();
+  }
 
   if (!["PENDING", "APPROVED"].includes(lead.status) && status === "APPROVED") {
     throw Errors.notFound("Lead");

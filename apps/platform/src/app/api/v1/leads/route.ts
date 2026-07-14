@@ -30,7 +30,9 @@ export async function PATCH(request: Request) {
         return Response.json({ error: { code: "VALIDATION_ERROR", status: 422 } }, { status: 422 });
       }
 
-      const lead = await updateLeadStatus(leadId, status, session.user.id, reason);
+      const lead = await updateLeadStatus(leadId, status, session.user.id, reason, {
+        isAdmin: session.user.role === "ADMIN",
+      });
       return Response.json({ data: lead });
     } catch (error) {
       return errorResponse(error);

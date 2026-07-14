@@ -2,6 +2,7 @@ import { createHmac } from "crypto";
 import type { WebhookConfig } from "../types/provider";
 import type { LeadAutoresponderPayload, ProviderSendResult } from "../types/payload";
 import { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG } from "../config/defaults";
+import { assertSafeOutboundUrl } from "@/lib/safe-url";
 
 export async function sendWebhook(
   config: WebhookConfig,
@@ -9,6 +10,16 @@ export async function sendWebhook(
 ): Promise<ProviderSendResult> {
   if (!config.url?.trim()) {
     return { ok: false, error: "Webhook URL is required" };
+  }
+
+  let safeUrl: URL;
+  try {
+    safeUrl = await assertSafeOutboundUrl(config.url.trim());
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Webhook URL is not allowed",
+    };
   }
 
   const method = config.method ?? "POST";
@@ -24,11 +35,12 @@ export async function sendWebhook(
   }
 
   try {
-    const res = await fetch(config.url, {
+    const res = await fetch(safeUrl.toString(), {
       method,
       headers,
       body,
       signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+      redirect: "manual",
     });
 
     if (!res.ok) {

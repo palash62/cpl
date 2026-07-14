@@ -6,11 +6,12 @@ import {
   createViewAsCookieValue,
   viewAsCookieOptions,
 } from "@/lib/view-as";
+import { assertSafeRelativeRedirect } from "@/lib/safe-url";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
-  const redirectTo = searchParams.get("redirectTo") ?? "/admin";
+  const redirectTo = assertSafeRelativeRedirect(searchParams.get("redirectTo"), "/admin");
 
   if (!token) {
     redirect("/admin?error=impersonation_failed");

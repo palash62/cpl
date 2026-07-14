@@ -6,6 +6,7 @@ import { notifyAdminAlert, notifyApproved, notifyGeneric } from "@/services/noti
 import { Errors } from "@/lib/errors";
 import {
   canAdminDeleteCampaign,
+  canAdvertiserTransitionStatus,
   canTransitionStatus,
 } from "@/lib/campaign-lifecycle";
 import {
@@ -71,21 +72,37 @@ export async function createCampaign(input: CreateCampaignInput) {
 
 export async function listCampaigns(filters: {
   advertiserId?: string;
+  publisherId?: string;
   status?: CampaignStatus;
   page?: number;
   limit?: number;
+  includeAdvertiserEmail?: boolean;
 }) {
   const page = filters.page ?? 1;
   const limit = filters.limit ?? 20;
-  const where = {
+  const where: Prisma.CampaignWhereInput = {
     ...(filters.advertiserId && { advertiserId: filters.advertiserId }),
     ...(filters.status && { status: filters.status }),
+    ...(filters.publisherId && {
+      OR: [
+        { publisherAccess: "OPEN" },
+        { publisherCampaigns: { some: { publisherId: filters.publisherId } } },
+      ],
+    }),
   };
 
   const [data, total] = await Promise.all([
     prisma.campaign.findMany({
       where,
-      include: { fields: true, advertiser: { select: { name: true, email: true } } },
+      include: {
+        fields: true,
+        advertiser: {
+          select: {
+            name: true,
+            ...(filters.includeAdvertiserEmail ? { email: true } : {}),
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
@@ -233,7 +250,7 @@ export async function updateCampaignByAdmin(
   id: string,
   body: Record<string, unknown>,
   adminId: string,
-  options?: { baseUrl?: string },
+  options?: { baseUrl?: string; actorRole?: "ADMIN" | "ADVERTISER" },
 ) {
   const campaign = await prisma.campaign.findUnique({
     where: { id },
@@ -328,7 +345,12 @@ export async function updateCampaignByAdmin(
 
   if (body.status !== undefined) {
     const nextStatus = body.status as CampaignStatus;
-    if (!canTransitionStatus(campaign.status, nextStatus)) {
+    const actorRole = options?.actorRole ?? "ADMIN";
+    const allowed =
+      actorRole === "ADVERTISER"
+        ? canAdvertiserTransitionStatus(campaign.status, nextStatus)
+        : canTransitionStatus(campaign.status, nextStatus);
+    if (!allowed) {
       throw Errors.campaignInvalidTransition(
         `Cannot change status from ${campaign.status} to ${nextStatus}`,
       );

@@ -11,8 +11,19 @@ import {
   notifyReferralSignup,
   notifyWelcome,
 } from "@/services/notify.service";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request);
+  const limited = checkRateLimit(`register:${ip}`, 8, 60_000);
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSec);
+  }
+
   try {
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);

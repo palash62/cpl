@@ -1,11 +1,15 @@
 import { withAuth } from "@/lib/api-handler";
-import { errorResponse } from "@/lib/errors";
+import { errorResponse, Errors } from "@/lib/errors";
 import { changePasswordSchema } from "@/lib/validations";
 import { changeUserPassword } from "@/services/user.service";
 
 export async function POST(request: Request) {
   return withAuth(async (session) => {
     try {
+      if (session.impersonatorId) {
+        throw Errors.forbidden();
+      }
+
       const body = await request.json();
       const parsed = changePasswordSchema.safeParse(body);
 

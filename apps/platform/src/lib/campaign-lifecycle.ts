@@ -73,11 +73,30 @@ const STATUS_TRANSITIONS: Partial<Record<CampaignStatus, CampaignStatus[]>> = {
   ARCHIVED: [],
 };
 
+/** Advertiser self-service transitions — no PENDING → ACTIVE (admin approval required). */
+const ADVERTISER_STATUS_TRANSITIONS: Partial<Record<CampaignStatus, CampaignStatus[]>> = {
+  DRAFT: ["PENDING", "ARCHIVED"],
+  PENDING: ["ARCHIVED", "DRAFT"],
+  ACTIVE: ["PAUSED"],
+  PAUSED: ["ACTIVE"],
+  COMPLETED: [],
+  ARCHIVED: [],
+};
+
 export function canTransitionStatus(from: CampaignStatus, to: CampaignStatus) {
   if (from === to) return true;
   return STATUS_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+export function canAdvertiserTransitionStatus(from: CampaignStatus, to: CampaignStatus) {
+  if (from === to) return true;
+  return ADVERTISER_STATUS_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
 export function getAllowedStatusTransitions(status: CampaignStatus): CampaignStatus[] {
   return STATUS_TRANSITIONS[status] ?? [];
+}
+
+export function getAllowedAdvertiserStatusTransitions(status: CampaignStatus): CampaignStatus[] {
+  return ADVERTISER_STATUS_TRANSITIONS[status] ?? [];
 }

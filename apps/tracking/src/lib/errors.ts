@@ -1,12 +1,14 @@
 export function errorResponse(error: unknown) {
-  if (error instanceof Error) {
-    return Response.json(
-      { error: { code: "INTERNAL_ERROR", message: error.message, status: 500 } },
-      { status: 500 },
-    );
-  }
+  console.error(error);
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal server error"
+      : error instanceof Error && error.message.trim()
+        ? error.message
+        : "Unexpected error";
+
   return Response.json(
-    { error: { code: "INTERNAL_ERROR", message: "Unexpected error", status: 500 } },
+    { error: { code: "INTERNAL_ERROR", message, status: 500 } },
     { status: 500 },
   );
 }

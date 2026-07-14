@@ -131,7 +131,10 @@ export async function changeUserPassword(
   const passwordHash = await bcrypt.hash(newPassword, 12);
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      tokenVersion: { increment: 1 },
+    },
     select: { id: true, email: true, name: true },
   });
 
@@ -148,7 +151,10 @@ export async function resetUserPasswordWithToken(token: string, newPassword: str
   const passwordHash = await bcrypt.hash(newPassword, 12);
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      tokenVersion: { increment: 1 },
+    },
     select: { id: true, email: true, name: true },
   });
 

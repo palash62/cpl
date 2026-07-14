@@ -91,7 +91,7 @@ export function BuilderImageUpload({
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/*"
         disabled={uploading}
         className="block w-full cursor-pointer text-[11px] text-slate-600 file:mr-2 file:cursor-pointer file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-[11px] file:font-medium file:text-white hover:file:bg-blue-700"
         onChange={(e) => void handleFile(e.target.files?.[0] ?? null)}

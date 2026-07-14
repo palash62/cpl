@@ -48,15 +48,18 @@ export const getSession = cache(async (): Promise<AppSession | null> => {
   return resolveViewAsSession(session);
 });
 
-async function hasValidUserSession(userId: string, role: UserRole) {
+async function hasValidUserSession(userId: string, role: UserRole, tokenVersion?: number) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true, status: true },
+    select: { id: true, role: true, status: true, tokenVersion: true },
   });
 
   if (!user) return false;
   if (user.role !== role) return false;
   if (user.status === "SUSPENDED") return false;
+  if (typeof tokenVersion === "number" && user.tokenVersion !== tokenVersion) {
+    return false;
+  }
   return true;
 }
 
@@ -65,7 +68,7 @@ export async function requireAuth(allowedRoles?: UserRole[]) {
   if (!session?.user) {
     throw Errors.invalidCredentials();
   }
-  const valid = await hasValidUserSession(session.user.id, session.user.role);
+  const valid = await hasValidUserSession(session.user.id, session.user.role, session.tokenVersion);
   if (!valid) {
     throw Errors.invalidCredentials();
   }
@@ -93,7 +96,7 @@ export async function requireRealAdmin() {
   if (session.user.role !== "ADMIN") {
     throw Errors.forbidden();
   }
-  const valid = await hasValidUserSession(session.user.id, "ADMIN");
+  const valid = await hasValidUserSession(session.user.id, "ADMIN", session.tokenVersion);
   if (!valid) {
     throw Errors.invalidCredentials();
   }
@@ -105,7 +108,7 @@ export async function requireApiAuth(allowedRoles?: UserRole[]) {
   if (!session?.user) {
     return { error: Errors.invalidCredentials(), session: null };
   }
-  const valid = await hasValidUserSession(session.user.id, session.user.role);
+  const valid = await hasValidUserSession(session.user.id, session.user.role, session.tokenVersion);
   if (!valid) {
     return { error: Errors.invalidCredentials(), session: null };
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getInternalServiceToken } from "@cpl/shared";
 import { errorResponse } from "@/lib/errors";
 import { getLeadSubmissionGeo } from "@/lib/request-geo";
@@ -9,8 +10,16 @@ export const runtime = "nodejs";
 
 function verifyServiceToken(request: Request): boolean {
   const token = getInternalServiceToken();
-  if (!token) return false;
-  return request.headers.get("x-service-token") === token;
+  const provided = request.headers.get("x-service-token");
+  if (!token || !provided) return false;
+  try {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(token);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: NextRequest) {

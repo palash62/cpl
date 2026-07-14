@@ -22,6 +22,7 @@ import {
   listOptinFunnelOptions,
   resolveOptinFunnelDestination,
 } from "@/services/optin-funnel.service";
+import { sanitizeHtml } from "@/modules/page-builder/lib/sanitize";
 
 export type OptinPageOption = {
   id: string;
@@ -182,7 +183,11 @@ export async function updateAdvertiserOptinPage(
         status: input.isPublished ? "PUBLISHED" : "DRAFT",
         ...(input.thankYouEnabled !== undefined ? { thankYouEnabled: input.thankYouEnabled } : {}),
         ...(input.thankYouPixelHtml !== undefined
-          ? { thankYouPixelHtml: input.thankYouPixelHtml }
+          ? {
+              thankYouPixelHtml: input.thankYouPixelHtml
+                ? sanitizeHtml(input.thankYouPixelHtml)
+                : null,
+            }
           : {}),
         ...(input.thankYouUseCampaignPixel !== undefined
           ? { thankYouUseCampaignPixel: input.thankYouUseCampaignPixel }

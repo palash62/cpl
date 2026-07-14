@@ -8,7 +8,6 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
 ]);
 
 const EXT_TO_MIME: Record<string, string> = {
@@ -17,7 +16,6 @@ const EXT_TO_MIME: Record<string, string> = {
   ".png": "image/png",
   ".webp": "image/webp",
   ".gif": "image/gif",
-  ".svg": "image/svg+xml",
 };
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -36,7 +34,7 @@ function resolveMimeType(file: File): string | null {
 export async function uploadBuilderAsset(ownerId: string, file: File) {
   const mimeType = resolveMimeType(file);
   if (!mimeType) {
-    throw Errors.validation("Only JPEG, PNG, WebP, GIF, and SVG images are allowed.");
+    throw Errors.validation("Only JPEG, PNG, WebP, and GIF images are allowed.");
   }
   if (file.size > MAX_BYTES) {
     throw Errors.validation("File must be under 5MB.");

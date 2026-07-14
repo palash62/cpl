@@ -22,15 +22,32 @@ export async function GET(
     const campaign = await getCampaignById(id);
     if (!campaign) return errorResponse(Errors.notFound("Campaign"));
 
-    if (
-      session.user.role === "ADVERTISER" &&
-      campaign.advertiserId !== session.user.id
-    ) {
+    if (session.user.role === "ADVERTISER" && campaign.advertiserId !== session.user.id) {
+      return errorResponse(Errors.forbidden());
+    }
+
+    if (session.user.role === "PUBLISHER") {
+      const assigned =
+        campaign.publisherAccess === "OPEN" ||
+        campaign.publisherCampaigns.some((row) => row.publisher.id === session.user.id);
+      if (!assigned) {
+        return errorResponse(Errors.forbidden());
+      }
+      const { email: _email, ...advertiserSafe } = campaign.advertiser;
+      return Response.json({
+        data: {
+          ...campaign,
+          advertiser: advertiserSafe,
+        },
+      });
+    }
+
+    if (session.user.role !== "ADMIN" && session.user.role !== "ADVERTISER") {
       return errorResponse(Errors.forbidden());
     }
 
     return Response.json({ data: campaign });
-  });
+  }, ["ADMIN", "ADVERTISER", "PUBLISHER"]);
 }
 
 export async function PATCH(
@@ -53,6 +70,7 @@ export async function PATCH(
 
       const updated = await updateCampaignByAdmin(id, body, getActorId(session), {
         baseUrl: resolveRequestBaseUrl(request),
+        actorRole: session.user.role === "ADMIN" ? "ADMIN" : "ADVERTISER",
       });
       return Response.json({ data: updated });
     } catch (error) {

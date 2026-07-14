@@ -2,6 +2,7 @@
 
 import { signIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { assertSafeRelativeRedirect } from "@/lib/safe-url";
 
 function isFailedAuthUrl(url: unknown) {
   return (
@@ -11,12 +12,13 @@ function isFailedAuthUrl(url: unknown) {
 }
 
 export async function completeImpersonation(token: string, redirectTo: string) {
+  const safeRedirect = assertSafeRelativeRedirect(redirectTo, "/admin");
   let result: unknown;
 
   try {
     result = await signIn("impersonation", {
       token,
-      redirectTo,
+      redirectTo: safeRedirect,
       redirect: false,
     });
   } catch {
@@ -27,5 +29,5 @@ export async function completeImpersonation(token: string, redirectTo: string) {
     redirect("/admin?error=impersonation_failed");
   }
 
-  redirect(redirectTo);
+  redirect(safeRedirect);
 }

@@ -159,11 +159,14 @@ export function errorResponse(error: unknown, requestId?: string) {
   }
 
   if (error instanceof Error && error.message.trim()) {
+    console.error(error);
+    const message =
+      process.env.NODE_ENV === "production" ? "Internal server error" : error.message;
     return Response.json(
       {
         error: {
           code: "INTERNAL_ERROR",
-          message: error.message,
+          message,
           status: 500,
           requestId,
         },
@@ -177,7 +180,7 @@ export function errorResponse(error: unknown, requestId?: string) {
     {
       error: {
         code: "INTERNAL_ERROR",
-        message: "Something went wrong",
+        message: "Internal server error",
         status: 500,
         requestId,
       },

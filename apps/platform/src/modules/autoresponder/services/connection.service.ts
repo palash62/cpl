@@ -18,6 +18,7 @@ import {
 } from "../lib/encrypt-secrets";
 import { normalizeGetResponseConfig, verifyGetResponseConfig } from "../providers/getresponse.provider";
 import { verifySystemeConfig } from "../providers/systeme.provider";
+import { assertSafeOutboundUrl } from "@/lib/safe-url";
 import type { ConnectionInput, ConnectionPublic } from "../types/connection";
 import type { ConnectionConfig, GetResponseConfig } from "../types/provider";
 
@@ -99,6 +100,15 @@ async function assertProviderConfig(
     const url = (config as { url?: string }).url?.trim() ?? "";
     if (!url) {
       throw new AppError("VALIDATION_ERROR", "Webhook URL is required", 422);
+    }
+    try {
+      await assertSafeOutboundUrl(url);
+    } catch (error) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        error instanceof Error ? error.message : "Webhook URL is not allowed",
+        422,
+      );
     }
   }
 

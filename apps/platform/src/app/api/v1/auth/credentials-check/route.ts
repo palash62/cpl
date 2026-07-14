@@ -3,8 +3,19 @@ import { errorResponse } from "@/lib/errors";
 import { loginSchema } from "@/lib/validations";
 import { getLoginBlock, loginBlockMessage } from "@/lib/auth-login-gate";
 import { prisma } from "@/lib/prisma";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request);
+  const limited = checkRateLimit(`credentials-check:${ip}`, 20, 60_000);
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSec);
+  }
+
   try {
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);

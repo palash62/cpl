@@ -1,7 +1,11 @@
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 function getSecret() {
-  return process.env.AUTH_SECRET || "dev-secret";
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET is not configured");
+  }
+  return secret;
 }
 
 export function generateUnsubscribeToken(): string {
@@ -13,6 +17,12 @@ export function signTrackingToken(sendId: string): string {
 }
 
 export function verifyTrackingToken(sendId: string, token: string): boolean {
+  if (!token) return false;
   const expected = signTrackingToken(sendId);
-  return token.length === expected.length && token === expected;
+  if (token.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }

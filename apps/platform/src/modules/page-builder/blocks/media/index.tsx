@@ -5,6 +5,7 @@ import { BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import { StandardSettings, FieldLabel, FieldInput } from "@/modules/page-builder/components/settings/shared/block-settings";
 import type { BlockProps } from "@/modules/page-builder/types/block-props";
 import { BuilderImageUpload } from "@/modules/page-builder/components/editor/builder-image-upload";
+import { sanitizeEmbedUrl } from "@/modules/page-builder/lib/sanitize";
 
 type ImageProps = BlockProps & { src?: string; alt?: string };
 
@@ -67,7 +68,7 @@ function VideoSettings() {
 }
 
 export function VideoBlock({ url = "", ...props }: VideoProps) {
-  const embedUrl = url?.trim();
+  const embedUrl = url?.trim() ? sanitizeEmbedUrl(url.trim()) : null;
   return (
     <BlockWrapper {...props} layout={{ width: "100%", aspectRatio: "16/9", ...props.layout }}>
       {embedUrl ? (

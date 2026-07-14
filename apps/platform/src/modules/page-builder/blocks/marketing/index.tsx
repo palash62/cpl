@@ -27,6 +27,7 @@ import {
 } from "@/modules/page-builder/lib/responsive";
 import type { BlockProps, Breakpoint, ButtonAppearanceProps } from "@/modules/page-builder/types/block-props";
 import { List } from "@/modules/page-builder/blocks/typography";
+import { sanitizeEmbedUrl } from "@/modules/page-builder/lib/sanitize";
 
 type CtaProps = BlockProps & {
   text?: string;
@@ -667,7 +668,7 @@ export function CalendarBlock({
   height = 540,
   ...props
 }: CalendarBlockProps) {
-  const calendarSrc = embedUrl?.trim();
+  const calendarSrc = embedUrl?.trim() ? sanitizeEmbedUrl(embedUrl.trim()) : null;
   return (
     <BlockWrapper {...props}>
       {calendarSrc ? (

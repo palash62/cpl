@@ -8,15 +8,29 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const { page, limit } = parsePagination(searchParams);
 
-    const result = await listPayouts({
-      publisherId: session.user.role === "PUBLISHER" ? session.user.id : searchParams.get("publisherId") ?? undefined,
-      status: searchParams.get("status") ?? undefined,
-      page,
-      limit,
-    });
+    if (session.user.role === "PUBLISHER") {
+      const result = await listPayouts({
+        publisherId: session.user.id,
+        kind: "PUBLISHER",
+        status: searchParams.get("status") ?? undefined,
+        page,
+        limit,
+      });
+      return Response.json(result);
+    }
 
-    return Response.json(result);
-  });
+    if (session.user.role === "ADMIN") {
+      const result = await listPayouts({
+        publisherId: searchParams.get("publisherId") ?? undefined,
+        status: searchParams.get("status") ?? undefined,
+        page,
+        limit,
+      });
+      return Response.json(result);
+    }
+
+    return Response.json({ error: { code: "PERMISSION_DENIED", status: 403 } }, { status: 403 });
+  }, ["PUBLISHER", "ADMIN"]);
 }
 
 export async function POST(request: Request) {

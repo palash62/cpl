@@ -1,8 +1,19 @@
 import { errorResponse } from "@/lib/errors";
 import { forgotPasswordSchema } from "@/lib/validations";
 import { requestPasswordReset } from "@/services/user.service";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request);
+  const limited = checkRateLimit(`forgot-password:${ip}`, 5, 60_000);
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSec);
+  }
+
   try {
     const body = await request.json();
     const parsed = forgotPasswordSchema.safeParse(body);

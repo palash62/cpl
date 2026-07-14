@@ -13,10 +13,12 @@ declare module "next-auth" {
     };
     impersonatorId?: string;
     viewAsMode?: boolean;
+    tokenVersion?: number;
   }
   interface User {
     role: UserRole;
     impersonatorId?: string;
+    tokenVersion?: number;
   }
 }
 
@@ -68,6 +70,7 @@ export const authConfig = {
         token.role = user.role;
         token.email = user.email;
         token.name = user.name;
+        token.tokenVersion = user.tokenVersion ?? 0;
         if (user.impersonatorId) {
           token.impersonatorId = user.impersonatorId;
         } else {
@@ -82,6 +85,7 @@ export const authConfig = {
         session.user.role = token.role as UserRole;
         session.user.email = (token.email as string) ?? session.user.email;
         session.user.name = (token.name as string) ?? session.user.name;
+        session.tokenVersion = typeof token.tokenVersion === "number" ? token.tokenVersion : 0;
         if (token.impersonatorId) {
           session.impersonatorId = token.impersonatorId as string;
         } else {

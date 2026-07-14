@@ -109,7 +109,7 @@ export function AssetPickerModal({ onSelect }: AssetPickerProps) {
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:file:bg-blue-700"
               disabled={uploading}
               onChange={(e) => void handleFileChange(e.target.files?.[0] ?? null)}

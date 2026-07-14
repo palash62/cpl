@@ -191,6 +191,7 @@ model User {
   emailVerified DateTime?  @map("email_verified")
   referralCode  String?    @unique @map("referral_code")
   referredById  String?    @map("referred_by_id")
+  tokenVersion  Int        @default(0) @map("token_version")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
 

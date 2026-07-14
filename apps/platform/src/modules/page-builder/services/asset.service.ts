@@ -10,7 +10,6 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
 ]);
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -23,7 +22,7 @@ export async function uploadLandingPageAsset(
   await getLandingPage(landingPageId, advertiserId);
 
   if (!ALLOWED_MIME.has(file.type)) {
-    throw Errors.validation("Only JPEG, PNG, WebP, GIF, and SVG images are allowed.");
+    throw Errors.validation("Only JPEG, PNG, WebP, and GIF images are allowed.");
   }
   if (file.size > MAX_BYTES) {
     throw Errors.validation("File must be under 5MB.");
