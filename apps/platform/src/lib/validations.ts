@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { strongPasswordSchema } from "@/lib/password-policy";
 
 export const registerSchema = z
   .object({
     email: z.string().email(),
-    password: z.string().min(8),
+    password: strongPasswordSchema,
     name: z.string().min(2),
     phone: z.string().min(5, "Enter a valid phone number"),
     address: z.string().min(3, "Enter your address"),
@@ -18,7 +19,7 @@ export const registerSchema = z
 
 export const publisherRegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: strongPasswordSchema,
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   website: z
     .string()
@@ -230,8 +231,8 @@ export const ticketSchema = z.object({
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(8, "New password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Please confirm your new password"),
+    newPassword: strongPasswordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
@@ -245,8 +246,8 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(1, "Reset token is required"),
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Please confirm your password"),
+    newPassword: strongPasswordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",

@@ -15,6 +15,7 @@ import {
   FileText,
   Download,
   Palette,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ interface HeaderProps {
   title?: string;
   breadcrumbs?: string[];
   premium?: boolean;
+  onOpenMobileNav?: () => void;
 }
 
 const quickActionLinks = [
@@ -51,7 +53,7 @@ async function handleSignOut() {
   window.location.assign("/login");
 }
 
-export function Header({ title, breadcrumbs, premium }: HeaderProps) {
+export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderProps) {
   const { data: session } = useSession();
   const initials = session?.user?.name
     ?.split(" ")
@@ -70,23 +72,37 @@ export function Header({ title, breadcrumbs, premium }: HeaderProps) {
   return (
     <header
       className={cn(
-        "flex h-[4.25rem] items-center justify-between px-6 lg:px-8",
+        "flex h-[4.25rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8",
         premium
           ? "border-b border-slate-200/60 bg-white/90 backdrop-blur-md"
           : "border-b border-border bg-card",
       )}
     >
-      <div>
-        {breadcrumbs && breadcrumbs.length > 0 && (
-          <p className="text-xs text-muted-foreground">{breadcrumbs.join(" / ")}</p>
-        )}
-        {title && (
-          <h1 className={cn("text-lg font-semibold", premium && "text-slate-800")}>
-            {title}
-          </h1>
-        )}
+      <div className="flex min-w-0 items-center gap-2">
+        {onOpenMobileNav ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-10 shrink-0 rounded-xl text-slate-700 hover:bg-slate-100 lg:hidden"
+            onClick={onOpenMobileNav}
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        ) : null}
+        <div className="min-w-0">
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <p className="truncate text-xs text-muted-foreground">{breadcrumbs.join(" / ")}</p>
+          )}
+          {title && (
+            <h1 className={cn("truncate text-lg font-semibold", premium && "text-slate-800")}>
+              {title}
+            </h1>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
         <div className="relative hidden md:block">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input

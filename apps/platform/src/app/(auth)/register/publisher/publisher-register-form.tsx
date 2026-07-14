@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AuthLayout } from "@/components/layout/auth-layout";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
+import { isStrongPassword } from "@/lib/password-policy";
 import { COUNTRY_BY_CODE, getCountryName } from "@/lib/campaign-form";
 
 const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
@@ -40,6 +42,12 @@ export function PublisherRegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!isStrongPassword(password)) {
+      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
+      return;
+    }
+
     setLoading(true);
 
     const res = await fetch("/api/v1/auth/register/publisher", {
@@ -116,9 +124,11 @@ export function PublisherRegisterForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
+            autoComplete="new-password"
             className="rounded-xl border-slate-200 bg-transparent"
             required
           />
+          <PasswordRequirements password={password} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

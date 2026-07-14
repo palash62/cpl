@@ -23,18 +23,19 @@ export function ImpersonationBanner({ userName, userRole }: ImpersonationBannerP
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-amber-300 bg-amber-50 px-6 py-2.5 text-sm text-amber-950">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" />
+    <div className="flex flex-col gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+      <div className="flex items-start gap-2 sm:items-center">
+        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 sm:mt-0" />
         <span>
-          Admin view: <strong>{userName}</strong> ({userRole.toLowerCase()}) — close this tab when done
+          Admin view: <strong>{userName}</strong> ({userRole.toLowerCase()}) — close this tab when
+          done
         </span>
       </div>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 gap-1 border-amber-300 bg-white hover:bg-amber-100"
+        className="h-8 w-full shrink-0 gap-1 border-amber-300 bg-white hover:bg-amber-100 sm:w-auto"
         disabled={loading}
         onClick={handleExit}
       >

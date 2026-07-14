@@ -18,8 +18,10 @@ export async function POST(request: Request) {
     const parsed = registerSchema.safeParse(body);
 
     if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? "Password does not meet security requirements";
       return Response.json(
-        { error: { code: "VALIDATION_ERROR", message: parsed.error.message, status: 422 } },
+        { error: { code: "VALIDATION_ERROR", message, status: 422 } },
         { status: 422 },
       );
     }

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthLayout } from "@/components/layout/auth-layout";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
+import { isStrongPassword } from "@/lib/password-policy";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -22,6 +24,16 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!isStrongPassword(newPassword)) {
+      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
 
     const res = await fetch("/api/v1/auth/reset-password", {
@@ -65,8 +77,10 @@ function ResetPasswordForm() {
           onChange={(e) => setNewPassword(e.target.value)}
           className="rounded-xl border-slate-200 bg-transparent"
           minLength={8}
+          autoComplete="new-password"
           required
         />
+        <PasswordRequirements password={newPassword} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm password</Label>
@@ -77,6 +91,7 @@ function ResetPasswordForm() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="rounded-xl border-slate-200 bg-transparent"
           minLength={8}
+          autoComplete="new-password"
           required
         />
       </div>

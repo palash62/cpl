@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Building2, KeyRound, Loader2, Save, User } from "lucide-react";
 import { PageSection } from "@/components/admin/page-section";
+import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isStrongPassword } from "@/lib/password-policy";
 import { cn } from "@/lib/utils";
 
 export function AdvertiserProfileForm({
@@ -121,9 +123,21 @@ export function ChangePasswordForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
     setError(null);
     setSuccess(null);
+
+    if (!isStrongPassword(newPassword)) {
+      setError(
+        "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setSaving(true);
 
     const res = await fetch("/api/v1/auth/change-password", {
       method: "POST",
@@ -203,7 +217,7 @@ export function ChangePasswordForm() {
           </div>
         </div>
 
-        <p className="text-xs text-slate-500">Password must be at least 8 characters.</p>
+        <PasswordRequirements password={newPassword} />
 
         <Button
           type="submit"

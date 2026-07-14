@@ -1,29 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 import { PlatformLogo } from "@/components/brand/platform-logo";
-import { getNavForRole } from "./nav-config";
-import { SidebarNavLink } from "./sidebar-nav-link";
+import { SidebarNavList, SidebarStatusCard } from "./sidebar-nav-list";
 import { useNavigationPending } from "./navigation-pending";
 
 interface SidebarProps {
   role: UserRole;
   collapsed?: boolean;
+  className?: string;
 }
 
-export function Sidebar({ role, collapsed }: SidebarProps) {
-  const pathname = usePathname();
-  const items = getNavForRole(role);
+export function Sidebar({ role, collapsed, className }: SidebarProps) {
   const { startNavigation } = useNavigationPending();
 
   return (
     <aside
-      className={cn("flex h-full flex-col shadow-lg", collapsed ? "w-16" : "w-64")}
+      className={cn(
+        "hidden h-full flex-col shadow-lg lg:flex",
+        collapsed ? "w-16" : "w-64",
+        className,
+      )}
       style={{
-        backgroundImage: "linear-gradient(to bottom, var(--theme-sidebar-from), var(--theme-sidebar-to))",
+        backgroundImage:
+          "linear-gradient(to bottom, var(--theme-sidebar-from), var(--theme-sidebar-to))",
       }}
     >
       <div className="flex h-16 items-center border-b border-white/10 px-4">
@@ -36,41 +38,8 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
           <PlatformLogo collapsed={collapsed} variant="sidebar" />
         </Link>
       </div>
-      <nav className="flex-1 space-y-0.5 p-3">
-        {items.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/admin" &&
-              item.href !== "/advertiser" &&
-              item.href !== "/publisher" &&
-              pathname.startsWith(item.href));
-
-          return (
-            <SidebarNavLink
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              active={active}
-              collapsed={collapsed}
-            />
-          );
-        })}
-      </nav>
-      {!collapsed && (
-        <div className="mx-3 mb-4 rounded-xl border border-white/10 bg-white/5 p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-200/80">
-            Platform Status
-          </p>
-          <p className="mt-1 text-sm font-medium text-white">All systems operational</p>
-          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/15">
-            <div
-              className="h-full w-4/5 rounded-full"
-              style={{ backgroundColor: "var(--theme-success)" }}
-            />
-          </div>
-        </div>
-      )}
+      <SidebarNavList role={role} collapsed={collapsed} />
+      {!collapsed ? <SidebarStatusCard /> : null}
     </aside>
   );
 }

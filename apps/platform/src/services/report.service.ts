@@ -15,7 +15,8 @@ import {
 import { getPublisherEarningsForRange } from "@/lib/publisher-earnings";
 import { formatPublisherLeadPayout } from "@/lib/publisher-leads";
 import { reconcilePublisherLeadCreditsForUser } from "@/services/wallet.service";
-import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay } from "date-fns";
+import { getAdminProfitForRange } from "@/services/admin-profit.service";
+import { startOfDay, subDays, format, endOfMonth, startOfMonth, subMonths, endOfDay, differenceInCalendarDays } from "date-fns";
 
 export async function getAdminDashboardStats() {
   const [
@@ -753,5 +754,485 @@ export async function getAdminReportsBreakdown(filters?: {
     },
     publishers: publisherRows,
     advertisers: advertiserRows,
+  };
+}
+
+export type LeadsStatusMixItem = { name: string; value: number };
+
+export type CampaignPerformanceRow = {
+  campaignId: string;
+  campaignName: string;
+  status: string;
+  clicks: number;
+  leads: number;
+  approvedLeads: number;
+  rejectedLeads: number;
+  pendingLeads: number;
+  spend: number;
+  cpl: number;
+  conversionRate: number;
+  approvalRate: number;
+};
+
+export type GeoBreakdownRow = {
+  country: string;
+  leads: number;
+  approvedLeads: number;
+  spend: number;
+};
+
+export type AdvertiserReportsMetrics = {
+  activeCampaigns: number;
+  clicks: number;
+  leads: number;
+  approvedLeads: number;
+  rejectedLeads: number;
+  pendingLeads: number;
+  spend: number;
+  cpl: number;
+  conversionRate: number;
+  approvalRate: number;
+};
+
+export type AdminReportsOverview = {
+  clicks: number;
+  leads: number;
+  approvedLeads: number;
+  rejectedLeads: number;
+  pendingLeads: number;
+  conversionRate: number;
+  approvalRate: number;
+  spend: number;
+  earnings: number;
+  platformFees: number;
+  profit: number;
+  pendingPayoutCount: number;
+  pendingPayoutAmount: number;
+  avgRiskScore: number;
+  highRiskLeads: number;
+  leadsTrend: Array<{ date: string; count: number }>;
+};
+
+export type FraudReportSnapshot = {
+  avgRiskScore: number;
+  highRiskLeads: number;
+  rejectedLeads: number;
+  duplicateFlags: number;
+  disposableEmails: number;
+};
+
+function statusLabel(status: LeadStatus): string {
+  if (isApprovedLeadStatus(status)) return "Approved";
+  if (isRejectedLeadStatus(status)) return "Rejected";
+  if (isPendingLeadStatus(status)) return "Pending";
+  return status;
+}
+
+export async function getAdvertiserLeadsTrendInRange(
+  advertiserId: string,
+  from: Date,
+  to: Date,
+): Promise<Array<{ date: string; count: number }>> {
+  const campaignIds = await getAdvertiserCampaignIds(advertiserId);
+  if (campaignIds.length === 0) return [];
+  return getLeadsTrendInRange(from, to, campaignIds);
+}
+
+export type ActivityTrendPoint = {
+  date: string;
+  clicks: number;
+  leads: number;
+  approved: number;
+};
+
+export async function getActivityTrendInRange(filters: {
+  advertiserId?: string;
+  from: Date;
+  to: Date;
+}): Promise<ActivityTrendPoint[]> {
+  const campaignIds = filters.advertiserId
+    ? await getAdvertiserCampaignIds(filters.advertiserId)
+    : undefined;
+
+  if (filters.advertiserId && (!campaignIds || campaignIds.length === 0)) {
+    return [];
+  }
+
+  const start = startOfDay(filters.from);
+  const end = endOfDay(filters.to);
+  const days = Math.max(1, differenceInCalendarDays(end, start) + 1);
+
+  const [leads, clicks] = await Promise.all([
+    prisma.lead.findMany({
+      where: {
+        createdAt: { gte: start, lte: end },
+        ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
+      },
+      select: { createdAt: true, status: true },
+    }),
+    prisma.click.findMany({
+      where: {
+        createdAt: { gte: start, lte: end },
+        ...(campaignIds && campaignIds.length > 0 && {
+          trackingLink: { campaignId: { in: campaignIds } },
+        }),
+      },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  const map = new Map<string, ActivityTrendPoint>();
+  for (let i = 0; i < days; i++) {
+    const date = format(subDays(end, days - 1 - i), "yyyy-MM-dd");
+    map.set(date, { date, clicks: 0, leads: 0, approved: 0 });
+  }
+
+  for (const click of clicks) {
+    const key = format(click.createdAt, "yyyy-MM-dd");
+    const row = map.get(key);
+    if (row) row.clicks += 1;
+  }
+
+  for (const lead of leads) {
+    const key = format(lead.createdAt, "yyyy-MM-dd");
+    const row = map.get(key);
+    if (!row) continue;
+    row.leads += 1;
+    if (isApprovedLeadStatus(lead.status)) row.approved += 1;
+  }
+
+  return Array.from(map.values());
+}
+
+export async function getLeadsTrendInRange(
+  from: Date,
+  to: Date,
+  campaignIds?: string[],
+): Promise<Array<{ date: string; count: number }>> {
+  const start = startOfDay(from);
+  const end = endOfDay(to);
+  const days = Math.max(1, differenceInCalendarDays(end, start) + 1);
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      createdAt: { gte: start, lte: end },
+      ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
+    },
+    select: { createdAt: true },
+  });
+
+  const map = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    map.set(format(subDays(end, days - 1 - i), "yyyy-MM-dd"), 0);
+  }
+
+  for (const lead of leads) {
+    const key = format(lead.createdAt, "yyyy-MM-dd");
+    if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
+}
+
+export async function getLeadsStatusMix(filters: {
+  advertiserId?: string;
+  from: Date;
+  to: Date;
+}): Promise<LeadsStatusMixItem[]> {
+  const campaignIds = filters.advertiserId
+    ? await getAdvertiserCampaignIds(filters.advertiserId)
+    : undefined;
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      createdAt: { gte: filters.from, lte: filters.to },
+      ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
+    },
+    select: { status: true },
+  });
+
+  const buckets = new Map<string, number>();
+  for (const lead of leads) {
+    const label = statusLabel(lead.status);
+    buckets.set(label, (buckets.get(label) ?? 0) + 1);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+export async function getAdvertiserReportsMetrics(
+  advertiserId: string,
+  from: Date,
+  to: Date,
+): Promise<AdvertiserReportsMetrics> {
+  const campaignIds = await getAdvertiserCampaignIds(advertiserId);
+  if (campaignIds.length === 0) {
+    return {
+      activeCampaigns: 0,
+      clicks: 0,
+      leads: 0,
+      approvedLeads: 0,
+      rejectedLeads: 0,
+      pendingLeads: 0,
+      spend: 0,
+      cpl: 0,
+      conversionRate: 0,
+      approvalRate: 0,
+    };
+  }
+
+  const dateRange = { createdAt: { gte: from, lte: to } };
+  const [activeCampaigns, leads, clicks] = await Promise.all([
+    prisma.campaign.count({ where: { advertiserId, status: "ACTIVE" } }),
+    prisma.lead.findMany({
+      where: { campaignId: { in: campaignIds }, ...dateRange },
+      select: { status: true, campaign: { select: { cpl: true } } },
+    }),
+    prisma.click.count({
+      where: {
+        trackingLink: { campaignId: { in: campaignIds } },
+        createdAt: { gte: from, lte: to },
+      },
+    }),
+  ]);
+
+  let approvedLeads = 0;
+  let rejectedLeads = 0;
+  let pendingLeads = 0;
+  let spend = 0;
+
+  for (const lead of leads) {
+    if (isRejectedLeadStatus(lead.status)) {
+      rejectedLeads += 1;
+    } else if (isApprovedLeadStatus(lead.status)) {
+      approvedLeads += 1;
+      if (lead.status === "PAID") {
+        spend += Number(lead.campaign.cpl);
+      }
+    } else if (isPendingLeadStatus(lead.status)) {
+      pendingLeads += 1;
+    }
+  }
+
+  const totalLeads = leads.length;
+  const cpl = approvedLeads > 0 ? spend / approvedLeads : 0;
+
+  return {
+    activeCampaigns,
+    clicks,
+    leads: totalLeads,
+    approvedLeads,
+    rejectedLeads,
+    pendingLeads,
+    spend: Math.round(spend * 100) / 100,
+    cpl: Math.round(cpl * 100) / 100,
+    conversionRate: clicks > 0 ? Math.round((totalLeads / clicks) * 10000) / 100 : 0,
+    approvalRate: totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 10000) / 100 : 0,
+  };
+}
+
+export async function getCampaignPerformanceReport(filters: {
+  advertiserId?: string;
+  from: Date;
+  to: Date;
+}): Promise<CampaignPerformanceRow[]> {
+  const campaignWhere = filters.advertiserId ? { advertiserId: filters.advertiserId } : {};
+  const campaigns = await prisma.campaign.findMany({
+    where: campaignWhere,
+    select: { id: true, name: true, status: true, cpl: true },
+    orderBy: { name: "asc" },
+  });
+
+  if (campaigns.length === 0) return [];
+
+  const campaignIds = campaigns.map((c) => c.id);
+  const dateRange = { createdAt: { gte: filters.from, lte: filters.to } };
+
+  const [leads, clicks] = await Promise.all([
+    prisma.lead.findMany({
+      where: { campaignId: { in: campaignIds }, ...dateRange },
+      select: { campaignId: true, status: true, campaign: { select: { cpl: true } } },
+    }),
+    prisma.click.findMany({
+      where: {
+        trackingLink: { campaignId: { in: campaignIds } },
+        createdAt: { gte: filters.from, lte: filters.to },
+      },
+      select: { trackingLink: { select: { campaignId: true } } },
+    }),
+  ]);
+
+  const clickMap = new Map<string, number>();
+  for (const click of clicks) {
+    const id = click.trackingLink.campaignId;
+    clickMap.set(id, (clickMap.get(id) ?? 0) + 1);
+  }
+
+  const leadMap = new Map<string, LeadBucket>();
+  for (const lead of leads) {
+    const bucket = leadMap.get(lead.campaignId) ?? emptyBucket();
+    const spendAmount = lead.status === "PAID" ? Number(lead.campaign.cpl) : 0;
+    applyLeadToBucket(bucket, lead.status, spendAmount, 0);
+    leadMap.set(lead.campaignId, bucket);
+  }
+
+  return campaigns
+    .map((campaign) => {
+      const bucket = leadMap.get(campaign.id) ?? emptyBucket();
+      const clicksCount = clickMap.get(campaign.id) ?? 0;
+      const conversionRate =
+        clicksCount > 0 ? Math.round((bucket.leads / clicksCount) * 10000) / 100 : 0;
+      const approvalRate =
+        bucket.leads > 0 ? Math.round((bucket.approvedLeads / bucket.leads) * 10000) / 100 : 0;
+      const cpl = bucket.approvedLeads > 0 ? bucket.spend / bucket.approvedLeads : Number(campaign.cpl);
+
+      return {
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        status: campaign.status,
+        clicks: clicksCount,
+        leads: bucket.leads,
+        approvedLeads: bucket.approvedLeads,
+        rejectedLeads: bucket.rejectedLeads,
+        pendingLeads: bucket.pendingLeads,
+        spend: Math.round(bucket.spend * 100) / 100,
+        cpl: Math.round(cpl * 100) / 100,
+        conversionRate,
+        approvalRate,
+      };
+    })
+    .filter((row) => row.leads > 0 || row.clicks > 0)
+    .sort((a, b) => b.leads - a.leads || b.spend - a.spend);
+}
+
+export async function getGeoLeadBreakdown(filters: {
+  advertiserId?: string;
+  from: Date;
+  to: Date;
+  limit?: number;
+}): Promise<GeoBreakdownRow[]> {
+  const campaignIds = filters.advertiserId
+    ? await getAdvertiserCampaignIds(filters.advertiserId)
+    : undefined;
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      createdAt: { gte: filters.from, lte: filters.to },
+      ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
+    },
+    select: { country: true, status: true, campaign: { select: { cpl: true } } },
+  });
+
+  const map = new Map<string, { leads: number; approvedLeads: number; spend: number }>();
+  for (const lead of leads) {
+    const country = lead.country?.trim() || "Unknown";
+    const bucket = map.get(country) ?? { leads: 0, approvedLeads: 0, spend: 0 };
+    bucket.leads += 1;
+    if (isApprovedLeadStatus(lead.status)) {
+      bucket.approvedLeads += 1;
+      if (lead.status === "PAID") {
+        bucket.spend += Number(lead.campaign.cpl);
+      }
+    }
+    map.set(country, bucket);
+  }
+
+  return Array.from(map.entries())
+    .map(([country, stats]) => ({
+      country,
+      leads: stats.leads,
+      approvedLeads: stats.approvedLeads,
+      spend: Math.round(stats.spend * 100) / 100,
+    }))
+    .sort((a, b) => b.leads - a.leads)
+    .slice(0, filters.limit ?? 15);
+}
+
+export async function getFraudReportSnapshot(filters: {
+  from: Date;
+  to: Date;
+}): Promise<FraudReportSnapshot> {
+  const dateRange = { createdAt: { gte: filters.from, lte: filters.to } };
+  const leadIdsInRange = await prisma.lead.findMany({
+    where: dateRange,
+    select: { id: true },
+  });
+  const ids = leadIdsInRange.map((l) => l.id);
+
+  const [riskAgg, highRiskLeads, rejectedLeads, duplicateFlags, disposableEmails] =
+    await Promise.all([
+      prisma.lead.aggregate({
+        _avg: { riskScore: true },
+        where: { ...dateRange, riskScore: { not: null } },
+      }),
+      prisma.lead.count({
+        where: { ...dateRange, riskScore: { gte: 51 } },
+      }),
+      prisma.lead.count({
+        where: { ...dateRange, status: "REJECTED" },
+      }),
+      ids.length > 0
+        ? prisma.leadValidationResult.count({
+            where: {
+              leadId: { in: ids },
+              rule: { in: ["duplicate_email", "duplicate_phone", "duplicate_ip", "duplicate_device"] },
+              passed: false,
+            },
+          })
+        : Promise.resolve(0),
+      ids.length > 0
+        ? prisma.leadValidationResult.count({
+            where: {
+              leadId: { in: ids },
+              rule: "disposable_email",
+              passed: false,
+            },
+          })
+        : Promise.resolve(0),
+    ]);
+
+  return {
+    avgRiskScore: Math.round(riskAgg._avg.riskScore ?? 0),
+    highRiskLeads,
+    rejectedLeads,
+    duplicateFlags,
+    disposableEmails,
+  };
+}
+
+export async function getAdminReportsOverview(filters: {
+  from: Date;
+  to: Date;
+}): Promise<AdminReportsOverview> {
+  const breakdown = await getAdminReportsBreakdown({ from: filters.from, to: filters.to });
+  const [platformFees, profit, pendingPayouts, leadsTrend, fraud] = await Promise.all([
+    prisma.platformFee.aggregate({
+      where: {
+        lead: { createdAt: { gte: filters.from, lte: filters.to } },
+      },
+      _sum: { feeAmount: true },
+    }),
+    getAdminProfitForRange(filters.from, filters.to),
+    prisma.payout.findMany({
+      where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
+      select: { amount: true },
+    }),
+    getLeadsTrendInRange(filters.from, filters.to),
+    getFraudReportSnapshot(filters),
+  ]);
+
+  const pendingPayoutAmount = pendingPayouts.reduce((sum, row) => sum + Number(row.amount), 0);
+
+  return {
+    ...breakdown.totals,
+    platformFees: Math.round(Number(platformFees._sum.feeAmount ?? 0) * 100) / 100,
+    profit: Math.round(profit.adminProfit * 100) / 100,
+    pendingPayoutCount: pendingPayouts.length,
+    pendingPayoutAmount: Math.round(pendingPayoutAmount * 100) / 100,
+    avgRiskScore: fraud.avgRiskScore,
+    highRiskLeads: fraud.highRiskLeads,
+    leadsTrend,
   };
 }

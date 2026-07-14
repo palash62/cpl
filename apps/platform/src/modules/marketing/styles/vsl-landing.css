@@ -132,6 +132,101 @@ html {
   color: #b9c2dc;
 }
 
+.vslLanding .mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #334477;
+  background: transparent;
+  color: #e8eeff;
+  cursor: pointer;
+  padding: 0;
+}
+
+.vslLanding .mobile-menu-toggle:hover {
+  background: #10172e;
+  border-color: #8b3dff;
+}
+
+.vslLanding .mobile-nav-panel {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .vslLanding .hero-grid,
+  .vslLanding .grid-2,
+  .vslLanding .cost-cards,
+  .vslLanding .vsl {
+    grid-template-columns: 1fr;
+  }
+
+  .vslLanding .features {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vslLanding .trust-row,
+  .vslLanding .integrations,
+  .vslLanding .steps {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vslLanding h1 {
+    font-size: 42px;
+  }
+
+  .vslLanding .navlinks {
+    display: none;
+  }
+
+  .vslLanding .navactions .btn-outline,
+  .vslLanding .navactions .btn {
+    display: none;
+  }
+
+  .vslLanding .mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .vslLanding .mobile-nav-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 18px 20px;
+    border-bottom: 1px solid #24315a;
+    background: rgba(8, 12, 28, 0.96);
+  }
+
+  .vslLanding .mobile-nav-panel > a {
+    display: block;
+    padding: 12px 10px;
+    border-radius: 12px;
+    color: #d7dff5;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .vslLanding .mobile-nav-panel > a:hover {
+    background: rgba(139, 61, 255, 0.12);
+    color: #fff;
+  }
+
+  .vslLanding .mobile-nav-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .vslLanding .mobile-nav-actions .btn,
+  .vslLanding .mobile-nav-actions .btn-outline {
+    display: block;
+    text-align: center;
+  }
+}
+
 .vslLanding .hero {
   position: relative;
   padding: 95px 0 65px;
@@ -526,33 +621,6 @@ html {
   font-size: 13px;
   color: #8d98bd;
   margin-top: 14px;
-}
-
-@media (max-width: 900px) {
-  .vslLanding .hero-grid,
-  .vslLanding .grid-2,
-  .vslLanding .cost-cards,
-  .vslLanding .vsl {
-    grid-template-columns: 1fr;
-  }
-
-  .vslLanding .features {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .vslLanding .trust-row,
-  .vslLanding .integrations,
-  .vslLanding .steps {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .vslLanding h1 {
-    font-size: 42px;
-  }
-
-  .vslLanding .navlinks {
-    display: none;
-  }
 }
 
 @media (max-width: 560px) {
