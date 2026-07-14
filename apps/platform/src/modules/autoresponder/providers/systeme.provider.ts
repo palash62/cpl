@@ -33,6 +33,79 @@ function formatSystemeError(status: number, body: string): string {
   return body.trim() || `Systeme.io request failed (${status})`;
 }
 
+export type SystemeTagOption = { tagId: string; name: string };
+
+type SystemeTagsCollection = {
+  items?: Array<{ id?: number | string; name?: string }>;
+  hasMore?: boolean;
+};
+
+const SYSTEME_TAGS_PAGE_LIMIT = 100;
+const SYSTEME_TAGS_MAX_PAGES = 5;
+
+/** List tags from the advertiser's Systeme.io account (paginated). */
+export async function listSystemeTags(
+  apiKey: string,
+): Promise<{ ok: true; tags: SystemeTagOption[] } | { ok: false; error: string }> {
+  const key = apiKey.trim();
+  if (!key) {
+    return { ok: false, error: "Systeme.io API key is required" };
+  }
+
+  try {
+    const tags: SystemeTagOption[] = [];
+    let startingAfter: number | undefined;
+    let pages = 0;
+
+    while (pages < SYSTEME_TAGS_MAX_PAGES) {
+      pages += 1;
+      const params = new URLSearchParams({ limit: String(SYSTEME_TAGS_PAGE_LIMIT) });
+      if (startingAfter != null) {
+        params.set("startingAfter", String(startingAfter));
+      }
+
+      const res = await fetch(`https://api.systeme.io/api/tags?${params}`, {
+        method: "GET",
+        headers: getSystemeHeaders(key),
+        signal: AbortSignal.timeout(DEFAULT_AUTORESPONDER_PLATFORM_CONFIG.requestTimeoutMs),
+      });
+
+      if (!res.ok) {
+        const text = (await res.text()).slice(0, 500);
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, error: "Systeme.io API key is invalid or expired" };
+        }
+        return { ok: false, error: formatSystemeError(res.status, text) };
+      }
+
+      const data = (await res.json()) as SystemeTagsCollection;
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      for (const item of items) {
+        const id = item.id;
+        if (id == null) continue;
+        const tagId = String(id);
+        const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : tagId;
+        tags.push({ tagId, name });
+      }
+
+      if (!data.hasMore || items.length === 0) break;
+
+      const lastId = items[items.length - 1]?.id;
+      const nextCursor = typeof lastId === "number" ? lastId : Number(lastId);
+      if (!Number.isFinite(nextCursor)) break;
+      startingAfter = nextCursor;
+    }
+
+    return { ok: true, tags };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to load Systeme.io tags",
+    };
+  }
+}
+
 /** Lightweight check that the API key (and optional tag) are valid before saving a connection. */
 export async function verifySystemeConfig(config: SystemeConfig): Promise<ProviderSendResult> {
   const apiKey = config.apiKey?.trim();

@@ -58,6 +58,10 @@ const MASKED_SECRET = "••••••••";
 
 type GetResponseListOption = { campaignId: string; name: string };
 
+type SystemeTagOption = { tagId: string; name: string };
+
+const SYSTEME_NO_TAG = "__none__";
+
 type FormState = {
   name: string;
   provider: AutoresponderProvider;
@@ -183,6 +187,9 @@ export function AutoresponderConnectionForm({
   const [getResponseLists, setGetResponseLists] = useState<GetResponseListOption[]>([]);
   const [getResponseListsLoading, setGetResponseListsLoading] = useState(false);
   const [getResponseListsError, setGetResponseListsError] = useState<string | null>(null);
+  const [systemeTags, setSystemeTags] = useState<SystemeTagOption[]>([]);
+  const [systemeTagsLoading, setSystemeTagsLoading] = useState(false);
+  const [systemeTagsError, setSystemeTagsError] = useState<string | null>(null);
   const isEditMode = Boolean(initialConnection);
 
   const loadGetResponseLists = useCallback(
@@ -242,11 +249,64 @@ export function AutoresponderConnectionForm({
     void loadGetResponseLists(form.apiKey, initialConnection?.id);
   }, [form.provider, form.apiKey, initialConnection?.id, loadGetResponseLists]);
 
+  const loadSystemeTags = useCallback(
+    async (apiKey: string, connectionId?: string) => {
+      const trimmedKey = apiKey.trim();
+      const canUseKey = trimmedKey.length > 0 && trimmedKey !== MASKED_SECRET;
+      const resolvedConnectionId = connectionId ?? (isEditMode ? initialConnection?.id : undefined);
+
+      if (!canUseKey && !resolvedConnectionId) {
+        setSystemeTags([]);
+        setSystemeTagsError(null);
+        return;
+      }
+
+      setSystemeTagsLoading(true);
+      setSystemeTagsError(null);
+
+      const res = await fetch("/api/v1/advertiser/autoresponders/systeme/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(canUseKey ? { apiKey: trimmedKey } : {}),
+          ...(resolvedConnectionId ? { connectionId: resolvedConnectionId } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      setSystemeTagsLoading(false);
+
+      if (!res.ok) {
+        setSystemeTags([]);
+        setSystemeTagsError(formatApiError(data, "Unable to load Systeme.io tags"));
+        return;
+      }
+
+      const tags = (data?.data as SystemeTagOption[]) ?? [];
+      setSystemeTags(tags);
+
+      setForm((prev) => {
+        if (prev.provider !== "SYSTEME") return prev;
+        const current = prev.systemeTagId.trim();
+        if (current) return prev;
+        const nextId = tags[0]?.tagId ?? "";
+        return nextId ? { ...prev, systemeTagId: nextId } : prev;
+      });
+    },
+    [initialConnection?.id, isEditMode],
+  );
+
+  const refreshSystemeTags = useCallback(() => {
+    if (form.provider !== "SYSTEME") return;
+    void loadSystemeTags(form.apiKey, initialConnection?.id);
+  }, [form.provider, form.apiKey, initialConnection?.id, loadSystemeTags]);
+
   useEffect(() => {
     if (!initialConnection) {
       setForm(emptyForm());
       setGetResponseLists([]);
       setGetResponseListsError(null);
+      setSystemeTags([]);
+      setSystemeTagsError(null);
       return;
     }
     const cfg = initialConnection.config ?? {};
@@ -269,7 +329,10 @@ export function AutoresponderConnectionForm({
     if (initialConnection.provider === "GETRESPONSE") {
       void loadGetResponseLists(String(cfg.apiKey ?? ""), initialConnection.id);
     }
-  }, [initialConnection, loadGetResponseLists]);
+    if (initialConnection.provider === "SYSTEME") {
+      void loadSystemeTags(String(cfg.apiKey ?? ""), initialConnection.id);
+    }
+  }, [initialConnection, loadGetResponseLists, loadSystemeTags]);
 
   useEffect(() => {
     if (form.provider !== "GETRESPONSE") {
@@ -293,6 +356,28 @@ export function AutoresponderConnectionForm({
     return () => window.clearTimeout(timer);
   }, [form.provider, form.apiKey, isEditMode, initialConnection?.id, loadGetResponseLists]);
 
+  useEffect(() => {
+    if (form.provider !== "SYSTEME") {
+      setSystemeTags([]);
+      setSystemeTagsError(null);
+      return;
+    }
+
+    const trimmedKey = form.apiKey.trim();
+    const canUseKey = trimmedKey.length > 0 && trimmedKey !== MASKED_SECRET;
+    if (!canUseKey && !isEditMode) {
+      setSystemeTags([]);
+      setSystemeTagsError(null);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadSystemeTags(trimmedKey, initialConnection?.id);
+    }, canUseKey ? 500 : 0);
+
+    return () => window.clearTimeout(timer);
+  }, [form.provider, form.apiKey, isEditMode, initialConnection?.id, loadSystemeTags]);
+
   const selectedProvider = PROVIDERS.find((p) => p.value === form.provider);
   const selectedTrigger = TRIGGERS.find((t) => t.value === form.trigger);
 
@@ -305,6 +390,12 @@ export function AutoresponderConnectionForm({
           { campaignId: form.getResponseListId, name: `${form.getResponseListId} (saved)` },
         ]
       : getResponseLists;
+
+  const systemeTagOptions =
+    form.systemeTagId &&
+    !systemeTags.some((tag) => tag.tagId === form.systemeTagId)
+      ? [...systemeTags, { tagId: form.systemeTagId, name: `${form.systemeTagId} (saved)` }]
+      : systemeTags;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -682,36 +773,106 @@ export function AutoresponderConnectionForm({
 
         {form.provider === "SYSTEME" && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label>API key</Label>
-              <Input
-                type="password"
-                value={form.apiKey}
-                onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                required
-                className="bg-white"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={form.apiKey}
+                  onChange={(e) => {
+                    const nextKey = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      apiKey: nextKey,
+                      ...(nextKey !== MASKED_SECRET && nextKey !== prev.apiKey
+                        ? { systemeTagId: "" }
+                        : {}),
+                    }));
+                    setSystemeTagsError(null);
+                  }}
+                  onBlur={refreshSystemeTags}
+                  required
+                  className="bg-white"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={systemeTagsLoading || (!form.apiKey.trim() && !isEditMode)}
+                  onClick={refreshSystemeTags}
+                >
+                  {systemeTagsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Load tags"
+                  )}
+                </Button>
+              </div>
               <p className="text-xs text-slate-500">
-                Generate an API key in your Systeme.io account settings.
+                Paste your API key, then tags load automatically. Use Load tags if they do not appear.
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Tag ID (optional)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={form.systemeTagId}
-                onChange={(e) =>
-                  setForm({ ...form, systemeTagId: e.target.value.replace(/[^\d]/g, "") })
-                }
-                placeholder="e.g. 12345"
-                className="bg-white"
-              />
-              <p className="text-xs text-slate-500">
-                Numeric tag ID from Systeme.io → Tags. Any length is fine — leave blank to skip
-                tagging.
-              </p>
+              <Label>Tag (optional)</Label>
+              {systemeTagsLoading ? (
+                <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading tags…
+                </div>
+              ) : form.apiKey.trim() || isEditMode ? (
+                <Select
+                  value={form.systemeTagId ? form.systemeTagId : SYSTEME_NO_TAG}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    setForm({
+                      ...form,
+                      systemeTagId: v === SYSTEME_NO_TAG ? "" : v,
+                    });
+                  }}
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                    <SelectValue placeholder="Select a tag">
+                      {(() => {
+                        if (!form.systemeTagId) return "No tag";
+                        const selected = systemeTagOptions.find(
+                          (tag) => tag.tagId === form.systemeTagId,
+                        );
+                        if (!selected) return "Select a tag";
+                        return selected.name === selected.tagId
+                          ? selected.name
+                          : `${selected.name} (${selected.tagId})`;
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent
+                    align="start"
+                    alignItemWithTrigger={false}
+                    className={`${SELECT_MENU_WIDE_CLASS} max-h-60`}
+                  >
+                    <SelectItem value={SYSTEME_NO_TAG}>No tag</SelectItem>
+                    {systemeTagOptions.map((tag) => (
+                      <SelectItem key={tag.tagId} value={tag.tagId}>
+                        {tag.name === tag.tagId ? tag.name : `${tag.name} (${tag.tagId})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-10 items-center rounded-md border border-dashed border-slate-200 bg-white px-3 text-sm text-slate-500">
+                  Enter your API key first
+                </div>
+              )}
+              {systemeTagsError ? (
+                <p className="text-xs text-red-600">{systemeTagsError}</p>
+              ) : systemeTagOptions.length > 0 ? (
+                <p className="text-xs text-slate-500">
+                  Choose the Systeme.io tag to apply to new contacts, or select No tag to skip tagging.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Tags are fetched from your Systeme.io account using the API key above.
+                </p>
+              )}
             </div>
           </div>
         )}
