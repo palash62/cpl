@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { formatAdvertiserLeadCpl } from "@/lib/advertiser-lead-details";
 import {
   extractLeadCountry,
+  formatLeadIp,
   formatLeadRejectReason,
   parseUserAgent,
 } from "@/lib/publisher-leads";
@@ -19,6 +20,7 @@ export type LeadCsvRow = {
   status: string;
   country: string | null;
   geoCountry: string | null;
+  ip?: string | null;
   submissionMeta?: unknown;
   source: string | null;
   subId: string | null;
@@ -60,6 +62,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     ...(options.includeAdvertiser ? ["publisher_email"] : []),
     ...sortedDataKeys,
     "country",
+    "ip",
     "source",
     "sub_id",
     "device",
@@ -75,6 +78,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     const data = leadDataRecord(lead.data);
     const { device, os } = parseUserAgent(lead.userAgent);
     const country = extractLeadCountry(lead.data, lead.country, lead.geoCountry, lead.submissionMeta);
+    const ip = formatLeadIp(lead.ip);
     const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
     const notes = formatLeadRejectReason(lead);
     const flags = lead.validationResults
@@ -91,6 +95,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
       ...(options.includeAdvertiser ? [lead.publisher.email] : []),
       ...sortedDataKeys.map((key) => data[key]?.trim() ?? ""),
       country === "—" ? "" : country,
+      ip === "—" ? "" : ip,
       lead.source ?? "",
       lead.subId ?? "",
       device === "—" ? "" : device,

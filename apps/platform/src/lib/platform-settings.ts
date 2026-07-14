@@ -199,7 +199,7 @@ export const TIER_PAYOUT_ROWS = [
   },
   {
     label: "Tier 2",
-    countries: "AR, BR, CL, IN, ID, MY, MX, PH, PL, ZA, TH, TR",
+    countries: "AR, BR, CL, IN, ID, LV, MY, MX, PH, PL, ZA, TH, TR",
     minKey: "tier2PayoutMin" as const,
     maxKey: "tier2PayoutMax" as const,
     tier: "tier2" as const,

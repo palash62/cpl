@@ -192,7 +192,7 @@ export function PlatformSettingsForm() {
             onMaxChange={(v) => setSettings({ ...settings, tier1PayoutMax: v })}
           />
           <TierPayoutRow
-            tier="Tier 2 — AR, BR, CL, IN, ID, MY, MX, PH, PL, ZA, TH, TR"
+            tier="Tier 2 — AR, BR, CL, IN, ID, LV, MY, MX, PH, PL, ZA, TH, TR"
             min={settings.tier2PayoutMin}
             max={settings.tier2PayoutMax}
             onMinChange={(v) => setSettings({ ...settings, tier2PayoutMin: v })}

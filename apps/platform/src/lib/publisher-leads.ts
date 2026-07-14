@@ -3,6 +3,7 @@ import {
   calculatePublisherPayout,
   type PlatformSettingsConfig,
 } from "@/lib/platform-settings";
+import { normalizeClientIp } from "@cpl/shared";
 
 /** True when a PAID lead should credit the assigned publisher wallet. */
 export function shouldCreditPublisherForLead(lead: {
@@ -38,6 +39,10 @@ export function isPublisherAttributedLead(lead: {
 
 export function shortLeadId(id: string) {
   return id.slice(-8).toUpperCase();
+}
+
+export function formatLeadIp(ip?: string | null) {
+  return normalizeClientIp(ip) ?? "—";
 }
 
 export {

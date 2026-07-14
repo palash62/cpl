@@ -783,15 +783,22 @@ async function enrichLeadListRows<
     submissionMeta?: unknown;
   },
 >(rows: T[]) {
-  const needsFunnelIp = rows.filter(
-    (lead) => !lead.country?.trim() && !lead.geoCountry?.trim() && !normalizeClientIp(lead.ip),
-  );
-  const funnelIps = await loadFunnelEventIpByLeadId(needsFunnelIp.map((lead) => lead.id));
+  const missingIpLeadIds = rows
+    .filter((lead) => !normalizeClientIp(lead.ip))
+    .map((lead) => lead.id);
+  const funnelIps = await loadFunnelEventIpByLeadId(missingIpLeadIds);
 
-  return enrichLeadsWithCountry(rows, undefined, (lead) => {
+  const enriched = await enrichLeadsWithCountry(rows, undefined, (lead) => {
     const directIp = normalizeClientIp(lead.ip);
     if (directIp) return directIp;
     return funnelIps.get(lead.id);
+  });
+
+  return enriched.map((lead) => {
+    if (normalizeClientIp(lead.ip)) return lead;
+    const funnelIp = funnelIps.get(lead.id);
+    if (!funnelIp) return lead;
+    return { ...lead, ip: funnelIp };
   });
 }
 
