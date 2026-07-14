@@ -140,6 +140,7 @@ export async function getAdvertiserDetail(id: string) {
       email: true,
       name: true,
       status: true,
+      emailVerified: true,
       createdAt: true,
       advertiserProfile: {
         select: {
@@ -497,6 +498,66 @@ export async function createAdvertiserAccount(data: {
   })();
 
   return { user, tempPassword };
+}
+
+export async function resendAdvertiserVerificationEmail(userId: string, adminId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      status: true,
+      emailVerified: true,
+    },
+  });
+
+  if (!user || user.role !== "ADVERTISER") {
+    throw new AppError("NOT_FOUND", "Advertiser not found", 404);
+  }
+
+  if (user.emailVerified) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "This advertiser has already verified their email",
+      422,
+    );
+  }
+
+  if (user.status === "SUSPENDED") {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Cannot resend verification email to a suspended account",
+      422,
+    );
+  }
+
+  const verifyToken = await createEmailVerificationToken(user.id);
+  const result = await notifyEmailVerification(
+    { id: user.id, email: user.email, name: user.name },
+    verifyToken,
+  );
+
+  if (!result.sent) {
+    throw new AppError(
+      "EMAIL_SEND_FAILED",
+      result.error ?? "Failed to send verification email",
+      500,
+    );
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "advertiser.verification_resent",
+      entityType: "user",
+      entityId: user.id,
+      metadata: { email: user.email },
+    },
+  });
+
+  return { email: user.email, name: user.name };
 }
 
 export type UserDeleteEligibilityInput = {

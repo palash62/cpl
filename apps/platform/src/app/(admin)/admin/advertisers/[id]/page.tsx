@@ -15,6 +15,7 @@ import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import {
   CampaignStatusBadge,
+  EmailVerifiedBadge,
   formatCurrency,
   UserStatusBadge,
 } from "@/components/admin/admin-ui";
@@ -22,6 +23,7 @@ import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import { AdminManualDepositDialog } from "@/components/admin/admin-manual-deposit-dialog";
 import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
+import { AdminResendVerificationButton } from "@/components/admin/admin-resend-verification-button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { formatDepositMethod } from "@/lib/deposit";
 import {
@@ -98,6 +100,13 @@ export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
       />
 
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {!advertiser.emailVerified && advertiser.status !== "SUSPENDED" && (
+          <AdminResendVerificationButton
+            userId={advertiser.id}
+            userEmail={advertiser.email}
+            emailVerified={!!advertiser.emailVerified}
+          />
+        )}
         <AdminLoginAsButton
           userId={advertiser.id}
           userName={advertiser.name}
@@ -124,8 +133,9 @@ export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
         </div>
         <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col gap-1.5">
             <UserStatusBadge status={advertiser.status} />
+            <EmailVerifiedBadge verified={!!advertiser.emailVerified} />
           </div>
         </div>
         <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">

@@ -23,6 +23,8 @@ const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
   getCountryName(a).localeCompare(getCountryName(b)),
 );
 
+const inputClassName = "rounded-xl border-slate-200 bg-transparent";
+
 export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,7 +50,9 @@ export function RegisterForm() {
     setError("");
 
     if (!isStrongPassword(password)) {
-      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
+      setError(
+        "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
+      );
       return;
     }
 
@@ -82,12 +86,12 @@ export function RegisterForm() {
 
   return (
     <AuthLayout
-      badge="Advertiser registration"
-      title="Create advertiser account"
+      badge="Advertiser"
+      title="Create your account"
       description={
         isReferralSignup
           ? "You were referred to join as an advertiser on LeadVix"
-          : "Start buying verified leads with flexible pay-per-lead campaigns"
+          : "Buy verified leads with pay-per-lead campaigns"
       }
     >
       {isReferralSignup && (
@@ -95,58 +99,68 @@ export function RegisterForm() {
           You were invited with referral code <strong>{referralRef.toUpperCase()}</strong>.
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-            required
-          />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Full name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClassName}
+              autoComplete="name"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Phone number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={inputClassName}
+              autoComplete="tel"
+              required
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Work email</Label>
           <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
+            className={inputClassName}
+            autoComplete="email"
             required
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="phone">Number</Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-            required
-          />
-        </div>
-        <div className="space-y-2">
+
+        <div className="space-y-1.5">
           <Label htmlFor="address">Address</Label>
           <Input
             id="address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
+            className={inputClassName}
+            autoComplete="street-address"
             required
           />
         </div>
-        <div className="space-y-2">
+
+        <div className="space-y-1.5">
           <Label htmlFor="country">Country</Label>
           <Select value={country} onValueChange={(value) => value && setCountry(value)} required>
-            <SelectTrigger id="country" className="w-full rounded-xl border-slate-200 bg-transparent">
+            <SelectTrigger id="country" className={`w-full ${inputClassName}`}>
               <SelectValue placeholder="Select country" />
             </SelectTrigger>
             <SelectContent>
@@ -158,7 +172,8 @@ export function RegisterForm() {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+
+        <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
           <Input
             id="password"
@@ -167,11 +182,12 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             autoComplete="new-password"
-            className="rounded-xl border-slate-200 bg-transparent"
+            className={inputClassName}
             required
           />
-          <PasswordRequirements password={password} />
+          {password.length > 0 && <PasswordRequirements password={password} />}
         </div>
+
         <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading || !country}>
           {loading ? "Creating account..." : "Create account"}
         </Button>

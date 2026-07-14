@@ -29,7 +29,7 @@ vi.mock("@/services/auth-token.service", () => ({
 }));
 vi.mock("@/services/notify.service", () => ({
   notifyAdvertiserCredentials: vi.fn(),
-  notifyEmailVerification: vi.fn(),
+  notifyEmailVerification: vi.fn().mockResolvedValue({ sent: true }),
 }));
 
 describe("getUserDeleteEligibility", () => {
@@ -154,6 +154,99 @@ describe("createAdvertiserAccount", () => {
         company: "Acme Corp",
       }),
     ).rejects.toBeInstanceOf(AppError);
+  });
+});
+
+describe("resendAdvertiserVerificationEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sends verification email for unverified advertiser", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "adv-1",
+      email: "adv@example.com",
+      name: "Adv",
+      role: "ADVERTISER",
+      status: "PENDING",
+      emailVerified: null,
+    });
+    prismaMock.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    const { createEmailVerificationToken } = await import("@/services/auth-token.service");
+    const { notifyEmailVerification } = await import("@/services/notify.service");
+    const { resendAdvertiserVerificationEmail } = await import("@/services/admin.service");
+
+    const result = await resendAdvertiserVerificationEmail("adv-1", "admin-1");
+
+    expect(result).toEqual({ email: "adv@example.com", name: "Adv" });
+    expect(createEmailVerificationToken).toHaveBeenCalledWith("adv-1");
+    expect(notifyEmailVerification).toHaveBeenCalledWith(
+      { id: "adv-1", email: "adv@example.com", name: "Adv" },
+      "verify-token",
+    );
+    expect(prismaMock.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorId: "admin-1",
+          action: "advertiser.verification_resent",
+          entityId: "adv-1",
+        }),
+      }),
+    );
+  });
+
+  it("rejects already-verified advertiser", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "adv-1",
+      email: "adv@example.com",
+      name: "Adv",
+      role: "ADVERTISER",
+      status: "ACTIVE",
+      emailVerified: new Date(),
+    });
+
+    const { resendAdvertiserVerificationEmail } = await import("@/services/admin.service");
+
+    await expect(resendAdvertiserVerificationEmail("adv-1", "admin-1")).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringMatching(/already verified/i),
+    });
+  });
+
+  it("rejects non-advertiser role", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "pub-1",
+      email: "pub@example.com",
+      name: "Pub",
+      role: "PUBLISHER",
+      status: "PENDING",
+      emailVerified: null,
+    });
+
+    const { resendAdvertiserVerificationEmail } = await import("@/services/admin.service");
+
+    await expect(resendAdvertiserVerificationEmail("pub-1", "admin-1")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
+  it("rejects suspended advertiser", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "adv-1",
+      email: "adv@example.com",
+      name: "Adv",
+      role: "ADVERTISER",
+      status: "SUSPENDED",
+      emailVerified: null,
+    });
+
+    const { resendAdvertiserVerificationEmail } = await import("@/services/admin.service");
+
+    await expect(resendAdvertiserVerificationEmail("adv-1", "admin-1")).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringMatching(/suspended/i),
+    });
   });
 });
 

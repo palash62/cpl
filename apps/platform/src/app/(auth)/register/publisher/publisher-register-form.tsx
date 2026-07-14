@@ -23,6 +23,8 @@ const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
   getCountryName(a).localeCompare(getCountryName(b)),
 );
 
+const inputClassName = "rounded-xl border-slate-200 bg-transparent";
+
 export function PublisherRegisterForm() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -32,7 +34,6 @@ export function PublisherRegisterForm() {
   const [trafficSource, setTrafficSource] = useState("");
   const [country, setCountry] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
@@ -44,7 +45,9 @@ export function PublisherRegisterForm() {
     setError("");
 
     if (!isStrongPassword(password)) {
-      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
+      setError(
+        "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.",
+      );
       return;
     }
 
@@ -61,7 +64,6 @@ export function PublisherRegisterForm() {
         trafficSource: trafficSource.trim() || undefined,
         country: country || undefined,
         addressLine1: addressLine1.trim() || undefined,
-        addressLine2: addressLine2.trim() || undefined,
         city: city.trim() || undefined,
         state: state.trim() || undefined,
         postalCode: postalCode.trim() || undefined,
@@ -81,42 +83,45 @@ export function PublisherRegisterForm() {
 
   return (
     <AuthLayout
-      badge="Publisher registration"
-      title="Apply as a publisher"
-      description="Verify your email, then our team will review your application before you can access the publisher portal."
+      badge="Publisher"
+      title="Apply as publisher"
+      description="Verify your email, then we’ll review your application"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="name">Full name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-            required
-            minLength={2}
-          />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Full name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClassName}
+              autoComplete="name"
+              required
+              minLength={2}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Work email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClassName}
+              autoComplete="email"
+              required
+            />
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
           <Input
             id="password"
@@ -125,41 +130,47 @@ export function PublisherRegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             autoComplete="new-password"
-            className="rounded-xl border-slate-200 bg-transparent"
+            className={inputClassName}
             required
           />
-          <PasswordRequirements password={password} />
+          {password.length > 0 && <PasswordRequirements password={password} />}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="website">
+              Website <span className="font-normal text-slate-400">(optional)</span>
+            </Label>
             <Input
               id="website"
               type="url"
               placeholder="https://example.com"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
-              className="rounded-xl border-slate-200 bg-transparent"
+              className={inputClassName}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="trafficSource">Traffic source</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="trafficSource">
+              Traffic source <span className="font-normal text-slate-400">(optional)</span>
+            </Label>
             <Input
               id="trafficSource"
               placeholder="Facebook, TikTok, Email..."
               value={trafficSource}
               onChange={(e) => setTrafficSource(e.target.value)}
-              className="rounded-xl border-slate-200 bg-transparent"
+              className={inputClassName}
             />
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="country">Country</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="country">
+            Country <span className="font-normal text-slate-400">(optional)</span>
+          </Label>
           <Select value={country} onValueChange={(value) => value && setCountry(value)}>
-            <SelectTrigger id="country" className="w-full rounded-xl border-slate-200 bg-transparent">
-              <SelectValue placeholder="Select country (optional)" />
+            <SelectTrigger id="country" className={`w-full ${inputClassName}`}>
+              <SelectValue placeholder="Select country" />
             </SelectTrigger>
             <SelectContent>
               {COUNTRY_OPTIONS.map((code) => (
@@ -171,55 +182,55 @@ export function PublisherRegisterForm() {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="addressLine1">Address line 1</Label>
-          <Input
-            id="addressLine1"
-            value={addressLine1}
-            onChange={(e) => setAddressLine1(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-          />
-        </div>
+        <div className="space-y-3 border-t border-slate-100 pt-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Address <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
+          </p>
 
-        <div className="space-y-2">
-          <Label htmlFor="addressLine2">Address line 2</Label>
-          <Input
-            id="addressLine2"
-            value={addressLine2}
-            onChange={(e) => setAddressLine2(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="city">City</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="addressLine1">Address</Label>
             <Input
-              id="city"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="rounded-xl border-slate-200 bg-transparent"
+              id="addressLine1"
+              value={addressLine1}
+              onChange={(e) => setAddressLine1(e.target.value)}
+              className={inputClassName}
+              autoComplete="street-address"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="state">State / Region</Label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={inputClassName}
+                autoComplete="address-level2"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="state">State / Region</Label>
+              <Input
+                id="state"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                className={inputClassName}
+                autoComplete="address-level1"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="postalCode">Postal code</Label>
             <Input
-              id="state"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-              className="rounded-xl border-slate-200 bg-transparent"
+              id="postalCode"
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className={inputClassName}
+              autoComplete="postal-code"
             />
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="postalCode">Postal code</Label>
-          <Input
-            id="postalCode"
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
-            className="rounded-xl border-slate-200 bg-transparent"
-          />
         </div>
 
         <Button type="submit" className="authPrimaryBtn h-auto" disabled={loading}>

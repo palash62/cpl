@@ -9,6 +9,7 @@ import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import {
   avatarColors,
+  EmailVerifiedBadge,
   formatCurrency,
   getInitials,
   UserStatusBadge,
@@ -18,6 +19,7 @@ import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import { AdminCreateAdvertiserDialog } from "@/components/admin/admin-create-advertiser-dialog";
 import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
+import { AdminResendVerificationButton } from "@/components/admin/admin-resend-verification-button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Eye } from "lucide-react";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
@@ -183,10 +185,20 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
                         </span>
                       </TableCell>
                       <TableCell className="px-4 py-4">
-                        <div className="flex flex-col gap-1.5">
-                          <UserStatusBadge status={advertiser.status} />
-                          {advertiser.status === "PENDING" && !advertiser.emailVerified && (
-                            <span className="text-xs text-amber-700">Awaiting email verification</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-1.5">
+                            <UserStatusBadge status={advertiser.status} />
+                            <EmailVerifiedBadge verified={!!advertiser.emailVerified} />
+                            {advertiser.status === "PENDING" && !advertiser.emailVerified && (
+                              <span className="text-xs text-amber-700">Awaiting email verification</span>
+                            )}
+                          </div>
+                          {!advertiser.emailVerified && advertiser.status !== "SUSPENDED" && (
+                            <AdminResendVerificationButton
+                              userId={advertiser.id}
+                              userEmail={advertiser.email}
+                              emailVerified={!!advertiser.emailVerified}
+                            />
                           )}
                         </div>
                       </TableCell>
