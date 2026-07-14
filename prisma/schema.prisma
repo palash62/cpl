@@ -83,6 +83,11 @@ enum PayoutStatus {
   REJECTED
 }
 
+enum PayoutKind {
+  PUBLISHER
+  REFERRAL
+}
+
 enum PayoutMethod {
   WISE
   BANK_TRANSFER
@@ -558,6 +563,7 @@ model Deposit {
 model Payout {
   id              String       @id @default(cuid())
   publisherId     String       @map("publisher_id")
+  kind            PayoutKind   @default(PUBLISHER) @map("kind")
   amount          Decimal      @db.Decimal(12, 2)
   method          PayoutMethod
   status          PayoutStatus @default(PENDING)

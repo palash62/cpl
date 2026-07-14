@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { REFERRAL_LEVEL_1_RATE, REFERRAL_LEVEL_2_RATE } from "@/lib/referral";
 
 export type AdminProfitSnapshot = {
   advertiserPayment: number;
@@ -7,17 +6,6 @@ export type AdminProfitSnapshot = {
   referralPay: number;
   adminProfit: number;
 };
-
-function referralCommissionForAdSpend(
-  adSpend: number,
-  referredById: string | null | undefined,
-  grandparentReferrerId: string | null | undefined,
-) {
-  let total = 0;
-  if (referredById) total += adSpend * REFERRAL_LEVEL_1_RATE;
-  if (grandparentReferrerId) total += adSpend * REFERRAL_LEVEL_2_RATE;
-  return total;
-}
 
 async function getAdvertiserPaymentsForRange(from: Date, to: Date) {
   const rows = await prisma.$queryRaw<{ total: unknown }[]>`
@@ -47,40 +35,16 @@ async function getPublisherPayoutsForRange(from: Date, to: Date) {
 }
 
 async function getReferralPayForRange(from: Date, to: Date) {
-  const users = await prisma.user.findMany({
+  const result = await prisma.ledgerEntry.aggregate({
     where: {
-      campaigns: {
-        some: {
-          leads: {
-            some: { status: "PAID", updatedAt: { gte: from, lte: to } },
-          },
-        },
-      },
+      type: "CREDIT",
+      referenceType: "referral",
+      createdAt: { gte: from, lte: to },
     },
-    select: {
-      referredById: true,
-      referredBy: { select: { referredById: true } },
-      campaigns: {
-        select: {
-          leads: {
-            where: { status: "PAID", updatedAt: { gte: from, lte: to } },
-            select: { campaign: { select: { cpl: true } } },
-          },
-        },
-      },
-    },
+    _sum: { amount: true },
   });
 
-  return users.reduce((total, user) => {
-    const leadSpend = user.campaigns
-      .flatMap((campaign) => campaign.leads)
-      .reduce((sum, lead) => sum + Number(lead.campaign.cpl), 0);
-
-    return (
-      total +
-      referralCommissionForAdSpend(leadSpend, user.referredById, user.referredBy?.referredById)
-    );
-  }, 0);
+  return Number(result._sum.amount ?? 0);
 }
 
 export async function getAdminProfitForRange(from: Date, to: Date): Promise<AdminProfitSnapshot> {

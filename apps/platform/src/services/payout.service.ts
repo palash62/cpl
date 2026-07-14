@@ -10,7 +10,9 @@ import { getMinPayoutForMethod } from "@/lib/platform-settings";
 import { isPendingPayoutStatus, PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { payoutPublisherSelect } from "@/lib/payout";
 import type { PayoutPaymentDetails } from "@/lib/payout-payment-details";
-import type { Prisma, PayoutMethod } from "@prisma/client";
+import type { Prisma, PayoutKind, PayoutMethod } from "@prisma/client";
+import { REFERRAL_MIN_PAYOUT } from "@/lib/referral";
+import { getReferralBalanceSummary } from "@/services/referral.service";
 import {
   notifyAdminAlert,
   notifyApproved,
@@ -34,6 +36,7 @@ export async function getPublisherPayoutRequestEligibility(
   const recent = await prisma.payout.findFirst({
     where: {
       publisherId,
+      kind: "PUBLISHER",
       createdAt: { gte: since },
     },
     orderBy: { createdAt: "desc" },
@@ -95,6 +98,7 @@ export async function requestPayout(
     return tx.payout.create({
       data: {
         publisherId,
+        kind: "PUBLISHER",
         amount,
         method,
         paymentDetails: paymentDetails as Prisma.InputJsonValue,
@@ -106,8 +110,72 @@ export async function requestPayout(
   });
 
   void notifyAdminAlert({
-    title: "New payout request",
+    title: "New publisher payout request",
     message: `${payout.publisher.name} requested ${method} payout of $${amount.toFixed(2)}.`,
+    actionPath: "/admin/payouts",
+    metadata: { payoutId: payout.id },
+  });
+
+  return payout;
+}
+
+export async function requestReferralPayout(
+  advertiserId: string,
+  amount: number,
+  method: PayoutMethod,
+  paymentDetails: PayoutPaymentDetails,
+  idempotencyKey?: string,
+) {
+  if (amount < REFERRAL_MIN_PAYOUT) {
+    throw Errors.payoutBelowMinimum(REFERRAL_MIN_PAYOUT);
+  }
+
+  if (idempotencyKey) {
+    const existing = await prisma.payout.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existing) throw Errors.duplicatePayout();
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: advertiserId },
+    select: { role: true },
+  });
+
+  if (user?.role !== "ADVERTISER") {
+    throw Errors.forbidden();
+  }
+
+  const balance = await getReferralBalanceSummary(advertiserId);
+
+  if (amount > balance.withdrawableReferral) {
+    throw Errors.insufficientFunds();
+  }
+
+  if (amount > balance.availableBalance) {
+    throw Errors.insufficientFunds();
+  }
+
+  const payout = await prisma.$transaction(async (tx) => {
+    await holdWalletFunds(tx, advertiserId, amount);
+
+    return tx.payout.create({
+      data: {
+        publisherId: advertiserId,
+        kind: "REFERRAL",
+        amount,
+        method,
+        paymentDetails: paymentDetails as Prisma.InputJsonValue,
+        idempotencyKey,
+        status: "PENDING",
+      },
+      include: { publisher: { select: { id: true, name: true, email: true } } },
+    });
+  });
+
+  void notifyAdminAlert({
+    title: "New referral payout request",
+    message: `${payout.publisher.name} requested referral ${method} payout of $${amount.toFixed(2)}.`,
     actionPath: "/admin/payouts",
     metadata: { payoutId: payout.id },
   });
@@ -130,7 +198,8 @@ export async function approvePayout(payoutId: string, adminId: string) {
       payout.publisherId,
       Number(payout.amount),
       payoutId,
-      "Payout processed",
+      payout.kind === "REFERRAL" ? "Referral payout processed" : "Payout processed",
+      payout.kind === "REFERRAL" ? "referral_payout" : "payout",
     );
 
     await tx.payout.update({
@@ -227,6 +296,7 @@ export async function listPendingPayouts() {
 
 export async function listAdminPayouts(options: {
   publisherId?: string;
+  kind?: PayoutKind | "all";
   status?: string;
   dateFrom?: Date;
   dateTo?: Date;
@@ -241,6 +311,10 @@ export async function listAdminPayouts(options: {
 
   if (options.publisherId) {
     where.publisherId = options.publisherId;
+  }
+
+  if (options.kind && options.kind !== "all") {
+    where.kind = options.kind;
   }
 
   if (options.status && options.status !== "all") {
@@ -320,6 +394,7 @@ function payoutOrderBy(sort?: string): Prisma.PayoutOrderByWithRelationInput {
 
 export async function listPayouts(filters: {
   publisherId?: string;
+  kind?: PayoutKind | "all";
   status?: string;
   method?: string;
   dateFrom?: Date;
@@ -336,6 +411,10 @@ export async function listPayouts(filters: {
 
   if (filters.publisherId) {
     where.publisherId = filters.publisherId;
+  }
+
+  if (filters.kind && filters.kind !== "all") {
+    where.kind = filters.kind;
   }
 
   if (filters.status && filters.status !== "all") {

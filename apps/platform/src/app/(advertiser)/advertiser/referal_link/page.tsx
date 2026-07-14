@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { format } from "date-fns";
-import { Gift, Info, Share2, TrendingUp, Users, Wallet } from "lucide-react";
+import { Gift, History, Info, Share2, TrendingUp, Users, Wallet } from "lucide-react";
 import { getSession } from "@/lib/session";
 import {
   REFERRAL_LEVELS,
@@ -14,6 +14,7 @@ import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-s
 import { PageSection } from "@/components/admin/page-section";
 import { formatCurrency, UserStatusBadge } from "@/components/admin/admin-ui";
 import { ReferralLinkPanel } from "@/components/advertiser/referral-link-panel";
+import { ReferralPayoutRequestForm } from "@/components/advertiser/referral-payout-request-form";
 import { RoleHero } from "@/components/layout/role-hero";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -55,7 +56,7 @@ export default async function AdvertiserReferralLinkPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <GradientStatCard
           variant="leads"
           label="Total Referrals"
@@ -79,6 +80,18 @@ export default async function AdvertiserReferralLinkPage() {
           label="Total Commission"
           value={formatCurrency(data.stats.totalCommission)}
           icon={Wallet}
+        />
+        <NeutralStatCard
+          label="Withdrawable Referral"
+          value={formatCurrency(data.stats.withdrawableReferral)}
+          icon={Wallet}
+          accent="green"
+        />
+        <NeutralStatCard
+          label="Pending Payout"
+          value={formatCurrency(data.stats.pendingReferralPayout)}
+          icon={History}
+          accent="orange"
         />
       </div>
 
@@ -165,6 +178,59 @@ export default async function AdvertiserReferralLinkPage() {
           </p>
         </div>
       </div>
+
+      <ReferralPayoutRequestForm
+        withdrawableReferral={data.stats.withdrawableReferral}
+        availableBalance={data.stats.availableBalance}
+      />
+
+      <PageSection
+        title="Commission History"
+        description="Recent referral commissions credited to your wallet"
+        icon={History}
+        gradient="revenue"
+      >
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow
+                className="border-none hover:bg-transparent"
+                style={{ background: "var(--theme-primary-soft)" }}
+              >
+                <TableHead className="h-11 px-6 text-slate-600">Date</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Description</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.commissionHistory.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={3} className="px-6 py-16 text-center text-slate-500">
+                    No commissions yet. Share your link to start earning when referrals spend on ads.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.commissionHistory.map((entry) => (
+                  <TableRow
+                    key={entry.id}
+                    className="border-slate-100 transition-colors hover:bg-blue-50/40"
+                  >
+                    <TableCell className="px-6 py-4 text-sm text-slate-600">
+                      {format(entry.createdAt, "MMM d, yyyy HH:mm")}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-sm text-slate-700">
+                      {entry.description ?? "Referral commission"}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-right text-sm font-semibold tabular-nums text-emerald-600">
+                      +{formatCurrency(entry.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </PageSection>
 
       <PageSection
         title="Referred Users"

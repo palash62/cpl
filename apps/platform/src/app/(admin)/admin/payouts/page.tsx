@@ -15,6 +15,7 @@ import {
   listPendingPayouts,
   listPayoutPublisherOptions,
 } from "@/services/payout.service";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -29,6 +30,7 @@ export const dynamic = "force-dynamic";
 interface PageProps {
   searchParams: Promise<{
     publisher?: string;
+    kind?: string;
     status?: string;
     from?: string;
     to?: string;
@@ -44,6 +46,7 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
     listPendingPayouts(),
     listAdminPayouts({
       publisherId: params.publisher,
+      kind: (params.kind as "PUBLISHER" | "REFERRAL" | "all" | undefined) ?? "all",
       status: params.status,
       dateFrom: params.from ? new Date(params.from) : undefined,
       dateTo: params.to ? new Date(params.to) : undefined,
@@ -61,7 +64,7 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
       <PageHero
         eyebrow="Finance"
         title="Payouts"
-        description="Approve publisher withdrawals and review full payout history"
+        description="Approve publisher and referral withdrawals and review payout history"
         badge={pendingPayouts.length > 0 ? `${pendingPayouts.length} pending` : undefined}
       />
 
@@ -100,7 +103,8 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                 style={{ background: "var(--theme-primary-soft)" }}
               >
                 <TableHead className="h-11 px-6 text-slate-600">Requested</TableHead>
-                <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Kind</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">User</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Destination</TableHead>
@@ -116,6 +120,11 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                 >
                   <TableCell className="px-6 py-4 text-sm text-slate-600">
                     {format(payout.createdAt, "MMM d, yyyy HH:mm")}
+                  </TableCell>
+                  <TableCell className="px-4 py-4">
+                    <Badge variant="outline" className="font-medium capitalize">
+                      {payout.kind === "REFERRAL" ? "Referral" : "Publisher"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="px-4 py-4">
                     <p className="font-medium text-slate-900">{payout.publisher.name}</p>
@@ -147,7 +156,7 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
 
       <PageSection
         title="Payout History"
-        description="All publisher payout requests — filter by publisher, status, or date range"
+        description="All payout requests — filter by user, kind, status, or date range"
         icon={ArrowUpFromLine}
         gradient="approved"
         contentClassName="p-0"
@@ -179,7 +188,8 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                     style={{ background: "var(--theme-primary-soft)" }}
                   >
                     <TableHead className="h-11 px-6 text-slate-600">Requested</TableHead>
-                    <TableHead className="h-11 px-4 text-slate-600">Publisher</TableHead>
+                    <TableHead className="h-11 px-4 text-slate-600">Kind</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">User</TableHead>
                     <TableHead className="h-11 px-4 text-right text-slate-600">Amount</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">Method</TableHead>
                     <TableHead className="h-11 px-4 text-slate-600">Destination</TableHead>
@@ -196,6 +206,11 @@ export default async function AdminPayoutsPage({ searchParams }: PageProps) {
                     >
                       <TableCell className="px-6 py-4 text-sm text-slate-600">
                         {format(payout.createdAt, "MMM d, yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <Badge variant="outline" className="font-medium capitalize">
+                          {payout.kind === "REFERRAL" ? "Referral" : "Publisher"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <p className="font-medium text-slate-900">{payout.publisher.name}</p>

@@ -21,6 +21,12 @@ type PublisherOption = {
   publisherProfile?: { website: string | null } | null;
 };
 
+const KIND_OPTIONS = [
+  { value: "all", label: "All kinds" },
+  { value: "PUBLISHER", label: "Publisher" },
+  { value: "REFERRAL", label: "Referral" },
+] as const;
+
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "PENDING", label: "Pending" },
@@ -38,16 +44,18 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
   const [isPending, startTransition] = useTransition();
 
   const [publisherId, setPublisherId] = useState(searchParams.get("publisher") ?? "all");
+  const [kind, setKind] = useState(searchParams.get("kind") ?? "all");
   const [status, setStatus] = useState(searchParams.get("status") ?? "all");
   const [dateFrom, setDateFrom] = useState(searchParams.get("from") ?? "");
   const [dateTo, setDateTo] = useState(searchParams.get("to") ?? "");
 
   const applyFilters = useCallback(
-    (overrides?: Partial<{ publisher: string; status: string; from: string; to: string }>) => {
+    (overrides?: Partial<{ publisher: string; kind: string; status: string; from: string; to: string }>) => {
       const params = new URLSearchParams(searchParams.toString());
 
       const values = {
         publisher: overrides?.publisher ?? publisherId,
+        kind: overrides?.kind ?? kind,
         status: overrides?.status ?? status,
         from: overrides?.from ?? dateFrom,
         to: overrides?.to ?? dateTo,
@@ -55,6 +63,9 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
 
       if (values.publisher && values.publisher !== "all") params.set("publisher", values.publisher);
       else params.delete("publisher");
+
+      if (values.kind && values.kind !== "all") params.set("kind", values.kind);
+      else params.delete("kind");
 
       if (values.status && values.status !== "all") params.set("status", values.status);
       else params.delete("status");
@@ -71,11 +82,12 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
         router.push(`${pathname}?${params.toString()}`);
       });
     },
-    [publisherId, status, dateFrom, dateTo, pathname, router, searchParams],
+    [publisherId, kind, status, dateFrom, dateTo, pathname, router, searchParams],
   );
 
   function clearFilters() {
     setPublisherId("all");
+    setKind("all");
     setStatus("all");
     setDateFrom("");
     setDateTo("");
@@ -86,6 +98,7 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
 
   const hasFilters =
     searchParams.has("publisher") ||
+    searchParams.has("kind") ||
     searchParams.has("status") ||
     searchParams.has("from") ||
     searchParams.has("to");
@@ -93,10 +106,10 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
   return (
     <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-        <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-1.5">
             <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Publisher
+              User
             </label>
             <Select value={publisherId} onValueChange={(value) => value && setPublisherId(value)}>
               <SelectTrigger className="h-10 w-full bg-white">
@@ -107,6 +120,24 @@ export function AdminPayoutsFilters({ publishers }: { publishers: PublisherOptio
                 {publishers.map((publisher) => (
                   <SelectItem key={publisher.id} value={publisher.id}>
                     {formatPublisherOptionLabel(publisher)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Kind
+            </label>
+            <Select value={kind} onValueChange={(value) => value && setKind(value)}>
+              <SelectTrigger className="h-10 w-full bg-white">
+                <SelectValue placeholder="All kinds" />
+              </SelectTrigger>
+              <SelectContent>
+                {KIND_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

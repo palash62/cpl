@@ -23,6 +23,7 @@ type PayoutRow = {
   amount: unknown;
   method: string;
   status: string;
+  kind?: string;
   paymentDetails?: unknown;
   rejectionReason?: string | null;
   rejectedAt?: string | Date | null;
@@ -128,6 +129,12 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
                 <p className="text-sm font-medium text-slate-900">
                   {format(new Date(payout.createdAt), "MMM d, yyyy HH:mm")}
                 </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-xs text-slate-500">Kind</p>
+                <Badge variant="outline" className="mt-1 capitalize">
+                  {payout.kind === "REFERRAL" ? "Referral" : "Publisher"}
+                </Badge>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-xs text-slate-500">Payment method</p>

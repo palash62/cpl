@@ -128,6 +128,7 @@ export async function debitWalletForPayout(
   amount: number,
   referenceId: string,
   description?: string,
+  referenceType: "payout" | "referral_payout" = "payout",
 ) {
   const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
   const balance = Number(wallet.balance);
@@ -151,7 +152,7 @@ export async function debitWalletForPayout(
       type: "DEBIT",
       amount,
       balanceAfter: newBalance,
-      referenceType: "payout",
+      referenceType,
       referenceId,
       description,
     },
@@ -239,7 +240,20 @@ export async function processLeadPayment(leadId: string) {
       data: { status: "PAID" },
     });
 
-    return { pausedForBudget, campaignName: lead.campaign.name, advertiserId: lead.campaign.advertiserId };
+    const { creditReferralCommissionsForLead } = await import("@/services/referral.service");
+    const referralCredits = await creditReferralCommissionsForLead(
+      tx,
+      leadId,
+      lead.campaign.advertiserId,
+      cpl,
+    );
+
+    return {
+      pausedForBudget,
+      campaignName: lead.campaign.name,
+      advertiserId: lead.campaign.advertiserId,
+      referralCredits,
+    };
   }).then(async (result) => {
     if (result?.pausedForBudget) {
       void notifyUserById(result.advertiserId, {
@@ -248,6 +262,16 @@ export async function processLeadPayment(leadId: string) {
         actionPath: "/advertiser/campaigns",
         notificationType: "campaign.paused",
       });
+    }
+
+    if (result?.referralCredits?.length) {
+      const { notifyReferralCommission } = await import("@/services/notify.service");
+      for (const credit of result.referralCredits) {
+        void notifyReferralCommission(credit.referrerId, {
+          amount: credit.amount,
+          level: credit.level,
+        });
+      }
     }
   });
 }

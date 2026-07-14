@@ -302,6 +302,22 @@ export async function notifyReferralSignup(
   });
 }
 
+export async function notifyReferralCommission(
+  referrerId: string,
+  params: { amount: number; level: 1 | 2 },
+) {
+  const user = await loadUser(referrerId);
+  if (!user) return;
+
+  await notifyGeneric(user, {
+    title: "Referral commission earned",
+    message: `You earned $${params.amount.toFixed(2)} from a Level ${params.level} referral.`,
+    actionPath: "/advertiser/referal_link",
+    actionLabel: "View earnings",
+    notificationType: "referral.commission",
+  });
+}
+
 async function loadUser(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
