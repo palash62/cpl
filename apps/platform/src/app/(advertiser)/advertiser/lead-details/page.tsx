@@ -175,8 +175,6 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Lead Data</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Country</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">IP</TableHead>
-                <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Source</TableHead>
-                <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Sub ID</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Device</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">OS</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">CPL</TableHead>
@@ -194,7 +192,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={15} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={13} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Try adjusting the campaign filter or date range.
@@ -243,12 +241,6 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-600">
                         {formatLeadIp(lead.ip)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
-                        {lead.source ?? "—"}
-                      </TableCell>
-                      <TableCell className="max-w-[100px] truncate px-4 py-4 text-sm text-slate-600">
-                        {lead.subId ?? "—"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
                         {device}

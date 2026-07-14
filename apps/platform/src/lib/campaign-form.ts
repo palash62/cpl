@@ -37,6 +37,7 @@ export const COUNTRY_BY_CODE: Record<string, string> = {
   PT: "Portugal",
   PL: "Poland",
   LV: "Latvia",
+  BG: "Bulgaria",
   CZ: "Czech Republic",
   SK: "Slovakia",
   HU: "Hungary",

@@ -23,6 +23,11 @@ describe("calculatePublisherPayout (@cpl/shared)", () => {
     expect(result.tier).toBe("tier2");
   });
 
+  it("classifies Bulgaria as tier2", () => {
+    const result = calculatePublisherPayout(1, "BG", settings);
+    expect(result.tier).toBe("tier2");
+  });
+
   it("applies 70% for low-CPL tier1 US lead without tier floor bump", () => {
     const result = calculatePublisherPayout(0.5, "US", settings);
     expect(result.publisherAmount).toBe(0.35);
