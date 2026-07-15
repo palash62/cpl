@@ -37,36 +37,54 @@ export function renderAdminAlertEmail(
 }
 
 export function renderApprovedEmail(
-  params: BaseParams & { itemLabel: string; details?: string; statusLabel?: string },
+  params: BaseParams & {
+    itemLabel: string;
+    details?: string;
+    statusLabel?: string;
+    actionUrl?: string;
+    actionLabel?: string;
+    subject?: string;
+  },
 ) {
   const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
   const statusLabel = params.statusLabel ?? "approved";
+  const actionUrl = params.actionUrl ?? params.appUrl;
+  const actionLabel = params.actionLabel ?? "View dashboard";
   const body = `<p style="margin:0 0 12px;">${greeting}</p>
     <p style="margin:0 0 12px;">Your <strong>${params.itemLabel}</strong> has been <span style="color:#059669;font-weight:600;">${statusLabel}</span>.</p>
-    ${params.details ? `<p style="margin:0;">${params.details}</p>` : ""}
-    ${buttonHtml("View dashboard", params.appUrl)}`;
-  const text = `${greeting}\n\nYour ${params.itemLabel} has been ${statusLabel}.${params.details ? `\n${params.details}` : ""}\n\n${params.appUrl}`;
+    ${params.details ? `<p style="margin:0 0 12px;">${params.details}</p>` : ""}
+    ${buttonHtml(actionLabel, actionUrl)}`;
+  const text = `${greeting}\n\nYour ${params.itemLabel} has been ${statusLabel}.${params.details ? `\n${params.details}` : ""}\n\n${actionUrl}`;
   return {
-    subject: `${params.itemLabel} ${statusLabel}`,
+    subject: params.subject ?? `${params.itemLabel} ${statusLabel}`,
     html: emailLayout(body, params.appUrl),
     text,
   };
 }
 
 export function renderRejectedEmail(
-  params: BaseParams & { itemLabel: string; reason: string; details?: string },
+  params: BaseParams & {
+    itemLabel: string;
+    reason: string;
+    details?: string;
+    actionUrl?: string;
+    actionLabel?: string;
+    subject?: string;
+  },
 ) {
   const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
+  const actionUrl = params.actionUrl ?? params.appUrl;
+  const actionLabel = params.actionLabel ?? "Open dashboard";
   const body = `<p style="margin:0 0 12px;">${greeting}</p>
     <p style="margin:0 0 12px;">Your <strong>${params.itemLabel}</strong> was <span style="color:#dc2626;font-weight:600;">not approved</span>.</p>
     <div style="margin:16px 0;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;">
       <p style="margin:0;font-size:13px;color:#991b1b;"><strong>Note:</strong> ${params.reason}</p>
     </div>
-    ${params.details ? `<p style="margin:0;">${params.details}</p>` : ""}
-    ${buttonHtml("Open dashboard", params.appUrl)}`;
-  const text = `${greeting}\n\nYour ${params.itemLabel} was not approved.\nReason: ${params.reason}${params.details ? `\n${params.details}` : ""}\n\n${params.appUrl}`;
+    ${params.details ? `<p style="margin:0 0 12px;">${params.details}</p>` : ""}
+    ${buttonHtml(actionLabel, actionUrl)}`;
+  const text = `${greeting}\n\nYour ${params.itemLabel} was not approved.\nReason: ${params.reason}${params.details ? `\n${params.details}` : ""}\n\n${actionUrl}`;
   return {
-    subject: `${params.itemLabel} not approved`,
+    subject: params.subject ?? `${params.itemLabel} not approved`,
     html: emailLayout(body, params.appUrl),
     text,
   };

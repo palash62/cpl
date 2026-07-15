@@ -15,7 +15,10 @@ import { recordFunnelEvent } from "@/services/funnel-analytics.service";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import { getSession } from "@/lib/session";
-import { getAdvertiserCampaignTestFunnel } from "@/services/campaign.service";
+import {
+  getAdvertiserCampaignTestFunnel,
+  getCampaignTestFunnel,
+} from "@/services/campaign.service";
 
 export async function generateMetadata({
   params,
@@ -63,11 +66,15 @@ export default async function PublicOptinFunnelPage({
 
   if (testCampaignId) {
     const session = await getSession();
-    if (!session?.user || session.user.role !== "ADVERTISER") notFound();
+    const role = session?.user?.role;
+    if (!session?.user || (role !== "ADVERTISER" && role !== "ADMIN")) notFound();
 
     let testFunnel: { slug: string };
     try {
-      testFunnel = await getAdvertiserCampaignTestFunnel(testCampaignId, session.user.id);
+      testFunnel =
+        role === "ADMIN"
+          ? await getCampaignTestFunnel(testCampaignId)
+          : await getAdvertiserCampaignTestFunnel(testCampaignId, session.user.id);
     } catch {
       notFound();
     }

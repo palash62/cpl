@@ -240,13 +240,12 @@ export async function getCampaignById(id: string) {
   });
 }
 
-export async function getAdvertiserCampaignTestFunnel(
-  campaignId: string,
-  advertiserId: string,
-) {
+async function resolveCampaignTestFunnel(campaignId: string) {
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, advertiserId },
+    where: { id: campaignId },
     select: {
+      id: true,
+      advertiserId: true,
       targeting: true,
       optinPages: {
         select: { id: true, slug: true },
@@ -258,18 +257,39 @@ export async function getAdvertiserCampaignTestFunnel(
   if (!campaign) throw Errors.notFound("Campaign");
 
   const linkedPage = campaign.optinPages[0];
-  if (linkedPage) return linkedPage;
+  if (linkedPage) {
+    return { campaign, funnel: linkedPage };
+  }
 
   const { optinPageId } = parseCampaignTargeting(campaign.targeting);
   if (optinPageId) {
     const targetedPage = await prisma.advertiserOptinPage.findFirst({
-      where: { id: optinPageId, advertiserId },
+      where: { id: optinPageId, advertiserId: campaign.advertiserId },
       select: { id: true, slug: true },
     });
-    if (targetedPage) return targetedPage;
+    if (targetedPage) {
+      return { campaign, funnel: targetedPage };
+    }
   }
 
   throw Errors.validation("Attach a funnel to this campaign before testing");
+}
+
+/** Any role that can open the campaign funnel in test mode (e.g. admin). */
+export async function getCampaignTestFunnel(campaignId: string) {
+  const { funnel } = await resolveCampaignTestFunnel(campaignId);
+  return funnel;
+}
+
+export async function getAdvertiserCampaignTestFunnel(
+  campaignId: string,
+  advertiserId: string,
+) {
+  const { campaign, funnel } = await resolveCampaignTestFunnel(campaignId);
+  if (campaign.advertiserId !== advertiserId) {
+    throw Errors.notFound("Campaign");
+  }
+  return funnel;
 }
 
 export async function updateCampaignStatus(id: string, status: CampaignStatus) {

@@ -8,6 +8,7 @@ import { AdminCampaignReviewDialog } from "@/components/admin/admin-campaign-rev
 import { ButtonLink } from "@/components/ui/button-link";
 import { PageSection } from "@/components/admin/page-section";
 import { Building2 } from "lucide-react";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,9 @@ export default async function AdminCampaignDetailPage({ params }: PageProps) {
             name: campaign.name,
             status: campaign.status,
             leadCount,
+            funnelSlug:
+              campaign.optinPages[0]?.slug ??
+              parseCampaignTargeting(campaign.targeting).optinSlug,
           }}
         />
       </div>

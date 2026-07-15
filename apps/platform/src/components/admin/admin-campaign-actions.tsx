@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil, Play, Trash2 } from "lucide-react";
+import { Ban, FlaskConical, Pencil, Play, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
@@ -25,6 +25,7 @@ interface AdminCampaignActionsProps {
     name: string;
     status: CampaignStatus;
     leadCount: number;
+    funnelSlug: string | null;
   };
 }
 
@@ -79,8 +80,33 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
     router.refresh();
   }
 
+  function openTestFunnel() {
+    if (!campaign.funnelSlug) return;
+    window.open(
+      `/o/${campaign.funnelSlug}?test_campaign=${campaign.id}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1"
+        disabled={!campaign.funnelSlug}
+        title={
+          campaign.funnelSlug
+            ? "Open the attached funnel in campaign test mode"
+            : "Attach a funnel to this campaign before testing"
+        }
+        onClick={openTestFunnel}
+      >
+        <FlaskConical className="h-3.5 w-3.5" />
+        Test
+      </Button>
       {canEdit && (
         <ButtonLink
           href={`/admin/campaigns/${campaign.id}/edit`}

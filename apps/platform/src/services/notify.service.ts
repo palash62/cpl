@@ -258,6 +258,61 @@ export async function notifyRejected(
   });
 }
 
+export async function notifyCampaignApproved(
+  user: { id: string; email: string; name: string },
+  params: { campaignId: string; campaignName: string },
+) {
+  const config = await getResolvedEmailConfig();
+  const actionUrl = `${config.appUrl}/advertiser/campaigns/${params.campaignId}`;
+  const itemLabel = `campaign "${params.campaignName}"`;
+  const details = "Your campaign is now active and can receive traffic.";
+  const rendered = renderApprovedEmail({
+    ...(await baseParams(user.name)),
+    itemLabel,
+    statusLabel: "approved",
+    details,
+    actionUrl,
+    actionLabel: "View campaign",
+    subject: `Campaign approved — ${params.campaignName} is now active`,
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "approved",
+    userId: user.id,
+    notificationType: "campaign.approved",
+    notificationTitle: `Campaign "${params.campaignName}" approved`,
+    notificationBody: details,
+  });
+}
+
+export async function notifyCampaignRejected(
+  user: { id: string; email: string; name: string },
+  params: { campaignId: string; campaignName: string; reason: string },
+) {
+  const config = await getResolvedEmailConfig();
+  const actionUrl = `${config.appUrl}/advertiser/campaigns/${params.campaignId}`;
+  const itemLabel = `campaign "${params.campaignName}"`;
+  const rendered = renderRejectedEmail({
+    ...(await baseParams(user.name)),
+    itemLabel,
+    reason: params.reason,
+    details: "You can update the campaign and resubmit it for review.",
+    actionUrl,
+    actionLabel: "View campaign",
+    subject: `Campaign not approved — ${params.campaignName}`,
+  });
+  await deliver({
+    to: user.email,
+    ...rendered,
+    template: "rejected",
+    userId: user.id,
+    notificationType: "campaign.rejected",
+    notificationTitle: `Campaign "${params.campaignName}" not approved`,
+    notificationBody: params.reason,
+  });
+}
+
 export async function notifyGeneric(
   user: { id: string; email: string; name: string },
   params: {

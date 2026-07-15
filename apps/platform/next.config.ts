@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
     config.parallelism = 1;
     config.resolve.alias = {
       ...config.resolve.alias,
-      immer: path.join(root, "node_modules/immer"),
+      // Keep craft.js on its nested immer@9 (default produce) — aliasing to v11 breaks undo/redo.
       "react-redux": path.join(root, "node_modules/react-redux"),
       "preact-render-to-string": path.join(root, "node_modules/preact-render-to-string"),
     };

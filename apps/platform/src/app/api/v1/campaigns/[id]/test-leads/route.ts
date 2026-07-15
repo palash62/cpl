@@ -1,27 +1,23 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse, Errors } from "@/lib/errors";
 import { campaignTestLeadSchema } from "@/lib/validations";
-import { submitAdvertiserTestCampaignLead } from "@/services/lead.service";
+import { submitTestCampaignLead } from "@/services/lead.service";
 import { getCampaignById } from "@/services/campaign.service";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-async function assertAdvertiserOwnsCampaign(campaignId: string, advertiserId: string) {
-  const campaign = await getCampaignById(campaignId);
-  if (!campaign) {
-    throw Errors.notFound("Campaign");
-  }
-  if (campaign.advertiserId !== advertiserId) {
-    throw Errors.forbidden();
-  }
-  return campaign;
-}
 
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   return withAuth(async (session) => {
     try {
-      await assertAdvertiserOwnsCampaign(id, session.user.id);
+      const campaign = await getCampaignById(id);
+      if (!campaign) {
+        throw Errors.notFound("Campaign");
+      }
+
+      if (session.user.role === "ADVERTISER" && campaign.advertiserId !== session.user.id) {
+        throw Errors.forbidden();
+      }
 
       const body = await request.json();
       const parsed = campaignTestLeadSchema.safeParse(body);
@@ -38,9 +34,12 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
-      const lead = await submitAdvertiserTestCampaignLead({
+      const isAdmin = session.user.role === "ADMIN";
+      const lead = await submitTestCampaignLead({
         campaignId: id,
-        advertiserId: session.user.id,
+        advertiserId: campaign.advertiserId,
+        actorId: session.user.id,
+        actorReason: isAdmin ? "Admin campaign test lead" : "Advertiser campaign test lead",
         data: parsed.data.data,
       });
 
@@ -57,5 +56,5 @@ export async function POST(request: Request, context: RouteContext) {
     } catch (error) {
       return errorResponse(error);
     }
-  }, ["ADVERTISER"]);
+  }, ["ADVERTISER", "ADMIN"]);
 }

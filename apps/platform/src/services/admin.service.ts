@@ -20,6 +20,8 @@ import {
   notifyAccountSuspended,
   notifyAdminAlert,
   notifyApproved,
+  notifyCampaignApproved,
+  notifyCampaignRejected,
   notifyEmailVerification,
   notifyAdvertiserCredentials,
   notifyPublisherCredentials,
@@ -805,12 +807,10 @@ export async function approveCampaign(campaignId: string, adminId: string) {
     },
   });
 
-  void notifyApproved(
-    campaign.advertiser,
-    `Campaign "${campaign.name}"`,
-    "Your campaign is now active and can receive traffic.",
-    "campaign.approved",
-  );
+  void notifyCampaignApproved(campaign.advertiser, {
+    campaignId: campaign.id,
+    campaignName: campaign.name,
+  });
 
   return campaign;
 }
@@ -820,6 +820,23 @@ export async function rejectCampaign(
   adminId: string,
   reason: string,
 ) {
+  const existing = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { status: true },
+  });
+
+  if (!existing) {
+    throw new AppError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
+  }
+
+  if (existing.status !== "PENDING") {
+    throw new AppError(
+      "CAMPAIGN_INVALID_STATUS",
+      "Only pending campaigns can be rejected",
+      422,
+    );
+  }
+
   const campaign = await prisma.campaign.update({
     where: { id: campaignId },
     data: {
@@ -840,13 +857,11 @@ export async function rejectCampaign(
     },
   });
 
-  void notifyRejected(
-    campaign.advertiser,
-    `Campaign "${campaign.name}"`,
+  void notifyCampaignRejected(campaign.advertiser, {
+    campaignId: campaign.id,
+    campaignName: campaign.name,
     reason,
-    undefined,
-    "campaign.rejected",
-  );
+  });
 
   return campaign;
 }
@@ -971,6 +986,11 @@ export async function listCampaigns(filters: {
       include: {
         advertiser: { select: { name: true, email: true } },
         fields: { orderBy: { sortOrder: "asc" } },
+        optinPages: {
+          select: { slug: true },
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
         _count: { select: { leads: true } },
       },
       orderBy,

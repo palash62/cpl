@@ -12,6 +12,7 @@ import { AdminCampaignActions } from "@/components/admin/admin-campaign-actions"
 import { ButtonLink } from "@/components/ui/button-link";
 import { Eye } from "lucide-react";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 import {
   Table,
   TableBody,
@@ -205,6 +206,9 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                             name: c.name,
                             status: c.status,
                             leadCount: c._count.leads,
+                            funnelSlug:
+                              c.optinPages[0]?.slug ??
+                              parseCampaignTargeting(c.targeting).optinSlug,
                           }}
                         />
                       </div>

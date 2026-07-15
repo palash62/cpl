@@ -513,12 +513,9 @@ export async function submitOptinLead(input: {
   });
 }
 
-async function resolveAdvertiserCampaignTestContext(input: {
-  campaignId: string;
-  advertiserId: string;
-}) {
+async function resolveCampaignTestContext(campaignId: string) {
   const campaign = await prisma.campaign.findFirst({
-    where: { id: input.campaignId, advertiserId: input.advertiserId },
+    where: { id: campaignId },
     include: { fields: { orderBy: { sortOrder: "asc" } } },
   });
 
@@ -527,7 +524,7 @@ async function resolveAdvertiserCampaignTestContext(input: {
   }
 
   let optinPage = await prisma.advertiserOptinPage.findFirst({
-    where: { campaignId: input.campaignId, advertiserId: input.advertiserId },
+    where: { campaignId, advertiserId: campaign.advertiserId },
     include: { publishedVersion: { select: { formJson: true } } },
   });
 
@@ -535,7 +532,7 @@ async function resolveAdvertiserCampaignTestContext(input: {
     const { optinPageId } = parseCampaignTargeting(campaign.targeting);
     if (optinPageId) {
       optinPage = await prisma.advertiserOptinPage.findFirst({
-        where: { id: optinPageId, advertiserId: input.advertiserId },
+        where: { id: optinPageId, advertiserId: campaign.advertiserId },
         include: { publishedVersion: { select: { formJson: true } } },
       });
     }
@@ -554,15 +551,23 @@ async function resolveAdvertiserCampaignTestContext(input: {
 }
 
 /**
- * Advertiser-only campaign verification. Persists an unpaid test lead, dispatches
- * autoresponder LEAD_CAPTURED, and skips billing, fraud, and analytics side effects.
+ * Campaign verification for advertisers or admins. Persists an unpaid test lead,
+ * dispatches autoresponder LEAD_CAPTURED, and skips billing/fraud/analytics.
+ * publisherId is always the campaign advertiser; actorId is who ran the test.
  */
-export async function submitAdvertiserTestCampaignLead(input: {
+export async function submitTestCampaignLead(input: {
   campaignId: string;
+  /** Campaign owner — used as lead publisherId for test attribution. */
   advertiserId: string;
+  actorId: string;
+  actorReason?: string;
   data: Record<string, string>;
 }) {
-  const { campaign, validationFields } = await resolveAdvertiserCampaignTestContext(input);
+  const { campaign, validationFields } = await resolveCampaignTestContext(input.campaignId);
+
+  if (campaign.advertiserId !== input.advertiserId) {
+    throw Errors.forbidden();
+  }
 
   if (validationFields.length === 0) {
     throw Errors.validation(
@@ -589,6 +594,7 @@ export async function submitAdvertiserTestCampaignLead(input: {
   }
 
   const country = extractCountry(leadData);
+  const actorReason = input.actorReason ?? "Campaign test lead";
 
   const lead = await prisma.lead.create({
     data: {
@@ -610,8 +616,8 @@ export async function submitAdvertiserTestCampaignLead(input: {
       statusHistory: {
         create: {
           toStatus: "CAPTURED",
-          actorId: input.advertiserId,
-          reason: "Advertiser campaign test lead",
+          actorId: input.actorId,
+          reason: actorReason,
         },
       },
     },
@@ -620,6 +626,21 @@ export async function submitAdvertiserTestCampaignLead(input: {
   void dispatchAutoresponderEvent({ leadId: lead.id, event: "LEAD_CAPTURED" });
 
   return lead;
+}
+
+/** @deprecated Prefer submitTestCampaignLead — kept for call-site clarity. */
+export async function submitAdvertiserTestCampaignLead(input: {
+  campaignId: string;
+  advertiserId: string;
+  data: Record<string, string>;
+}) {
+  return submitTestCampaignLead({
+    campaignId: input.campaignId,
+    advertiserId: input.advertiserId,
+    actorId: input.advertiserId,
+    actorReason: "Advertiser campaign test lead",
+    data: input.data,
+  });
 }
 
 export async function submitLandingLead(input: {

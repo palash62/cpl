@@ -15,6 +15,10 @@ const prismaMock = {
   },
 };
 
+const authSession = {
+  user: { id: "adv-1", role: "ADVERTISER" as "ADVERTISER" | "ADMIN" },
+};
+
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
 vi.mock("@/services/wallet.service", () => ({
@@ -44,9 +48,7 @@ vi.mock("@/modules/email-marketing", () => ({
 }));
 
 vi.mock("@/lib/api-handler", () => ({
-  withAuth: (
-    handler: (session: { user: { id: string; role: "ADVERTISER" } }) => unknown,
-  ) => handler({ user: { id: "adv-1", role: "ADVERTISER" } }),
+  withAuth: (handler: (session: typeof authSession) => unknown) => handler(authSession),
 }));
 
 vi.mock("@/services/campaign.service", () => ({
@@ -64,9 +66,10 @@ describe("formatAdvertiserLeadCpl", () => {
   });
 });
 
-describe("submitAdvertiserTestCampaignLead", () => {
+describe("submitTestCampaignLead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authSession.user = { id: "adv-1", role: "ADVERTISER" };
   });
 
   it("creates an unpaid test lead and dispatches LEAD_CAPTURED", async () => {
@@ -119,6 +122,12 @@ describe("submitAdvertiserTestCampaignLead", () => {
           publisherId: "adv-1",
           source: "campaign_test",
           status: "CAPTURED",
+          statusHistory: {
+            create: expect.objectContaining({
+              actorId: "adv-1",
+              reason: "Advertiser campaign test lead",
+            }),
+          },
         }),
       }),
     );
@@ -128,6 +137,57 @@ describe("submitAdvertiserTestCampaignLead", () => {
       event: "LEAD_CAPTURED",
     });
   }, 15_000);
+
+  it("lets an admin create a test lead attributed to the campaign advertiser", async () => {
+    const { submitTestCampaignLead } = await import("@/services/lead.service");
+
+    prismaMock.campaign.findFirst.mockResolvedValue({
+      id: "camp-1",
+      advertiserId: "adv-1",
+      targeting: {},
+      fields: [],
+    });
+    prismaMock.advertiserOptinPage.findFirst.mockResolvedValue({
+      id: "funnel-1",
+      slug: "test-funnel",
+      advertiserId: "adv-1",
+      campaignId: "camp-1",
+      formJson: {
+        formId: "form-1",
+        campaignId: "camp-1",
+        fields: [{ id: "1", type: "email", name: "email", label: "Email", required: true }],
+      },
+      publishedVersion: null,
+    });
+    prismaMock.lead.create.mockResolvedValue({
+      id: "lead-admin-1",
+      status: "CAPTURED",
+      isTest: true,
+    });
+
+    await submitTestCampaignLead({
+      campaignId: "camp-1",
+      advertiserId: "adv-1",
+      actorId: "admin-1",
+      actorReason: "Admin campaign test lead",
+      data: { email: "admin-test@example.com" },
+    });
+
+    expect(prismaMock.lead.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          publisherId: "adv-1",
+          isTest: true,
+          statusHistory: {
+            create: expect.objectContaining({
+              actorId: "admin-1",
+              reason: "Admin campaign test lead",
+            }),
+          },
+        }),
+      }),
+    );
+  });
 
   it("rejects when the campaign has no attached funnel", async () => {
     const { submitAdvertiserTestCampaignLead } = await import("@/services/lead.service");
@@ -151,26 +211,41 @@ describe("submitAdvertiserTestCampaignLead", () => {
     });
   });
 
-  it("does not allow an advertiser to test another advertiser's campaign", async () => {
-    const { submitAdvertiserTestCampaignLead } = await import("@/services/lead.service");
-    prismaMock.campaign.findFirst.mockResolvedValue(null);
+  it("rejects when advertiserId does not match the campaign owner", async () => {
+    const { submitTestCampaignLead } = await import("@/services/lead.service");
+
+    prismaMock.campaign.findFirst.mockResolvedValue({
+      id: "camp-1",
+      advertiserId: "adv-2",
+      targeting: {},
+      fields: [],
+    });
+    prismaMock.advertiserOptinPage.findFirst.mockResolvedValue({
+      id: "funnel-1",
+      formJson: {
+        fields: [{ id: "1", type: "email", name: "email", label: "Email", required: true }],
+      },
+      publishedVersion: null,
+    });
 
     await expect(
-      submitAdvertiserTestCampaignLead({
-        campaignId: "camp-owned-by-someone-else",
+      submitTestCampaignLead({
+        campaignId: "camp-1",
         advertiserId: "adv-1",
+        actorId: "adv-1",
         data: { email: "test@example.com" },
       }),
     ).rejects.toMatchObject({
-      message: expect.stringContaining("Campaign"),
+      message: expect.stringMatching(/permission|forbidden|Campaign/i),
     });
     expect(prismaMock.lead.create).not.toHaveBeenCalled();
   });
 });
 
-describe("campaign test-lead API ownership", () => {
+describe("campaign test-lead API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authSession.user = { id: "adv-1", role: "ADVERTISER" };
   });
 
   it("returns forbidden when the campaign belongs to another advertiser", async () => {
@@ -191,6 +266,61 @@ describe("campaign test-lead API ownership", () => {
 
     expect(response.status).toBe(403);
     expect(prismaMock.lead.create).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin submit a test lead for any campaign", async () => {
+    authSession.user = { id: "admin-1", role: "ADMIN" };
+    const { getCampaignById } = await import("@/services/campaign.service");
+    const { POST } = await import("@/app/api/v1/campaigns/[id]/test-leads/route");
+
+    vi.mocked(getCampaignById).mockResolvedValue({
+      id: "camp-1",
+      advertiserId: "adv-1",
+    } as Awaited<ReturnType<typeof getCampaignById>>);
+
+    prismaMock.campaign.findFirst.mockResolvedValue({
+      id: "camp-1",
+      advertiserId: "adv-1",
+      targeting: {},
+      fields: [],
+    });
+    prismaMock.advertiserOptinPage.findFirst.mockResolvedValue({
+      id: "funnel-1",
+      formJson: {
+        fields: [{ id: "1", type: "email", name: "email", label: "Email", required: true }],
+      },
+      publishedVersion: null,
+    });
+    prismaMock.lead.create.mockResolvedValue({
+      id: "lead-admin-api-1",
+      status: "CAPTURED",
+      isTest: true,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/v1/campaigns/camp-1/test-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { email: "admin@example.com" } }),
+      }),
+      { params: Promise.resolve({ id: "camp-1" }) },
+    );
+
+    expect(response.status).toBe(201);
+    expect(prismaMock.lead.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          publisherId: "adv-1",
+          isTest: true,
+          statusHistory: {
+            create: expect.objectContaining({
+              actorId: "admin-1",
+              reason: "Admin campaign test lead",
+            }),
+          },
+        }),
+      }),
+    );
   });
 });
 
