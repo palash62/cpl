@@ -48,7 +48,7 @@ export const campaignSchema = z.object({
   description: z.string().optional(),
   category: z.enum(["FINANCE", "INSURANCE", "EDUCATION", "REAL_ESTATE", "GENERIC"]),
   cpl: z.number().positive(),
-  budget: z.number().positive().optional(),
+  budget: z.number().positive("Total budget is required"),
   dailyCap: z.number().int().positive().optional(),
   monthlyCap: z.number().int().positive().optional(),
   publisherAccess: z.enum(["OPEN", "APPROVAL_REQUIRED", "INVITE_ONLY"]).optional(),

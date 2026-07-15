@@ -33,6 +33,7 @@ function AppShellInner({ role, title, breadcrumbs, viewAs, children }: AppShellP
           <ImpersonationBanner userName={viewAs.userName} userRole={viewAs.userRole} />
         ) : null}
         <Header
+          role={role}
           title={title}
           breadcrumbs={breadcrumbs}
           premium

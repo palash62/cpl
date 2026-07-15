@@ -62,7 +62,7 @@ type AdvertiserOption = {
   id: string;
   name: string;
   email: string;
-  wallet?: { balance: unknown } | null;
+  wallet?: { balance: unknown; holdBalance?: unknown } | null;
 };
 
 type OptinPageOption = {
@@ -171,6 +171,8 @@ function CurrencyInput({
         id={id}
         type="number"
         step={step}
+        min={min}
+        max={max}
         required={required}
         disabled={disabled}
         value={value}
@@ -353,21 +355,34 @@ export function CreateCampaignForm({
 
   const selectedAdvertiser = advertisers.find((item) => item.id === advertiserId);
   const effectiveWalletBalance = isAdmin
-    ? Number(selectedAdvertiser?.wallet?.balance ?? 0)
+    ? Math.max(
+        0,
+        Number(selectedAdvertiser?.wallet?.balance ?? 0) -
+          Number(selectedAdvertiser?.wallet?.holdBalance ?? 0),
+      )
     : walletBalance;
 
   const cplValue = parseFloat(cpl) || 0;
   const totalBudgetValue = totalBudget.trim() ? parseFloat(totalBudget) : null;
   const dailyBudgetValue = dailyBudget.trim() ? parseFloat(dailyBudget) : null;
   const selectedVertical = VERTICALS.find((item) => item.label === vertical);
+  const budgetChanged =
+    !isEdit ||
+    editCampaign == null ||
+    totalBudgetValue === null ||
+    Math.abs(totalBudgetValue - Number(editCampaign.budget)) > 0.0001;
 
   const minCpl = 0.1;
   const cplInvalid = cplValue > 0 && (cplValue < minCpl || cplValue > 100);
+  const budgetMissing = !totalBudget.trim() || totalBudgetValue === null || Number.isNaN(totalBudgetValue) || totalBudgetValue <= 0;
+  const budgetExceedsWallet =
+    budgetChanged &&
+    totalBudgetValue !== null &&
+    !Number.isNaN(totalBudgetValue) &&
+    totalBudgetValue > effectiveWalletBalance;
   const insufficientBalance =
-    !isAdmin &&
     cplValue > 0 &&
-    (effectiveWalletBalance < cplValue ||
-      (totalBudgetValue !== null && effectiveWalletBalance < totalBudgetValue));
+    (effectiveWalletBalance < cplValue || budgetExceedsWallet || (!isEdit && budgetMissing));
 
   const selectedOptinPage = optinPages.find((page) => page.id === optinPageId);
 
@@ -397,7 +412,19 @@ export function CreateCampaignForm({
         return;
       }
     }
-    if (insufficientBalance) {
+    if (canEditField("budget")) {
+      if (budgetMissing) {
+        setError("Total budget is required.");
+        return;
+      }
+      if (budgetExceedsWallet) {
+        setError(
+          `Total budget cannot exceed available wallet balance of $${effectiveWalletBalance.toFixed(2)}.`,
+        );
+        return;
+      }
+    }
+    if (insufficientBalance && !budgetExceedsWallet) {
       setError("You do not have enough balance to create a campaign. Please add funds to your account.");
       return;
     }
@@ -450,7 +477,9 @@ export function CreateCampaignForm({
       }
       if (canEditField("name")) patchBody.name = name.trim();
       if (canEditField("cpl")) patchBody.cpl = cplValue;
-      if (canEditField("budget")) patchBody.budget = totalBudgetValue ?? editCampaign.budget;
+      if (canEditField("budget") && budgetChanged && totalBudgetValue !== null) {
+        patchBody.budget = totalBudgetValue;
+      }
       if (canEditField("category")) patchBody.category = selectedVertical?.category;
       if (fullEdit) {
         patchBody.optinPageId = optinPageId;
@@ -485,7 +514,7 @@ export function CreateCampaignForm({
           vertical,
           category: selectedVertical.category,
           cpl: cplValue,
-          budget: totalBudgetValue ?? undefined,
+          budget: totalBudgetValue!,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           status: campaignStatus,
           description: selectedOptinPage
@@ -502,7 +531,7 @@ export function CreateCampaignForm({
             : undefined,
           category: selectedVertical.category,
           cpl: cplValue,
-          budget: totalBudgetValue ?? undefined,
+          budget: totalBudgetValue!,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
@@ -545,6 +574,8 @@ export function CreateCampaignForm({
     optinPageId &&
     vertical &&
     (cplValue >= minCpl || isEdit) &&
+    !budgetMissing &&
+    !budgetExceedsWallet &&
     !insufficientBalance &&
     !cplInvalid &&
     !loadingOptinPages &&
@@ -878,15 +909,19 @@ export function CreateCampaignForm({
                 <Label htmlFor="totalBudget" className="leading-snug">
                   Total Budget
                 </Label>
-                <FieldHint>Stop campaign when reached — leave empty for unlimited</FieldHint>
+                <FieldHint>
+                  Required. Maximum available: ${effectiveWalletBalance.toFixed(2)}
+                </FieldHint>
                 <div className="pt-1">
                   <CurrencyInput
                     id="totalBudget"
                     value={totalBudget}
                     onChange={setTotalBudget}
-                    placeholder="Unlimited"
+                    placeholder="0.00"
                     min={1}
+                    max={effectiveWalletBalance > 0 ? effectiveWalletBalance : undefined}
                     step={1}
+                    required
                     disabled={!canEditField("budget")}
                   />
                 </div>
@@ -980,11 +1015,17 @@ export function CreateCampaignForm({
 
             {isAdmin && advertiserId && effectiveWalletBalance < cplValue && cplValue > 0 && (
               <p className="mb-3 text-sm text-amber-700">
-                This advertiser has a low wallet balance. You can still create the campaign as admin.
+                This advertiser’s available balance is below the CPL bid.
               </p>
             )}
 
-            {insufficientBalance && (
+            {budgetExceedsWallet && (
+              <p className="mb-3 text-sm text-red-600">
+                Total budget cannot exceed available wallet balance of $
+                {effectiveWalletBalance.toFixed(2)}.
+              </p>
+            )}
+            {insufficientBalance && !budgetExceedsWallet && (
               <p className="mb-3 text-sm text-red-600">
                 You do not have enough balance to create a campaign. Please add funds to your account.
               </p>

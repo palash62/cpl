@@ -29,9 +29,12 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { shouldShowAdminQuickActions } from "@/lib/header-quick-actions";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@prisma/client";
 
 interface HeaderProps {
+  role: UserRole;
   title?: string;
   breadcrumbs?: string[];
   premium?: boolean;
@@ -54,7 +57,7 @@ async function handleSignOut() {
   window.location.assign("/login");
 }
 
-export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderProps) {
+export function Header({ role, title, breadcrumbs, premium, onOpenMobileNav }: HeaderProps) {
   const { data: session } = useSession();
   const initials = session?.user?.name
     ?.split(" ")
@@ -64,18 +67,20 @@ export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderP
     .toUpperCase() ?? "U";
 
   const notificationsHref =
-    session?.user?.role === "ADMIN"
+    role === "ADMIN"
       ? "/admin/notifications"
-      : session?.user?.role === "ADVERTISER"
+      : role === "ADVERTISER"
         ? "/advertiser/notifications"
         : "/publisher/notifications";
 
   const tutorialsHref =
-    session?.user?.role === "ADMIN"
+    role === "ADMIN"
       ? "/admin/tutorials"
-      : session?.user?.role === "ADVERTISER"
+      : role === "ADVERTISER"
         ? "/advertiser/tutorials"
         : null;
+
+  const showQuickActions = premium && shouldShowAdminQuickActions(role);
 
   return (
     <header
@@ -133,7 +138,7 @@ export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderP
           </ButtonLink>
         )}
 
-        {premium && (
+        {showQuickActions && (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={

@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api-handler";
 import { errorResponse, Errors } from "@/lib/errors";
 import { getActorId } from "@/lib/session";
+import { adminUpdateCampaignSchema } from "@/lib/validations";
 import {
   deleteCampaignByAdmin,
   getCampaignById,
@@ -58,6 +59,15 @@ export async function PATCH(
   return withAuth(async (session) => {
     try {
       const body = await request.json();
+      const parsed = adminUpdateCampaignSchema.safeParse(body);
+      if (!parsed.success) {
+        const message = parsed.error.issues[0]?.message ?? "Invalid campaign update";
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message, status: 422 } },
+          { status: 422 },
+        );
+      }
+
       const campaign = await getCampaignById(id);
       if (!campaign) return errorResponse(Errors.notFound("Campaign"));
 
@@ -68,7 +78,7 @@ export async function PATCH(
         return errorResponse(Errors.forbidden());
       }
 
-      const updated = await updateCampaignByAdmin(id, body, getActorId(session), {
+      const updated = await updateCampaignByAdmin(id, parsed.data, getActorId(session), {
         baseUrl: resolveRequestBaseUrl(request),
         actorRole: session.user.role === "ADMIN" ? "ADMIN" : "ADVERTISER",
       });

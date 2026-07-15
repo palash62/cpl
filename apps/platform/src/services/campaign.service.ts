@@ -14,6 +14,7 @@ import {
   resolveOptinPageDestination,
 } from "@/services/optin-page.service";
 import { parseCampaignTargeting } from "@/lib/campaign-targeting";
+import { getWalletBalance } from "@/services/wallet.service";
 
 export interface CreateCampaignInput {
   advertiserId: string;
@@ -21,7 +22,7 @@ export interface CreateCampaignInput {
   description?: string;
   category: CampaignCategory;
   cpl: number;
-  budget?: number;
+  budget: number;
   dailyCap?: number;
   monthlyCap?: number;
   publisherAccess?: PublisherAccess;
@@ -38,7 +39,38 @@ export interface CreateCampaignInput {
   }>;
 }
 
+export async function assertCampaignBudgetWithinWallet(
+  advertiserId: string,
+  budget: number,
+  options?: { spent?: number },
+) {
+  if (!Number.isFinite(budget) || budget <= 0) {
+    throw Errors.validation("Total budget is required", "budget");
+  }
+
+  const spent = Number(options?.spent ?? 0);
+  if (spent > 0 && budget < spent) {
+    throw Errors.validation(
+      `Budget cannot be less than amount already spent ($${spent.toFixed(2)})`,
+      "budget",
+    );
+  }
+
+  const wallet = await getWalletBalance(advertiserId);
+  const availableBalance = wallet?.availableBalance ?? 0;
+  if (budget > availableBalance) {
+    throw Errors.validation(
+      `Total budget cannot exceed available wallet balance of $${availableBalance.toFixed(2)}.`,
+      "budget",
+    );
+  }
+
+  return availableBalance;
+}
+
 export async function createCampaign(input: CreateCampaignInput) {
+  await assertCampaignBudgetWithinWallet(input.advertiserId, input.budget);
+
   return prisma.campaign.create({
     data: {
       advertiserId: input.advertiserId,
@@ -46,7 +78,7 @@ export async function createCampaign(input: CreateCampaignInput) {
       description: input.description,
       category: input.category,
       cpl: input.cpl,
-      budget: input.budget ?? 999999999,
+      budget: input.budget,
       dailyCap: input.dailyCap,
       monthlyCap: input.monthlyCap,
       publisherAccess: "OPEN",
@@ -344,6 +376,12 @@ export async function updateCampaignByAdmin(
     if (body[field] !== undefined) {
       (data as Record<string, unknown>)[field] = body[field];
     }
+  }
+
+  if (body.budget !== undefined) {
+    await assertCampaignBudgetWithinWallet(campaign.advertiserId, Number(body.budget), {
+      spent: Number(campaign.spent),
+    });
   }
 
   if (body.targeting !== undefined) {
