@@ -23,6 +23,7 @@ type PublishedOptinFunnelProps = {
   thankYouEnabled: boolean;
   destinationUrl?: string | null;
   previewMode?: boolean;
+  testCampaignId?: string;
 };
 
 function PublishedOptinFunnelContent({
@@ -33,6 +34,7 @@ function PublishedOptinFunnelContent({
   thankYouEnabled,
   destinationUrl,
   previewMode,
+  testCampaignId,
 }: PublishedOptinFunnelProps) {
   const signalRef = useRef(createSignalCollector());
   const searchParams = useSearchParams();
@@ -50,20 +52,29 @@ function PublishedOptinFunnelContent({
       const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
       const { trackingSlug, source, subId } = readOptinTrackingParams();
 
-      const res = await fetch("/api/v1/leads/submit-optin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          optinSlug: slug,
-          data,
-          honeypot: data.honeypot ?? "",
-          submissionMeta,
-          deviceFingerprint,
-          trackingSlug,
-          source,
-          subId,
-        }),
-      });
+      const res = await fetch(
+        testCampaignId
+          ? `/api/v1/campaigns/${testCampaignId}/test-leads`
+          : "/api/v1/leads/submit-optin",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data,
+            ...(testCampaignId
+              ? {}
+              : {
+                  optinSlug: slug,
+                  honeypot: data.honeypot ?? "",
+                  submissionMeta,
+                  deviceFingerprint,
+                  trackingSlug,
+                  source,
+                  subId,
+                }),
+          }),
+        },
+      );
 
       const body = await res.json();
       if (!res.ok) {
@@ -85,7 +96,7 @@ function PublishedOptinFunnelContent({
         window.location.assign(redirectUrl);
       }
     },
-    [slug, thankYouEnabled, destinationUrl, previewMode],
+    [slug, thankYouEnabled, destinationUrl, previewMode, testCampaignId],
   );
 
   const page = (
@@ -102,12 +113,14 @@ function PublishedOptinFunnelContent({
     />
   );
 
-  if (!previewMode) return page;
+  if (!previewMode && !testCampaignId) return page;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
       <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
-        Preview mode — form submissions are disabled until you publish.
+        {testCampaignId
+          ? "Campaign test mode — this submission creates a Test lead, triggers the autoresponder, and is never charged."
+          : "Preview mode — form submissions are disabled until you publish."}
       </div>
       {matchEditorCanvas && <PreviewDeviceToolbar isGhl />}
       {page}

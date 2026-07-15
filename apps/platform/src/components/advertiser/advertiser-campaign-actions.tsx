@@ -1,35 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil, Play, Trash2 } from "lucide-react";
+import {
+  Ban,
+  Crosshair,
+  FlaskConical,
+  MoreHorizontal,
+  Pencil,
+  Play,
+  Trash2,
+} from "lucide-react";
 import type { CampaignStatus } from "@prisma/client";
 import { canAdminDeleteCampaign, getAllowedStatusTransitions } from "@/lib/campaign-lifecycle";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
+import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function AdvertiserCampaignActions({
   campaign,
 }: {
-  campaign: { id: string; name: string; status: CampaignStatus; leadCount: number };
+  campaign: {
+    id: string;
+    name: string;
+    status: CampaignStatus;
+    leadCount: number;
+    funnelSlug: string | null;
+    pixelToken?: string | null;
+  };
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pixelOpen, setPixelOpen] = useState(false);
+  const [pixelToken, setPixelToken] = useState(campaign.pixelToken ?? null);
+  const [pixelLoading, setPixelLoading] = useState(false);
 
   const lifecycle = { status: campaign.status, leadCount: campaign.leadCount };
   const canDelete = canAdminDeleteCampaign(lifecycle);
   const transitions = getAllowedStatusTransitions(campaign.status).filter(
     (s) => s === "PAUSED" || s === "ACTIVE",
   );
+
+  useEffect(() => {
+    setPixelToken(campaign.pixelToken ?? null);
+  }, [campaign.pixelToken]);
+
+  useEffect(() => {
+    if (!pixelOpen || pixelToken) return;
+
+    let cancelled = false;
+    setPixelLoading(true);
+
+    fetch(`/api/v1/campaigns/${campaign.id}`)
+      .then((res) => res.json())
+      .then((body) => {
+        if (!cancelled) {
+          setPixelToken(body?.data?.pixelToken ?? null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPixelLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pixelOpen, pixelToken, campaign.id]);
 
   async function patchStatus(status: CampaignStatus) {
     setLoading(true);
@@ -62,90 +115,153 @@ export function AdvertiserCampaignActions({
     router.refresh();
   }
 
+  function openTestFunnel() {
+    if (!campaign.funnelSlug) return;
+    window.open(
+      `/o/${campaign.funnelSlug}?test_campaign=${campaign.id}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <ButtonLink href={`/advertiser/campaigns/${campaign.id}`} variant="outline" size="sm" className="h-8">
-        View
-      </ButtonLink>
-      <ButtonLink
-        href={`/advertiser/campaigns/${campaign.id}/edit`}
-        variant="outline"
-        size="sm"
-        className="h-8 gap-1"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-        Edit
-      </ButtonLink>
+    <>
+      <div className="flex shrink-0 items-center justify-end gap-1.5">
+        <ButtonLink
+          href={`/advertiser/campaigns/${campaign.id}`}
+          variant="outline"
+          size="sm"
+          className="h-8 px-2.5"
+        >
+          View
+        </ButtonLink>
 
-      {transitions.includes("PAUSED") && campaign.status === "ACTIVE" && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1"
-          disabled={loading}
-          onClick={() => patchStatus("PAUSED")}
+          className="h-8 gap-1 px-2.5"
+          disabled={!campaign.funnelSlug}
+          title={
+            campaign.funnelSlug
+              ? "Open the attached funnel in campaign test mode"
+              : "Attach a funnel to this campaign before testing"
+          }
+          onClick={openTestFunnel}
         >
-          <Ban className="h-3.5 w-3.5" />
-          Pause
+          <FlaskConical className="h-3.5 w-3.5" />
+          Test
         </Button>
-      )}
-      {transitions.includes("ACTIVE") && campaign.status === "PAUSED" && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          disabled={loading}
-          onClick={() => patchStatus("ACTIVE")}
-        >
-          <Play className="h-3.5 w-3.5" />
-          Resume
-        </Button>
-      )}
 
-      {canDelete ? (
-        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <DialogTrigger
-            render={
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-red-600 hover:text-red-700" />
-            }
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 w-8 px-0")}
+            aria-label="More campaign actions"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Delete campaign</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-slate-600">
-              Permanently delete <strong>{campaign.name}</strong>? This cannot be undone.
-            </p>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" disabled={loading} onClick={handleDelete}>
-                {loading ? "Deleting..." : "Delete"}
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => router.push(`/advertiser/campaigns/${campaign.id}/edit`)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPixelOpen(true)}>
+              <Crosshair className="mr-2 h-4 w-4" />
+              Tracking pixel
+            </DropdownMenuItem>
+            {transitions.includes("PAUSED") && campaign.status === "ACTIVE" ? (
+              <DropdownMenuItem disabled={loading} onClick={() => patchStatus("PAUSED")}>
+                <Ban className="mr-2 h-4 w-4" />
+                Pause
+              </DropdownMenuItem>
+            ) : null}
+            {transitions.includes("ACTIVE") && campaign.status === "PAUSED" ? (
+              <DropdownMenuItem disabled={loading} onClick={() => patchStatus("ACTIVE")}>
+                <Play className="mr-2 h-4 w-4" />
+                Resume
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600"
+              disabled={!canDelete}
+              title={
+                canDelete
+                  ? undefined
+                  : "Only draft/pending campaigns with no leads can be deleted"
+              }
+              onClick={() => {
+                if (!canDelete) return;
+                setDeleteOpen(true);
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {error && !deleteOpen ? (
+        <p className="mt-1 text-right text-xs text-red-600">{error}</p>
+      ) : null}
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete campaign</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            Permanently delete <strong>{campaign.name}</strong>? This cannot be undone.
+          </p>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={loading} onClick={handleDelete}>
+              {loading ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {pixelOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            aria-label="Close"
+            onClick={() => setPixelOpen(false)}
+          />
+          <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Tracking pixel
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">{campaign.name}</h3>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0"
+                onClick={() => setPixelOpen(false)}
+              >
+                Close
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1 text-red-400 hover:text-red-400"
-          disabled
-          title="Only draft/pending campaigns with no leads can be deleted"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
-        </Button>
-      )}
-      {error && !deleteOpen && <p className="w-full text-right text-xs text-red-600">{error}</p>}
-    </div>
+            {pixelLoading ? <p className="text-sm text-slate-500">Loading pixel...</p> : null}
+            {!pixelLoading && pixelToken ? (
+              <CampaignTrackingPixelPanel pixelToken={pixelToken} compact />
+            ) : null}
+            {!pixelLoading && !pixelToken ? (
+              <p className="text-sm text-red-600">Unable to load tracking pixel for this campaign.</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

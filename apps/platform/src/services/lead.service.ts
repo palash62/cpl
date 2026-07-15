@@ -25,6 +25,7 @@ import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
 import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 import { resolveLeadEmail, withResolvedLeadEmail } from "@/lib/lead-email";
 import { validateEmailDeliverability } from "@/lib/email-deliverability";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 
 type LeadValidationField = {
   fieldName: string;
@@ -512,6 +513,115 @@ export async function submitOptinLead(input: {
   });
 }
 
+async function resolveAdvertiserCampaignTestContext(input: {
+  campaignId: string;
+  advertiserId: string;
+}) {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: input.campaignId, advertiserId: input.advertiserId },
+    include: { fields: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  if (!campaign) {
+    throw Errors.notFound("Campaign");
+  }
+
+  let optinPage = await prisma.advertiserOptinPage.findFirst({
+    where: { campaignId: input.campaignId, advertiserId: input.advertiserId },
+    include: { publishedVersion: { select: { formJson: true } } },
+  });
+
+  if (!optinPage) {
+    const { optinPageId } = parseCampaignTargeting(campaign.targeting);
+    if (optinPageId) {
+      optinPage = await prisma.advertiserOptinPage.findFirst({
+        where: { id: optinPageId, advertiserId: input.advertiserId },
+        include: { publishedVersion: { select: { formJson: true } } },
+      });
+    }
+  }
+
+  if (!optinPage) {
+    throw Errors.validation("Attach a funnel to this campaign before testing");
+  }
+
+  const formJson = resolveOptinFormJson(optinPage);
+  const validationFields =
+    formJsonToValidationFields(formJson) ??
+    campaignFieldsToValidationFields(campaign.fields);
+
+  return { campaign, optinPage, formJson, validationFields };
+}
+
+/**
+ * Advertiser-only campaign verification. Persists an unpaid test lead, dispatches
+ * autoresponder LEAD_CAPTURED, and skips billing, fraud, and analytics side effects.
+ */
+export async function submitAdvertiserTestCampaignLead(input: {
+  campaignId: string;
+  advertiserId: string;
+  data: Record<string, string>;
+}) {
+  const { campaign, validationFields } = await resolveAdvertiserCampaignTestContext(input);
+
+  if (validationFields.length === 0) {
+    throw Errors.validation(
+      "This funnel has no form fields to test yet. Add fields in the builder and try again.",
+    );
+  }
+
+  const leadData = withResolvedLeadEmail(input.data, validationFields);
+  const validation = validateLead({
+    data: leadData,
+    campaignFields: validationFields,
+    existingEmails: [],
+    existingPhones: [],
+  });
+
+  if (!validation.passed) {
+    const firstFailure = validation.results.find((r) => !r.passed);
+    throw Errors.validation(
+      firstFailure?.details ?? "Test lead validation failed",
+      firstFailure?.rule.startsWith("required_")
+        ? firstFailure.rule.replace("required_", "")
+        : undefined,
+    );
+  }
+
+  const country = extractCountry(leadData);
+
+  const lead = await prisma.lead.create({
+    data: {
+      campaignId: campaign.id,
+      publisherId: input.advertiserId,
+      status: "CAPTURED",
+      data: leadData,
+      score: validation.score,
+      country,
+      source: "campaign_test",
+      isTest: true,
+      validationResults: {
+        create: validation.results.map((r) => ({
+          rule: r.rule,
+          passed: r.passed,
+          details: r.details,
+        })),
+      },
+      statusHistory: {
+        create: {
+          toStatus: "CAPTURED",
+          actorId: input.advertiserId,
+          reason: "Advertiser campaign test lead",
+        },
+      },
+    },
+  });
+
+  void dispatchAutoresponderEvent({ leadId: lead.id, event: "LEAD_CAPTURED" });
+
+  return lead;
+}
+
 export async function submitLandingLead(input: {
   landingPageSlug: string;
   data: Record<string, string>;
@@ -611,6 +721,10 @@ export async function updateLeadStatus(
     })
   ) {
     throw Errors.forbidden();
+  }
+
+  if (lead.isTest) {
+    throw Errors.validation("Test leads cannot be approved or rejected for payment.");
   }
 
   if (!["PENDING", "APPROVED"].includes(lead.status) && status === "APPROVED") {
@@ -932,6 +1046,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
   const leads = await prisma.lead.findMany({
     where: {
       campaign: campaignWhere,
+      isTest: false,
       ...(filters.publisherSearch?.trim() && {
         publisherId: { contains: filters.publisherSearch.trim() },
       }),
@@ -1012,6 +1127,7 @@ export async function listPublisherSubIdLeadReport(filters: {
     prisma.lead.findMany({
       where: {
         publisherId: filters.publisherId,
+        isTest: false,
         ...(filters.subIdSearch?.trim() && {
           subId: { contains: filters.subIdSearch.trim() },
         }),

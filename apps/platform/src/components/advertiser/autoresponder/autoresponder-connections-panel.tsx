@@ -162,7 +162,7 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
           <p className="mb-6 text-sm text-slate-500">
             {editing
               ? "Update connection settings, then save changes."
-                : "Connect Mailchimp, AWeber, GetResponse, Systeme.io, or a custom webhook."}
+                : "Connect GetResponse, Systeme.io, or a custom webhook."}
           </p>
           <AutoresponderConnectionForm
             campaigns={campaigns}

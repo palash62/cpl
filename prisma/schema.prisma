@@ -443,6 +443,7 @@ model Lead {
   country           String?
   source            String?
   subId             String?    @map("sub_id")
+  isTest            Boolean    @default(false) @map("is_test")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
@@ -465,6 +466,7 @@ model Lead {
   @@index([createdAt])
   @@index([riskScore])
   @@index([deviceFingerprint])
+  @@index([campaignId, isTest, createdAt])
   @@map("leads")
 }
 

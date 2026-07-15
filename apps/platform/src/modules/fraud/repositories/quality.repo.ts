@@ -60,7 +60,11 @@ export async function getPublisherSpamScoresByIds(publisherIds: string[], window
 
 export async function computeCampaignRejectionRate(campaignId: string, sampleSize = 100) {
   const leads = await prisma.lead.findMany({
-    where: { campaignId, status: { in: ["APPROVED", "PAID", "REJECTED", "PENDING"] } },
+    where: {
+      campaignId,
+      isTest: false,
+      status: { in: ["APPROVED", "PAID", "REJECTED", "PENDING"] },
+    },
     orderBy: { createdAt: "desc" },
     take: sampleSize,
     select: { status: true },

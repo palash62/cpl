@@ -23,7 +23,10 @@ export function formatLeadDataSummary(data: unknown): string {
   return entries.length > 0 ? entries.join(" · ") : "—";
 }
 
-export function formatAdvertiserLeadCpl(status: string, cpl: number): string {
+export function formatAdvertiserLeadCpl(status: string, cpl: number, isTest = false): string {
+  if (isTest) {
+    return "Test";
+  }
   if (status === "PAID" || status === "APPROVED") {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cpl);
   }

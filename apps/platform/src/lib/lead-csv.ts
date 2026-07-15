@@ -18,6 +18,7 @@ export type LeadCsvRow = {
   publisher: { name: string; email: string };
   data: unknown;
   status: string;
+  isTest?: boolean;
   country: string | null;
   geoCountry: string | null;
   ip?: string | null;
@@ -70,6 +71,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     "cpl",
     "risk_score",
     "status",
+    "is_test",
     "notes",
     ...(options.includeAdvertiser ? ["validation_flags"] : []),
   ];
@@ -79,7 +81,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     const { device, os } = parseUserAgent(lead.userAgent);
     const country = extractLeadCountry(lead.data, lead.country, lead.geoCountry, lead.submissionMeta);
     const ip = formatLeadIp(lead.ip);
-    const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
+    const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl), Boolean(lead.isTest));
     const notes = formatLeadRejectReason(lead);
     const flags = lead.validationResults
       .filter((r) => !r.passed)
@@ -103,6 +105,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
       cpl === "—" ? "" : cpl,
       lead.riskScore?.toString() ?? "",
       lead.status,
+      lead.isTest ? "true" : "false",
       notes === "—" ? "" : notes,
       ...(options.includeAdvertiser ? [flags] : []),
     ];

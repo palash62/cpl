@@ -208,7 +208,11 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                     lead.geoCountry,
                     lead.submissionMeta,
                   );
-                  const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
+                  const cpl = formatAdvertiserLeadCpl(
+                    lead.status,
+                    Number(lead.campaign.cpl),
+                    lead.isTest,
+                  );
                   const notes = formatLeadRejectReason(lead);
                   const leadData = formatLeadDataSummary(lead.data);
 
@@ -221,7 +225,14 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                         {format(new Date(lead.createdAt), "MMM d, yyyy HH:mm:ss")}
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-500">
-                        {shortLeadId(lead.id)}
+                        <span className="inline-flex items-center gap-2">
+                          {shortLeadId(lead.id)}
+                          {lead.isTest ? (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 ring-1 ring-red-200">
+                              Test
+                            </span>
+                          ) : null}
+                        </span>
                       </TableCell>
                       <TableCell className="max-w-[140px] px-4 py-4 text-sm font-medium text-slate-800">
                         <span className="line-clamp-2" title={lead.campaign.name}>

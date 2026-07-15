@@ -20,6 +20,7 @@ const prismaMock = {
       publisherId: "publisher-1",
       country: "US",
       campaignId: "campaign-1",
+      isTest: false,
       campaign: {
         id: "campaign-1",
         advertiserId: "advertiser-1",
@@ -53,6 +54,9 @@ const prismaMock = {
   },
   platformFee: { create: vi.fn() },
   campaign: { update: vi.fn() },
+  user: {
+    findUnique: vi.fn().mockResolvedValue({ referredBy: null }),
+  },
   $transaction: vi.fn(async (callback: (tx: typeof prismaMock) => unknown) =>
     callback(prismaMock),
   ),
@@ -109,5 +113,31 @@ describe("processLeadPayment", () => {
       where: { id: "lead-1" },
       data: { status: "PAID" },
     });
+  });
+
+  it("refuses to pay test leads", async () => {
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-test",
+      isTest: true,
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Test campaign",
+        cpl: 1,
+        spent: 0,
+        budget: 100,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await expect(processLeadPayment("lead-test")).rejects.toMatchObject({
+      message: expect.stringContaining("Test leads"),
+    });
+    expect(prismaMock.ledgerEntry.create).not.toHaveBeenCalled();
   });
 });

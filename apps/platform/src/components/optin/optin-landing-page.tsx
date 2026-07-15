@@ -10,7 +10,13 @@ import {
 } from "@/modules/fraud/client/collect-signals";
 import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
 
-export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
+export function OptinLandingPage({
+  page,
+  testCampaignId,
+}: {
+  page: PublicOptinPage;
+  testCampaignId?: string;
+}) {
   const [data, setData] = useState<Record<string, string>>({});
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -18,20 +24,21 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
   const signalRef = useRef(createSignalCollector());
 
   const redirectUrl = page.destinationUrl?.trim() || null;
+  const readOnlyPreview = page.previewMode && !testCampaignId;
 
   useEffect(() => {
     return attachSignalListeners(signalRef.current);
   }, []);
 
   useEffect(() => {
-    if (status !== "success" || page.previewMode || !redirectUrl) return;
+    if (status !== "success" || readOnlyPreview || !redirectUrl) return;
 
     window.location.assign(redirectUrl);
-  }, [status, page.previewMode, redirectUrl]);
+  }, [status, readOnlyPreview, redirectUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (page.previewMode) return;
+    if (readOnlyPreview) return;
 
     setStatus("loading");
     setError("");
@@ -39,20 +46,29 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
     const { submissionMeta, deviceFingerprint } = collectSubmissionSignals(signalRef.current);
     const { trackingSlug, source, subId } = readOptinTrackingParams();
 
-    const res = await fetch("/api/v1/leads/submit-optin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        optinSlug: page.slug,
-        data,
-        honeypot,
-        submissionMeta,
-        deviceFingerprint,
-        trackingSlug,
-        source,
-        subId,
-      }),
-    });
+    const res = await fetch(
+      testCampaignId
+        ? `/api/v1/campaigns/${testCampaignId}/test-leads`
+        : "/api/v1/leads/submit-optin",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data,
+          ...(testCampaignId
+            ? {}
+            : {
+                optinSlug: page.slug,
+                honeypot,
+                submissionMeta,
+                deviceFingerprint,
+                trackingSlug,
+                source,
+                subId,
+              }),
+        }),
+      },
+    );
 
     const result = await res.json();
     if (!res.ok) {
@@ -62,7 +78,7 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
     }
 
     const leadId = result.lead?.id as string | undefined;
-    if (page.thankYouEnabled && leadId && !page.previewMode) {
+    if (page.thankYouEnabled && leadId && !readOnlyPreview) {
       window.location.assign(`/o/${page.slug}/thank-you?lead_id=${leadId}&txn_id=${leadId}`);
       return;
     }
@@ -71,7 +87,7 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
   }
 
   if (status === "success") {
-    if (redirectUrl && !page.previewMode) {
+    if (redirectUrl && !readOnlyPreview) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-200">
           <p className="text-sm">Redirecting you…</p>
@@ -83,7 +99,7 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
       <OptinSuccessScreen
         page={page}
         redirectNote={
-          redirectUrl && page.previewMode
+          redirectUrl && readOnlyPreview
             ? `Preview mode — after publish, visitors redirect to ${redirectUrl}`
             : undefined
         }
@@ -93,9 +109,11 @@ export function OptinLandingPage({ page }: { page: PublicOptinPage }) {
 
   return (
     <div className="relative">
-      {page.previewMode && (
+      {(page.previewMode || testCampaignId) && (
         <div className="relative z-20 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2 text-center text-sm font-medium text-amber-100">
-          Preview mode — form submissions are disabled until you publish.
+          {testCampaignId
+            ? "Campaign test mode — this submission creates a Test lead, triggers the autoresponder, and is never charged."
+            : "Preview mode — form submissions are disabled until you publish."}
         </div>
       )}
       <OptinPageLayout

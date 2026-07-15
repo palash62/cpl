@@ -14,7 +14,10 @@ type FunnelDetailHeaderProps = {
   backHref?: string;
 };
 
-export function FunnelDetailHeader({ funnelName, backHref = "/advertiser/optin-funnels" }: FunnelDetailHeaderProps) {
+export function FunnelDetailHeader({
+  funnelName,
+  backHref = "/advertiser/optin-funnels",
+}: FunnelDetailHeaderProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -24,17 +27,19 @@ export function FunnelDetailHeader({ funnelName, backHref = "/advertiser/optin-f
         </ButtonLink>
         <h1 className="truncate text-xl font-semibold text-slate-900">{funnelName}</h1>
       </div>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 opacity-50"
-            disabled
-          >
-            <Share2 className="h-4 w-4" />
-          </TooltipTrigger>
-          <TooltipContent>Coming soon</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 opacity-50"
+              disabled
+            >
+              <Share2 className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>Coming soon</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { PageHero } from "@/components/admin/page-hero";
 import { AdminCampaignDetails } from "@/components/admin/admin-campaign-details";
 import { ButtonLink } from "@/components/ui/button-link";
 import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,9 @@ export default async function AdvertiserCampaignDetailPage({ params }: PageProps
             name: campaign.name,
             status: campaign.status,
             leadCount,
+            funnelSlug:
+              campaign.optinPages[0]?.slug ??
+              parseCampaignTargeting(campaign.targeting).optinSlug,
           }}
         />
       </div>

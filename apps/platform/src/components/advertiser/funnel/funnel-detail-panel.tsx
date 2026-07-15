@@ -158,7 +158,10 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
 
   return (
     <div className="space-y-6">
-      <FunnelDetailHeader funnelName={funnel.name} backHref={workflow.backHref} />
+      <FunnelDetailHeader
+        funnelName={funnel.name}
+        backHref={workflow.backHref}
+      />
 
       <Tabs value="steps">
         <TabsList className="h-auto w-full justify-start rounded-none border-b border-slate-200 bg-transparent p-0">

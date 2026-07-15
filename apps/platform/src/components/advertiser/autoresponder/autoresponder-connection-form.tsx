@@ -525,7 +525,7 @@ export function AutoresponderConnectionForm({
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_CLASS}>
-              {PROVIDERS.map((p) => (
+              {PROVIDERS.filter((p) => p.value !== "MAILCHIMP" && p.value !== "AWEBER").map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
                 </SelectItem>

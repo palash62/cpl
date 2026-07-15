@@ -130,6 +130,7 @@ export async function getAdvertiserMetricsForRange(
       where: {
         campaignId: { in: campaignIds },
         status: { in: ["APPROVED", "PAID"] },
+        isTest: false,
         createdAt: { gte: from, lte: to },
       },
       include: { campaign: { select: { cpl: true } } },
@@ -175,7 +176,7 @@ export async function getAdvertiserDashboardData(
     getAdvertiserMetricsForRange(advertiserId, from, to),
     getAdvertiserMetricsForRange(advertiserId, prevFrom, prevTo),
     prisma.lead.findMany({
-      where: { campaign: { advertiserId }, status: "PENDING" },
+      where: { campaign: { advertiserId }, status: "PENDING", isTest: false },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: { campaign: { select: { name: true } } },
@@ -414,6 +415,7 @@ async function getLeadsTrend(days: number, campaignIds?: string[]) {
   const leads = await prisma.lead.findMany({
     where: {
       createdAt: { gte: since },
+      isTest: false,
       ...(campaignIds && { campaignId: { in: campaignIds } }),
     },
     select: { createdAt: true },
@@ -916,6 +918,7 @@ export async function getLeadsTrendInRange(
   const leads = await prisma.lead.findMany({
     where: {
       createdAt: { gte: start, lte: end },
+      isTest: false,
       ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
     },
     select: { createdAt: true },
@@ -946,6 +949,7 @@ export async function getLeadsStatusMix(filters: {
   const leads = await prisma.lead.findMany({
     where: {
       createdAt: { gte: filters.from, lte: filters.to },
+      isTest: false,
       ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
     },
     select: { status: true },
@@ -987,7 +991,7 @@ export async function getAdvertiserReportsMetrics(
   const [activeCampaigns, leads, clicks] = await Promise.all([
     prisma.campaign.count({ where: { advertiserId, status: "ACTIVE" } }),
     prisma.lead.findMany({
-      where: { campaignId: { in: campaignIds }, ...dateRange },
+      where: { campaignId: { in: campaignIds }, isTest: false, ...dateRange },
       select: { status: true, campaign: { select: { cpl: true } } },
     }),
     prisma.click.count({
@@ -1052,7 +1056,7 @@ export async function getCampaignPerformanceReport(filters: {
 
   const [leads, clicks] = await Promise.all([
     prisma.lead.findMany({
-      where: { campaignId: { in: campaignIds }, ...dateRange },
+      where: { campaignId: { in: campaignIds }, isTest: false, ...dateRange },
       select: { campaignId: true, status: true, campaign: { select: { cpl: true } } },
     }),
     prisma.click.findMany({
@@ -1120,6 +1124,7 @@ export async function getGeoLeadBreakdown(filters: {
   const leads = await prisma.lead.findMany({
     where: {
       createdAt: { gte: filters.from, lte: filters.to },
+      isTest: false,
       ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
     },
     select: { country: true, status: true, campaign: { select: { cpl: true } } },

@@ -15,8 +15,8 @@ import { AdvertiserCampaignsFilters } from "@/components/advertiser/advertiser-c
 import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
 import { AdvertiserCampaignsSortHeader } from "@/components/advertiser/advertiser-campaigns-sort-header";
 import { ButtonLink } from "@/components/ui/button-link";
-import { CampaignPixelButton } from "@/components/advertiser/campaign-pixel-button";
 import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 import {
   Table,
   TableBody,
@@ -170,7 +170,9 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                     </Suspense>
                   </TableHead>
                   <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
-                  <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
+                  <TableHead className="h-11 min-w-[220px] px-6 text-right text-slate-600">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,21 +210,18 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                       </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <CampaignPixelButton
-                          campaignId={c.id}
-                          campaignName={c.name}
-                          pixelToken={c.pixelToken}
-                        />
-                        <AdvertiserCampaignActions
-                          campaign={{
-                            id: c.id,
-                            name: c.name,
-                            status: c.status,
-                            leadCount: c._count.leads,
-                          }}
-                        />
-                      </div>
+                      <AdvertiserCampaignActions
+                        campaign={{
+                          id: c.id,
+                          name: c.name,
+                          status: c.status,
+                          leadCount: c._count.leads,
+                          pixelToken: c.pixelToken,
+                          funnelSlug:
+                            c.optinPages[0]?.slug ??
+                            parseCampaignTargeting(c.targeting).optinSlug,
+                        }}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

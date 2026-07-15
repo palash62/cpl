@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { Errors } from "@/lib/errors";
 import {
   calculatePublisherPayout,
   parsePlatformSettings,
@@ -181,6 +182,10 @@ export async function processLeadPayment(leadId: string) {
       publisher: { select: { role: true } },
     },
   });
+
+  if (lead.isTest) {
+    throw Errors.validation("Test leads cannot be paid.");
+  }
 
   const settings = await getPlatformSettings();
   const cpl = Number(lead.campaign.cpl);

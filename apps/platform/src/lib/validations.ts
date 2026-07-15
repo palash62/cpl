@@ -610,6 +610,10 @@ export const optinFunnelCreateSchema = z.object({
   pageTemplateId: z.string().optional(),
 });
 
+export const campaignTestLeadSchema = z.object({
+  data: z.record(z.string(), z.string()),
+});
+
 export const optinFunnelUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   title: z.string().trim().min(2).max(80).optional(),

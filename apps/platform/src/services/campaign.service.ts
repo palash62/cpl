@@ -13,6 +13,7 @@ import {
   linkOptinPageToCampaign,
   resolveOptinPageDestination,
 } from "@/services/optin-page.service";
+import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 
 export interface CreateCampaignInput {
   advertiserId: string;
@@ -183,6 +184,11 @@ export async function listAdvertiserCampaigns(filters: {
       where,
       include: {
         _count: { select: { leads: true } },
+        optinPages: {
+          select: { slug: true },
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+        },
       },
       orderBy,
       skip: (page - 1) * limit,
@@ -224,9 +230,46 @@ export async function getCampaignById(id: string) {
       publisherCampaigns: {
         include: { publisher: { select: { id: true, name: true, email: true } } },
       },
+      optinPages: {
+        select: { slug: true },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+      },
       _count: { select: { leads: true } },
     },
   });
+}
+
+export async function getAdvertiserCampaignTestFunnel(
+  campaignId: string,
+  advertiserId: string,
+) {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, advertiserId },
+    select: {
+      targeting: true,
+      optinPages: {
+        select: { id: true, slug: true },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+  if (!campaign) throw Errors.notFound("Campaign");
+
+  const linkedPage = campaign.optinPages[0];
+  if (linkedPage) return linkedPage;
+
+  const { optinPageId } = parseCampaignTargeting(campaign.targeting);
+  if (optinPageId) {
+    const targetedPage = await prisma.advertiserOptinPage.findFirst({
+      where: { id: optinPageId, advertiserId },
+      select: { id: true, slug: true },
+    });
+    if (targetedPage) return targetedPage;
+  }
+
+  throw Errors.validation("Attach a funnel to this campaign before testing");
 }
 
 export async function updateCampaignStatus(id: string, status: CampaignStatus) {

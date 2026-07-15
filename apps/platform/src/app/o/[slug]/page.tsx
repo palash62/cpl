@@ -14,14 +14,8 @@ import { normalizePreviewCraft } from "@/modules/page-builder/lib/preview-craft"
 import { recordFunnelEvent } from "@/services/funnel-analytics.service";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
-
-async function getOrigin() {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "http";
-  if (host) return `${proto}://${host}`;
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-}
+import { getSession } from "@/lib/session";
+import { getAdvertiserCampaignTestFunnel } from "@/services/campaign.service";
 
 export async function generateMetadata({
   params,
@@ -62,10 +56,62 @@ export default async function PublicOptinFunnelPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; test_campaign?: string }>;
 }) {
   const { slug } = await params;
-  const { preview } = await searchParams;
+  const { preview, test_campaign: testCampaignId } = await searchParams;
+
+  if (testCampaignId) {
+    const session = await getSession();
+    if (!session?.user || session.user.role !== "ADVERTISER") notFound();
+
+    let testFunnel: { slug: string };
+    try {
+      testFunnel = await getAdvertiserCampaignTestFunnel(testCampaignId, session.user.id);
+    } catch {
+      notFound();
+    }
+    if (testFunnel.slug !== slug) notFound();
+
+    const publishedBuilder = await getPublishedBuilderFunnel(slug);
+    if (publishedBuilder) {
+      return (
+        <PublishedOptinFunnel
+          slug={slug}
+          craftState={publishedBuilder.craftState}
+          theme={publishedBuilder.themeJson}
+          formJson={publishedBuilder.formJson}
+          thankYouEnabled={publishedBuilder.funnel.thankYouEnabled}
+          destinationUrl={publishedBuilder.funnel.destinationUrl}
+          testCampaignId={testCampaignId}
+        />
+      );
+    }
+
+    const publishedPage = await getPublicOptinFunnel(slug);
+    if (publishedPage) {
+      return <OptinLandingPage page={publishedPage} testCampaignId={testCampaignId} />;
+    }
+
+    const draft = await getOptinFunnelPreviewBySlug(slug);
+    if (!draft) notFound();
+
+    if (usesBuilderRenderer(draft)) {
+      return (
+        <PublishedOptinFunnel
+          slug={slug}
+          craftState={normalizePreviewCraft(draft.craftState?.craft ?? createEmptyCraftState())}
+          theme={draft.themeJson ?? DEFAULT_THEME}
+          formJson={draft.formJson ?? null}
+          thankYouEnabled={draft.thankYouEnabled}
+          destinationUrl={draft.destinationUrl}
+          testCampaignId={testCampaignId}
+        />
+      );
+    }
+
+    return <OptinLandingPage page={draft} testCampaignId={testCampaignId} />;
+  }
 
   if (preview === "1") {
     const draft = await getOptinFunnelPreviewBySlug(slug);
