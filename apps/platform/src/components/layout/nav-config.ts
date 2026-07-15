@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Plug,
   Mail,
+  PlayCircle,
 } from "lucide-react";
 
 export interface NavItem {
@@ -48,6 +49,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },
   { label: "Themes", href: "/admin/themes", icon: Palette },
   { label: "Funnel Templates", href: "/admin/funnel-templates", icon: FileStack },
+  { label: "Tutorials", href: "/admin/tutorials", icon: PlayCircle },
 ];
 
 export const ADVERTISER_NAV: NavItem[] = [
@@ -61,6 +63,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Referral Link", href: "/advertiser/referal_link", icon: Gift },
   { label: "Reports", href: "/advertiser/reports", icon: BarChart3 },
   { label: "Support", href: "/advertiser/support", icon: LifeBuoy },
+  { label: "Tutorials", href: "/advertiser/tutorials", icon: PlayCircle },
   { label: "Settings", href: "/advertiser/settings", icon: Settings },
   { label: "Autoresponder", href: "/advertiser/email", icon: Mail },
 ];

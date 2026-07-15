@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { strongPasswordSchema } from "@/lib/password-policy";
+import { parseYouTubeVideoId } from "@/lib/youtube";
 
 export const registerSchema = z
   .object({
@@ -700,4 +701,38 @@ export const templateImportSchema = z.object({
   }),
   craft: z.record(z.string(), z.unknown()),
   theme: z.record(z.string(), z.unknown()),
+});
+
+const tutorialThumbnailSchema = z
+  .string()
+  .trim()
+  .min(1, "Thumbnail is required.")
+  .refine((value) => value.startsWith("/uploads/builder/"), {
+    message: "Upload a thumbnail image.",
+  });
+
+const tutorialYoutubeUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "YouTube URL is required.")
+  .refine((value) => Boolean(parseYouTubeVideoId(value)), {
+    message: "Enter a valid YouTube video URL.",
+  });
+
+export const adminTutorialCreateSchema = z.object({
+  title: z.string().trim().min(2, "Title must be at least 2 characters.").max(120),
+  description: z.string().trim().min(1, "Description is required.").max(2000),
+  youtubeUrl: tutorialYoutubeUrlSchema,
+  thumbnailUrl: tutorialThumbnailSchema,
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  isPublished: z.boolean().optional(),
+});
+
+export const adminTutorialUpdateSchema = z.object({
+  title: z.string().trim().min(2).max(120).optional(),
+  description: z.string().trim().min(1).max(2000).optional(),
+  youtubeUrl: tutorialYoutubeUrlSchema.optional(),
+  thumbnailUrl: tutorialThumbnailSchema.optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  isPublished: z.boolean().optional(),
 });

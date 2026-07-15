@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Loader2, Plus } from "lucide-react";
+import { Check, Copy, CreditCard, ExternalLink, Landmark, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { WISE_PAYMENT_QR_SRC, WISE_PAYMENT_URL } from "@/lib/wise-payment";
 import { WalletStripeCheckout } from "@/components/advertiser/wallet-stripe-checkout";
 
 const QUICK_AMOUNTS = [50, 100, 250, 500, 1000];
@@ -74,6 +76,7 @@ export function WalletRechargePanel({
   const [success, setSuccess] = useState<string | null>(null);
   const [stripeEnabled, setStripeEnabled] = useState<boolean | null>(null);
   const [stripeCheckout, setStripeCheckout] = useState<StripeCheckoutState | null>(null);
+  const [copiedWiseLink, setCopiedWiseLink] = useState(false);
 
   const numericAmount = Number(amount);
   const canSubmit =
@@ -260,41 +263,107 @@ export function WalletRechargePanel({
       )}
 
       {method === "WISE" && !stripeCheckout && (
-        <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-          <p className="text-sm text-slate-600">
-            Send your transfer via Wise, then enter the reference and payer details below. Funds are
-            credited after admin approval.
-          </p>
-          <div className="space-y-2">
-            <Label htmlFor="wise-reference">Wise transfer reference *</Label>
-            <input
-              id="wise-reference"
-              value={wiseReference}
-              onChange={(e) => setWiseReference(e.target.value)}
-              placeholder="e.g. WISE-123456789"
-              className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
-            />
+        <div className="space-y-4">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+            <p className="text-sm font-medium text-slate-800">Choose how to pay</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Pay first with the QR code or payment link, then submit your transfer reference below.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Scan QR
+                </p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={WISE_PAYMENT_QR_SRC}
+                  alt="Wise payment QR code"
+                  className="mx-auto mt-3 h-40 w-40 rounded-lg object-contain"
+                />
+              </div>
+              <div className="flex flex-col justify-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Pay online
+                </p>
+                <a
+                  href={WISE_PAYMENT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#163300] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0f2400]"
+                >
+                  Open Wise payment page
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 border-slate-200"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(WISE_PAYMENT_URL);
+                      setCopiedWiseLink(true);
+                      toast.success("Wise payment link copied");
+                      window.setTimeout(() => setCopiedWiseLink(false), 2000);
+                    } catch {
+                      toast.error("Could not copy link");
+                    }
+                  }}
+                >
+                  {copiedWiseLink ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4 text-emerald-600" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy link
+                    </>
+                  )}
+                </Button>
+                <p className="break-all text-[11px] leading-relaxed text-slate-400">
+                  {WISE_PAYMENT_URL}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="wise-payer">Payer / company name</Label>
-            <input
-              id="wise-payer"
-              value={payerName}
-              onChange={(e) => setPayerName(e.target.value)}
-              placeholder="Name on the Wise transfer"
-              className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="wise-note">Note (optional)</Label>
-            <textarea
-              id="wise-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              placeholder="Any extra details for admin review"
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
-            />
+
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <p className="text-sm text-slate-600">
+              After paying via Wise, enter the reference and payer details below. Funds are credited
+              after admin approval.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="wise-reference">Wise transfer reference *</Label>
+              <input
+                id="wise-reference"
+                value={wiseReference}
+                onChange={(e) => setWiseReference(e.target.value)}
+                placeholder="e.g. WISE-123456789"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wise-payer">Payer / company name</Label>
+              <input
+                id="wise-payer"
+                value={payerName}
+                onChange={(e) => setPayerName(e.target.value)}
+                placeholder="Name on the Wise transfer"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wise-note">Note (optional)</Label>
+              <textarea
+                id="wise-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                placeholder="Any extra details for admin review"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
+              />
+            </div>
           </div>
         </div>
       )}

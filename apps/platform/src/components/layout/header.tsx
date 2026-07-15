@@ -16,6 +16,7 @@ import {
   Download,
   Palette,
   Menu,
+  PlayCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +70,13 @@ export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderP
         ? "/advertiser/notifications"
         : "/publisher/notifications";
 
+  const tutorialsHref =
+    session?.user?.role === "ADMIN"
+      ? "/admin/tutorials"
+      : session?.user?.role === "ADVERTISER"
+        ? "/advertiser/tutorials"
+        : null;
+
   return (
     <header
       className={cn(
@@ -113,6 +121,17 @@ export function Header({ title, breadcrumbs, premium, onOpenMobileNav }: HeaderP
             )}
           />
         </div>
+
+        {tutorialsHref && (
+          <ButtonLink
+            href={tutorialsHref}
+            size="sm"
+            className="h-10 gap-1.5 rounded-xl border border-red-600 bg-red-600 px-3.5 text-white shadow-sm transition-colors hover:bg-red-700 hover:border-red-700"
+          >
+            <PlayCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Tutorial</span>
+          </ButtonLink>
+        )}
 
         {premium && (
           <DropdownMenu>
