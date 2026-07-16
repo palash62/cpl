@@ -45,7 +45,8 @@ function formJsonToValidationFields(formJson: FormJson | null | undefined): Lead
   if (!formJson?.fields?.length) return null;
   return formJson.fields.map((field) => ({
     fieldName: field.name,
-    required: Boolean(field.required),
+    // Coerce existing published templates: non-checkbox fields are always required.
+    required: field.type === "checkbox" ? Boolean(field.required) : true,
     fieldType: field.type === "email" ? "email" : field.type === "phone" ? "phone" : "text",
   }));
 }
@@ -680,7 +681,8 @@ export async function submitLandingLead(input: {
   if (formJson?.fields) {
     for (const field of formJson.fields) {
       const value = input.data[field.name]?.trim() ?? "";
-      if (field.required && !value) {
+      const isRequired = field.type === "checkbox" ? Boolean(field.required) : true;
+      if (isRequired && !value) {
         throw Errors.validation(`${field.name} is required`, field.name);
       }
       if (field.minLength && value.length < field.minLength) {

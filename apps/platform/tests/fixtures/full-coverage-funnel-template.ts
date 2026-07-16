@@ -313,7 +313,7 @@ export function buildFullCoverageCraft(): CraftSerializedState {
         name: "phone",
         label: "[BLOCK:FormInput-phone]",
         fieldType: "phone",
-        required: false,
+        required: true,
         placeholder: "+1 555 0100",
       },
     }),
@@ -336,7 +336,7 @@ export function buildFullCoverageCraft(): CraftSerializedState {
       props: {
         name: "message",
         label: "[BLOCK:FormTextarea]",
-        required: false,
+        required: true,
         placeholder: "Your message",
       },
     }),

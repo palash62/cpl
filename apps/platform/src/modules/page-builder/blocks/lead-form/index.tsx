@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent, ReactNode, CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { CanvasWrapper, BlockWrapper } from "@/modules/page-builder/blocks/block-wrapper";
 import {
@@ -240,6 +240,14 @@ function FormFieldSettings() {
   const supportsRequired = displayName !== "Checkbox";
   const optionsText = (p.options ?? []).map((opt) => `${opt.label}:${opt.value}`).join("\n");
 
+  // Non-checkbox fields are always required — keep craft props in sync (no user toggle).
+  useEffect(() => {
+    if (!supportsRequired || p.required) return;
+    setProp((x: FormFieldProps) => {
+      x.required = true;
+    });
+  }, [supportsRequired, p.required, setProp]);
+
   function updateOptions(raw: string) {
     const options = raw
       .split("\n")
@@ -304,8 +312,8 @@ function FormFieldSettings() {
         </div>
       )}
       {supportsRequired && (
-        <label className={BUILDER_CHECKBOX_LABEL}>
-          <input type="checkbox" className="accent-indigo-500" checked={!!p.required} onChange={(e) => setProp((x: FormFieldProps) => { x.required = e.target.checked; })} />
+        <label className={cn(BUILDER_CHECKBOX_LABEL, "opacity-80")}>
+          <input type="checkbox" className="accent-indigo-500" checked disabled readOnly />
           Required
         </label>
       )}
@@ -326,18 +334,17 @@ export function FormInput({
   name = "field",
   label = "Field",
   fieldType = "text",
-  required = false,
   placeholder = "",
   ...props
 }: FormFieldProps) {
   return (
     <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
-        {label}{required && <span className="text-red-500"> *</span>}
+        {label}
         <input
           name={name}
           type={renderInput(fieldType)}
-          required={required}
+          required
           placeholder={placeholder}
           className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 placeholder:text-slate-400"
           style={FORM_INPUT_STYLE}
@@ -353,14 +360,14 @@ FormInput.craft = {
   related: { settings: FormFieldSettings },
 };
 
-export function FormTextarea({ name = "message", label = "Message", required = false, placeholder = "", ...props }: FormFieldProps) {
+export function FormTextarea({ name = "message", label = "Message", placeholder = "", ...props }: FormFieldProps) {
   return (
     <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
-        {label}{required && <span className="text-red-500"> *</span>}
+        {label}
         <textarea
           name={name}
-          required={required}
+          required
           placeholder={placeholder}
           className="mt-1 min-h-[80px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 placeholder:text-slate-400"
           style={FORM_INPUT_STYLE}
@@ -372,7 +379,7 @@ export function FormTextarea({ name = "message", label = "Message", required = f
 
 FormTextarea.craft = {
   displayName: "Textarea",
-  props: { name: "message", label: "Message", fieldType: "textarea" },
+  props: { name: "message", label: "Message", fieldType: "textarea", required: true },
   related: { settings: FormFieldSettings },
 };
 
@@ -400,7 +407,7 @@ export function FormRadio({ name = "choice", label = "Choose", options = [{ labe
         <legend>{label}</legend>
         {options.map((opt) => (
           <label key={opt.value} className="mt-1 flex items-center gap-2">
-            <input type="radio" name={name} value={opt.value} />
+            <input type="radio" name={name} value={opt.value} required />
             {opt.label}
           </label>
         ))}
@@ -411,18 +418,23 @@ export function FormRadio({ name = "choice", label = "Choose", options = [{ labe
 
 FormRadio.craft = {
   displayName: "Radio",
-  props: { name: "choice", label: "Choose one", options: [{ label: "Option A", value: "a" }, { label: "Option B", value: "b" }] },
+  props: {
+    name: "choice",
+    label: "Choose one",
+    required: true,
+    options: [{ label: "Option A", value: "a" }, { label: "Option B", value: "b" }],
+  },
   related: { settings: FormFieldSettings },
 };
 
-export function FormSelect({ name = "select", label = "Select", options = [{ label: "Option 1", value: "1" }], required = false, ...props }: FormFieldProps) {
+export function FormSelect({ name = "select", label = "Select", options = [{ label: "Option 1", value: "1" }], ...props }: FormFieldProps) {
   return (
     <BlockWrapper {...props} extraStyle={formFieldWrapperColor(props.typography)} draggable>
       <label className="block">
         {label}
         <select
           name={name}
-          required={required}
+          required
           className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
           style={FORM_INPUT_STYLE}
         >
@@ -435,7 +447,12 @@ export function FormSelect({ name = "select", label = "Select", options = [{ lab
 
 FormSelect.craft = {
   displayName: "Dropdown",
-  props: { name: "country", label: "Country", options: [{ label: "United States", value: "US" }, { label: "Canada", value: "CA" }] },
+  props: {
+    name: "country",
+    label: "Country",
+    required: true,
+    options: [{ label: "United States", value: "US" }, { label: "Canada", value: "CA" }],
+  },
   related: { settings: FormFieldSettings },
 };
 

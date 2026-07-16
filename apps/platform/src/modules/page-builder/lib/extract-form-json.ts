@@ -31,12 +31,14 @@ function toFieldDefinition(
   child: CraftSerializedState[string],
 ): FormFieldDefinition {
   const p = child.props as Record<string, unknown>;
+  const type = mapFieldType(String(p.fieldType ?? p.type ?? "text"));
   return {
     id: childId,
-    type: mapFieldType(String(p.fieldType ?? p.type ?? "text")),
+    type,
     name: String(p.name ?? childId),
     label: String(p.label ?? p.name ?? "Field"),
-    required: Boolean(p.required),
+    // Non-checkbox fields are always required (builder shows Required checked/locked; no * on labels).
+    required: type === "checkbox" ? Boolean(p.required) : true,
     minLength: typeof p.minLength === "number" ? p.minLength : undefined,
     maxLength: typeof p.maxLength === "number" ? p.maxLength : undefined,
     pattern: typeof p.pattern === "string" ? p.pattern : undefined,
