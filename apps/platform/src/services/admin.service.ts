@@ -144,6 +144,15 @@ export async function getAdvertiserDetail(id: string) {
       status: true,
       emailVerified: true,
       createdAt: true,
+      referralCode: true,
+      referredBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          referralCode: true,
+        },
+      },
       advertiserProfile: {
         select: {
           company: true,

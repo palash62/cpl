@@ -11,7 +11,7 @@ export function AdvertiserReferralCard({ referralCode }: { referralCode: string 
   const referralUrl =
     typeof window !== "undefined"
       ? buildReferralUrl(window.location.origin, referralCode)
-      : `/register?referral_by=${referralCode}`;
+      : `/?referral_by=${encodeURIComponent(referralCode)}`;
 
   async function copyLink() {
     const url =

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import "../styles/vsl-landing.css";
 import { MarketingHeader } from "./marketing-header";
 import { MarketingHero } from "./marketing-hero";
@@ -11,10 +12,14 @@ import { HowItWorksSection } from "./how-it-works-section";
 import { ComparisonSection } from "./comparison-section";
 import { CtaSection } from "./cta-section";
 import { MarketingFooter } from "./marketing-footer";
+import { ReferralCapture } from "./referral-capture";
 
 export function VslLandingPage() {
   return (
     <div className="vslLanding">
+      <Suspense fallback={null}>
+        <ReferralCapture />
+      </Suspense>
       <MarketingHeader />
       <MarketingHero />
       <TrustRow />

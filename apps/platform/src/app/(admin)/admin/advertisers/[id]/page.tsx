@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   ArrowLeft,
   Building2,
   Calendar,
+  Gift,
   Mail,
   Megaphone,
+  Users,
   Wallet,
 } from "lucide-react";
 import { getAdvertiserDetail, getUserDeleteEligibility } from "@/services/admin.service";
@@ -173,6 +176,39 @@ export default async function AdminAdvertiserDetailPage({ params }: PageProps) {
               </div>
             </div>
           )}
+          <div className="flex items-start gap-3">
+            <Gift className="mt-0.5 h-4 w-4 text-slate-400" />
+            <div>
+              <p className="text-xs text-slate-500">Referral code</p>
+              <p className="text-sm font-medium text-slate-900">
+                {advertiser.referralCode ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Users className="mt-0.5 h-4 w-4 text-slate-400" />
+            <div>
+              <p className="text-xs text-slate-500">Referred by</p>
+              {advertiser.referredBy ? (
+                <div>
+                  <Link
+                    href={`/admin/advertisers/${advertiser.referredBy.id}`}
+                    className="text-sm font-medium text-slate-900 hover:underline"
+                  >
+                    {advertiser.referredBy.name}
+                  </Link>
+                  <p className="text-xs text-slate-500">{advertiser.referredBy.email}</p>
+                  {advertiser.referredBy.referralCode && (
+                    <p className="text-xs text-slate-400">
+                      Code: {advertiser.referredBy.referralCode}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-slate-900">—</p>
+              )}
+            </div>
+          </div>
         </div>
       </PageSection>
 

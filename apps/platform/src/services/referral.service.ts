@@ -354,7 +354,7 @@ async function getReferralCommissionsForLeads(referrerId: string, leadIds: strin
 async function listRecentReferralCommissions(
   referrerId: string,
   limit = 10,
-): Promise<ReferralCommissionEntry[]> {
+): Promise<(ReferralCommissionEntry & { spenderName?: string })[]> {
   const entries = await prisma.ledgerEntry.findMany({
     where: {
       type: "CREDIT",
@@ -372,13 +372,160 @@ async function listRecentReferralCommissions(
     },
   });
 
-  return entries.map((entry) => ({
-    id: entry.id,
-    amount: Number(entry.amount),
-    description: entry.description,
-    createdAt: entry.createdAt,
-    referenceId: entry.referenceId,
-  }));
+  const leadIds = entries
+    .map((entry) => entry.referenceId)
+    .filter((id): id is string => Boolean(id));
+
+  const leads =
+    leadIds.length > 0
+      ? await prisma.lead.findMany({
+          where: { id: { in: leadIds } },
+          select: {
+            id: true,
+            campaign: {
+              select: {
+                advertiser: { select: { name: true } },
+              },
+            },
+          },
+        })
+      : [];
+
+  const spenderByLeadId = new Map(
+    leads.map((lead) => [lead.id, lead.campaign.advertiser.name] as const),
+  );
+
+  return entries.map((entry) => {
+    const spenderName = entry.referenceId
+      ? spenderByLeadId.get(entry.referenceId)
+      : undefined;
+    const baseDescription = entry.description ?? "Referral commission";
+    const description =
+      spenderName && !baseDescription.includes(spenderName)
+        ? `${baseDescription} from ${spenderName}`
+        : baseDescription;
+
+    return {
+      id: entry.id,
+      amount: Number(entry.amount),
+      description,
+      createdAt: entry.createdAt,
+      referenceId: entry.referenceId,
+      spenderName,
+    };
+  });
+}
+
+export type AdminReferralReportRow = {
+  referredId: string;
+  referredName: string;
+  referredEmail: string;
+  referredStatus: string;
+  joinedAt: Date;
+  referrerId: string;
+  referrerName: string;
+  referrerEmail: string;
+  referrerCode: string | null;
+  adSpend: number;
+  commission: number;
+};
+
+export async function getAdminReferralReport(options?: { q?: string }) {
+  const q = options?.q?.trim();
+
+  const [referredUsers, globalReferred, totalCommissionAgg, pendingPayoutAgg] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        referredById: { not: null },
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q } },
+                { email: { contains: q } },
+                { referredBy: { name: { contains: q } } },
+                { referredBy: { email: { contains: q } } },
+                { referredBy: { referralCode: { contains: q.toUpperCase() } } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        createdAt: true,
+        referredBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            referralCode: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.user.findMany({
+      where: { referredById: { not: null } },
+      select: { referredById: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "CREDIT",
+        referenceType: "referral",
+      },
+      _sum: { amount: true },
+    }),
+    prisma.payout.aggregate({
+      where: {
+        kind: "REFERRAL",
+        status: { in: [...PENDING_PAYOUT_STATUSES] },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const referredIds = referredUsers.map((user) => user.id);
+  const spendTotals = await getPaidLeadTotalsByAdvertiser(referredIds);
+
+  const rows: AdminReferralReportRow[] = await Promise.all(
+    referredUsers.map(async (user) => {
+      const referrer = user.referredBy!;
+      const totals = spendTotals.get(user.id) ?? { adSpend: 0, leadIds: [] };
+      const commission = await getReferralCommissionsForLeads(referrer.id, totals.leadIds);
+
+      return {
+        referredId: user.id,
+        referredName: user.name,
+        referredEmail: user.email,
+        referredStatus: user.status,
+        joinedAt: user.createdAt,
+        referrerId: referrer.id,
+        referrerName: referrer.name,
+        referrerEmail: referrer.email,
+        referrerCode: referrer.referralCode,
+        adSpend: totals.adSpend,
+        commission,
+      };
+    }),
+  );
+
+  const activeReferrers = new Set(
+    globalReferred.map((user) => user.referredById).filter((id): id is string => Boolean(id)),
+  ).size;
+
+  return {
+    stats: {
+      activeReferrers,
+      totalReferred: globalReferred.length,
+      totalCommission: Number(totalCommissionAgg._sum.amount ?? 0),
+      pendingReferralPayout: Number(pendingPayoutAgg._sum.amount ?? 0),
+      filteredCommission: rows.reduce((sum, row) => sum + row.commission, 0),
+      filteredAdSpend: rows.reduce((sum, row) => sum + row.adSpend, 0),
+    },
+    rows,
+  };
 }
 
 const referralUserSelect = {

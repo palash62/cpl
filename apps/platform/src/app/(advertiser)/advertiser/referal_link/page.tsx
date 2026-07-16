@@ -35,8 +35,8 @@ export default async function AdvertiserReferralLinkPage() {
     <div className="space-y-7">
       <RoleHero
         eyebrow="Advertiser Portal"
-        title="Referral Link"
-        description={`Refer & earn passive income. ${REFERRAL_RATES_SUMMARY}.`}
+        title="Referral Report"
+        description={`Who you referred and how much you earned. ${REFERRAL_RATES_SUMMARY}.`}
         action={{ label: "Copy Link", href: "#referral-link", icon: Share2 }}
       />
 
@@ -186,7 +186,7 @@ export default async function AdvertiserReferralLinkPage() {
 
       <PageSection
         title="Commission History"
-        description="Recent referral commissions credited to your wallet"
+        description="Recent referral commissions — who generated each earning"
         icon={History}
         gradient="revenue"
       >
@@ -233,8 +233,8 @@ export default async function AdvertiserReferralLinkPage() {
       </PageSection>
 
       <PageSection
-        title="Referred Users"
-        description="Users who joined using your referral link"
+        title="Referral Report"
+        description="Users who joined via your link and commissions you earned from their ad spend"
         icon={Users}
         gradient="revenue"
       >
@@ -246,6 +246,7 @@ export default async function AdvertiserReferralLinkPage() {
                 style={{ background: "var(--theme-primary-soft)" }}
               >
                 <TableHead className="h-11 px-6 text-slate-600">User</TableHead>
+                <TableHead className="h-11 px-4 text-slate-600">Referred via</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Role</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Level</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Joined</TableHead>
@@ -257,7 +258,7 @@ export default async function AdvertiserReferralLinkPage() {
             <TableBody>
               {data.referrals.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="px-6 py-16 text-center text-slate-500">
+                  <TableCell colSpan={8} className="px-6 py-16 text-center text-slate-500">
                     No referrals yet. Copy your link above and share it to start earning.
                   </TableCell>
                 </TableRow>
@@ -271,12 +272,12 @@ export default async function AdvertiserReferralLinkPage() {
                       <div>
                         <p className="font-medium text-slate-900">{referral.name}</p>
                         <p className="text-xs text-slate-500">{referral.email}</p>
-                        {referral.level === 2 && referral.referredByName && (
-                          <p className="mt-1 text-xs text-slate-400">
-                            via {referral.referredByName}
-                          </p>
-                        )}
                       </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-sm text-slate-600">
+                      {referral.level === 2 && referral.referredByName
+                        ? referral.referredByName
+                        : "Direct (your link)"}
                     </TableCell>
                     <TableCell className="px-4 py-4">
                       <Badge variant="outline" className="capitalize">

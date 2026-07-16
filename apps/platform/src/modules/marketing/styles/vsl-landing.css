@@ -552,15 +552,19 @@ html {
 }
 
 .vslLanding .video-box {
+  position: relative;
   height: 315px;
   background: #050711;
   border: 1px solid #2a3563;
   border-radius: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 64px;
-  color: #8b3dff;
+  overflow: hidden;
+}
+
+.vslLanding .video-box iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 .vslLanding .steps {

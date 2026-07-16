@@ -51,6 +51,35 @@ export function generateReferralCode(length = 6) {
   return code;
 }
 
+export const REFERRAL_COOKIE_NAME = "lv_referral_by";
+export const REFERRAL_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+
 export function buildReferralUrl(origin: string, referralCode: string) {
-  return `${origin}/register?referral_by=${referralCode}`;
+  return `${origin}/?referral_by=${encodeURIComponent(referralCode)}`;
+}
+
+export function readReferralCookie(): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${REFERRAL_COOKIE_NAME}=`));
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match.split("=").slice(1).join("=")).trim();
+  } catch {
+    return "";
+  }
+}
+
+export function writeReferralCookie(referralCode: string) {
+  if (typeof document === "undefined") return;
+  const code = referralCode.trim();
+  if (!code) return;
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${REFERRAL_COOKIE_NAME}=${encodeURIComponent(code)}; Path=/; Max-Age=${REFERRAL_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+}
+
+export function clearReferralCookie() {
+  if (typeof document === "undefined") return;
+  document.cookie = `${REFERRAL_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }

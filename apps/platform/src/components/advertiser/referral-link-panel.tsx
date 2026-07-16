@@ -10,7 +10,7 @@ export function ReferralLinkPanel({ referralCode }: { referralCode: string }) {
   const referralUrl =
     typeof window !== "undefined"
       ? buildReferralUrl(window.location.origin, referralCode)
-      : `/register?referral_by=${referralCode}`;
+      : `/?referral_by=${encodeURIComponent(referralCode)}`;
 
   async function copyLink() {
     const url =
@@ -75,13 +75,13 @@ export function ReferralLinkPanel({ referralCode }: { referralCode: string }) {
           Share link
         </Button>
         <a
-          href={`/register?referral_by=${referralCode}`}
+          href={`/?referral_by=${encodeURIComponent(referralCode)}`}
           target="_blank"
           rel="noreferrer"
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <ExternalLink className="h-4 w-4" />
-          Preview signup page
+          Preview landing page
         </a>
       </div>
     </div>

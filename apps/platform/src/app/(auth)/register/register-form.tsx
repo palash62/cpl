@@ -18,6 +18,7 @@ import { AuthLayout } from "@/components/layout/auth-layout";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { isStrongPassword } from "@/lib/password-policy";
 import { COUNTRY_BY_CODE, getCountryName } from "@/lib/campaign-form";
+import { readReferralCookie, writeReferralCookie } from "@/lib/referral";
 
 const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
   getCountryName(a).localeCompare(getCountryName(b)),
@@ -39,7 +40,11 @@ export function RegisterForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const ref = searchParams.get("referral_by") ?? searchParams.get("ref") ?? "";
+    const fromUrl = searchParams.get("referral_by") ?? searchParams.get("ref") ?? "";
+    const ref = fromUrl.trim() || readReferralCookie();
+    if (fromUrl.trim()) {
+      writeReferralCookie(fromUrl.trim());
+    }
     setReferralRef(ref);
   }, [searchParams]);
 
