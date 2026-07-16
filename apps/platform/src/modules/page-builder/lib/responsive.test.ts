@@ -332,6 +332,27 @@ describe("resolveEffectiveBlockProps", () => {
     );
     expect(effective.fullWidth).toBe(true);
   });
+
+  it("makes funnel-battery-style fixed section widths fluid on mobile SSR", () => {
+    const effective = resolveEffectiveBlockProps(
+      {
+        layout: {
+          width: "933px",
+          margin: "20px 0 0 0",
+          padding: "40px 20px",
+          blockAlign: "center",
+        },
+        responsive: {
+          tablet: { layout: { width: "auto" } },
+        },
+      },
+      "mobile",
+      { blockType: "Section" },
+    );
+
+    expect(effective.layout?.width).toBe("100%");
+    expect(effective.layout?.maxWidth).toBe("100%");
+  });
 });
 
 describe("stripRedundantResponsiveOverrides", () => {

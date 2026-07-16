@@ -1,6 +1,28 @@
 /* Published funnel layout — imported by PageRenderer so preview/live always get these rules. */
 #pb-page {
   --pb-section-padding-inline: 20px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  #pb-page {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  /* Safety net if JS breakpoint lags: keep fixed craft widths inside the phone viewport. */
+  #pb-page,
+  #pb-page * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #pb-page img,
+  #pb-page video,
+  #pb-page iframe {
+    height: auto;
+  }
 }
 
 @media (max-width: 768px) {
