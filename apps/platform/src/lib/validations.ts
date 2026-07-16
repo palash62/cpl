@@ -43,6 +43,16 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+export const requestOtpSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+export const verifyOtpSchema = z.object({
+  email: z.string().email(),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
+});
+
 export const campaignSchema = z.object({
   name: z.string().min(3),
   description: z.string().optional(),

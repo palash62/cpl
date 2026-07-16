@@ -1,55 +1,37 @@
-import bcrypt from "bcryptjs";
 import { errorResponse } from "@/lib/errors";
-import { loginSchema } from "@/lib/validations";
 import { getLoginBlock, loginBlockMessage } from "@/lib/auth-login-gate";
-import { prisma } from "@/lib/prisma";
+import { verifyOtpSchema } from "@/lib/validations";
 import {
   checkRateLimit,
   clientIpFromRequest,
   rateLimitResponse,
 } from "@/lib/rate-limit";
+import { checkLoginOtp } from "@/services/auth-token.service";
 
-/** Password-only check (legacy). Interactive login uses request-otp + OTP. */
 export async function POST(request: Request) {
   const ip = clientIpFromRequest(request);
-  const limited = checkRateLimit(`credentials-check:${ip}`, 20, 60_000);
+  const limited = checkRateLimit(`otp-check:${ip}`, 20, 60_000);
   if (!limited.allowed) {
     return rateLimitResponse(limited.retryAfterSec);
   }
 
   try {
     const body = await request.json();
-    const parsed = loginSchema.safeParse(body);
+    const parsed = verifyOtpSchema.safeParse(body);
 
     if (!parsed.success) {
       return Response.json(
-        { error: { code: "VALIDATION_ERROR", message: "Invalid email or password", status: 422 } },
+        { error: { code: "VALIDATION_ERROR", message: "Enter the 6-digit code from your email", status: 422 } },
         { status: 422 },
       );
     }
 
     const email = parsed.data.email.trim().toLowerCase();
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        passwordHash: true,
-        status: true,
-        role: true,
-        emailVerified: true,
-      },
-    });
+    const user = await checkLoginOtp(email, parsed.data.code);
 
     if (!user) {
       return Response.json(
-        { error: { code: "AUTH_INVALID", message: "Invalid email or password", status: 401 } },
-        { status: 401 },
-      );
-    }
-
-    const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
-    if (!valid) {
-      return Response.json(
-        { error: { code: "AUTH_INVALID", message: "Invalid email or password", status: 401 } },
+        { error: { code: "AUTH_INVALID", message: "Invalid or expired sign-in code", status: 401 } },
         { status: 401 },
       );
     }
@@ -70,7 +52,7 @@ export async function POST(request: Request) {
 
     if (user.status !== "ACTIVE") {
       return Response.json(
-        { error: { code: "AUTH_INVALID", message: "Invalid email or password", status: 401 } },
+        { error: { code: "AUTH_INVALID", message: "Invalid or expired sign-in code", status: 401 } },
         { status: 401 },
       );
     }

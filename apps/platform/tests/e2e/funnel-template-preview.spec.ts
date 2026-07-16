@@ -14,8 +14,17 @@ async function loginAsAdmin(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL);
   await page.getByLabel("Password").fill(ADMIN_PASSWORD);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Verification code").waitFor({ timeout: 30_000 });
+
+  const otpRes = await page.request.post("/api/test/login-otp", {
+    data: { email: ADMIN_EMAIL },
+  });
+  expect(otpRes.ok()).toBeTruthy();
+  const otpBody = await otpRes.json();
+  await page.getByLabel("Verification code").fill(otpBody.code);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/admin/, { timeout: 15_000 });
+  await page.waitForURL(/\/admin/, { timeout: 30_000 });
 }
 
 function normalizeRgb(color: string) {

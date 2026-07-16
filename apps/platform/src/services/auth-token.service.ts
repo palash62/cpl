@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import type { UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -6,8 +7,15 @@ import {
   notifyAdminAlert,
 } from "@/services/notify.service";
 
+const LOGIN_OTP_TTL_MS = 10 * 60 * 1000;
+const LOGIN_OTP_MAX_ATTEMPTS = 5;
+
 function createToken() {
   return crypto.randomBytes(32).toString("hex");
+}
+
+function createOtpCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
 export async function createPasswordResetToken(userId: string) {
@@ -118,4 +126,109 @@ export async function consumeEmailVerificationToken(token: string): Promise<Veri
   })();
 
   return user;
+}
+
+export async function createLoginOtp(userId: string) {
+  const code = createOtpCode();
+  const codeHash = await bcrypt.hash(code, 10);
+  const expiresAt = new Date(Date.now() + LOGIN_OTP_TTL_MS);
+
+  await prisma.loginOtpToken.updateMany({
+    where: { userId, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  await prisma.loginOtpToken.create({
+    data: { userId, codeHash, expiresAt },
+  });
+
+  return { code, expiresMinutes: LOGIN_OTP_TTL_MS / 60_000 };
+}
+
+export type LoginOtpUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  status: UserStatus;
+  tokenVersion: number;
+  emailVerified: Date | null;
+};
+
+async function findActiveLoginOtp(userId: string) {
+  return prisma.loginOtpToken.findFirst({
+    where: {
+      userId,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+async function validateLoginOtp(
+  email: string,
+  code: string,
+  consume: boolean,
+): Promise<LoginOtpUser | null> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      status: true,
+      tokenVersion: true,
+      emailVerified: true,
+    },
+  });
+
+  if (
+    !user ||
+    (user.role !== "ADMIN" && user.role !== "ADVERTISER" && user.role !== "PUBLISHER")
+  ) {
+    return null;
+  }
+
+  const record = await findActiveLoginOtp(user.id);
+  if (!record) return null;
+
+  if (record.attempts >= LOGIN_OTP_MAX_ATTEMPTS) {
+    if (consume) {
+      await prisma.loginOtpToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+    }
+    return null;
+  }
+
+  const valid = await bcrypt.compare(code, record.codeHash);
+  if (!valid) {
+    if (consume) {
+      await prisma.loginOtpToken.update({
+        where: { id: record.id },
+        data: { attempts: { increment: 1 } },
+      });
+    }
+    return null;
+  }
+
+  if (consume) {
+    await prisma.loginOtpToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  return user;
+}
+
+export async function checkLoginOtp(email: string, code: string) {
+  return validateLoginOtp(email, code, false);
+}
+
+export async function consumeLoginOtp(email: string, code: string) {
+  return validateLoginOtp(email, code, true);
 }

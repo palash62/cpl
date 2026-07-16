@@ -151,3 +151,21 @@ export function renderEmailVerificationEmail(params: BaseParams & { verifyUrl: s
     text,
   };
 }
+
+export function renderLoginOtpEmail(
+  params: BaseParams & { code: string; expiresMinutes: number },
+) {
+  const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
+  const body = `<p style="margin:0 0 12px;">${greeting}</p>
+    <p style="margin:0 0 12px;">Use this code to sign in to your LeadVix account:</p>
+    <div style="margin:16px 0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center;">
+      <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:0.35em;color:#0f172a;font-family:monospace;">${params.code}</p>
+    </div>
+    <p style="margin:0;font-size:13px;color:#64748b;">This code expires in ${params.expiresMinutes} minutes. If you did not request this, you can ignore this email.</p>`;
+  const text = `${greeting}\n\nYour LeadVix sign-in code: ${params.code}\n\nThis code expires in ${params.expiresMinutes} minutes.`;
+  return {
+    subject: "Your LeadVix sign-in code",
+    html: emailLayout(body, params.appUrl),
+    text,
+  };
+}

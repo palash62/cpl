@@ -218,6 +218,7 @@ model User {
   optinPages               AdvertiserOptinPage[]
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  loginOtpTokens LoginOtpToken[]
   impersonationTokensAsAdmin ImpersonationToken[] @relation("ImpersonationAdmin")
   impersonationTokensAsTarget ImpersonationToken[] @relation("ImpersonationTarget")
   advertiserAutoresponders AdvertiserAutoresponder[]
@@ -887,6 +888,21 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@map("email_verification_tokens")
+}
+
+model LoginOtpToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("login_otp_tokens")
 }
 
 model EmailContact {

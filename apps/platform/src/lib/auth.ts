@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { getLoginBlock } from "@/lib/auth-login-gate";
 import { consumeImpersonationToken } from "@/services/impersonation.service";
+import { consumeLoginOtp } from "@/services/auth-token.service";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export { ROLE_ROUTES, getDashboardPath } from "@/lib/auth.config";
@@ -35,6 +36,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user) return null;
 
+        if (user.role !== "ADMIN") return null;
+
         const valid = await bcrypt.compare(
           String(credentials.password),
           user.passwordHash,
@@ -42,6 +45,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valid) return null;
 
+        if (getLoginBlock(user)) return null;
+        if (user.status !== "ACTIVE") return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tokenVersion: user.tokenVersion ?? 0,
+        };
+      },
+    }),
+    CredentialsProvider({
+      id: "otp",
+      name: "otp",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Code", type: "text" },
+      },
+      async authorize(credentials, request) {
+        if (!credentials?.email || !credentials?.code) return null;
+
+        const ip =
+          request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+          request?.headers?.get?.("x-real-ip") ||
+          "unknown";
+        const limited = checkRateLimit(`login-otp:${ip}`, 20, 60_000);
+        if (!limited.allowed) return null;
+
+        const user = await consumeLoginOtp(
+          String(credentials.email).trim().toLowerCase(),
+          String(credentials.code).trim(),
+        );
+
+        if (!user) return null;
+        if (user.role !== "ADMIN" && user.role !== "ADVERTISER" && user.role !== "PUBLISHER") {
+          return null;
+        }
         if (getLoginBlock(user)) return null;
         if (user.status !== "ACTIVE") return null;
 

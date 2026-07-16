@@ -1,25 +1,24 @@
 import bcrypt from "bcryptjs";
 import { errorResponse } from "@/lib/errors";
-import { loginSchema } from "@/lib/validations";
 import { getLoginBlock, loginBlockMessage } from "@/lib/auth-login-gate";
 import { prisma } from "@/lib/prisma";
+import { requestOtpSchema } from "@/lib/validations";
 import {
   checkRateLimit,
   clientIpFromRequest,
   rateLimitResponse,
 } from "@/lib/rate-limit";
+import { createLoginOtp } from "@/services/auth-token.service";
+import { notifyLoginOtp } from "@/services/notify.service";
 
-/** Password-only check (legacy). Interactive login uses request-otp + OTP. */
+const GENERIC_MESSAGE = "Check your email for your 6-digit sign-in code.";
+
 export async function POST(request: Request) {
   const ip = clientIpFromRequest(request);
-  const limited = checkRateLimit(`credentials-check:${ip}`, 20, 60_000);
-  if (!limited.allowed) {
-    return rateLimitResponse(limited.retryAfterSec);
-  }
 
   try {
     const body = await request.json();
-    const parsed = loginSchema.safeParse(body);
+    const parsed = requestOtpSchema.safeParse(body);
 
     if (!parsed.success) {
       return Response.json(
@@ -29,13 +28,27 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.trim().toLowerCase();
+
+    const emailLimited = checkRateLimit(`request-otp:email:${email}`, 5, 15 * 60_000);
+    if (!emailLimited.allowed) {
+      return rateLimitResponse(emailLimited.retryAfterSec);
+    }
+
+    const ipLimited = checkRateLimit(`request-otp:ip:${ip}`, 20, 15 * 60_000);
+    if (!ipLimited.allowed) {
+      return rateLimitResponse(ipLimited.retryAfterSec);
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
-        passwordHash: true,
-        status: true,
+        id: true,
+        email: true,
+        name: true,
         role: true,
+        status: true,
         emailVerified: true,
+        passwordHash: true,
       },
     });
 
@@ -75,7 +88,10 @@ export async function POST(request: Request) {
       );
     }
 
-    return Response.json({ success: true });
+    const { code, expiresMinutes } = await createLoginOtp(user.id);
+    await notifyLoginOtp(user, code, expiresMinutes);
+
+    return Response.json({ success: true, message: GENERIC_MESSAGE });
   } catch (error) {
     return errorResponse(error);
   }

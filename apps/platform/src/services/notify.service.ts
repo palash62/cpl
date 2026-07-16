@@ -4,6 +4,7 @@ import {
   renderCredentialsEmail,
   renderEmailVerificationEmail,
   renderGenericEmail,
+  renderLoginOtpEmail,
   renderPasswordResetEmail,
   renderRejectedEmail,
   renderWelcomeEmail,
@@ -191,6 +192,27 @@ export async function notifyEmailVerification(user: { id: string; email: string;
     ...rendered,
     template: "email_verification",
     metadata: { userId: user.id },
+  });
+}
+
+export async function notifyLoginOtp(
+  user: { id: string; email: string; name: string },
+  code: string,
+  expiresMinutes: number,
+) {
+  const rendered = renderLoginOtpEmail({
+    ...(await baseParams(user.name)),
+    code,
+    expiresMinutes,
+  });
+  return deliver({
+    to: user.email,
+    ...rendered,
+    template: "generic",
+    userId: user.id,
+    notificationType: "auth.login_otp",
+    notificationTitle: "Sign-in code sent",
+    notificationBody: "Check your email for your 6-digit sign-in code.",
   });
 }
 

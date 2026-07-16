@@ -17,20 +17,34 @@ export function normalizeRgb(color: string) {
   return color.replace(/\s+/g, "");
 }
 
-export async function loginAsAdmin(page: Page) {
+async function completePasswordOtpLogin(
+  page: Page,
+  email: string,
+  password: string,
+  dashboardPattern: RegExp,
+) {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN_EMAIL);
-  await page.getByLabel("Password").fill(ADMIN_PASSWORD);
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Verification code").waitFor({ timeout: 30_000 });
+
+  const otpRes = await page.request.post("/api/test/login-otp", {
+    data: { email },
+  });
+  expect(otpRes.ok()).toBeTruthy();
+  const otpBody = await otpRes.json();
+  await page.getByLabel("Verification code").fill(otpBody.code);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/admin/, { timeout: 30_000 });
+  await page.waitForURL(dashboardPattern, { timeout: 30_000 });
+}
+
+export async function loginAsAdmin(page: Page) {
+  await completePasswordOtpLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD, /\/admin/);
 }
 
 export async function loginAsAdvertiser(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(ADVERTISER_EMAIL);
-  await page.getByLabel("Password").fill(ADVERTISER_PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/advertiser/, { timeout: 30_000 });
+  await completePasswordOtpLogin(page, ADVERTISER_EMAIL, ADVERTISER_PASSWORD, /\/advertiser/);
 }
 
 export async function upsertFullCoverageTemplate(page: Page): Promise<string> {
