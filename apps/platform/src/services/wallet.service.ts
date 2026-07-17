@@ -303,7 +303,7 @@ export async function processLeadPayment(leadId: string) {
 
     await tx.lead.update({
       where: { id: leadId },
-      data: { status: "PAID" },
+      data: { status: "PAID", cpl },
     });
 
     const { creditReferralCommissionsForLead } = await import("@/services/referral.service");

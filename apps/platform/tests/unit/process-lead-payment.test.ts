@@ -123,7 +123,7 @@ describe("processLeadPayment", () => {
     });
     expect(prismaMock.lead.update).toHaveBeenCalledWith({
       where: { id: "lead-1" },
-      data: { status: "PAID" },
+      data: { status: "PAID", cpl: 1 },
     });
   });
 
@@ -153,6 +153,10 @@ describe("processLeadPayment", () => {
 
     expect(balances.get("advertiser-wallet")).toBe(18);
     expect(balances.get("publisher-wallet")).toBe(1.4);
+    expect(prismaMock.lead.update).toHaveBeenCalledWith({
+      where: { id: "lead-old-bid" },
+      data: { status: "PAID", cpl: 2 },
+    });
     expect(ledgerEntries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

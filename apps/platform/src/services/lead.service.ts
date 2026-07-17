@@ -941,9 +941,32 @@ async function loadFunnelEventIpByLeadId(leadIds: string[]) {
   return map;
 }
 
+async function loadPaidLeadCplByLeadId(leadIds: string[]) {
+  if (leadIds.length === 0) return new Map<string, number>();
+
+  const entries = await prisma.ledgerEntry.findMany({
+    where: {
+      type: "DEBIT",
+      referenceType: "lead",
+      referenceId: { in: leadIds },
+    },
+    select: { referenceId: true, amount: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const map = new Map<string, number>();
+  for (const entry of entries) {
+    if (!entry.referenceId || map.has(entry.referenceId)) continue;
+    map.set(entry.referenceId, Number(entry.amount));
+  }
+  return map;
+}
+
 async function enrichLeadListRows<
   T extends {
     id: string;
+    status?: string;
+    cpl?: number | string | { toString(): string } | null;
     ip?: string | null;
     country?: string | null;
     geoCountry?: string | null;
@@ -954,7 +977,12 @@ async function enrichLeadListRows<
   const missingIpLeadIds = rows
     .filter((lead) => !normalizeClientIp(lead.ip))
     .map((lead) => lead.id);
-  const funnelIps = await loadFunnelEventIpByLeadId(missingIpLeadIds);
+  const paidLeadIds = rows.filter((lead) => lead.status === "PAID").map((lead) => lead.id);
+
+  const [funnelIps, paidCplByLeadId] = await Promise.all([
+    loadFunnelEventIpByLeadId(missingIpLeadIds),
+    loadPaidLeadCplByLeadId(paidLeadIds),
+  ]);
 
   const enriched = await enrichLeadsWithCountry(rows, undefined, (lead) => {
     const directIp = normalizeClientIp(lead.ip);
@@ -962,12 +990,45 @@ async function enrichLeadListRows<
     return funnelIps.get(lead.id);
   });
 
-  return enriched.map((lead) => {
-    if (normalizeClientIp(lead.ip)) return lead;
-    const funnelIp = funnelIps.get(lead.id);
-    if (!funnelIp) return lead;
-    return { ...lead, ip: funnelIp };
+  const cplRepairs: Array<{ id: string; cpl: number }> = [];
+
+  const withIpAndCpl = enriched.map((lead) => {
+    let next = lead;
+    if (!normalizeClientIp(lead.ip)) {
+      const funnelIp = funnelIps.get(lead.id);
+      if (funnelIp) next = { ...next, ip: funnelIp };
+    }
+
+    if (lead.status === "PAID") {
+      const paidCpl = paidCplByLeadId.get(lead.id);
+      if (paidCpl !== undefined) {
+        const current = lead.cpl == null || lead.cpl === "" ? null : Number(lead.cpl);
+        if (current === null || Math.abs(current - paidCpl) > 0.0001) {
+          cplRepairs.push({ id: lead.id, cpl: paidCpl });
+        }
+        next = { ...next, cpl: paidCpl };
+      }
+    }
+
+    return next;
   });
+
+  if (cplRepairs.length > 0) {
+    void prisma
+      .$transaction(
+        cplRepairs.map((item) =>
+          prisma.lead.update({
+            where: { id: item.id },
+            data: { cpl: item.cpl },
+          }),
+        ),
+      )
+      .catch((error) => {
+        console.error("Failed to repair lead CPL snapshots from ledger", error);
+      });
+  }
+
+  return withIpAndCpl;
 }
 
 export async function listLeads(filters: LeadListFilters & { page?: number; limit?: number }) {
@@ -1107,6 +1168,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
       ...(Object.keys(createdAt).length > 0 && { createdAt }),
     },
     select: {
+      id: true,
       publisherId: true,
       status: true,
       createdAt: true,
@@ -1115,6 +1177,10 @@ export async function listAdvertiserPublisherLeadReport(filters: {
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const paidCplByLeadId = await loadPaidLeadCplByLeadId(
+    leads.filter((lead) => lead.status === "PAID").map((lead) => lead.id),
+  );
 
   const grouped = new Map<string, AdvertiserPublisherLeadReportRow>();
 
@@ -1132,7 +1198,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
       lastLeadAt: null,
     };
 
-    const cpl = getLeadCpl(lead);
+    const cpl = paidCplByLeadId.get(lead.id) ?? getLeadCpl(lead);
     existing.payoutMin = existing.payoutMin === null ? cpl : Math.min(existing.payoutMin, cpl);
     existing.payoutMax = existing.payoutMax === null ? cpl : Math.max(existing.payoutMax, cpl);
 
