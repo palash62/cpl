@@ -1,0 +1,48 @@
+{
+	email ppalash62@gmail.com
+	on_demand_tls {
+		ask http://127.0.0.1:9095/ask
+	}
+}
+
+leadvix.io {
+	request_body {
+		max_size 10MB
+	}
+
+	# Runtime uploads (Next.js standalone does not serve new public/ files)
+	handle_path /uploads/* {
+		root * /var/lib/cpl/platform-uploads
+		file_server
+		header Cache-Control "public, max-age=604800"
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000 {
+			transport http {
+				read_timeout 120s
+			}
+		}
+	}
+}
+
+leadgenlink.site {
+	reverse_proxy 127.0.0.1:3001 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+# Advertiser custom domains: certificates are issued on demand, gated by the
+# ask endpoint (only domains VERIFIED in advertiser_domains get certs).
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:3000 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}

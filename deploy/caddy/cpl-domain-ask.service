@@ -1,0 +1,13 @@
+[Unit]
+Description=CPL custom-domain ask endpoint for Caddy on-demand TLS
+After=network.target mysql.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/cpl-domain-ask.py
+Restart=always
+RestartSec=3
+User=ubuntu
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
