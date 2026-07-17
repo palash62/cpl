@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import {
+  getAdminDepositStats,
   listAdminDeposits,
   listDepositAdvertiserOptions,
   listPendingDeposits,
@@ -42,7 +43,7 @@ export default async function AdminDepositsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
 
-  const [pendingDeposits, history, advertisers] = await Promise.all([
+  const [pendingDeposits, history, advertisers, stats] = await Promise.all([
     listPendingDeposits(),
     listAdminDeposits({
       advertiserId: params.advertiser,
@@ -52,10 +53,8 @@ export default async function AdminDepositsPage({ searchParams }: PageProps) {
       limit: 20,
     }),
     listDepositAdvertiserOptions(),
+    getAdminDepositStats(),
   ]);
-
-  const totalPending = pendingDeposits.reduce((sum, d) => sum + Number(d.amount), 0);
-  const totalHistoryAmount = history.data.reduce((sum, d) => sum + Number(d.amount), 0);
 
   return (
     <div className="space-y-7">
@@ -69,15 +68,15 @@ export default async function AdminDepositsPage({ searchParams }: PageProps) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <GradientStatCard
           variant="revenue"
-          label="Pending Amount"
-          value={formatCurrency(totalPending)}
+          label="Total Deposits"
+          value={formatCurrency(stats.totalAmount)}
           icon={DollarSign}
         />
-        <NeutralStatCard label="Pending Deposits" value={pendingDeposits.length} icon={Clock} accent="orange" />
+        <NeutralStatCard label="Pending Deposits" value={stats.pendingCount} icon={Clock} accent="orange" />
         <NeutralStatCard
-          label="History (this page)"
-          value={formatCurrency(totalHistoryAmount)}
-          icon={History}
+          label="This Month"
+          value={formatCurrency(stats.thisMonthAmount)}
+          icon={Wallet}
           accent="purple"
         />
       </div>

@@ -736,6 +736,33 @@ export async function listPendingDeposits() {
   });
 }
 
+export async function getAdminDepositStats() {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const [totalReceived, pendingCount, thisMonth] = await Promise.all([
+    prisma.deposit.aggregate({
+      _sum: { amount: true },
+      where: { status: "COMPLETED" },
+    }),
+    prisma.deposit.count({ where: { status: "PENDING" } }),
+    prisma.deposit.aggregate({
+      _sum: { amount: true },
+      where: {
+        status: "COMPLETED",
+        createdAt: { gte: monthStart },
+      },
+    }),
+  ]);
+
+  return {
+    totalAmount: Number(totalReceived._sum.amount ?? 0),
+    pendingCount,
+    thisMonthAmount: Number(thisMonth._sum.amount ?? 0),
+  };
+}
+
 const depositUserSelect = {
   id: true,
   name: true,
