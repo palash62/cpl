@@ -5,6 +5,7 @@ import {
   pageTemplateHasThankYouScalars,
 } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
+import { assertVerifiedDomainForAdvertiser } from "@/services/advertiser-domain.service";
 import { Prisma } from "@prisma/client";
 import { slugifyOptinAddress, isValidOptinSlug } from "@/lib/optin-slug";
 import type { OptinTemplateId } from "@/lib/optin-templates";
@@ -495,6 +496,9 @@ export async function deleteOptinFunnelTemplateByAdmin(id: string) {
 export async function getOptinFunnel(id: string, advertiserId: string) {
   const page = await prisma.advertiserOptinPage.findFirst({
     where: { id, advertiserId },
+    include: {
+      customDomain: { select: { id: true, domain: true, status: true } },
+    },
   });
   if (!page) throw Errors.notFound("Optin funnel");
   return serializeOptinFunnel(page);
@@ -685,6 +689,7 @@ export async function updateOptinFunnel(
     thankYouThemeJson?: ThemeJson;
     thankYouPixelHtml?: string | null;
     thankYouUseCampaignPixel?: boolean;
+    customDomainId?: string | null;
     step?: "optin" | "thankYou";
     autosave?: boolean;
   },
@@ -720,6 +725,26 @@ export async function updateOptinFunnel(
     });
     if (!campaign) {
       throw Errors.validation("Selected campaign is invalid for this advertiser.");
+    }
+  }
+
+  let nextCustomDomainId = existing.customDomainId;
+  if (input.customDomainId !== undefined) {
+    if (input.customDomainId === null) {
+      nextCustomDomainId = null;
+    } else {
+      const domain = await assertVerifiedDomainForAdvertiser(advertiserId, input.customDomainId);
+      nextCustomDomainId = domain?.id ?? null;
+      if (domain) {
+        await prisma.advertiserOptinPage.updateMany({
+          where: {
+            advertiserId,
+            customDomainId: domain.id,
+            NOT: { id },
+          },
+          data: { customDomainId: null },
+        });
+      }
     }
   }
 
@@ -770,6 +795,7 @@ export async function updateOptinFunnel(
       ...(input.title ? { title: input.title.trim() } : {}),
       slug,
       ...(input.campaignId !== undefined ? { campaignId: input.campaignId } : {}),
+      ...(input.customDomainId !== undefined ? { customDomainId: nextCustomDomainId } : {}),
       ...(input.destinationUrl !== undefined
         ? { destinationUrl: input.destinationUrl?.trim() || null }
         : {}),
@@ -805,6 +831,9 @@ export async function updateOptinFunnel(
         : {}),
       ...(craftEnvelope || thankYouCraftEnvelope ? { editorType: "BUILDER" as const } : {}),
       autosaveAt: new Date(),
+    },
+    include: {
+      customDomain: { select: { id: true, domain: true, status: true } },
     },
   });
 

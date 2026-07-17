@@ -1,11 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import {
   Undo2, Redo2, Save, Eye, Upload, History, ArrowLeft, Loader2, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DeviceSwitcher } from "@/modules/page-builder/components/editor/device-switcher";
 import { FunnelStepsPopover } from "@/components/advertiser/funnel/funnel-steps-popover";
 import { buildFunnelSteps } from "@/components/advertiser/funnel/funnel-types";
@@ -20,6 +29,7 @@ type TopToolbarProps = { pageId: string; pageName: string; pageSlug: string };
 
 export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
   const router = useRouter();
+  const [publishDomainDialogOpen, setPublishDomainDialogOpen] = useState(false);
   const { actions, query, canUndo, canRedo } = useEditor((state, query) => ({
     canUndo: query.history.canUndo(),
     canRedo: query.history.canRedo(),
@@ -53,9 +63,7 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
     return true;
   }
 
-  async function handlePublish() {
-    const ok = await handleSave();
-    if (!ok) return;
+  async function publishFunnel() {
     try {
       const res = await fetch(`${builderConfig.apiBasePath}/${pageId}/publish`, { method: "POST" });
       if (!res.ok) {
@@ -66,6 +74,28 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Publish failed");
     }
+  }
+
+  async function handlePublish() {
+    const ok = await handleSave();
+    if (!ok) return;
+
+    if (isFunnel && !builderConfig.customDomainId) {
+      setPublishDomainDialogOpen(true);
+      return;
+    }
+
+    await publishFunnel();
+  }
+
+  function handleConnectDomain() {
+    setPublishDomainDialogOpen(false);
+    window.open("/advertiser/domains", "_blank", "noopener,noreferrer");
+  }
+
+  async function handlePublishWithDefaultDomain() {
+    setPublishDomainDialogOpen(false);
+    await publishFunnel();
   }
 
   async function handleBack() {
@@ -207,11 +237,31 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
         Save
       </Button>
       {!isAdminTemplate && (
-        <Button size="sm" onClick={handlePublish} className={chrome.toolbarPublish}>
+        <Button size="sm" onClick={() => void handlePublish()} className={chrome.toolbarPublish}>
           <Upload className="mr-1.5 h-4 w-4" />
           Publish
         </Button>
       )}
+
+      <Dialog open={publishDomainDialogOpen} onOpenChange={setPublishDomainDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Publish without a custom domain?</DialogTitle>
+            <DialogDescription>
+              This funnel is not connected to a custom domain. You can connect one now or publish on
+              the default platform URL at <span className="font-mono">/o/{pageSlug}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleConnectDomain}>
+              Connect domain
+            </Button>
+            <Button onClick={() => void handlePublishWithDefaultDomain()}>
+              Publish with default domain
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

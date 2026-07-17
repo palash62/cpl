@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ExternalLink,
   Eye,
+  Globe,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -15,7 +16,6 @@ import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-
 import { funnelCraftPreviewRevision } from "@/components/optin/funnel-craft-preview-frame";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
 import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
@@ -40,6 +40,7 @@ type FunnelStepOverviewProps = {
   stepId: FunnelStepId;
   appUrl: string;
   onSettingsClick: () => void;
+  onConnectDomainClick?: () => void;
   onEntityUpdated?: (data: unknown) => void;
   onStepDeleted?: () => void;
 };
@@ -94,6 +95,7 @@ export function FunnelStepOverview({
   stepId,
   appUrl,
   onSettingsClick,
+  onConnectDomainClick,
   onEntityUpdated,
   onStepDeleted,
 }: FunnelStepOverviewProps) {
@@ -169,10 +171,43 @@ export function FunnelStepOverview({
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <h2 className="text-lg font-semibold capitalize text-slate-900">{stepName}</h2>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-blue-50 text-blue-700">
-            Overview
-          </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className={cn(buttonVariants({ size: "sm" }))}>
+              Edit
+              <ChevronDown className="ml-1 h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => router.push(editHref)}>
+                Use existing
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={resetting}
+                onClick={() => void handleCreateFromBlank()}
+              >
+                Create from blank
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <a
+            href={previewPath}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            <Eye className="mr-1.5 h-4 w-4" />
+            Preview
+          </a>
+          <Button variant="outline" size="sm" className="h-8" onClick={onSettingsClick}>
+            <Settings className="mr-1.5 h-4 w-4" />
+            Funnel settings
+          </Button>
+          {onConnectDomainClick && (
+            <Button variant="outline" size="sm" className="h-8" onClick={onConnectDomainClick}>
+              <Globe className="mr-1.5 h-4 w-4" />
+              Connect domain
+            </Button>
+          )}
         </div>
       </div>
 
@@ -220,38 +255,6 @@ export function FunnelStepOverview({
                   </div>
                 )}
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger className={cn(buttonVariants({ size: "sm" }))}>
-                  Edit
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => router.push(editHref)}>
-                    Use existing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={resetting}
-                    onClick={() => void handleCreateFromBlank()}
-                  >
-                    Create from blank
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <a
-                href={previewPath}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <Eye className="mr-1.5 h-4 w-4" />
-                Preview
-              </a>
-              <Button variant="outline" size="sm" className="h-8" onClick={onSettingsClick}>
-                <Settings className="mr-1.5 h-4 w-4" />
-                Funnel settings
-              </Button>
             </div>
           </div>
         </div>

@@ -105,8 +105,9 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
       mode: "funnel",
       ui: "ghl",
       thankYouEnabled: funnel?.thankYouEnabled ?? false,
+      customDomainId: funnel?.customDomainId ?? null,
     });
-  }, [funnelId, funnel?.thankYouEnabled, setBuilderConfig]);
+  }, [funnelId, funnel?.thankYouEnabled, funnel?.customDomainId, setBuilderConfig]);
 
   useEffect(() => {
     setCraftSavedListener((step, craft) => {
@@ -179,6 +180,7 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           mode: "funnel",
           ui: "ghl",
           thankYouEnabled: page.thankYouEnabled,
+          customDomainId: page.customDomainId ?? null,
         });
       })
       .catch((err) => {

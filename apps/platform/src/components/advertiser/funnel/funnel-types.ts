@@ -1,5 +1,6 @@
 import type { OptinFunnelEditorType } from "@prisma/client";
 import { usesBuilderRenderer, type SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { buildFunnelPublicUrl } from "@/lib/platform-host";
 import type { ThemeJson } from "@/modules/page-builder/lib/theme";
 import type { CraftSerializedState, PageDocument } from "@/modules/page-builder/types/page-document";
 import type { OptinFunnelTemplate } from "@/services/optin-funnel.service";
@@ -39,6 +40,7 @@ export type FunnelWorkflowEntity = {
   bulletPoints?: string[] | null;
   primaryColor?: string | null;
   accentColor?: string | null;
+  customDomain?: { id: string; domain: string; status: string } | null;
 };
 
 export type FunnelWorkflowConfig = {
@@ -116,6 +118,7 @@ export function toFunnelWorkflowEntityFromFunnel(funnel: SerializedOptinFunnel):
     bulletPoints: funnel.bulletPoints,
     primaryColor: funnel.primaryColor,
     accentColor: funnel.accentColor,
+    customDomain: funnel.customDomain,
   };
 }
 
@@ -175,6 +178,21 @@ export function resolvePreviewUrl(
 ): { previewPath: string; previewUrl: string } {
   const pathTemplate = workflow.previewPath(entity.id, stepId);
   const previewPath = pathTemplate.replace("{slug}", entity.slug);
+
+  const verifiedDomain =
+    entity.customDomain?.status === "VERIFIED" ? entity.customDomain.domain : null;
+  if (verifiedDomain) {
+    const domainBase = buildFunnelPublicUrl({
+      slug: entity.slug,
+      appUrl,
+      customDomain: verifiedDomain,
+    });
+    return {
+      previewPath,
+      previewUrl: stepId === "thankYou" ? `${domainBase}/thank-you` : domainBase,
+    };
+  }
+
   return {
     previewPath,
     previewUrl: `${appUrl}${previewPath}`,

@@ -16,6 +16,7 @@ export type BuilderConfig = {
   mode?: "landing" | "funnel" | "template" | "page";
   ui?: "ghl" | "classic";
   thankYouEnabled?: boolean;
+  customDomainId?: string | null;
 };
 
 type BuilderUIState = {

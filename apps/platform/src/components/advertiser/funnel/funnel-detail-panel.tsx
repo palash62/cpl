@@ -1,8 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { buildFunnelPublicUrl } from "@/lib/platform-host";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FunnelDetailHeader } from "./funnel-detail-header";
 import { FunnelStepsSidebar } from "./funnel-steps-sidebar";
 import { FunnelStepOverview } from "./funnel-step-overview";
@@ -27,10 +39,18 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   const [activeStepId, setActiveStepId] = useState<FunnelStepId>("optin");
   const [addStepOpen, setAddStepOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [domainDialogOpen, setDomainDialogOpen] = useState(false);
+  const [domainDialogSelection, setDomainDialogSelection] = useState<string | null>(
+    funnel.customDomainId,
+  );
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [funnelName, setFunnelName] = useState(funnel.name);
   const [thankYouEnabled, setThankYouEnabled] = useState(funnel.thankYouEnabled);
   const [destinationUrl, setDestinationUrl] = useState(funnel.destinationUrl ?? "");
   const [thankYouPixelHtml, setThankYouPixelHtml] = useState(funnel.thankYouPixelHtml ?? "");
+  const [customDomainId, setCustomDomainId] = useState<string | null>(funnel.customDomainId);
+  const [verifiedDomains, setVerifiedDomains] = useState<Array<{ id: string; domain: string }>>([]);
   const [thankYouUseCampaignPixel] = useState(funnel.thankYouUseCampaignPixel);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
@@ -52,10 +72,28 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
         setThankYouEnabled(refreshed.thankYouEnabled);
         setDestinationUrl(refreshed.destinationUrl ?? "");
         setThankYouPixelHtml(refreshed.thankYouPixelHtml ?? "");
+        setCustomDomainId(refreshed.customDomainId);
       }
     }
 
     void refreshFunnel();
+
+    async function loadVerifiedDomains() {
+      const res = await fetch("/api/v1/advertiser/domains");
+      const body = await res.json();
+      if (!cancelled && res.ok && Array.isArray(body.data)) {
+        setVerifiedDomains(
+          body.data
+            .filter((item: { status: string }) => item.status === "VERIFIED")
+            .map((item: { id: string; domain: string }) => ({
+              id: item.id,
+              domain: item.domain,
+            })),
+        );
+      }
+    }
+
+    void loadVerifiedDomains();
 
     function onFocus() {
       void refreshFunnel();
@@ -82,6 +120,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
     destinationUrl: string;
     thankYouPixelHtml: string;
     thankYouUseCampaignPixel: boolean;
+    customDomainId: string | null;
   }>) {
     const nextThankYouEnabled = patch?.thankYouEnabled ?? thankYouEnabled;
     const nextDestinationUrl = (patch?.destinationUrl ?? destinationUrl).trim();
@@ -116,6 +155,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
       destinationUrl: nextDestinationUrl || null,
       thankYouPixelHtml: patch?.thankYouPixelHtml ?? thankYouPixelHtml,
       thankYouUseCampaignPixel: patch?.thankYouUseCampaignPixel ?? thankYouUseCampaignPixel,
+      customDomainId: patch?.customDomainId !== undefined ? patch.customDomainId : customDomainId,
     };
 
     const res = await fetch(`${workflow.apiBasePath}/${funnel.id}`, {
@@ -136,6 +176,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
     setFunnelName(saved.name);
     setThankYouEnabled(saved.thankYouEnabled);
     setDestinationUrl(saved.destinationUrl ?? "");
+    setCustomDomainId(saved.customDomainId);
     setSettingsMessage("Settings saved.");
     return true;
   }
@@ -155,6 +196,48 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
     }
     if (enabled) setActiveStepId("thankYou");
   }
+
+  function openDomainDialog() {
+    setDomainDialogSelection(customDomainId);
+    setDomainMessage(null);
+    setDomainDialogOpen(true);
+  }
+
+  async function saveCustomDomain() {
+    setSavingDomain(true);
+    setDomainMessage(null);
+
+    const res = await fetch(`${workflow.apiBasePath}/${funnel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customDomainId: domainDialogSelection }),
+    });
+    const data = await res.json();
+    setSavingDomain(false);
+
+    if (!res.ok) {
+      setDomainMessage(data?.error?.message ?? "Unable to save domain");
+      return;
+    }
+
+    const saved = data.data as SerializedOptinFunnel;
+    setFunnel(saved);
+    setCustomDomainId(saved.customDomainId);
+    setDomainDialogOpen(false);
+    setDomainMessage(null);
+  }
+
+  const publicUrl = buildFunnelPublicUrl({
+    slug: funnel.slug,
+    appUrl,
+    customDomain:
+      funnel.customDomain?.status === "VERIFIED" ? funnel.customDomain.domain : null,
+  });
+
+  const thankYouHint =
+    funnel.customDomain?.status === "VERIFIED"
+      ? "Users will go to /thank-you after submit."
+      : workflow.thankYouRedirectHint?.(funnel.slug);
 
   return (
     <div className="space-y-6">
@@ -187,6 +270,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
               stepId={activeStepId}
               appUrl={appUrl}
               onSettingsClick={() => setSettingsOpen(true)}
+              onConnectDomainClick={openDomainDialog}
               onEntityUpdated={(data) => {
                 const saved = data as SerializedOptinFunnel;
                 setFunnel(saved);
@@ -194,6 +278,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
                 setThankYouEnabled(saved.thankYouEnabled);
                 setDestinationUrl(saved.destinationUrl ?? "");
                 setThankYouPixelHtml(saved.thankYouPixelHtml ?? "");
+                setCustomDomainId(saved.customDomainId);
               }}
               onStepDeleted={() => setActiveStepId("optin")}
             />
@@ -208,19 +293,65 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
         onOpenChange={setSettingsOpen}
         name={funnelName}
         onNameChange={setFunnelName}
-        urlHint={`/o/${funnel.slug}`}
+        urlHint={publicUrl}
         description={workflow.settingsDescription}
         thankYouEnabled={thankYouEnabled}
         destinationUrl={destinationUrl}
         thankYouPixelHtml={thankYouPixelHtml}
         saving={savingSettings}
         message={settingsMessage}
-        thankYouRedirectHint={workflow.thankYouRedirectHint?.(funnel.slug)}
+        thankYouRedirectHint={thankYouHint}
         onThankYouEnabledChange={(enabled) => void handleThankYouToggle(enabled)}
         onDestinationUrlChange={setDestinationUrl}
         onThankYouPixelHtmlChange={setThankYouPixelHtml}
         onSave={() => void saveSettings()}
       />
+
+      <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connect domain</DialogTitle>
+            <DialogDescription>
+              Choose a verified domain to serve this funnel at the root URL, or use the default
+              platform domain.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-600">Public URL domain</Label>
+            <select
+              value={domainDialogSelection ?? ""}
+              disabled={savingDomain}
+              onChange={(e) => setDomainDialogSelection(e.target.value || null)}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800"
+            >
+              <option value="">Default (platform domain)</option>
+              {verifiedDomains.map((domain) => (
+                <option key={domain.id} value={domain.id}>
+                  {domain.domain}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500">
+              <Link href="/advertiser/domains" className="font-medium text-blue-600 hover:underline">
+                + Connect new domain
+              </Link>
+              {" · "}
+              Only verified domains appear here.
+            </p>
+            {domainMessage && <p className="text-sm text-red-600">{domainMessage}</p>}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDomainDialogOpen(false)} disabled={savingDomain}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveCustomDomain()} disabled={savingDomain}>
+              {savingDomain ? "Saving..." : "Save domain"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

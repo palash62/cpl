@@ -13,9 +13,11 @@ import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
 export function OptinLandingPage({
   page,
   testCampaignId,
+  thankYouPath,
 }: {
   page: PublicOptinPage;
   testCampaignId?: string;
+  thankYouPath?: string;
 }) {
   const [data, setData] = useState<Record<string, string>>({});
   const [honeypot, setHoneypot] = useState("");
@@ -79,7 +81,8 @@ export function OptinLandingPage({
 
     const leadId = result.lead?.id as string | undefined;
     if (page.thankYouEnabled && leadId && !readOnlyPreview) {
-      window.location.assign(`/o/${page.slug}/thank-you?lead_id=${leadId}&txn_id=${leadId}`);
+      const path = thankYouPath ?? `/o/${page.slug}/thank-you`;
+      window.location.assign(`${path}?lead_id=${leadId}&txn_id=${leadId}`);
       return;
     }
 

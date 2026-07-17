@@ -629,6 +629,7 @@ export const optinFunnelUpdateSchema = z.object({
   title: z.string().trim().min(2).max(80).optional(),
   slug: z.string().trim().min(2).max(40).optional(),
   campaignId: z.string().nullable().optional(),
+  customDomainId: z.string().nullable().optional(),
   destinationUrl: z
     .string()
     .trim()
@@ -659,6 +660,14 @@ export const optinFunnelUpdateSchema = z.object({
   thankYouUseCampaignPixel: z.boolean().optional(),
   step: z.enum(["optin", "thankYou"]).optional(),
   autosave: z.boolean().optional(),
+});
+
+export const advertiserDomainAddSchema = z.object({
+  domain: z
+    .string()
+    .trim()
+    .min(3, "Enter a valid domain")
+    .max(253, "Domain is too long"),
 });
 
 export const adminOptinFunnelTemplateCreateSchema = z.object({

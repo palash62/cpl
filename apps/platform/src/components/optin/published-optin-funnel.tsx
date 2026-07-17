@@ -24,6 +24,7 @@ type PublishedOptinFunnelProps = {
   destinationUrl?: string | null;
   previewMode?: boolean;
   testCampaignId?: string;
+  thankYouPath?: string;
 };
 
 function PublishedOptinFunnelContent({
@@ -35,6 +36,7 @@ function PublishedOptinFunnelContent({
   destinationUrl,
   previewMode,
   testCampaignId,
+  thankYouPath,
 }: PublishedOptinFunnelProps) {
   const signalRef = useRef(createSignalCollector());
   const searchParams = useSearchParams();
@@ -87,7 +89,8 @@ function PublishedOptinFunnelContent({
 
       const leadId = body.lead?.id as string | undefined;
       if (thankYouEnabled && leadId) {
-        window.location.assign(`/o/${slug}/thank-you?lead_id=${leadId}&txn_id=${leadId}`);
+        const path = thankYouPath ?? `/o/${slug}/thank-you`;
+        window.location.assign(`${path}?lead_id=${leadId}&txn_id=${leadId}`);
         return;
       }
 
@@ -96,7 +99,7 @@ function PublishedOptinFunnelContent({
         window.location.assign(redirectUrl);
       }
     },
-    [slug, thankYouEnabled, destinationUrl, previewMode, testCampaignId],
+    [slug, thankYouEnabled, destinationUrl, previewMode, testCampaignId, thankYouPath],
   );
 
   const page = (

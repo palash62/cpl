@@ -230,6 +230,7 @@ model User {
   emailSends               EmailSend[]
   emailMarketingSettings   AdvertiserEmailSettings?
   sendingIdentities        AdvertiserSendingIdentity[]
+  advertiserDomains        AdvertiserDomain[]
   landingPages             LandingPage[]
   pageTemplateFavorites    PageTemplateFavorite[]
 
@@ -732,12 +733,14 @@ model AdvertiserOptinPage {
   thankYouThemeJson       Json?    @map("thank_you_theme_json")
   thankYouPixelHtml       String?  @db.Text @map("thank_you_pixel_html")
   thankYouUseCampaignPixel Boolean @default(true) @map("thank_you_use_campaign_pixel")
+  customDomainId String? @map("custom_domain_id")
   isPublished    Boolean  @default(false) @map("is_published")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
   campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  customDomain     AdvertiserDomain?    @relation(fields: [customDomainId], references: [id], onDelete: SetNull)
   versions         OptinFunnelVersion[] @relation("FunnelVersions")
   publishedVersion OptinFunnelVersion?  @relation("FunnelPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
   funnelEvents     FunnelEvent[]
@@ -745,7 +748,24 @@ model AdvertiserOptinPage {
   @@index([advertiserId])
   @@index([campaignId])
   @@index([status])
+  @@index([customDomainId])
   @@map("advertiser_optin_pages")
+}
+
+model AdvertiserDomain {
+  id            String    @id @default(cuid())
+  advertiserId  String    @map("advertiser_id")
+  domain        String    @unique
+  status        String    @default("PENDING")
+  verifiedAt    DateTime? @map("verified_at")
+  lastCheckedAt DateTime? @map("last_checked_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  advertiser User                  @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  funnels    AdvertiserOptinPage[]
+
+  @@index([advertiserId])
+  @@map("advertiser_domains")
 }
 
 model OptinFunnelVersion {

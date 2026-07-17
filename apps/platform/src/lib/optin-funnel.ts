@@ -37,6 +37,8 @@ export type SerializedOptinFunnel = OptinPageContent & {
   thankYouThemeJson: ThemeJson;
   thankYouPixelHtml: string | null;
   thankYouUseCampaignPixel: boolean;
+  customDomainId: string | null;
+  customDomain: { id: string; domain: string; status: string } | null;
   autosaveAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -93,6 +95,8 @@ export function serializeOptinFunnel(page: {
   thankYouThemeJson?: unknown;
   thankYouPixelHtml?: string | null;
   thankYouUseCampaignPixel?: boolean;
+  customDomainId?: string | null;
+  customDomain?: { id: string; domain: string; status: string } | null;
   createdAt: Date;
   updatedAt: Date;
 }): SerializedOptinFunnel {
@@ -112,6 +116,8 @@ export function serializeOptinFunnel(page: {
     thankYouThemeJson: (page.thankYouThemeJson as ThemeJson) ?? DEFAULT_THEME,
     thankYouPixelHtml: page.thankYouPixelHtml?.trim() || null,
     thankYouUseCampaignPixel: page.thankYouUseCampaignPixel ?? true,
+    customDomainId: page.customDomainId ?? null,
+    customDomain: page.customDomain ?? null,
     autosaveAt: page.autosaveAt?.toISOString() ?? null,
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),
