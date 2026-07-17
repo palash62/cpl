@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { validateLead } from "@/lib/lead-validation";
 import { Errors } from "@/lib/errors";
 import { enrichLeadsWithCountry } from "@/lib/lead-country";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import { normalizeClientIp } from "@cpl/shared";
 import { processLeadPayment, reverseLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
@@ -295,6 +296,7 @@ async function createAndProcessLead(input: {
       trackingLinkId: input.trackingLinkId,
       status: "VALIDATING",
       data: leadData,
+      cpl: input.campaign.cpl,
       score: validation.score,
       riskScore: fraud.riskScore,
       fraudDecision: fraud.fraudDecision,
@@ -603,6 +605,7 @@ export async function submitTestCampaignLead(input: {
       publisherId: input.advertiserId,
       status: "CAPTURED",
       data: leadData,
+      cpl: campaign.cpl,
       score: validation.score,
       country,
       source: "campaign_test",
@@ -1107,6 +1110,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
       publisherId: true,
       status: true,
       createdAt: true,
+      cpl: true,
       campaign: { select: { cpl: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -1128,17 +1132,17 @@ export async function listAdvertiserPublisherLeadReport(filters: {
       lastLeadAt: null,
     };
 
-    const cpl = Number(lead.campaign.cpl);
+    const cpl = getLeadCpl(lead);
     existing.payoutMin = existing.payoutMin === null ? cpl : Math.min(existing.payoutMin, cpl);
     existing.payoutMax = existing.payoutMax === null ? cpl : Math.max(existing.payoutMax, cpl);
 
     existing.totalLeads += 1;
     if (lead.status === "APPROVED") {
       existing.approvedLeads += 1;
-      existing.estimatedSpend += Number(lead.campaign.cpl);
+      existing.estimatedSpend += cpl;
     } else if (lead.status === "PAID") {
       existing.paidLeads += 1;
-      existing.estimatedSpend += Number(lead.campaign.cpl);
+      existing.estimatedSpend += cpl;
     } else if (lead.status === "REJECTED") {
       existing.rejectedLeads += 1;
     } else {
@@ -1195,6 +1199,7 @@ export async function listPublisherSubIdLeadReport(filters: {
         createdAt: true,
         publisherId: true,
         trackingLinkId: true,
+        cpl: true,
         campaign: { select: { cpl: true, advertiserId: true } },
         publisher: { select: { role: true } },
       },
@@ -1245,7 +1250,7 @@ export async function listPublisherSubIdLeadReport(filters: {
         existing.earnings += credited;
       } else if (shouldCreditPublisherForLead(lead)) {
         existing.earnings += calculatePublisherPayout(
-          Number(lead.campaign.cpl),
+          getLeadCpl(lead),
           lead.country,
           platformSettings,
         ).publisherAmount;

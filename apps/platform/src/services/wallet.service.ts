@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { Errors } from "@/lib/errors";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import {
   calculatePublisherPayout,
   parsePlatformSettings,
@@ -247,7 +248,7 @@ export async function processLeadPayment(leadId: string) {
   }
 
   const settings = await getPlatformSettings();
-  const cpl = Number(lead.campaign.cpl);
+  const cpl = getLeadCpl(lead);
   const { publisherAmount, platformFee } = calculatePublisherPayout(
     cpl,
     lead.country,
@@ -480,7 +481,7 @@ export async function reconcilePublisherLeadCredit(leadId: string): Promise<bool
 
     const settings = await getPlatformSettings();
     const { publisherAmount } = calculatePublisherPayout(
-      Number(lead.campaign.cpl),
+      getLeadCpl(lead),
       lead.country,
       settings,
     );

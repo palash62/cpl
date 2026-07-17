@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { formatAdvertiserLeadCpl } from "@/lib/advertiser-lead-details";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import {
   extractLeadCountry,
   formatLeadIp,
@@ -10,6 +11,7 @@ import {
 export type LeadCsvRow = {
   id: string;
   createdAt: Date;
+  cpl?: number | string | null;
   campaign: {
     name: string;
     cpl: number | { toString(): string };
@@ -81,7 +83,7 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     const { device, os } = parseUserAgent(lead.userAgent);
     const country = extractLeadCountry(lead.data, lead.country, lead.geoCountry, lead.submissionMeta);
     const ip = formatLeadIp(lead.ip);
-    const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl), Boolean(lead.isTest));
+    const cpl = formatAdvertiserLeadCpl(lead.status, getLeadCpl(lead), Boolean(lead.isTest));
     const notes = formatLeadRejectReason(lead);
     const flags = lead.validationResults
       .filter((r) => !r.passed)

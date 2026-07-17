@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { calculatePublisherPayout } from "@/lib/platform-settings";
 import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import type { LeadStatus } from "@prisma/client";
 import {
   getAdvertiserPeriodRange,
@@ -143,7 +144,7 @@ export async function getAdvertiserMetricsForRange(
     }),
   ]);
 
-  const spent = approvedLeads.reduce((sum, lead) => sum + Number(lead.campaign.cpl), 0);
+  const spent = approvedLeads.reduce((sum, lead) => sum + getLeadCpl(lead), 0);
   const leads = approvedLeads.length;
   const cpl = leads > 0 ? spent / leads : 0;
 
@@ -589,6 +590,7 @@ export async function getAdminReportsBreakdown(filters?: {
         publisherId: true,
         status: true,
         country: true,
+        cpl: true,
         campaign: { select: { advertiserId: true, cpl: true } },
       },
     }),
@@ -654,7 +656,7 @@ export async function getAdminReportsBreakdown(filters?: {
       return { spend: ledgerSpend, earnings: ledgerEarnings };
     }
 
-    const cpl = Number(lead.campaign.cpl);
+    const cpl = getLeadCpl(lead);
     const { publisherAmount } = calculatePublisherPayout(cpl, lead.country, platformSettings);
     return { spend: cpl, earnings: publisherAmount };
   }
@@ -992,7 +994,7 @@ export async function getAdvertiserReportsMetrics(
     prisma.campaign.count({ where: { advertiserId, status: "ACTIVE" } }),
     prisma.lead.findMany({
       where: { campaignId: { in: campaignIds }, isTest: false, ...dateRange },
-      select: { status: true, campaign: { select: { cpl: true } } },
+      select: { status: true, cpl: true, campaign: { select: { cpl: true } } },
     }),
     prisma.click.count({
       where: {
@@ -1013,7 +1015,7 @@ export async function getAdvertiserReportsMetrics(
     } else if (isApprovedLeadStatus(lead.status)) {
       approvedLeads += 1;
       if (lead.status === "PAID") {
-        spend += Number(lead.campaign.cpl);
+        spend += getLeadCpl(lead);
       }
     } else if (isPendingLeadStatus(lead.status)) {
       pendingLeads += 1;
@@ -1057,7 +1059,7 @@ export async function getCampaignPerformanceReport(filters: {
   const [leads, clicks] = await Promise.all([
     prisma.lead.findMany({
       where: { campaignId: { in: campaignIds }, isTest: false, ...dateRange },
-      select: { campaignId: true, status: true, campaign: { select: { cpl: true } } },
+      select: { campaignId: true, status: true, cpl: true, campaign: { select: { cpl: true } } },
     }),
     prisma.click.findMany({
       where: {
@@ -1077,7 +1079,7 @@ export async function getCampaignPerformanceReport(filters: {
   const leadMap = new Map<string, LeadBucket>();
   for (const lead of leads) {
     const bucket = leadMap.get(lead.campaignId) ?? emptyBucket();
-    const spendAmount = lead.status === "PAID" ? Number(lead.campaign.cpl) : 0;
+    const spendAmount = lead.status === "PAID" ? getLeadCpl(lead) : 0;
     applyLeadToBucket(bucket, lead.status, spendAmount, 0);
     leadMap.set(lead.campaignId, bucket);
   }
@@ -1127,7 +1129,7 @@ export async function getGeoLeadBreakdown(filters: {
       isTest: false,
       ...(campaignIds && campaignIds.length > 0 && { campaignId: { in: campaignIds } }),
     },
-    select: { country: true, status: true, campaign: { select: { cpl: true } } },
+    select: { country: true, status: true, cpl: true, campaign: { select: { cpl: true } } },
   });
 
   const map = new Map<string, { leads: number; approvedLeads: number; spend: number }>();
@@ -1138,7 +1140,7 @@ export async function getGeoLeadBreakdown(filters: {
     if (isApprovedLeadStatus(lead.status)) {
       bucket.approvedLeads += 1;
       if (lead.status === "PAID") {
-        bucket.spend += Number(lead.campaign.cpl);
+        bucket.spend += getLeadCpl(lead);
       }
     }
     map.set(country, bucket);

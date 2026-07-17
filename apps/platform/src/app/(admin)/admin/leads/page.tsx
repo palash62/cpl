@@ -12,6 +12,7 @@ import {
   formatAdvertiserLeadCpl,
   formatLeadDataSummary,
 } from "@/lib/advertiser-lead-details";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import {
   extractLeadCountry,
   formatLeadIp,
@@ -218,7 +219,7 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                     lead.geoCountry,
                     lead.submissionMeta,
                   );
-                  const cpl = formatAdvertiserLeadCpl(lead.status, Number(lead.campaign.cpl));
+                  const cpl = formatAdvertiserLeadCpl(lead.status, getLeadCpl(lead));
                   const notes = formatLeadRejectReason(lead);
                   const leadData = formatLeadDataSummary(lead.data);
                   const failedFlags = lead.validationResults.filter((r) => !r.passed);

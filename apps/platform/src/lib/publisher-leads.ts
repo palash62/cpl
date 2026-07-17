@@ -1,4 +1,5 @@
 import { formatLeadMessage } from "@/lib/advertiser-leads";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import {
   calculatePublisherPayout,
   type PlatformSettingsConfig,
@@ -75,6 +76,7 @@ export function formatPublisherLeadPayout(
   lead: {
     status: string;
     country: string | null;
+    cpl?: number | string | null;
     campaign: { cpl: number | string | { toString(): string } };
   },
   settings: PlatformSettingsConfig,
@@ -87,10 +89,12 @@ export function formatPublisherLeadPayout(
     maximumFractionDigits: 4,
   });
 
+  const cpl = getLeadCpl(lead);
+
   if (lead.status === "PAID") {
     const amount =
       creditedAmount ??
-      calculatePublisherPayout(Number(lead.campaign.cpl), lead.country, settings).publisherAmount;
+      calculatePublisherPayout(cpl, lead.country, settings).publisherAmount;
     return {
       label: currency.format(amount),
       className: "font-semibold text-emerald-700",
@@ -98,11 +102,7 @@ export function formatPublisherLeadPayout(
   }
 
   if (lead.status === "APPROVED") {
-    const amount = calculatePublisherPayout(
-      Number(lead.campaign.cpl),
-      lead.country,
-      settings,
-    ).publisherAmount;
+    const amount = calculatePublisherPayout(cpl, lead.country, settings).publisherAmount;
     return {
       label: `${currency.format(amount)} est.`,
       className: "text-emerald-700",

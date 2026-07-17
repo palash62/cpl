@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { calculatePublisherPayout } from "@/lib/platform-settings";
 import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 
 type PublisherEarningLead = {
@@ -9,6 +10,7 @@ type PublisherEarningLead = {
   country: string | null;
   publisherId: string;
   trackingLinkId: string | null;
+  cpl?: number | string | null;
   campaign: { cpl: number | { toString(): string }; advertiserId: string };
   publisher: { role: string } | null;
 };
@@ -27,7 +29,7 @@ export function sumPublisherEarningsForLeads(
     const credited = creditedByLeadId.get(lead.id);
     total +=
       credited ??
-      calculatePublisherPayout(Number(lead.campaign.cpl), lead.country, settings).publisherAmount;
+      calculatePublisherPayout(getLeadCpl(lead), lead.country, settings).publisherAmount;
   }
 
   return Math.round(total * 100) / 100;
@@ -52,6 +54,7 @@ export async function getPublisherEarningsForRange(
         country: true,
         publisherId: true,
         trackingLinkId: true,
+        cpl: true,
         campaign: { select: { cpl: true, advertiserId: true } },
         publisher: { select: { role: true } },
       },

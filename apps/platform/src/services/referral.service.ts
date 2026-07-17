@@ -6,6 +6,7 @@ import {
   REFERRAL_LEVEL_1_RATE,
   REFERRAL_LEVEL_2_RATE,
 } from "@/lib/referral";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import { creditWallet } from "@/services/wallet.service";
 
 type ReferralUserRow = {
@@ -192,7 +193,7 @@ export async function reconcileReferralCreditsForLead(leadId: string): Promise<b
 
     if (!lead || lead.status !== "PAID") return false;
 
-    const cpl = Number(lead.campaign.cpl);
+    const cpl = getLeadCpl(lead);
     let credited = false;
 
     await prisma.$transaction(async (tx) => {
@@ -319,6 +320,7 @@ async function getPaidLeadTotalsByAdvertiser(advertiserIds: string[]) {
     },
     select: {
       id: true,
+      cpl: true,
       campaign: { select: { advertiserId: true, cpl: true } },
     },
   });
@@ -327,7 +329,7 @@ async function getPaidLeadTotalsByAdvertiser(advertiserIds: string[]) {
   for (const lead of leads) {
     const advertiserId = lead.campaign.advertiserId;
     const current = totals.get(advertiserId) ?? { adSpend: 0, leadIds: [] };
-    current.adSpend += Number(lead.campaign.cpl);
+    current.adSpend += getLeadCpl(lead);
     current.leadIds.push(lead.id);
     totals.set(advertiserId, current);
   }

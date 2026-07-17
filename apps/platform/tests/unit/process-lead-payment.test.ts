@@ -127,6 +127,50 @@ describe("processLeadPayment", () => {
     });
   });
 
+  it("charges snapshotted lead.cpl when campaign bid has changed", async () => {
+    balances.set("advertiser-wallet", 20);
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-old-bid",
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      isTest: false,
+      cpl: 2,
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Updated bid campaign",
+        cpl: 5,
+        spent: 0,
+        budget: 100,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await processLeadPayment("lead-old-bid");
+
+    expect(balances.get("advertiser-wallet")).toBe(18);
+    expect(balances.get("publisher-wallet")).toBe(1.4);
+    expect(ledgerEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "DEBIT",
+          amount: 2,
+          referenceType: "lead",
+          referenceId: "lead-old-bid",
+        }),
+        expect.objectContaining({
+          type: "CREDIT",
+          amount: 1.4,
+          referenceType: "lead",
+          referenceId: "lead-old-bid",
+        }),
+      ]),
+    );
+  });
+
   it("refuses to pay test leads", async () => {
     prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
       id: "lead-test",

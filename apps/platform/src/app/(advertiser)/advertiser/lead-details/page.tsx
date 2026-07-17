@@ -12,6 +12,7 @@ import {
   formatAdvertiserLeadCpl,
   formatLeadDataSummary,
 } from "@/lib/advertiser-lead-details";
+import { getLeadCpl } from "@/lib/lead-cpl";
 import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
 import {
   extractLeadCountry,
@@ -210,7 +211,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                   );
                   const cpl = formatAdvertiserLeadCpl(
                     lead.status,
-                    Number(lead.campaign.cpl),
+                    getLeadCpl(lead),
                     lead.isTest,
                   );
                   const notes = formatLeadRejectReason(lead);
