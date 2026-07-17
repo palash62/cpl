@@ -1037,12 +1037,18 @@ export async function adjustWallet(
   adminId: string,
 ) {
   const { creditWallet, debitWallet } = await import("@/services/wallet.service");
+  const { notifyLowBalanceTiers } = await import("@/services/notify.service");
+
+  let crossedTiers: number[] = [];
+  let newBalance = 0;
 
   await prisma.$transaction(async (tx) => {
     if (type === "CREDIT") {
       await creditWallet(tx, userId, amount, "adjustment", adminId, reason);
     } else {
-      await debitWallet(tx, userId, amount, "adjustment", adminId, reason);
+      const debit = await debitWallet(tx, userId, amount, "adjustment", adminId, reason);
+      crossedTiers = debit.crossedTiers;
+      newBalance = debit.newBalance;
     }
 
     await tx.auditLog.create({
@@ -1069,6 +1075,10 @@ export async function adjustWallet(
     actionPath: walletPath,
     notificationType: "wallet.adjusted",
   });
+
+  if (user?.role === "ADVERTISER" && crossedTiers.length > 0) {
+    void notifyLowBalanceTiers(userId, crossedTiers as (50 | 10 | 0)[], newBalance);
+  }
 }
 
 export async function sendAdminBulkEmail(input: {

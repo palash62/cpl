@@ -3,7 +3,7 @@ import { validateLead } from "@/lib/lead-validation";
 import { Errors } from "@/lib/errors";
 import { enrichLeadsWithCountry } from "@/lib/lead-country";
 import { normalizeClientIp } from "@cpl/shared";
-import { processLeadPayment } from "@/services/wallet.service";
+import { processLeadPayment, reverseLeadPayment } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
 import { notifyGeneric, notifyRejected } from "@/services/notify.service";
 import {
@@ -750,24 +750,52 @@ export async function updateLeadStatus(
     throw Errors.validation("Test leads cannot be approved or rejected for payment.");
   }
 
-  if (!["PENDING", "APPROVED"].includes(lead.status) && status === "APPROVED") {
+  if (lead.status === "REJECTED") {
+    throw Errors.validation("Lead is already rejected.");
+  }
+
+  if (status === "APPROVED" && !["PENDING", "APPROVED"].includes(lead.status)) {
     throw Errors.notFound("Lead");
   }
 
-  await prisma.lead.update({
-    where: { id: leadId },
-    data: {
-      status,
-      statusHistory: {
-        create: {
-          fromStatus: lead.status,
-          toStatus: status,
-          actorId,
-          reason,
+  if (status === "REJECTED" && lead.status === "PAID" && !options?.isAdmin) {
+    throw Errors.forbidden();
+  }
+
+  if (status === "REJECTED" && lead.status === "PAID") {
+    await prisma.$transaction(async (tx) => {
+      await reverseLeadPayment(leadId, actorId, reason, tx);
+      await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          status: "REJECTED",
+          statusHistory: {
+            create: {
+              fromStatus: lead.status,
+              toStatus: "REJECTED",
+              actorId,
+              reason,
+            },
+          },
+        },
+      });
+    });
+  } else {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        status,
+        statusHistory: {
+          create: {
+            fromStatus: lead.status,
+            toStatus: status,
+            actorId,
+            reason,
+          },
         },
       },
-    },
-  });
+    });
+  }
 
   if (status === "APPROVED") {
     await finalizeLeadStatus(leadId, "APPROVED");

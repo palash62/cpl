@@ -4,12 +4,68 @@ import { getResolvedStripeConfig } from "@/services/stripe-settings.service";
 import { creditWallet, getWalletBalance } from "@/services/wallet.service";
 import { notifyGeneric } from "@/services/notify.service";
 
+type StripeUserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  stripeCustomerId: string | null;
+};
+
 async function getStripeClient(): Promise<Stripe> {
   const config = await getResolvedStripeConfig();
   if (!config.enabled || !config.secretKey) {
     throw new Error("STRIPE_NOT_CONFIGURED");
   }
   return new Stripe(config.secretKey);
+}
+
+async function loadStripeUserProfile(userId: string): Promise<StripeUserProfile> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, stripeCustomerId: true },
+  });
+
+  return user;
+}
+
+async function createAndSaveStripeCustomer(
+  stripe: Stripe,
+  user: StripeUserProfile,
+): Promise<string> {
+  const customer = await stripe.customers.create({
+    email: user.email,
+    name: user.name,
+    metadata: { userId: user.id },
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { stripeCustomerId: customer.id },
+  });
+
+  return customer.id;
+}
+
+/** Resolve or create a Stripe Customer for wallet payments; returns null on failure. */
+export async function resolveStripeCustomerId(
+  stripe: Stripe,
+  user: StripeUserProfile,
+): Promise<string | null> {
+  try {
+    if (user.stripeCustomerId) {
+      try {
+        await stripe.customers.retrieve(user.stripeCustomerId);
+        return user.stripeCustomerId;
+      } catch {
+        return await createAndSaveStripeCustomer(stripe, user);
+      }
+    }
+
+    return await createAndSaveStripeCustomer(stripe, user);
+  } catch (error) {
+    console.error("[stripe:customer]", user.id, error);
+    return null;
+  }
 }
 
 export async function getStripePublishableKeyForAdvertiser() {
@@ -28,6 +84,7 @@ export async function createCardPaymentIntent(userId: string, amount: number) {
 
   const stripe = await getStripeClient();
   const amountCents = Math.round(amount * 100);
+  const user = await loadStripeUserProfile(userId);
 
   const deposit = await prisma.deposit.create({
     data: {
@@ -39,14 +96,22 @@ export async function createCardPaymentIntent(userId: string, amount: number) {
   });
 
   try {
+    const stripeCustomerId = await resolveStripeCustomerId(stripe, user);
+    const metadata = {
+      depositId: deposit.id,
+      userId,
+      userEmail: user.email,
+      userName: user.name,
+    };
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
-      metadata: {
-        depositId: deposit.id,
-        userId,
-      },
+      metadata,
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId, receipt_email: user.email }
+        : {}),
     });
 
     await prisma.deposit.update({

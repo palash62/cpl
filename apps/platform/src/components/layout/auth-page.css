@@ -179,6 +179,31 @@
   cursor: not-allowed;
 }
 
+.authPage .authOutlineBtn {
+  height: auto !important;
+  min-height: 44px;
+  border: 1px solid #334477 !important;
+  border-radius: 14px !important;
+  padding: 11px 18px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #dbe4ff !important;
+  background: #10172e !important;
+  box-shadow: none;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.authPage .authOutlineBtn:hover:not(:disabled) {
+  border-color: #8b3dff !important;
+  background: #1a2240 !important;
+  color: #fff !important;
+}
+
+.authPage .authOutlineBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .authPage .authLink {
   font-weight: 600;
   color: #37b7ff;

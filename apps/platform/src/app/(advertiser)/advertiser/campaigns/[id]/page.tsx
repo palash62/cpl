@@ -6,6 +6,7 @@ import { PageHero } from "@/components/admin/page-hero";
 import { AdminCampaignDetails } from "@/components/admin/admin-campaign-details";
 import { ButtonLink } from "@/components/ui/button-link";
 import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
+import { CampaignStatusWithPauseReason } from "@/components/advertiser/campaign-status-with-pause-reason";
 import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,17 @@ export default async function AdvertiserCampaignDetailPage({ params }: PageProps
         />
       </div>
 
-      <PageHero eyebrow="Campaign" title={campaign.name} description="Advertiser Campaign" badge={campaign.status} />
+      <PageHero
+        eyebrow="Campaign"
+        title={campaign.name}
+        description="Advertiser Campaign"
+        badge={
+          <CampaignStatusWithPauseReason
+            status={campaign.status}
+            pausedReason={campaign.pausedReason}
+          />
+        }
+      />
 
       <AdminCampaignDetails
         campaign={{
@@ -58,6 +69,7 @@ export default async function AdvertiserCampaignDetailPage({ params }: PageProps
           dailyCap: campaign.dailyCap,
           monthlyCap: campaign.monthlyCap,
           status: campaign.status,
+          pausedReason: campaign.pausedReason,
           targeting: campaign.targeting,
           pixelToken: campaign.pixelToken,
           rejectionReason: campaign.rejectionReason,

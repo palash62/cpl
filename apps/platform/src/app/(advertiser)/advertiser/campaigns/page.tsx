@@ -8,7 +8,8 @@ import {
   type AdvertiserCampaignSort,
 } from "@/services/campaign.service";
 import { PageSection } from "@/components/admin/page-section";
-import { CampaignStatusBadge, formatCurrency } from "@/components/admin/admin-ui";
+import { formatCurrency } from "@/components/admin/admin-ui";
+import { CampaignStatusWithPauseReason } from "@/components/advertiser/campaign-status-with-pause-reason";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserCampaignsFilters } from "@/components/advertiser/advertiser-campaigns-filters";
@@ -203,7 +204,10 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
                     </TableCell>
                     <TableCell className="px-4 py-4">
                       <div className="flex flex-col gap-1.5">
-                        <CampaignStatusBadge status={c.status} />
+                        <CampaignStatusWithPauseReason
+                          status={c.status}
+                          pausedReason={c.pausedReason}
+                        />
                         {c.rejectionReason && (
                           <p className="max-w-xs text-xs text-red-600">{c.rejectionReason}</p>
                         )}

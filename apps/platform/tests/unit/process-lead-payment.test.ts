@@ -37,10 +37,16 @@ const prismaMock = {
     findUniqueOrThrow: vi.fn(async ({ where }: { where: { userId: string } }) => {
       const id =
         where.userId === "advertiser-1" ? "advertiser-wallet" : "publisher-wallet";
-      return { id, balance: balances.get(id) ?? 0 };
+      return { id, balance: balances.get(id) ?? 0, lowBalanceAlertTiers: [] };
     }),
     update: vi.fn(
-      async ({ where, data }: { where: { id: string }; data: { balance: number } }) => {
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: { balance: number; lowBalanceAlertTiers?: number[] };
+      }) => {
         balances.set(where.id, data.balance);
       },
     ),
@@ -69,6 +75,12 @@ vi.mock("@/services/notify.service", () => ({
   notifyGeneric: vi.fn(),
   notifyRejected: vi.fn(),
   notifyUserById: vi.fn(),
+  notifyLowBalanceTiers: vi.fn(),
+  notifyCampaignBudgetReached: vi.fn(),
+  notifyReferralCommission: vi.fn(),
+}));
+vi.mock("@/services/referral.service", () => ({
+  creditReferralCommissionsForLead: vi.fn().mockResolvedValue([]),
 }));
 
 describe("processLeadPayment", () => {
@@ -139,5 +151,76 @@ describe("processLeadPayment", () => {
       message: expect.stringContaining("Test leads"),
     });
     expect(prismaMock.ledgerEntry.create).not.toHaveBeenCalled();
+  });
+
+  it("pauses campaign when budget is reached and notifies advertiser", async () => {
+    balances.set("advertiser-wallet", 100);
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-budget",
+      isTest: false,
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Budget campaign",
+        cpl: 10,
+        spent: 95,
+        budget: 100,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { notifyCampaignBudgetReached } = await import("@/services/notify.service");
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await processLeadPayment("lead-budget");
+
+    expect(prismaMock.campaign.update).toHaveBeenCalledWith({
+      where: { id: "campaign-1" },
+      data: {
+        spent: 105,
+        status: "PAUSED",
+        pausedReason: "Budget reached",
+      },
+    });
+    expect(notifyCampaignBudgetReached).toHaveBeenCalledWith(
+      "advertiser-1",
+      expect.objectContaining({
+        campaignId: "campaign-1",
+        campaignName: "Budget campaign",
+        budget: 100,
+        spent: 105,
+        cpl: 10,
+      }),
+    );
+  });
+
+  it("notifies low-balance tiers when debit crosses thresholds", async () => {
+    balances.set("advertiser-wallet", 55);
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-low",
+      isTest: false,
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Low balance campaign",
+        cpl: 55,
+        spent: 0,
+        budget: 500,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { notifyLowBalanceTiers } = await import("@/services/notify.service");
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await processLeadPayment("lead-low");
+
+    expect(notifyLowBalanceTiers).toHaveBeenCalledWith("advertiser-1", [50, 10, 0], 0);
   });
 });

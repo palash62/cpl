@@ -193,6 +193,7 @@ model User {
   referralCode  String?    @unique @map("referral_code")
   referredById  String?    @map("referred_by_id")
   tokenVersion  Int        @default(0) @map("token_version")
+  stripeCustomerId String? @unique @map("stripe_customer_id")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
 
@@ -295,6 +296,7 @@ model Campaign {
   pixelToken      String?          @unique @map("pixel_token")
   rejectionReason String?          @map("rejection_reason")
   rejectedAt      DateTime?        @map("rejected_at")
+  pausedReason    String?          @map("paused_reason")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
@@ -515,11 +517,12 @@ model LeadValidationResult {
 }
 
 model Wallet {
-  id           String  @id @default(cuid())
-  userId       String  @unique @map("user_id")
-  balance      Decimal @default(0) @db.Decimal(12, 4)
-  holdBalance  Decimal @default(0) @db.Decimal(12, 4) @map("hold_balance")
-  currency     String  @default("USD")
+  id                    String  @id @default(cuid())
+  userId                String  @unique @map("user_id")
+  balance               Decimal @default(0) @db.Decimal(12, 4)
+  holdBalance           Decimal @default(0) @db.Decimal(12, 4) @map("hold_balance")
+  currency              String  @default("USD")
+  lowBalanceAlertTiers  Json    @default("[]") @map("low_balance_alert_tiers")
 
   user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries LedgerEntry[]

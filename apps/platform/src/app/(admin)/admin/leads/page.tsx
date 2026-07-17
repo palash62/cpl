@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import { format } from "date-fns";
-import { CheckCircle, Clock, FileText, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle, FileText, ShieldAlert, XCircle } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
@@ -25,6 +25,7 @@ import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { LeadStatusBadge } from "@/components/admin/admin-ui";
 import { AdminLeadDetailsFilters } from "@/components/admin/admin-lead-details-filters";
+import { AdminLeadRejectAction } from "@/components/admin/admin-lead-reject-action";
 import { AdvertiserLeadsSortHeader } from "@/components/advertiser/advertiser-leads-sort-header";
 import { AdvertiserLeadsTableFooter } from "@/components/advertiser/advertiser-leads-table-footer";
 import { cn } from "@/lib/utils";
@@ -100,7 +101,6 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
   const [
     total,
     approved,
-    pending,
     rejected,
     highRisk,
     campaigns,
@@ -108,8 +108,7 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
     { data: leads, meta },
   ] = await Promise.all([
     prisma.lead.count(),
-    prisma.lead.count({ where: { status: "APPROVED" } }),
-    prisma.lead.count({ where: { status: "PENDING" } }),
+    prisma.lead.count({ where: { status: { in: ["APPROVED", "PAID"] } } }),
     prisma.lead.count({ where: { status: "REJECTED" } }),
     prisma.lead.count({ where: { riskScore: { gt: 50 } } }),
     prisma.campaign.findMany({
@@ -142,10 +141,9 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
         badge={`${meta.total} lead${meta.total === 1 ? "" : "s"} in range`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <GradientStatCard variant="leads" label="Total Leads" value={total} icon={FileText} />
         <NeutralStatCard label="Approved" value={approved} icon={CheckCircle} accent="green" />
-        <NeutralStatCard label="Pending Review" value={pending} icon={Clock} accent="orange" />
         <NeutralStatCard label="Rejected" value={rejected} icon={XCircle} accent="red" />
         <NeutralStatCard label="High Risk" value={highRisk} icon={ShieldAlert} accent="red" />
       </div>
@@ -198,12 +196,13 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                 <TableHead className="h-11 min-w-[160px] whitespace-nowrap px-4 text-slate-600">
                   Notes
                 </TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={17} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={18} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Try adjusting the filters or date range.
@@ -300,6 +299,9 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                         <span className="line-clamp-2" title={notes}>
                           {notes}
                         </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4">
+                        <AdminLeadRejectAction leadId={lead.id} status={lead.status} />
                       </TableCell>
                     </TableRow>
                   );

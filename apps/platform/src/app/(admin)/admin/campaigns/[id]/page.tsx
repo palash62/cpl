@@ -65,6 +65,7 @@ export default async function AdminCampaignDetailPage({ params }: PageProps) {
           dailyCap: campaign.dailyCap,
           monthlyCap: campaign.monthlyCap,
           status: campaign.status,
+          pausedReason: campaign.pausedReason,
           targeting: campaign.targeting,
           pixelToken: campaign.pixelToken,
           rejectionReason: campaign.rejectionReason,

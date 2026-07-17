@@ -7,9 +7,17 @@ import {
 } from "@/lib/platform-settings";
 import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 import {
+  crossedLowBalanceTiers,
+  parseLowBalanceAlertTiers,
+  recoveredLowBalanceTiers,
+  type LowBalanceTier,
+} from "@/lib/low-balance-alerts";
+import {
   notifyAdminAlert,
   notifyApproved,
+  notifyCampaignBudgetReached,
   notifyGeneric,
+  notifyLowBalanceTiers,
   notifyRejected,
   notifyUserById,
 } from "@/services/notify.service";
@@ -33,10 +41,15 @@ export async function creditWallet(
 ) {
   const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
   const newBalance = Number(wallet.balance) + amount;
+  const previousTiers = parseLowBalanceAlertTiers(wallet.lowBalanceAlertTiers);
+  const nextTiers = recoveredLowBalanceTiers(newBalance, previousTiers);
 
   await tx.wallet.update({
     where: { id: wallet.id },
-    data: { balance: newBalance },
+    data: {
+      balance: newBalance,
+      lowBalanceAlertTiers: nextTiers,
+    },
   });
 
   await tx.ledgerEntry.create({
@@ -54,6 +67,12 @@ export async function creditWallet(
   return newBalance;
 }
 
+export type DebitWalletResult = {
+  previousBalance: number;
+  newBalance: number;
+  crossedTiers: LowBalanceTier[];
+};
+
 export async function debitWallet(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -61,7 +80,7 @@ export async function debitWallet(
   referenceType: string,
   referenceId: string,
   description?: string,
-) {
+): Promise<DebitWalletResult> {
   const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
   const current = Number(wallet.balance);
 
@@ -70,6 +89,46 @@ export async function debitWallet(
   }
 
   const newBalance = current - amount;
+  const previousTiers = parseLowBalanceAlertTiers(wallet.lowBalanceAlertTiers);
+  const crossedTiers = crossedLowBalanceTiers(current, newBalance, previousTiers);
+  const nextTiers = [...new Set([...previousTiers, ...crossedTiers])].sort(
+    (a, b) => b - a,
+  );
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      balance: newBalance,
+      ...(crossedTiers.length > 0 ? { lowBalanceAlertTiers: nextTiers } : {}),
+    },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: wallet.id,
+      type: "DEBIT",
+      amount,
+      balanceAfter: newBalance,
+      referenceType,
+      referenceId,
+      description,
+    },
+  });
+
+  return { previousBalance: current, newBalance, crossedTiers };
+}
+
+/** Debit wallet without balance check — used for lead payment clawbacks. */
+export async function forceDebitWallet(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+  referenceType: string,
+  referenceId: string,
+  description?: string,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const newBalance = Number(wallet.balance) - amount;
 
   await tx.wallet.update({
     where: { id: wallet.id },
@@ -197,7 +256,7 @@ export async function processLeadPayment(leadId: string) {
   const feePercent = cpl > 0 ? Math.round((platformFee / cpl) * 10000) / 100 : 0;
 
   await prisma.$transaction(async (tx) => {
-    await debitWallet(
+    const debit = await debitWallet(
       tx,
       lead.campaign.advertiserId,
       cpl,
@@ -233,6 +292,7 @@ export async function processLeadPayment(leadId: string) {
 
     if (pausedForBudget) {
       updateData.status = "PAUSED";
+      updateData.pausedReason = "Budget reached";
     }
 
     await tx.campaign.update({
@@ -255,17 +315,28 @@ export async function processLeadPayment(leadId: string) {
 
     return {
       pausedForBudget,
+      campaignId: lead.campaignId,
       campaignName: lead.campaign.name,
+      budget,
+      spent,
+      cpl,
       advertiserId: lead.campaign.advertiserId,
+      crossedTiers: debit.crossedTiers,
+      newBalance: debit.newBalance,
       referralCredits,
     };
   }).then(async (result) => {
+    if (result?.crossedTiers?.length) {
+      void notifyLowBalanceTiers(result.advertiserId, result.crossedTiers, result.newBalance);
+    }
+
     if (result?.pausedForBudget) {
-      void notifyUserById(result.advertiserId, {
-        title: "Campaign paused",
-        message: `Campaign "${result.campaignName}" has been paused because its budget has been reached.`,
-        actionPath: "/advertiser/campaigns",
-        notificationType: "campaign.paused",
+      void notifyCampaignBudgetReached(result.advertiserId, {
+        campaignId: result.campaignId,
+        campaignName: result.campaignName,
+        budget: result.budget,
+        spent: result.spent,
+        cpl: result.cpl,
       });
     }
 
@@ -279,6 +350,108 @@ export async function processLeadPayment(leadId: string) {
       }
     }
   });
+}
+
+async function reverseLeadPaymentInTx(
+  tx: Prisma.TransactionClient,
+  leadId: string,
+  reason?: string,
+) {
+  const existingReversal = await tx.ledgerEntry.findFirst({
+    where: { referenceType: "lead_reversal", referenceId: leadId },
+  });
+  if (existingReversal) {
+    return { alreadyReversed: true as const, cpl: 0 };
+  }
+
+  const lead = await tx.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    include: { campaign: true },
+  });
+
+  if (lead.status !== "PAID") {
+    throw Errors.validation("Lead is not paid; nothing to reverse.");
+  }
+
+  const originalEntries = await tx.ledgerEntry.findMany({
+    where: {
+      referenceId: leadId,
+      referenceType: { in: ["lead", "referral"] },
+    },
+    include: { wallet: { select: { userId: true } } },
+  });
+
+  let cpl = 0;
+  const reversalDesc = reason ? `Lead reversal: ${reason}` : "Lead payment reversal";
+
+  for (const entry of originalEntries) {
+    const amount = Number(entry.amount);
+    if (entry.referenceType === "lead" && entry.type === "DEBIT") {
+      cpl = amount;
+      await creditWallet(tx, entry.wallet.userId, amount, "lead_reversal", leadId, reversalDesc);
+    } else if (entry.type === "CREDIT") {
+      await forceDebitWallet(
+        tx,
+        entry.wallet.userId,
+        amount,
+        "lead_reversal",
+        leadId,
+        reversalDesc,
+      );
+    }
+  }
+
+  if (cpl === 0) {
+    throw Errors.validation("No payment ledger entries found for this lead.");
+  }
+
+  await tx.platformFee.deleteMany({ where: { leadId } });
+
+  const newSpent = Math.max(0, Number(lead.campaign.spent) - cpl);
+  const budget = Number(lead.campaign.budget);
+  const updateData: Prisma.CampaignUpdateInput = { spent: newSpent };
+
+  if (
+    lead.campaign.status === "PAUSED" &&
+    lead.campaign.pausedReason === "Budget reached" &&
+    newSpent < budget
+  ) {
+    updateData.status = "ACTIVE";
+    updateData.pausedReason = null;
+  }
+
+  await tx.campaign.update({
+    where: { id: lead.campaignId },
+    data: updateData,
+  });
+
+  return { alreadyReversed: false as const, cpl };
+}
+
+export async function reverseLeadPayment(
+  leadId: string,
+  _actorId: string,
+  reason?: string,
+  outerTx?: Prisma.TransactionClient,
+) {
+  const lead = await prisma.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    select: { status: true, isTest: true },
+  });
+
+  if (lead.isTest) {
+    throw Errors.validation("Test leads cannot be reversed.");
+  }
+
+  if (lead.status !== "PAID") {
+    throw Errors.validation("Lead is not paid; nothing to reverse.");
+  }
+
+  if (outerTx) {
+    return reverseLeadPaymentInTx(outerTx, leadId, reason);
+  }
+
+  return prisma.$transaction((tx) => reverseLeadPaymentInTx(tx, leadId, reason));
 }
 
 /** Backfill publisher wallet credit for PAID leads that were not credited (e.g. optin before fix). */

@@ -253,7 +253,7 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              className="h-auto flex-1"
+              className="authOutlineBtn h-auto flex-1"
               disabled={loading}
               onClick={() => {
                 setStep("credentials");
@@ -267,7 +267,7 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              className="h-auto flex-1"
+              className="authOutlineBtn h-auto flex-1"
               disabled={loading || resending}
               onClick={() => void requestOtpCode({ resend: true })}
             >
@@ -281,7 +281,7 @@ function LoginForm() {
         <Button
           type="button"
           variant="outline"
-          className="mt-4 h-auto w-full"
+          className="authOutlineBtn mt-4 h-auto w-full"
           disabled={resending}
           onClick={() => void handleResendVerification()}
         >

@@ -395,6 +395,60 @@ export async function notifyReferralCommission(
   });
 }
 
+export async function notifyLowBalanceTiers(
+  userId: string,
+  tiers: Array<50 | 10 | 0>,
+  balance: number,
+) {
+  if (!tiers.length) return;
+  const user = await loadUser(userId);
+  if (!user || user.role !== "ADVERTISER") return;
+
+  const { lowBalanceAlertCopy, lowBalanceNotificationType } = await import(
+    "@/lib/low-balance-alerts"
+  );
+
+  for (const tier of tiers) {
+    const copy = lowBalanceAlertCopy(tier, balance);
+    await notifyGeneric(user, {
+      title: copy.title,
+      message: copy.message,
+      actionPath: "/advertiser/wallet",
+      actionLabel: "Add funds",
+      notificationType: lowBalanceNotificationType(tier),
+    });
+  }
+}
+
+export async function notifyCampaignBudgetReached(
+  advertiserId: string,
+  params: {
+    campaignId: string;
+    campaignName: string;
+    budget: number;
+    spent: number;
+    cpl: number;
+  },
+) {
+  const user = await loadUser(advertiserId);
+  if (!user) return;
+
+  const remaining = Math.max(0, params.budget - params.spent);
+  const message =
+    `Campaign "${params.campaignName}" has been paused because its total budget was reached. ` +
+    `Budget: $${params.budget.toFixed(2)} · Spent: $${params.spent.toFixed(2)} · ` +
+    `Remaining: $${remaining.toFixed(2)} · CPL: $${params.cpl.toFixed(2)}. ` +
+    `Increase the budget and reactivate the campaign to resume traffic.`;
+
+  await notifyGeneric(user, {
+    title: `Campaign paused — budget reached`,
+    message,
+    actionPath: `/advertiser/campaigns/${params.campaignId}`,
+    actionLabel: "View campaign",
+    notificationType: "campaign.budget_reached",
+  });
+}
+
 async function loadUser(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },

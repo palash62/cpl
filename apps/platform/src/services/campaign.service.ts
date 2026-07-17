@@ -327,7 +327,14 @@ export async function getAdvertiserCampaignTestFunnel(
 export async function updateCampaignStatus(id: string, status: CampaignStatus) {
   const campaign = await prisma.campaign.update({
     where: { id },
-    data: { status },
+    data: {
+      status,
+      ...(status === "PAUSED"
+        ? { pausedReason: "Paused by admin" }
+        : status === "ACTIVE"
+          ? { pausedReason: null }
+          : {}),
+    },
     include: { advertiser: { select: { id: true, email: true, name: true } } },
   });
 
@@ -460,6 +467,11 @@ export async function updateCampaignByAdmin(
       throw Errors.budgetExceeded();
     }
     data.status = nextStatus;
+    if (nextStatus === "PAUSED") {
+      data.pausedReason = actorRole === "ADVERTISER" ? "Paused by you" : "Paused by admin";
+    } else if (nextStatus === "ACTIVE") {
+      data.pausedReason = null;
+    }
   }
 
   const updated = await prisma.campaign.update({

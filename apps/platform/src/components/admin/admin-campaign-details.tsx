@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import type { CampaignCategory, CampaignStatus } from "@prisma/client";
 import { PageSection } from "@/components/admin/page-section";
-import { CampaignStatusBadge, formatCurrency } from "@/components/admin/admin-ui";
+import { formatCurrency } from "@/components/admin/admin-ui";
+import { CampaignStatusWithPauseReason } from "@/components/advertiser/campaign-status-with-pause-reason";
 import { Badge } from "@/components/ui/badge";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
 import {
@@ -47,6 +48,7 @@ export type AdminCampaignDetailsProps = {
     dailyCap: number | null;
     monthlyCap: number | null;
     status: CampaignStatus;
+    pausedReason?: string | null;
     targeting: unknown;
     pixelToken: string | null;
     rejectionReason: string | null;
@@ -103,7 +105,10 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
         <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs text-slate-500">Status</p>
           <div className="mt-2">
-            <CampaignStatusBadge status={campaign.status} />
+            <CampaignStatusWithPauseReason
+              status={campaign.status}
+              pausedReason={campaign.pausedReason}
+            />
           </div>
         </div>
       </div>
@@ -159,7 +164,15 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
 
       <PageSection title="Publisher settings" icon={Users} gradient="leads">
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
-          <DetailCell label="Status" value={<CampaignStatusBadge status={campaign.status} />} />
+          <DetailCell
+            label="Status"
+            value={
+              <CampaignStatusWithPauseReason
+                status={campaign.status}
+                pausedReason={campaign.pausedReason}
+              />
+            }
+          />
           <DetailCell
             label="Blacklisted publishers"
             value={

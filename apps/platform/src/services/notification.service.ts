@@ -39,6 +39,33 @@ export async function listNotifications(userId: string, unreadOnly = false) {
   });
 }
 
+const DASHBOARD_ALERT_TYPES = [
+  "wallet.low_balance.50",
+  "wallet.low_balance.10",
+  "wallet.low_balance.0",
+  "campaign.budget_reached",
+  "campaign.paused",
+] as const;
+
+export async function listAdvertiserDashboardAlerts(userId: string, take = 5) {
+  return prisma.notification.findMany({
+    where: {
+      userId,
+      readAt: null,
+      type: { in: [...DASHBOARD_ALERT_TYPES] },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      body: true,
+      createdAt: true,
+    },
+  });
+}
+
 export async function markNotificationRead(id: string, userId: string) {
   return prisma.notification.updateMany({
     where: { id, userId },
