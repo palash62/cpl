@@ -25,14 +25,12 @@ export function CampaignStatusWithPauseReason({
       {reason ? (
         <TooltipProvider delay={150}>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-800"
-                aria-label={`Pause reason: ${reason}`}
-              >
-                <Info className="h-3.5 w-3.5" />
-              </button>
+            <TooltipTrigger
+              type="button"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-800"
+              aria-label={`Pause reason: ${reason}`}
+            >
+              <Info className="h-3.5 w-3.5" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-xs">
               {reason}

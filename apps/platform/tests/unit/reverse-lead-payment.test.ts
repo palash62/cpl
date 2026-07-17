@@ -17,7 +17,7 @@ const leadRecord = {
     spent: 1,
     budget: 100,
     status: "ACTIVE",
-    pausedReason: null,
+    pausedReason: null as string | null,
   },
 };
 
@@ -26,7 +26,7 @@ const prismaMock = {
     findUniqueOrThrow: vi.fn(async () => leadRecord),
   },
   ledgerEntry: {
-    findFirst: vi.fn(async () => null),
+    findFirst: vi.fn(async (): Promise<{ id: string } | null> => null),
     findMany: vi.fn(async () => [
       {
         type: "DEBIT",
