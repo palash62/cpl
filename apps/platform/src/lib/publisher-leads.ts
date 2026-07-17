@@ -76,7 +76,7 @@ export function formatPublisherLeadPayout(
   lead: {
     status: string;
     country: string | null;
-    cpl?: number | string | null;
+    cpl?: number | string | { toString(): string } | null;
     campaign: { cpl: number | string | { toString(): string } };
   },
   settings: PlatformSettingsConfig,

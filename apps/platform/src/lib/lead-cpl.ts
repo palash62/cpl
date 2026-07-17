@@ -3,8 +3,8 @@
  * Prefers the snapshotted lead.cpl; falls back to live campaign.cpl for legacy rows.
  */
 export function getLeadCpl(lead: {
-  cpl?: number | string | null;
-  campaign?: { cpl?: number | string | null } | null;
+  cpl?: number | string | { toString(): string } | null;
+  campaign?: { cpl?: number | string | { toString(): string } | null } | null;
 }): number {
   if (lead.cpl != null && lead.cpl !== "") {
     return Number(lead.cpl);

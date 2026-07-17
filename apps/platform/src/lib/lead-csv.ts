@@ -11,7 +11,7 @@ import {
 export type LeadCsvRow = {
   id: string;
   createdAt: Date;
-  cpl?: number | string | null;
+  cpl?: number | string | { toString(): string } | null;
   campaign: {
     name: string;
     cpl: number | { toString(): string };

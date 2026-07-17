@@ -10,7 +10,7 @@ type PublisherEarningLead = {
   country: string | null;
   publisherId: string;
   trackingLinkId: string | null;
-  cpl?: number | string | null;
+  cpl?: number | string | { toString(): string } | null;
   campaign: { cpl: number | { toString(): string }; advertiserId: string };
   publisher: { role: string } | null;
 };
