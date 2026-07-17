@@ -25,7 +25,13 @@ const STATUS_STYLES: Record<string, string> = {
   FAILED: "bg-red-50 text-red-700",
 };
 
-export function AdvertiserDomainsPanel({ platformHost }: { platformHost: string }) {
+export function AdvertiserDomainsPanel({
+  platformHost,
+  platformIp,
+}: {
+  platformHost: string;
+  platformIp: string | null;
+}) {
   const [domains, setDomains] = useState<DomainRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [domainInput, setDomainInput] = useState("");
@@ -140,17 +146,69 @@ export function AdvertiserDomainsPanel({ platformHost }: { platformHost: string 
           <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
             <Globe className="h-5 w-5" />
           </div>
-          <div className="space-y-2 text-sm text-slate-600">
+          <div className="min-w-0 flex-1 space-y-3 text-sm text-slate-600">
             <p className="font-medium text-slate-900">DNS setup</p>
             <p>
-              Add a <span className="font-mono text-slate-800">CNAME</span> record pointing your
-              subdomain (for example <span className="font-mono">www.yourdomain.com</span>) to{" "}
-              <span className="font-mono font-semibold text-slate-900">{platformHost}</span>.
+              In your domain registrar (Namecheap, GoDaddy, Cloudflare, etc.), open the DNS
+              settings for your domain and add <strong>one</strong> of these records:
             </p>
-            <p>
-              After DNS propagates, click <strong>Verify</strong>. Verified domains can be selected
-              in funnel settings.
-            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-1.5 pr-4 font-medium">Use case</th>
+                    <th className="py-1.5 pr-4 font-medium">Type</th>
+                    <th className="py-1.5 pr-4 font-medium">Host</th>
+                    <th className="py-1.5 pr-4 font-medium">Value</th>
+                    <th className="py-1.5 font-medium">TTL</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-700">
+                  <tr className="border-b border-slate-100">
+                    <td className="py-1.5 pr-4">
+                      Subdomain (e.g. <span className="font-mono">www.yourdomain.com</span>)
+                    </td>
+                    <td className="py-1.5 pr-4 font-mono">CNAME</td>
+                    <td className="py-1.5 pr-4 font-mono">www</td>
+                    <td className="py-1.5 pr-4 font-mono font-semibold text-slate-900">
+                      {platformHost}
+                    </td>
+                    <td className="py-1.5 font-mono">Automatic</td>
+                  </tr>
+                  {platformIp && (
+                    <tr className="border-b border-slate-100">
+                      <td className="py-1.5 pr-4">
+                        Root domain (e.g. <span className="font-mono">yourdomain.com</span>)
+                      </td>
+                      <td className="py-1.5 pr-4 font-mono">A</td>
+                      <td className="py-1.5 pr-4 font-mono">@</td>
+                      <td className="py-1.5 pr-4 font-mono font-semibold text-slate-900">
+                        {platformIp}
+                      </td>
+                      <td className="py-1.5 font-mono">Automatic</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <ul className="list-disc space-y-1 pl-5 text-xs text-slate-500">
+              <li>
+                Remove any existing <span className="font-mono">URL Redirect</span>,{" "}
+                <span className="font-mono">A</span>, or <span className="font-mono">CNAME</span>{" "}
+                records on the same host first — they conflict with the new record.
+              </li>
+              <li>
+                Add the domain below exactly as visitors will type it (with{" "}
+                <span className="font-mono">www</span> if you used the CNAME option).
+              </li>
+              <li>
+                DNS changes take 5–30 minutes to propagate. Then click <strong>Verify</strong>.
+              </li>
+              <li>
+                Once verified, select the domain in your funnel settings. HTTPS is issued
+                automatically on the first visit.
+              </li>
+            </ul>
           </div>
         </div>
       </div>
