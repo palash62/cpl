@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
 import { buildFunnelPublicUrl } from "@/lib/platform-host";
@@ -318,6 +319,25 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
           </DialogHeader>
 
           <div className="space-y-2">
+            {funnel.customDomain?.status === "VERIFIED" && (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                    Connected domain
+                  </p>
+                  <p className="truncate font-mono text-xs text-emerald-900">{publicUrl}</p>
+                </div>
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Preview
+                </a>
+              </div>
+            )}
             <Label className="text-xs font-medium text-slate-600">Public URL domain</Label>
             <select
               value={domainDialogSelection ?? ""}

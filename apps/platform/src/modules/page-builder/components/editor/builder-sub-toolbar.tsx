@@ -126,11 +126,6 @@ export function BuilderSubToolbar() {
           <span className="truncate font-mono text-slate-600">
             {isAdminTemplate ? `Template: ${pageSlug}` : publicPath}
           </span>
-          {!isAdminTemplate && (
-            <button type="button" className="shrink-0 text-blue-600 hover:underline">
-              Connect Domain
-            </button>
-          )}
         </div>
         <div className="flex-1" />
       </div>
