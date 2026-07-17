@@ -23,7 +23,7 @@ export function CampaignStatusWithPauseReason({
     <div className="inline-flex items-center gap-1.5">
       <CampaignStatusBadge status={status} />
       {reason ? (
-        <TooltipProvider delayDuration={150}>
+        <TooltipProvider delay={150}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
