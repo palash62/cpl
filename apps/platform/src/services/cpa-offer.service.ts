@@ -4,6 +4,10 @@ import { buildCpaOfferPostbackUrl } from "@cpl/shared";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
 
+export type CpaRevenueModel = "RPA" | "RPS" | "RPC" | "RPI" | "RPL" | "RPM";
+export type CpaPayoutModel = "CPC" | "CPA" | "CPS" | "CPI" | "CPL" | "CPM";
+export type CpaPayoutType = "FLAT" | "PERCENT";
+
 export type SerializedCpaOffer = {
   id: string;
   name: string;
@@ -12,6 +16,12 @@ export type SerializedCpaOffer = {
   country: string;
   previewUrl: string;
   trackingUrl: string;
+  thumbnailUrl: string | null;
+  advertiserLabel: string;
+  revenueModel: CpaRevenueModel;
+  payoutModel: CpaPayoutModel;
+  payoutType: CpaPayoutType;
+  revenue: string;
   payout: string;
   status: CpaOfferStatus;
   postbackToken: string;
@@ -30,6 +40,7 @@ export type CpaOfferListResult = {
 
 export type CpaOfferListFilters = {
   q?: string;
+  id?: string;
   status?: CpaOfferStatus | "ALL";
   network?: string;
   category?: string;
@@ -42,6 +53,20 @@ function decimalToString(value: { toString(): string } | number | string) {
   return typeof value === "string" ? value : value.toString();
 }
 
+function asRevenueModel(value: string): CpaRevenueModel {
+  const allowed: CpaRevenueModel[] = ["RPA", "RPS", "RPC", "RPI", "RPL", "RPM"];
+  return (allowed.includes(value as CpaRevenueModel) ? value : "RPA") as CpaRevenueModel;
+}
+
+function asPayoutModel(value: string): CpaPayoutModel {
+  const allowed: CpaPayoutModel[] = ["CPC", "CPA", "CPS", "CPI", "CPL", "CPM"];
+  return (allowed.includes(value as CpaPayoutModel) ? value : "CPA") as CpaPayoutModel;
+}
+
+function asPayoutType(value: string): CpaPayoutType {
+  return value === "PERCENT" ? "PERCENT" : "FLAT";
+}
+
 export function serializeCpaOffer(row: CpaOffer): SerializedCpaOffer {
   return {
     id: row.id,
@@ -51,6 +76,12 @@ export function serializeCpaOffer(row: CpaOffer): SerializedCpaOffer {
     country: row.country,
     previewUrl: row.previewUrl,
     trackingUrl: row.trackingUrl,
+    thumbnailUrl: row.thumbnailUrl ?? null,
+    advertiserLabel: row.advertiserLabel || "Platform",
+    revenueModel: asRevenueModel(row.revenueModel),
+    payoutModel: asPayoutModel(row.payoutModel),
+    payoutType: asPayoutType(row.payoutType),
+    revenue: decimalToString(row.revenue),
     payout: decimalToString(row.payout),
     status: row.status,
     postbackToken: row.postbackToken,
@@ -72,6 +103,9 @@ function buildWhere(
     where.status = filters.status;
   }
 
+  const id = filters.id?.trim();
+  if (id) where.id = { contains: id };
+
   const network = filters.network?.trim();
   if (network) where.network = { contains: network };
 
@@ -88,6 +122,8 @@ function buildWhere(
       { network: { contains: q } },
       { category: { contains: q } },
       { country: { contains: q } },
+      { advertiserLabel: { contains: q } },
+      { id: { contains: q } },
     ];
   }
 
@@ -145,24 +181,38 @@ export async function getActiveCpaOfferById(id: string): Promise<SerializedCpaOf
 
 export type CpaOfferInput = {
   name: string;
-  network: string;
+  network?: string;
   category: string;
-  country: string;
-  previewUrl: string;
+  country?: string;
+  previewUrl?: string;
   trackingUrl: string;
+  thumbnailUrl?: string | null;
+  advertiserLabel?: string;
+  revenueModel?: CpaRevenueModel;
+  payoutModel?: CpaPayoutModel;
+  payoutType?: CpaPayoutType;
+  revenue: number;
   payout: number;
   status?: CpaOfferStatus;
 };
 
 export async function createCpaOffer(input: CpaOfferInput): Promise<SerializedCpaOffer> {
+  const previewUrl = input.previewUrl?.trim() || "#";
+  const network = input.network?.trim() || "Direct";
   const row = await prisma.cpaOffer.create({
     data: {
       name: input.name.trim(),
-      network: input.network.trim(),
+      network,
       category: input.category.trim(),
-      country: input.country.trim(),
-      previewUrl: input.previewUrl.trim(),
+      country: input.country?.trim() || "",
+      previewUrl,
       trackingUrl: input.trackingUrl.trim(),
+      thumbnailUrl: input.thumbnailUrl?.trim() || null,
+      advertiserLabel: (input.advertiserLabel?.trim() || "Platform").slice(0, 120),
+      revenueModel: input.revenueModel ?? "RPA",
+      payoutModel: input.payoutModel ?? "CPA",
+      payoutType: input.payoutType ?? "FLAT",
+      revenue: input.revenue,
       payout: input.payout,
       status: input.status ?? "PAUSED",
       postbackToken: randomBytes(16).toString("hex"),
@@ -187,6 +237,16 @@ export async function updateCpaOffer(
       ...(input.country !== undefined ? { country: input.country.trim() } : {}),
       ...(input.previewUrl !== undefined ? { previewUrl: input.previewUrl.trim() } : {}),
       ...(input.trackingUrl !== undefined ? { trackingUrl: input.trackingUrl.trim() } : {}),
+      ...(input.thumbnailUrl !== undefined
+        ? { thumbnailUrl: input.thumbnailUrl?.trim() || null }
+        : {}),
+      ...(input.advertiserLabel !== undefined
+        ? { advertiserLabel: (input.advertiserLabel.trim() || "Platform").slice(0, 120) }
+        : {}),
+      ...(input.revenueModel !== undefined ? { revenueModel: input.revenueModel } : {}),
+      ...(input.payoutModel !== undefined ? { payoutModel: input.payoutModel } : {}),
+      ...(input.payoutType !== undefined ? { payoutType: input.payoutType } : {}),
+      ...(input.revenue !== undefined ? { revenue: input.revenue } : {}),
       ...(input.payout !== undefined ? { payout: input.payout } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
     },

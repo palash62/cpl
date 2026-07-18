@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { buildCpaOfferPostbackUrl } from "@cpl/shared";
+import { buildCpaOfferPostbackUrl, buildCpaOfferTrackingUrl } from "@cpl/shared";
 import {
   serializeCpaOffer,
   listActiveCpaOffers,
@@ -26,8 +26,22 @@ describe("buildCpaOfferPostbackUrl", () => {
   });
 });
 
+describe("buildCpaOfferTrackingUrl", () => {
+  it("builds platform redirect URL with advertiser and optional params", () => {
+    const url = buildCpaOfferTrackingUrl(
+      "offer1",
+      { advertiserId: "adv-9", src: "facebook", subId: "camp-a" },
+      "https://leadgenlink.site",
+    );
+    expect(url).toContain("https://leadgenlink.site/cpa/offer1?");
+    expect(url).toContain("adv_id=adv-9");
+    expect(url).toContain("src=facebook");
+    expect(url).toContain("sub_id=camp-a");
+  });
+});
+
 describe("serializeCpaOffer", () => {
-  it("includes computed postbackUrl from token", () => {
+  it("includes computed postbackUrl from token and marketplace fields", () => {
     const prev = process.env.TRACKING_URL;
     process.env.TRACKING_URL = "https://leadgenlink.site";
     try {
@@ -36,9 +50,15 @@ describe("serializeCpaOffer", () => {
         name: "Test Offer",
         network: "Net",
         category: "Finance",
-        country: "US",
+        country: "US, CA",
         previewUrl: "https://example.com/p",
         trackingUrl: "https://example.com/t",
+        thumbnailUrl: "https://example.com/thumb.jpg",
+        advertiserLabel: "Cash Network",
+        revenueModel: "RPA",
+        payoutModel: "CPA",
+        payoutType: "FLAT",
+        revenue: { toString: () => "20.00" } as never,
         payout: { toString: () => "12.50" } as never,
         status: "ACTIVE",
         postbackToken: "tok_xyz",
@@ -47,6 +67,12 @@ describe("serializeCpaOffer", () => {
       });
 
       expect(serialized.payout).toBe("12.50");
+      expect(serialized.revenue).toBe("20.00");
+      expect(serialized.advertiserLabel).toBe("Cash Network");
+      expect(serialized.revenueModel).toBe("RPA");
+      expect(serialized.payoutModel).toBe("CPA");
+      expect(serialized.payoutType).toBe("FLAT");
+      expect(serialized.thumbnailUrl).toBe("https://example.com/thumb.jpg");
       expect(serialized.postbackUrl).toContain("/pbtr/tok_xyz?");
       expect(serialized.postbackUrl).toContain("click_id={click_id}");
       expect(serialized.postbackUrl).toContain("payout={payout}");

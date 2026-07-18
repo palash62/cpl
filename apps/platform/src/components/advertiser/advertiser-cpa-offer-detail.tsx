@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Copy, ExternalLink } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { ArrowLeft, Check, Copy, ExternalLink, Link2 } from "lucide-react";
+import { buildCpaOfferTrackingUrl } from "@cpl/shared";
+import { CpaOfferTrackingLinkDialog } from "@/components/advertiser/cpa-offer-tracking-link-dialog";
+import { CpaOfferGeoFlags } from "@/components/cpa/cpa-offer-geo-flags";
+import { CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
 import { RoleHero } from "@/components/layout/role-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -41,9 +46,12 @@ function CopyUrlField({ label, value }: { label: string; value: string }) {
 }
 
 export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
+  const { data: session } = useSession();
+  const advertiserId = session?.user?.id ?? "";
   const [offer, setOffer] = useState<SerializedCpaOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [trackingOpen, setTrackingOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +94,10 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
     );
   }
 
+  const platformTrackingUrl = buildCpaOfferTrackingUrl(offer.id, {
+    advertiserId: advertiserId || undefined,
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -96,15 +108,31 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
           <ArrowLeft className="h-4 w-4" />
           Offer Marketplace
         </Link>
-        <RoleHero
-          eyebrow="CPA Offer"
-          title={offer.name}
-          description={`${offer.network} · ${offer.category} · ${offer.country}`}
-        />
-        <div className="mt-3">
-          <Badge className="bg-emerald-100 px-3 py-1 text-sm text-emerald-800 hover:bg-emerald-100">
-            ${offer.payout} payout
-          </Badge>
+        <div className="flex flex-wrap items-start gap-4">
+          <CpaOfferThumb name={offer.name} thumbnailUrl={offer.thumbnailUrl} />
+          <div className="min-w-0 flex-1">
+            <RoleHero
+              eyebrow="CPA Offer"
+              title={offer.name}
+              description={`${offer.network} · ${offer.category}`}
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge className="bg-emerald-100 px-3 py-1 text-sm text-emerald-800 hover:bg-emerald-100">
+                ${offer.payout} payout
+              </Badge>
+              <CpaOfferGeoFlags country={offer.country} />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setTrackingOpen(true)}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Tracking Link
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -112,6 +140,10 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
         <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-slate-900">Offer details</h2>
           <dl className="space-y-3 text-sm">
+            <div className="flex justify-between gap-4 border-b border-slate-100 pb-2">
+              <dt className="text-slate-500">Advertiser</dt>
+              <dd className="font-medium text-slate-900">{offer.advertiserLabel}</dd>
+            </div>
             <div className="flex justify-between gap-4 border-b border-slate-100 pb-2">
               <dt className="text-slate-500">Network</dt>
               <dd className="font-medium text-slate-900">{offer.network}</dd>
@@ -121,7 +153,7 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
               <dd className="font-medium text-slate-900">{offer.category}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-slate-100 pb-2">
-              <dt className="text-slate-500">Country</dt>
+              <dt className="text-slate-500">Geo</dt>
               <dd className="font-medium text-slate-900">{offer.country}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-slate-100 pb-2">
@@ -149,14 +181,21 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
 
         <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-slate-900">Tracking & postback</h2>
-          <CopyUrlField label="Tracking URL" value={offer.trackingUrl} />
+          <CopyUrlField label="Leadvix tracking URL" value={platformTrackingUrl} />
           <CopyUrlField label="Postback URL" value={offer.postbackUrl} />
           <p className="text-xs text-slate-500">
-            Give the postback URL to the network. Macros {"{click_id}"} and {"{payout}"} are
-            replaced on each conversion fire.
+            Use the Leadvix tracking URL in your ads. Give the postback URL to the network. Macros{" "}
+            {"{click_id}"} and {"{payout}"} are replaced on each conversion fire.
           </p>
         </section>
       </div>
+
+      <CpaOfferTrackingLinkDialog
+        open={trackingOpen}
+        onOpenChange={setTrackingOpen}
+        offer={offer}
+        advertiserId={advertiserId}
+      />
     </div>
   );
 }

@@ -78,6 +78,19 @@ export function buildCpaOfferPostbackUrl(
   return `${trackingBaseUrl ?? getTrackingUrl()}/pbtr/${encodeURIComponent(postbackToken)}?click_id={click_id}&payout={payout}`;
 }
 
+/** Platform redirect link advertisers use to send traffic into a CPA offer. */
+export function buildCpaOfferTrackingUrl(
+  offerId: string,
+  params?: { advertiserId?: string; src?: string; subId?: string },
+  trackingBaseUrl?: string,
+) {
+  const url = new URL(`${trackingBaseUrl ?? getTrackingUrl()}/cpa/${encodeURIComponent(offerId)}`);
+  if (params?.advertiserId) url.searchParams.set("adv_id", params.advertiserId);
+  if (params?.src) url.searchParams.set("src", params.src);
+  if (params?.subId) url.searchParams.set("sub_id", params.subId);
+  return url.toString();
+}
+
 export function buildPixelSnippet(pixelUrl: string) {
   return `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:none" />`;
 }

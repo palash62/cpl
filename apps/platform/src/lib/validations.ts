@@ -819,15 +819,57 @@ const httpUrlSchema = z
     message: "URL must start with http:// or https://",
   });
 
+const optionalHttpUrlSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((value) => {
+    if (value == null || value === "") return null;
+    return value;
+  })
+  .refine((value) => value === null || z.string().url().safeParse(value).success, {
+    message: "Enter a valid URL",
+  })
+  .refine((value) => value === null || /^https?:\/\//i.test(value), {
+    message: "URL must start with http:// or https://",
+  });
+
 const cpaOfferStatusSchema = z.enum(["ACTIVE", "PAUSED", "ARCHIVED"]);
+const cpaRevenueModelSchema = z.enum(["RPA", "RPS", "RPC", "RPI", "RPL", "RPM"]);
+const cpaPayoutModelSchema = z.enum(["CPC", "CPA", "CPS", "CPI", "CPL", "CPM"]);
+const cpaPayoutTypeSchema = z.enum(["FLAT", "PERCENT"]);
+
+const cpaThumbnailSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((value) => {
+    if (value == null || value === "") return null;
+    return value;
+  })
+  .refine(
+    (value) =>
+      value === null ||
+      value.startsWith("/uploads/builder/") ||
+      (z.string().url().safeParse(value).success && /^https?:\/\//i.test(value)),
+    { message: "Upload an image or enter a valid URL" },
+  );
 
 export const adminCpaOfferCreateSchema = z.object({
   name: z.string().trim().min(2, "Offer name must be at least 2 characters.").max(160),
-  network: z.string().trim().min(1, "Network is required.").max(120),
+  network: z.string().trim().min(1).max(120).optional(),
   category: z.string().trim().min(1, "Category is required.").max(120),
-  country: z.string().trim().min(1, "Country is required.").max(120),
-  previewUrl: httpUrlSchema,
+  country: z.string().trim().max(500).optional().default(""),
+  previewUrl: z.string().trim().optional(),
   trackingUrl: httpUrlSchema,
+  thumbnailUrl: cpaThumbnailSchema,
+  advertiserLabel: z.string().trim().min(1, "Advertiser is required.").max(120),
+  revenueModel: cpaRevenueModelSchema.optional(),
+  payoutModel: cpaPayoutModelSchema.optional(),
+  payoutType: cpaPayoutTypeSchema.optional(),
+  revenue: z.coerce.number().positive("Revenue must be greater than 0").max(1_000_000),
   payout: z.coerce.number().positive("Payout must be greater than 0").max(1_000_000),
   status: cpaOfferStatusSchema.optional(),
 });
@@ -836,15 +878,22 @@ export const adminCpaOfferUpdateSchema = z.object({
   name: z.string().trim().min(2).max(160).optional(),
   network: z.string().trim().min(1).max(120).optional(),
   category: z.string().trim().min(1).max(120).optional(),
-  country: z.string().trim().min(1).max(120).optional(),
-  previewUrl: httpUrlSchema.optional(),
+  country: z.string().trim().max(500).optional(),
+  previewUrl: z.string().trim().optional(),
   trackingUrl: httpUrlSchema.optional(),
+  thumbnailUrl: cpaThumbnailSchema,
+  advertiserLabel: z.string().trim().min(1).max(120).optional(),
+  revenueModel: cpaRevenueModelSchema.optional(),
+  payoutModel: cpaPayoutModelSchema.optional(),
+  payoutType: cpaPayoutTypeSchema.optional(),
+  revenue: z.coerce.number().positive().max(1_000_000).optional(),
   payout: z.coerce.number().positive().max(1_000_000).optional(),
   status: cpaOfferStatusSchema.optional(),
 });
 
 export const cpaOfferListQuerySchema = z.object({
   q: z.string().trim().optional(),
+  id: z.string().trim().optional(),
   status: z.enum(["ACTIVE", "PAUSED", "ARCHIVED", "ALL"]).optional(),
   network: z.string().trim().optional(),
   category: z.string().trim().optional(),

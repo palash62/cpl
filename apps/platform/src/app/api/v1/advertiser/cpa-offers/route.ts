@@ -8,6 +8,7 @@ export async function GET(request: Request) {
     const { page, limit } = parsePagination(searchParams);
     const parsed = cpaOfferListQuerySchema.safeParse({
       q: searchParams.get("q") ?? undefined,
+      id: searchParams.get("id") ?? undefined,
       network: searchParams.get("network") ?? undefined,
       category: searchParams.get("category") ?? undefined,
       country: searchParams.get("country") ?? undefined,

@@ -1,44 +1,89 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ExternalLink, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { ExternalLink, Link2, MoreHorizontal, Search } from "lucide-react";
+import { CpaOfferTrackingLinkDialog } from "@/components/advertiser/cpa-offer-tracking-link-dialog";
+import { CpaOfferGeoFlags } from "@/components/cpa/cpa-offer-geo-flags";
+import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
 import { RoleHero } from "@/components/layout/role-hero";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type { CpaOfferListResult } from "@/services/cpa-offer.service";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { CpaOfferListResult, SerializedCpaOffer } from "@/services/cpa-offer.service";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 25;
+
+type AppliedFilters = {
+  offerId: string;
+  q: string;
+  network: string;
+  category: string;
+};
+
+const emptyFilters: AppliedFilters = {
+  offerId: "",
+  q: "",
+  network: "",
+  category: "",
+};
 
 export function AdvertiserCpaOffersMarketplace() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const advertiserId = session?.user?.id ?? "";
+
   const [result, setResult] = useState<CpaOfferListResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [network, setNetwork] = useState("");
-  const [category, setCategory] = useState("");
-  const [country, setCountry] = useState("");
+  const [draft, setDraft] = useState<AppliedFilters>(emptyFilters);
+  const [applied, setApplied] = useState<AppliedFilters>(emptyFilters);
   const [page, setPage] = useState(1);
+  const [trackingOffer, setTrackingOffer] = useState<SerializedCpaOffer | null>(null);
 
   const loadOffers = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     params.set("page", String(page));
     params.set("limit", String(PAGE_SIZE));
-    if (q.trim()) params.set("q", q.trim());
-    if (network.trim()) params.set("network", network.trim());
-    if (category.trim()) params.set("category", category.trim());
-    if (country.trim()) params.set("country", country.trim());
+    if (applied.offerId.trim()) params.set("id", applied.offerId.trim());
+    if (applied.q.trim()) params.set("q", applied.q.trim());
+    if (applied.network.trim()) params.set("network", applied.network.trim());
+    if (applied.category.trim()) params.set("category", applied.category.trim());
 
     const res = await fetch(`/api/v1/advertiser/cpa-offers?${params}`);
     const body = await res.json().catch(() => ({}));
     setResult(body.data ?? null);
     setLoading(false);
-  }, [page, q, network, category, country]);
+  }, [page, applied]);
 
   useEffect(() => {
     void loadOffers();
   }, [loadOffers]);
+
+  function applyFilters() {
+    setPage(1);
+    setApplied({ ...draft });
+  }
+
+  function clearFilters() {
+    setDraft(emptyFilters);
+    setApplied(emptyFilters);
+    setPage(1);
+  }
 
   const items = result?.items ?? [];
   const totalPages = result?.totalPages ?? 1;
@@ -48,118 +93,158 @@ export function AdvertiserCpaOffersMarketplace() {
     <div className="space-y-6">
       <RoleHero
         eyebrow="Advertiser Portal"
-        title="Offer Marketplace"
-        description="Browse active CPA offers. Open an offer for tracking and postback URLs."
+        title={`Available Offers (${total})`}
+        description="Browse active CPA offers and copy personalized tracking links for your campaigns."
       />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="relative min-w-[200px] flex-1 space-y-1">
-          <label className="text-xs font-medium text-slate-500">Search</label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+          <div className="w-full space-y-1 sm:w-40">
+            <label className="text-xs font-medium text-slate-500">Offer ID</label>
             <Input
-              className="pl-9"
-              value={q}
-              onChange={(e) => {
-                setPage(1);
-                setQ(e.target.value);
-              }}
-              placeholder="Search offers…"
+              value={draft.offerId}
+              onChange={(e) => setDraft((prev) => ({ ...prev, offerId: e.target.value }))}
+              placeholder="Offer ID"
             />
           </div>
-        </div>
-        <div className="w-full space-y-1 sm:w-36">
-          <label className="text-xs font-medium text-slate-500">Network</label>
-          <Input
-            value={network}
-            onChange={(e) => {
-              setPage(1);
-              setNetwork(e.target.value);
-            }}
-            placeholder="Network"
-          />
-        </div>
-        <div className="w-full space-y-1 sm:w-36">
-          <label className="text-xs font-medium text-slate-500">Category</label>
-          <Input
-            value={category}
-            onChange={(e) => {
-              setPage(1);
-              setCategory(e.target.value);
-            }}
-            placeholder="Category"
-          />
-        </div>
-        <div className="w-full space-y-1 sm:w-28">
-          <label className="text-xs font-medium text-slate-500">Country</label>
-          <Input
-            value={country}
-            onChange={(e) => {
-              setPage(1);
-              setCountry(e.target.value);
-            }}
-            placeholder="US"
-          />
+          <div className="min-w-[200px] flex-1 space-y-1">
+            <label className="text-xs font-medium text-slate-500">Offer Title</label>
+            <Input
+              value={draft.q}
+              onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
+              placeholder="Offer title"
+            />
+          </div>
+          <div className="w-full space-y-1 sm:w-36">
+            <label className="text-xs font-medium text-slate-500">Network</label>
+            <Input
+              value={draft.network}
+              onChange={(e) => setDraft((prev) => ({ ...prev, network: e.target.value }))}
+              placeholder="Network"
+            />
+          </div>
+          <div className="w-full space-y-1 sm:w-36">
+            <label className="text-xs font-medium text-slate-500">Category</label>
+            <Input
+              value={draft.category}
+              onChange={(e) => setDraft((prev) => ({ ...prev, category: e.target.value }))}
+              placeholder="Category"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={clearFilters}>
+              Clear Filter
+            </Button>
+            <Button type="button" className="gap-1.5" onClick={applyFilters}>
+              <Search className="h-4 w-4" />
+              Apply
+            </Button>
+          </div>
         </div>
       </div>
 
-      {loading ? (
-        <p className="py-12 text-center text-sm text-slate-500">Loading offers…</p>
-      ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-16 text-center">
-          <p className="font-medium text-slate-900">No active offers</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Check back later — new CPA offers appear here when published.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((offer) => (
-            <Link
-              key={offer.id}
-              href={`/advertiser/cpa-offers/${offer.id}`}
-              className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[var(--theme-primary)]/40 hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-base font-semibold text-slate-900 group-hover:text-[var(--theme-primary)]">
-                  {offer.name}
-                </h3>
-                <Badge className="shrink-0 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                  ${offer.payout}
-                </Badge>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Network</dt>
-                  <dd className="font-medium text-slate-800">{offer.network}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Category</dt>
-                  <dd>{offer.category}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Country</dt>
-                  <dd>{offer.country}</dd>
-                </div>
-              </dl>
-              <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-[var(--theme-primary)]">
-                View details <ExternalLink className="h-3 w-3" />
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-sky-50 hover:bg-sky-50">
+              <TableHead className="text-slate-700">ID</TableHead>
+              <TableHead className="text-slate-700">Icon</TableHead>
+              <TableHead className="text-slate-700">Offer</TableHead>
+              <TableHead className="text-slate-700">Payout</TableHead>
+              <TableHead className="text-slate-700">Geo</TableHead>
+              <TableHead className="text-slate-700">Category</TableHead>
+              <TableHead className="text-right text-slate-700">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  Loading offers…
+                </TableCell>
+              </TableRow>
+            ) : items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  No active offers. Check back later — new CPA offers appear here when published.
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((offer) => (
+                <TableRow key={offer.id} className="h-[52px]">
+                  <TableCell className="font-mono text-xs text-slate-700" title={offer.id}>
+                    {offer.id.slice(-6)}
+                  </TableCell>
+                  <TableCell>
+                    <CpaOfferThumb name={offer.name} thumbnailUrl={offer.thumbnailUrl} size="sm" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <CpaOfferStatusDot status={offer.status} />
+                        <span className="truncate font-medium text-slate-900">{offer.name}</span>
+                      </div>
+                      <a
+                        href={offer.previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 inline-flex items-center gap-1 text-xs text-sky-700 hover:underline"
+                      >
+                        Preview <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm font-medium text-slate-900">
+                    ${offer.payout}
+                  </TableCell>
+                  <TableCell>
+                    <CpaOfferGeoFlags country={offer.country} />
+                  </TableCell>
+                  <TableCell className="text-sm text-slate-700">{offer.category}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => setTrackingOffer(offer)}
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Tracking Link
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+                          aria-label="More offer actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/advertiser/cpa-offers/${offer.id}`)}
+                          >
+                            View details
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
 
-      {totalPages > 1 ? (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
           <p className="text-sm text-slate-500">
-            Page {page} of {totalPages} · {total} offer{total === 1 ? "" : "s"}
+            Showing {items.length} of {total} items
           </p>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
-              disabled={page <= 1}
+              disabled={page <= 1 || loading}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
@@ -167,14 +252,23 @@ export function AdvertiserCpaOffersMarketplace() {
             <Button
               size="sm"
               variant="outline"
-              disabled={page >= totalPages}
+              disabled={page >= totalPages || loading}
               onClick={() => setPage((p) => p + 1)}
             >
               Next
             </Button>
           </div>
         </div>
-      ) : null}
+      </div>
+
+      <CpaOfferTrackingLinkDialog
+        open={Boolean(trackingOffer)}
+        onOpenChange={(open) => {
+          if (!open) setTrackingOffer(null);
+        }}
+        offer={trackingOffer}
+        advertiserId={advertiserId}
+      />
     </div>
   );
 }

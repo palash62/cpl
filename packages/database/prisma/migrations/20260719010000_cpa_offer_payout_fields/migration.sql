@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `cpa_offers`
+  ADD COLUMN `revenue_model` VARCHAR(191) NOT NULL DEFAULT 'RPA',
+  ADD COLUMN `payout_model` VARCHAR(191) NOT NULL DEFAULT 'CPA',
+  ADD COLUMN `payout_type` VARCHAR(191) NOT NULL DEFAULT 'FLAT';

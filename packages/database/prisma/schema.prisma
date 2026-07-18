@@ -1214,19 +1214,25 @@ model Tutorial {
 }
 
 model CpaOffer {
-  id            String         @id @default(cuid())
-  name          String
-  network       String
-  category      String
-  country       String
-  previewUrl    String         @map("preview_url") @db.Text
-  trackingUrl   String         @map("tracking_url") @db.Text
-  payout        Decimal        @db.Decimal(10, 2)
-  status        CpaOfferStatus @default(PAUSED)
-  postbackToken String         @unique @map("postback_token")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  conversions   CpaOfferConversion[]
+  id              String         @id @default(cuid())
+  name            String
+  network         String
+  category        String
+  country         String         @default("")
+  previewUrl      String         @map("preview_url") @db.Text
+  trackingUrl     String         @map("tracking_url") @db.Text
+  thumbnailUrl    String?        @map("thumbnail_url") @db.Text
+  advertiserLabel String         @default("Platform") @map("advertiser_label")
+  revenueModel    String         @default("RPA") @map("revenue_model")
+  payoutModel     String         @default("CPA") @map("payout_model")
+  payoutType      String         @default("FLAT") @map("payout_type")
+  revenue         Decimal        @db.Decimal(10, 2)
+  payout          Decimal        @db.Decimal(10, 2)
+  status          CpaOfferStatus @default(PAUSED)
+  postbackToken   String         @unique @map("postback_token")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  conversions     CpaOfferConversion[]
 
   @@index([status, createdAt])
   @@index([network])
