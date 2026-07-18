@@ -19,6 +19,10 @@ import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { isStrongPassword } from "@/lib/password-policy";
 import { COUNTRY_BY_CODE, getCountryName } from "@/lib/campaign-form";
 import { readReferralCookie, writeReferralCookie } from "@/lib/referral";
+import {
+  metaUserDataFromSignup,
+  trackSignupLead,
+} from "@/lib/tracking/public-page-tracking";
 
 const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
   getCountryName(a).localeCompare(getCountryName(b)),
@@ -85,6 +89,19 @@ export function RegisterForm() {
       setError(data.error?.message ?? "Registration failed");
       return;
     }
+
+    const userId = typeof data.user?.id === "string" ? data.user.id : undefined;
+    trackSignupLead({
+      eventID: userId,
+      contentName: "AdvertiserSignup",
+      contentCategory: "ADVERTISER",
+      userData: metaUserDataFromSignup({
+        email,
+        phone,
+        name,
+        country,
+      }),
+    });
 
     router.push("/login?registered=verify");
   }

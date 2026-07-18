@@ -5,6 +5,7 @@ import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackPurchase } from "@/lib/tracking/public-page-tracking";
 
 type CheckoutProps = {
   amount: number;
@@ -61,6 +62,12 @@ function StripeCheckoutForm({
       setError(data?.error?.message ?? "Unable to confirm payment");
       return;
     }
+
+    trackPurchase({
+      value: amount,
+      currency: "USD",
+      eventID: depositId,
+    });
 
     onSuccess(data.balance);
   }

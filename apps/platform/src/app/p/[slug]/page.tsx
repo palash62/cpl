@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { withPublicPageTracking } from "@/components/tracking/with-public-page-tracking";
 import { getSession } from "@/lib/session";
 import { getPublishedLandingPage, getLandingPageDraftPreview, trackPageEvent } from "@/modules/page-builder/server";
 import { PublishedPage } from "@/modules/page-builder";
@@ -45,12 +44,12 @@ export default async function PublicLandingPage({
 
   void trackPageEvent({ landingPageId: page.campaignId, slug, event: "page_view" });
 
-  return withPublicPageTracking(
+  return (
     <PublishedPage
       slug={page.slug}
       craftState={page.craftState}
       theme={page.themeJson}
       formJson={page.formJson}
-    />,
+    />
   );
 }

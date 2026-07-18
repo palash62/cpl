@@ -18,6 +18,10 @@ import { AuthLayout } from "@/components/layout/auth-layout";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { isStrongPassword } from "@/lib/password-policy";
 import { COUNTRY_BY_CODE, getCountryName } from "@/lib/campaign-form";
+import {
+  metaUserDataFromSignup,
+  trackSignupLead,
+} from "@/lib/tracking/public-page-tracking";
 
 const COUNTRY_OPTIONS = Object.keys(COUNTRY_BY_CODE).sort((a, b) =>
   getCountryName(a).localeCompare(getCountryName(b)),
@@ -77,6 +81,21 @@ export function PublisherRegisterForm() {
       setError(data.error?.message ?? "Registration failed");
       return;
     }
+
+    const userId = typeof data.user?.id === "string" ? data.user.id : undefined;
+    trackSignupLead({
+      eventID: userId,
+      contentName: "PublisherSignup",
+      contentCategory: "PUBLISHER",
+      userData: metaUserDataFromSignup({
+        email,
+        name,
+        country: country || undefined,
+        city: city.trim() || undefined,
+        state: state.trim() || undefined,
+        postalCode: postalCode.trim() || undefined,
+      }),
+    });
 
     router.push("/login?registered=publisher-verify");
   }

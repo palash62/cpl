@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { OptinLandingPage } from "@/components/optin/optin-landing-page";
 import { PublishedOptinFunnel } from "@/components/optin/published-optin-funnel";
-import { withPublicPageTracking } from "@/components/tracking/with-public-page-tracking";
 import {
   getOptinFunnelPreviewBySlug,
   getPublicOptinFunnel,
@@ -161,7 +160,7 @@ export async function PublicOptinSlugPage({
   const publishedBuilder = await getPublishedBuilderFunnel(slug);
   if (publishedBuilder) {
     await recordView(slug);
-    return withPublicPageTracking(
+    return (
       <PublishedOptinFunnel
         slug={slug}
         craftState={publishedBuilder.craftState}
@@ -170,7 +169,7 @@ export async function PublicOptinSlugPage({
         thankYouEnabled={publishedBuilder.funnel.thankYouEnabled}
         destinationUrl={publishedBuilder.funnel.destinationUrl}
         thankYouPath={resolvedThankYouPath}
-      />,
+      />
     );
   }
 
@@ -178,7 +177,5 @@ export async function PublicOptinSlugPage({
   if (!page) notFound();
 
   await recordView(slug);
-  return withPublicPageTracking(
-    <OptinLandingPage page={page} thankYouPath={resolvedThankYouPath} />,
-  );
+  return <OptinLandingPage page={page} thankYouPath={resolvedThankYouPath} />;
 }

@@ -74,11 +74,12 @@ export function PixelSettingsForm() {
     <form onSubmit={save} className="mx-auto max-w-3xl space-y-8">
       <Alert>
         <AlertDescription>
-          Tracking scripts load only on <strong>published</strong> opt-in and
-          landing pages (<code className="text-xs">/o/…</code>, custom domains,{" "}
-          <code className="text-xs">/p/…</code>). They do not run on this admin
-          page, preview (<code className="text-xs">?preview=1</code>), or campaign
-          test mode.
+          Tracking scripts load across the <strong>whole platform</strong> when
+          enabled. Meta fires <strong>PageView</strong> site-wide,{" "}
+          <strong>Lead</strong> on signup and accepted opt-in/landing submits, and{" "}
+          <strong>Purchase</strong> on successful card wallet deposits. Google Ads
+          conversions still fire only on accepted opt-in or landing form
+          submissions.
         </AlertDescription>
       </Alert>
 
@@ -87,11 +88,12 @@ export function PixelSettingsForm() {
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Facebook Pixel</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Load Meta Pixel on all landing pages and fire PageView + Lead events.
+              Load Meta Pixel site-wide: PageView everywhere, Lead on signup and
+              form leads, Purchase on card deposits.
             </p>
             {metaActive ? (
               <p className="mt-2 text-xs font-medium text-emerald-700">
-                Active — PageView will fire on published public pages.
+                Active — PageView, signup Lead, form Lead, and deposit Purchase.
               </p>
             ) : settings.meta.enabled ? (
               <p className="mt-2 text-xs font-medium text-amber-700">
@@ -137,7 +139,7 @@ export function PixelSettingsForm() {
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Google Ads</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Load gtag.js on landing pages and fire conversion events on accepted leads.
+              Load gtag.js site-wide and fire conversion events on accepted leads.
             </p>
             {googleActive ? (
               <p className="mt-2 text-xs font-medium text-emerald-700">
@@ -225,7 +227,8 @@ export function PixelSettingsForm() {
         </Button>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Crosshair className="h-3.5 w-3.5" />
-          Settings apply to all published public landing and opt-in pages.
+          Settings apply site-wide when enabled: signup Lead, form Lead, and card
+          deposit Purchase for Meta; Google conversions on accepted form submits.
         </div>
       </div>
     </form>
