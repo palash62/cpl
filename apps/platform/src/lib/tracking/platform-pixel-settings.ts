@@ -55,6 +55,15 @@ export function normalizeGoogleConversionLabel(value: string): string {
   return value.trim();
 }
 
+/** Coerce JSON string/number fields to a trimmed string (MySQL JSON may store digits as numbers). */
+function coerceSettingString(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return "";
+}
+
 export function parsePlatformPixelConfig(value: unknown): PlatformPixelConfig {
   if (!value || typeof value !== "object") {
     return { ...DEFAULT_PLATFORM_PIXEL_CONFIG };
@@ -74,21 +83,16 @@ export function parsePlatformPixelConfig(value: unknown): PlatformPixelConfig {
     version: 1,
     meta: {
       enabled: Boolean(metaRaw.enabled),
-      pixelId:
-        typeof metaRaw.pixelId === "string"
-          ? normalizeMetaPixelId(metaRaw.pixelId)
-          : "",
+      pixelId: normalizeMetaPixelId(coerceSettingString(metaRaw.pixelId)),
     },
     googleAds: {
       enabled: Boolean(googleRaw.enabled),
-      conversionId:
-        typeof googleRaw.conversionId === "string"
-          ? normalizeGoogleConversionId(googleRaw.conversionId)
-          : "",
-      conversionLabel:
-        typeof googleRaw.conversionLabel === "string"
-          ? normalizeGoogleConversionLabel(googleRaw.conversionLabel)
-          : "",
+      conversionId: normalizeGoogleConversionId(
+        coerceSettingString(googleRaw.conversionId),
+      ),
+      conversionLabel: normalizeGoogleConversionLabel(
+        coerceSettingString(googleRaw.conversionLabel),
+      ),
     },
   };
 }

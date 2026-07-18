@@ -1,57 +1,40 @@
-"use client";
-
 import Script from "next/script";
-import { useEffect } from "react";
 import type { PublicPlatformPixelConfig } from "@/lib/tracking/platform-pixel-settings";
-import { setPublicTrackingConfig } from "@/lib/tracking/public-page-tracking";
 
 type PublicPageTrackingScriptsProps = {
   config: PublicPlatformPixelConfig;
-  disabled?: boolean;
 };
 
-export function PublicPageTrackingScripts({
-  config,
-  disabled = false,
-}: PublicPageTrackingScriptsProps) {
-  const meta = disabled ? null : config.meta;
-  const googleAds = disabled ? null : config.googleAds;
-  const metaPixelId = meta?.pixelId ?? "";
-  const googleConversionId = googleAds?.conversionId ?? "";
-  const googleConversionLabel = googleAds?.conversionLabel ?? "";
-
-  useEffect(() => {
-    if (disabled) {
-      setPublicTrackingConfig({ meta: null, googleAds: null });
-      return () => setPublicTrackingConfig(null);
-    }
-
-    setPublicTrackingConfig({
-      meta: metaPixelId
-        ? { enabled: true, pixelId: metaPixelId }
-        : null,
-      googleAds:
-        googleConversionId && googleConversionLabel
-          ? {
-              enabled: true,
-              conversionId: googleConversionId,
-              conversionLabel: googleConversionLabel,
-            }
-          : null,
-    });
-    return () => setPublicTrackingConfig(null);
-  }, [disabled, metaPixelId, googleConversionId, googleConversionLabel]);
-
-  if (disabled) return null;
+export function PublicPageTrackingScripts({ config }: PublicPageTrackingScriptsProps) {
+  const meta = config.meta;
+  const googleAds = config.googleAds;
 
   if (!meta && !googleAds) return null;
 
+  const publicConfigJson = JSON.stringify({
+    meta: meta
+      ? { enabled: true, pixelId: meta.pixelId }
+      : null,
+    googleAds: googleAds
+      ? {
+          enabled: true,
+          conversionId: googleAds.conversionId,
+          conversionLabel: googleAds.conversionLabel,
+        }
+      : null,
+  });
+
   return (
     <>
+      <Script id="cpl-public-tracking-config" strategy="afterInteractive">
+        {`window.__cplPublicTrackingConfig=${publicConfigJson};`}
+      </Script>
+
       {meta ? (
         <>
           <Script id="cpl-meta-pixel" strategy="afterInteractive">
             {`
+window.__cplPublicTrackingConfig=${publicConfigJson};
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -86,6 +69,7 @@ fbq('track', 'PageView');
           />
           <Script id="cpl-google-ads-init" strategy="afterInteractive">
             {`
+window.__cplPublicTrackingConfig=${publicConfigJson};
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 window.gtag = gtag;

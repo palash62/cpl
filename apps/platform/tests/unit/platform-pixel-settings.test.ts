@@ -35,6 +35,39 @@ describe("platform pixel settings", () => {
     });
   });
 
+  it("coerces numeric pixel IDs from JSON storage", () => {
+    const parsed = parsePlatformPixelConfig({
+      meta: { enabled: true, pixelId: 1580251150394051 },
+      googleAds: {
+        enabled: true,
+        conversionId: 123456789,
+        conversionLabel: "leadLabel",
+      },
+    });
+
+    expect(parsed.meta.pixelId).toBe("1580251150394051");
+    expect(parsed.googleAds.conversionId).toBe("AW-123456789");
+    expect(parsed.googleAds.conversionLabel).toBe("leadLabel");
+
+    const publicConfig = toPublicPlatformPixelConfig(parsed);
+    expect(publicConfig.meta).toEqual({
+      enabled: true,
+      pixelId: "1580251150394051",
+    });
+  });
+
+  it("exposes the production Meta pixel ID when enabled", () => {
+    const publicConfig = toPublicPlatformPixelConfig({
+      version: 1,
+      meta: { enabled: true, pixelId: "1580251150394051" },
+      googleAds: { enabled: false, conversionId: "", conversionLabel: "" },
+    });
+    expect(publicConfig.meta).toEqual({
+      enabled: true,
+      pixelId: "1580251150394051",
+    });
+  });
+
   it("validates Meta and Google IDs", () => {
     expect(isValidMetaPixelId("1234567890")).toBe(true);
     expect(isValidMetaPixelId("abc")).toBe(false);

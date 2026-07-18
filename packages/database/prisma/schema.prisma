@@ -43,6 +43,12 @@ enum PublisherAccess {
   INVITE_ONLY
 }
 
+enum CpaOfferStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
 enum PublisherCampaignStatus {
   PENDING
   APPROVED
@@ -1205,4 +1211,38 @@ model Tutorial {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("tutorials")
+}
+
+model CpaOffer {
+  id            String         @id @default(cuid())
+  name          String
+  network       String
+  category      String
+  country       String
+  previewUrl    String         @map("preview_url") @db.Text
+  trackingUrl   String         @map("tracking_url") @db.Text
+  payout        Decimal        @db.Decimal(10, 2)
+  status        CpaOfferStatus @default(PAUSED)
+  postbackToken String         @unique @map("postback_token")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  conversions   CpaOfferConversion[]
+
+  @@index([status, createdAt])
+  @@index([network])
+  @@index([category])
+  @@map("cpa_offers")
+}
+
+model CpaOfferConversion {
+  id        String   @id @default(cuid())
+  offerId   String   @map("offer_id")
+  clickId   String?  @map("click_id")
+  payout    Decimal? @db.Decimal(10, 2)
+  rawQuery  Json?    @map("raw_query")
+  createdAt DateTime @default(now()) @map("created_at")
+  offer     CpaOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, createdAt])
+  @@map("cpa_offer_conversions")
 }

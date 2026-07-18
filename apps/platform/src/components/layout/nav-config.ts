@@ -25,6 +25,7 @@ import {
   Mail,
   PlayCircle,
   Globe,
+  Store,
 } from "lucide-react";
 
 export interface NavItem {
@@ -38,6 +39,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Advertisers", href: "/admin/advertisers", icon: Users },
   { label: "Publishers", href: "/admin/publishers", icon: Users },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
+  { label: "CPA Offers", href: "/admin/cpa-offers", icon: Store },
   { label: "Bulk Email", href: "/admin/bulk-email", icon: Mail },
   { label: "Leads", href: "/admin/leads", icon: FileText },
   { label: "Fraud Center", href: "/admin/fraud", icon: ShieldAlert },
@@ -59,6 +61,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Domains", href: "/advertiser/domains", icon: Globe },
   { label: "Funnels", href: "/advertiser/optin-funnels", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
+  { label: "Offer Marketplace", href: "/advertiser/cpa-offers", icon: Store },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
   { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },

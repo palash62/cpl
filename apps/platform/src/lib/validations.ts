@@ -806,3 +806,46 @@ export const adminTutorialUpdateSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
   isPublished: z.boolean().optional(),
 });
+
+const httpUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "URL is required")
+  .url("Enter a valid URL")
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "URL must start with http:// or https://",
+  });
+
+const cpaOfferStatusSchema = z.enum(["ACTIVE", "PAUSED", "ARCHIVED"]);
+
+export const adminCpaOfferCreateSchema = z.object({
+  name: z.string().trim().min(2, "Offer name must be at least 2 characters.").max(160),
+  network: z.string().trim().min(1, "Network is required.").max(120),
+  category: z.string().trim().min(1, "Category is required.").max(120),
+  country: z.string().trim().min(1, "Country is required.").max(120),
+  previewUrl: httpUrlSchema,
+  trackingUrl: httpUrlSchema,
+  payout: z.coerce.number().positive("Payout must be greater than 0").max(1_000_000),
+  status: cpaOfferStatusSchema.optional(),
+});
+
+export const adminCpaOfferUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(160).optional(),
+  network: z.string().trim().min(1).max(120).optional(),
+  category: z.string().trim().min(1).max(120).optional(),
+  country: z.string().trim().min(1).max(120).optional(),
+  previewUrl: httpUrlSchema.optional(),
+  trackingUrl: httpUrlSchema.optional(),
+  payout: z.coerce.number().positive().max(1_000_000).optional(),
+  status: cpaOfferStatusSchema.optional(),
+});
+
+export const cpaOfferListQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  status: z.enum(["ACTIVE", "PAUSED", "ARCHIVED", "ALL"]).optional(),
+  network: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  country: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});

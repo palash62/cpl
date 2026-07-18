@@ -70,6 +70,14 @@ export function buildPixelUrl(pixelToken: string, trackingBaseUrl?: string) {
   return `${base}?lead_id={lead_id}&txn_id={txn_id}`;
 }
 
+/** Unique CPA offer postback URL for networks to fire conversions. */
+export function buildCpaOfferPostbackUrl(
+  postbackToken: string,
+  trackingBaseUrl?: string,
+) {
+  return `${trackingBaseUrl ?? getTrackingUrl()}/pbtr/${encodeURIComponent(postbackToken)}?click_id={click_id}&payout={payout}`;
+}
+
 export function buildPixelSnippet(pixelUrl: string) {
   return `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:none" />`;
 }

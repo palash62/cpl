@@ -6,7 +6,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { PlatformPixelConfig } from "@/lib/tracking/platform-pixel-settings";
+import {
+  isValidGoogleConversionId,
+  isValidMetaPixelId,
+  type PlatformPixelConfig,
+} from "@/lib/tracking/platform-pixel-settings";
 
 const EMPTY_SETTINGS: PlatformPixelConfig = {
   version: 1,
@@ -59,8 +63,25 @@ export function PixelSettingsForm() {
     return <p className="text-sm text-slate-500">Loading pixel settings...</p>;
   }
 
+  const metaActive =
+    settings.meta.enabled && isValidMetaPixelId(settings.meta.pixelId);
+  const googleActive =
+    settings.googleAds.enabled &&
+    isValidGoogleConversionId(settings.googleAds.conversionId) &&
+    settings.googleAds.conversionLabel.trim().length > 0;
+
   return (
     <form onSubmit={save} className="mx-auto max-w-3xl space-y-8">
+      <Alert>
+        <AlertDescription>
+          Tracking scripts load only on <strong>published</strong> opt-in and
+          landing pages (<code className="text-xs">/o/…</code>, custom domains,{" "}
+          <code className="text-xs">/p/…</code>). They do not run on this admin
+          page, preview (<code className="text-xs">?preview=1</code>), or campaign
+          test mode.
+        </AlertDescription>
+      </Alert>
+
       <section className="space-y-4 rounded-xl border border-slate-200 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -68,6 +89,15 @@ export function PixelSettingsForm() {
             <p className="mt-1 text-sm text-slate-500">
               Load Meta Pixel on all landing pages and fire PageView + Lead events.
             </p>
+            {metaActive ? (
+              <p className="mt-2 text-xs font-medium text-emerald-700">
+                Active — PageView will fire on published public pages.
+              </p>
+            ) : settings.meta.enabled ? (
+              <p className="mt-2 text-xs font-medium text-amber-700">
+                Enabled but inactive — enter a valid numeric Pixel ID and save.
+              </p>
+            ) : null}
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
@@ -109,6 +139,16 @@ export function PixelSettingsForm() {
             <p className="mt-1 text-sm text-slate-500">
               Load gtag.js on landing pages and fire conversion events on accepted leads.
             </p>
+            {googleActive ? (
+              <p className="mt-2 text-xs font-medium text-emerald-700">
+                Active — conversions will fire on accepted lead submissions.
+              </p>
+            ) : settings.googleAds.enabled ? (
+              <p className="mt-2 text-xs font-medium text-amber-700">
+                Enabled but inactive — enter a valid Conversion ID (AW-…) and Label,
+                then save.
+              </p>
+            ) : null}
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
@@ -185,7 +225,7 @@ export function PixelSettingsForm() {
         </Button>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Crosshair className="h-3.5 w-3.5" />
-          Settings apply to all public landing and opt-in pages.
+          Settings apply to all published public landing and opt-in pages.
         </div>
       </div>
     </form>
