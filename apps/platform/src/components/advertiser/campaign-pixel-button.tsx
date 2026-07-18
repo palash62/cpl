@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Crosshair } from "lucide-react";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
 import { Button } from "@/components/ui/button";
+import { SHOW_CAMPAIGN_TRACKING_PIXEL_UI } from "@/lib/campaign-pixel-ui";
 
 export function CampaignPixelButton({
   campaignId,
@@ -19,7 +20,7 @@ export function CampaignPixelButton({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || pixelToken) return;
+    if (!SHOW_CAMPAIGN_TRACKING_PIXEL_UI || !open || pixelToken) return;
 
     let cancelled = false;
     setLoading(true);
@@ -39,6 +40,8 @@ export function CampaignPixelButton({
       cancelled = true;
     };
   }, [open, pixelToken, campaignId]);
+
+  if (!SHOW_CAMPAIGN_TRACKING_PIXEL_UI) return null;
 
   return (
     <>

@@ -16,6 +16,7 @@ import { formatCurrency } from "@/components/admin/admin-ui";
 import { CampaignStatusWithPauseReason } from "@/components/advertiser/campaign-status-with-pause-reason";
 import { Badge } from "@/components/ui/badge";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
+import { SHOW_CAMPAIGN_TRACKING_PIXEL_UI } from "@/lib/campaign-pixel-ui";
 import {
   formatCampaignScheduling,
   formatCountryList,
@@ -288,7 +289,7 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
         </PageSection>
       )}
 
-      {campaign.pixelToken && (
+      {SHOW_CAMPAIGN_TRACKING_PIXEL_UI && campaign.pixelToken && (
         <PageSection title="Tracking pixel" icon={Crosshair} gradient="approved">
           <div className="px-6 py-5">
             <CampaignTrackingPixelPanel pixelToken={campaign.pixelToken} />

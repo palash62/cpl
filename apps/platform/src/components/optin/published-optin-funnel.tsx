@@ -14,6 +14,10 @@ import {
   createSignalCollector,
 } from "@/modules/fraud/client/collect-signals";
 import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
+import {
+  isAcceptedLeadStatus,
+  trackLeadConversion,
+} from "@/lib/tracking/public-page-tracking";
 
 type PublishedOptinFunnelProps = {
   slug: string;
@@ -83,11 +87,19 @@ function PublishedOptinFunnelContent({
         throw new Error(body.error?.message ?? "Submission failed");
       }
 
-      if (body.lead?.status === "REJECTED") {
-        throw new Error("This submission could not be accepted. Please check your details and try again.");
+      const leadId = body.lead?.id as string | undefined;
+      if (!leadId || !isAcceptedLeadStatus(body.lead?.status)) {
+        throw new Error(
+          leadId && !isAcceptedLeadStatus(body.lead?.status)
+            ? "This submission could not be accepted. Please check your details and try again."
+            : "Submission failed",
+        );
       }
 
-      const leadId = body.lead?.id as string | undefined;
+      if (!previewMode && !testCampaignId) {
+        trackLeadConversion({ leadId });
+      }
+
       if (thankYouEnabled && leadId) {
         const path = thankYouPath ?? `/o/${slug}/thank-you`;
         window.location.assign(`${path}?lead_id=${leadId}&txn_id=${leadId}`);

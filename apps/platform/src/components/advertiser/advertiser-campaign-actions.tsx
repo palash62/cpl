@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buttonVariants } from "@/components/ui/button";
+import { SHOW_CAMPAIGN_TRACKING_PIXEL_UI } from "@/lib/campaign-pixel-ui";
 import { cn } from "@/lib/utils";
 
 export function AdvertiserCampaignActions({
@@ -165,10 +166,12 @@ export function AdvertiserCampaignActions({
               <Pencil className="mr-2 h-4 w-4" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPixelOpen(true)}>
-              <Crosshair className="mr-2 h-4 w-4" />
-              Tracking pixel
-            </DropdownMenuItem>
+            {SHOW_CAMPAIGN_TRACKING_PIXEL_UI ? (
+              <DropdownMenuItem onClick={() => setPixelOpen(true)}>
+                <Crosshair className="mr-2 h-4 w-4" />
+                Tracking pixel
+              </DropdownMenuItem>
+            ) : null}
             {transitions.includes("PAUSED") && campaign.status === "ACTIVE" ? (
               <DropdownMenuItem disabled={loading} onClick={() => patchStatus("PAUSED")}>
                 <Ban className="mr-2 h-4 w-4" />
@@ -226,7 +229,7 @@ export function AdvertiserCampaignActions({
         </DialogContent>
       </Dialog>
 
-      {pixelOpen ? (
+      {SHOW_CAMPAIGN_TRACKING_PIXEL_UI && pixelOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"

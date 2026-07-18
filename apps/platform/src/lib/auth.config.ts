@@ -49,6 +49,7 @@ const publicPaths = [
   "/api/v1/auth/request-otp",
   "/api/v1/auth/otp-check",
   "/o/",
+  "/p/",
   "/domains/",
   "/api/v1/leads/submit-optin",
   "/api/v1/leads/submit-landing",

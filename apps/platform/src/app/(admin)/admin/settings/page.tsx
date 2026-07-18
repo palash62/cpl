@@ -1,11 +1,6 @@
-import { PlatformSettingsForm } from "@/components/forms/platform-settings-form";
-import { SmtpSettingsForm } from "@/components/forms/smtp-settings-form";
-import { SesSettingsForm } from "@/components/forms/ses-settings-form";
-import { StripeSettingsForm } from "@/components/forms/stripe-settings-form";
-import { EmailLogsTable } from "@/components/admin/email-logs-table";
+import { Suspense } from "react";
+import { AdminSettingsShell } from "@/components/admin/admin-settings-shell";
 import { PageHero } from "@/components/admin/page-hero";
-import { PageSection } from "@/components/admin/page-section";
-import { Mail, Settings, Cloud, CreditCard } from "lucide-react";
 
 export default function AdminSettingsPage() {
   return (
@@ -15,50 +10,11 @@ export default function AdminSettingsPage() {
         title="Platform Settings"
         description="Configure global platform options and defaults"
       />
-      <PageSection
-        title="Payout & Smart Link Fallback"
-        description="Publisher earnings, tier ranges, and global campaign routing"
-        icon={Settings}
-        gradient="revenue"
+      <Suspense
+        fallback={<p className="text-sm text-slate-500">Loading settings...</p>}
       >
-        <div className="p-6">
-          <PlatformSettingsForm />
-        </div>
-      </PageSection>
-      <PageSection
-        title="Payments (Stripe)"
-        description="Credit card checkout for advertiser wallet top-ups"
-        icon={CreditCard}
-        gradient="revenue"
-      >
-        <div className="p-6">
-          <StripeSettingsForm />
-        </div>
-      </PageSection>
-      <PageSection
-        title="Email (SMTP)"
-        description="Transactional mail — verification, welcome, password reset. Test delivery and review recent messages."
-        icon={Mail}
-        gradient="leads"
-      >
-        <div className="space-y-8 p-6">
-          <SmtpSettingsForm />
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-900">Recent email log</h3>
-            <EmailLogsTable />
-          </div>
-        </div>
-      </PageSection>
-      <PageSection
-        title="Email Marketing (AWS SES)"
-        description="Advertiser autoresponder and drip campaigns only — not used for account verification"
-        icon={Cloud}
-        gradient="leads"
-      >
-        <div className="p-6">
-          <SesSettingsForm />
-        </div>
-      </PageSection>
+        <AdminSettingsShell />
+      </Suspense>
     </div>
   );
 }

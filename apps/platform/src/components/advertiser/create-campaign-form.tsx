@@ -40,6 +40,7 @@ import {
 } from "@/components/advertiser/create-campaign-sidebar";
 import type { PayoutTiersDisplay } from "@/lib/platform-settings";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
+import { SHOW_CAMPAIGN_TRACKING_PIXEL_UI } from "@/lib/campaign-pixel-ui";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Input } from "@/components/ui/input";
@@ -946,33 +947,35 @@ export function CreateCampaignForm({
             </div>
           </SectionCard>
 
-          <SectionCard
-            step={5}
-            title="Tracking Pixel"
-            icon={Crosshair}
-            accentIndex={3}
-          >
-            <div id="campaign-tracking-pixel">
-              {createdPixelToken ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    {isAdmin
-                      ? "Campaign created. Copy the tracking pixel below and share it with the advertiser."
-                      : "Campaign submitted for admin review. Copy your tracking pixel below and place it on your conversion page once approved."}
+          {SHOW_CAMPAIGN_TRACKING_PIXEL_UI ? (
+            <SectionCard
+              step={5}
+              title="Tracking Pixel"
+              icon={Crosshair}
+              accentIndex={3}
+            >
+              <div id="campaign-tracking-pixel">
+                {createdPixelToken ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      {isAdmin
+                        ? "Campaign created. Copy the tracking pixel below and share it with the advertiser."
+                        : "Campaign submitted for admin review. Copy your tracking pixel below and place it on your conversion page once approved."}
+                    </div>
+                    <CampaignTrackingPixelPanel pixelToken={createdPixelToken} />
                   </div>
-                  <CampaignTrackingPixelPanel pixelToken={createdPixelToken} />
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-sm text-slate-600">
-                  <p className="font-medium text-slate-800">Auto-generated on save</p>
-                  <p className="mt-1">
-                    A unique tracking pixel will be created when you save this campaign. Use it on
-                    your thank-you or conversion page to track confirmed sales.
-                  </p>
-                </div>
-              )}
-            </div>
-          </SectionCard>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-sm text-slate-600">
+                    <p className="font-medium text-slate-800">Auto-generated on save</p>
+                    <p className="mt-1">
+                      A unique tracking pixel will be created when you save this campaign. Use it on
+                      your thank-you or conversion page to track confirmed sales.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">

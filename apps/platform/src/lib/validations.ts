@@ -332,6 +332,53 @@ export const stripeSettingsSchema = z
     }
   });
 
+export const platformPixelSettingsSchema = z
+  .object({
+    meta: z.object({
+      enabled: z.boolean(),
+      pixelId: z.string().trim().optional().default(""),
+    }),
+    googleAds: z.object({
+      enabled: z.boolean(),
+      conversionId: z.string().trim().optional().default(""),
+      conversionLabel: z.string().trim().optional().default(""),
+    }),
+  })
+  .superRefine((data, ctx) => {
+    if (data.meta.enabled) {
+      if (!/^\d{5,20}$/.test(data.meta.pixelId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid Facebook Pixel ID (digits only)",
+          path: ["meta", "pixelId"],
+        });
+      }
+    }
+
+    if (data.googleAds.enabled) {
+      const conversionId = data.googleAds.conversionId.toUpperCase();
+      const normalized =
+        conversionId.startsWith("AW-") || !/^\d{5,20}$/.test(conversionId)
+          ? conversionId
+          : `AW-${conversionId}`;
+
+      if (!/^AW-\d{5,20}$/.test(normalized)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid Google Ads Conversion ID (AW-123456789)",
+          path: ["googleAds", "conversionId"],
+        });
+      }
+      if (!data.googleAds.conversionLabel) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Conversion Label is required when Google Ads is enabled",
+          path: ["googleAds", "conversionLabel"],
+        });
+      }
+    }
+  });
+
 export const updateAdvertiserProfileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   company: z.string().trim().min(2, "Company name must be at least 2 characters").optional(),

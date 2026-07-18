@@ -9,6 +9,10 @@ import {
   createSignalCollector,
 } from "@/modules/fraud/client/collect-signals";
 import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
+import {
+  isAcceptedLeadStatus,
+  trackLeadConversion,
+} from "@/lib/tracking/public-page-tracking";
 
 export function OptinLandingPage({
   page,
@@ -80,6 +84,20 @@ export function OptinLandingPage({
     }
 
     const leadId = result.lead?.id as string | undefined;
+    if (!leadId || !isAcceptedLeadStatus(result.lead?.status)) {
+      setStatus("error");
+      setError(
+        leadId && !isAcceptedLeadStatus(result.lead?.status)
+          ? "This submission could not be accepted. Please check your details and try again."
+          : "Submission failed",
+      );
+      return;
+    }
+
+    if (!readOnlyPreview && !testCampaignId) {
+      trackLeadConversion({ leadId });
+    }
+
     if (page.thankYouEnabled && leadId && !readOnlyPreview) {
       const path = thankYouPath ?? `/o/${page.slug}/thank-you`;
       window.location.assign(`${path}?lead_id=${leadId}&txn_id=${leadId}`);

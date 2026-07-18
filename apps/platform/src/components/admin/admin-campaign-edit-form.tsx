@@ -19,6 +19,7 @@ import {
 import { CampaignCountryField } from "@/components/advertiser/campaign-country-field";
 import { CampaignSearchMultiSelect } from "@/components/advertiser/campaign-search-multi-select";
 import { CampaignTrackingPixelPanel } from "@/components/advertiser/campaign-tracking-pixel-panel";
+import { SHOW_CAMPAIGN_TRACKING_PIXEL_UI } from "@/lib/campaign-pixel-ui";
 import {
   DEVICE_TYPES,
   OPERATING_SYSTEMS,
@@ -497,7 +498,7 @@ export function AdminCampaignEditForm({ campaign }: AdminCampaignEditFormProps) 
         </section>
       )}
 
-      {campaign.pixelToken && (
+      {SHOW_CAMPAIGN_TRACKING_PIXEL_UI && campaign.pixelToken && (
         <section className="space-y-3 border-t border-slate-100 pt-6">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             Tracking pixel
