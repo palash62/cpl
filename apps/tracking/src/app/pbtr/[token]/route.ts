@@ -53,12 +53,17 @@ async function handlePostback(
       rawQuery[key] = value;
     });
 
+    const rawPayload: Prisma.InputJsonValue =
+      Object.keys(rawQuery).length > 0
+        ? rawQuery
+        : (body as Prisma.InputJsonValue);
+
     const event = await prisma.cpaOfferConversion.create({
       data: {
         offerId: offer.id,
         clickId,
         payout: payout ?? undefined,
-        rawQuery: Object.keys(rawQuery).length > 0 ? rawQuery : body,
+        rawQuery: rawPayload,
       },
     });
 
