@@ -61,10 +61,14 @@ export function FunnelListPanel({ initialFunnels, initialTemplates }: FunnelList
       setTemplatesLoading(true);
     }
     fetch("/api/v1/advertiser/optin-funnels/templates")
-      .then((res) => res.json())
-      .then((body) => {
+      .then(async (res) => {
+        const body = await res.json().catch(() => null);
         if (cancelled) return;
-        setTemplates((body.data ?? []).map(normalizeTemplateCraft));
+        if (!res.ok || !body || !Array.isArray(body.data)) {
+          // Keep SSR / current templates on auth or API errors.
+          return;
+        }
+        setTemplates(body.data.map(normalizeTemplateCraft));
       })
       .catch(() => {
         // Keep any server-prefetched templates on failure.

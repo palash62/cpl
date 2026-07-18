@@ -63,12 +63,33 @@ async function hasValidUserSession(userId: string, role: UserRole, tokenVersion?
   return true;
 }
 
+/**
+ * Validates the JWT identity for normal sessions and admin view-as.
+ * In view-as mode, tokenVersion is checked against the admin (impersonator), not the target user.
+ */
+export async function isAuthorizedAppSession(session: AppSession): Promise<boolean> {
+  if (!session.user) return false;
+
+  if (session.viewAsMode && session.impersonatorId) {
+    const adminOk = await hasValidUserSession(
+      session.impersonatorId,
+      "ADMIN",
+      session.tokenVersion,
+    );
+    if (!adminOk) return false;
+    // Target advertiser/publisher: role + status only — do not compare admin JWT tokenVersion.
+    return hasValidUserSession(session.user.id, session.user.role);
+  }
+
+  return hasValidUserSession(session.user.id, session.user.role, session.tokenVersion);
+}
+
 export async function requireAuth(allowedRoles?: UserRole[]) {
   const session = await getSession();
   if (!session?.user) {
     throw Errors.invalidCredentials();
   }
-  const valid = await hasValidUserSession(session.user.id, session.user.role, session.tokenVersion);
+  const valid = await isAuthorizedAppSession(session);
   if (!valid) {
     throw Errors.invalidCredentials();
   }
@@ -108,7 +129,7 @@ export async function requireApiAuth(allowedRoles?: UserRole[]) {
   if (!session?.user) {
     return { error: Errors.invalidCredentials(), session: null };
   }
-  const valid = await hasValidUserSession(session.user.id, session.user.role, session.tokenVersion);
+  const valid = await isAuthorizedAppSession(session);
   if (!valid) {
     return { error: Errors.invalidCredentials(), session: null };
   }

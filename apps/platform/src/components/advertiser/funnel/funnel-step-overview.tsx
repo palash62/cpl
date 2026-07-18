@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  ChevronDown,
   ExternalLink,
   Eye,
   Globe,
+  Pencil,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -15,15 +14,8 @@ import { usesBuilderRenderer } from "@/lib/optin-funnel";
 import { OptinFunnelCraftThumbnail } from "@/components/advertiser/optin-funnel-craft-thumbnail";
 import { funnelCraftPreviewRevision } from "@/components/optin/funnel-craft-preview-frame";
 import { DEFAULT_THEME } from "@/modules/page-builder/lib/theme";
-import { createBlankCraftState } from "@/modules/page-builder/lib/serialize";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -99,9 +91,7 @@ export function FunnelStepOverview({
   onEntityUpdated,
   onStepDeleted,
 }: FunnelStepOverviewProps) {
-  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const stepName = stepId === "thankYou" ? "thank you" : "optin page";
   const { previewHref, previewUrl } = resolvePreviewUrl(entity, workflow, stepId, appUrl);
   const editHref = workflow.editPath(entity.id, stepId);
@@ -122,29 +112,6 @@ export function FunnelStepOverview({
       throw new Error(data?.error?.message ?? "Unable to update funnel");
     }
     return data.data;
-  }
-
-  async function handleCreateFromBlank() {
-    if (stepId !== "thankYou") {
-      router.push(editHref);
-      return;
-    }
-    setResetting(true);
-    try {
-      const blank = createBlankCraftState();
-      const saved = await patchEntity({
-        thankYouEnabled: true,
-        thankYouCraftState: blank,
-        step: "thankYou",
-      });
-      onEntityUpdated?.(saved);
-      toast.success("Thank you page reset to blank");
-      router.push(editHref);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Unable to reset thank you page");
-    } finally {
-      setResetting(false);
-    }
   }
 
   async function handleDeleteStep() {
@@ -172,23 +139,10 @@ export function FunnelStepOverview({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <h2 className="text-lg font-semibold capitalize text-slate-900">{stepName}</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger className={cn(buttonVariants({ size: "sm" }))}>
-              Edit
-              <ChevronDown className="ml-1 h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => router.push(editHref)}>
-                Use existing
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={resetting}
-                onClick={() => void handleCreateFromBlank()}
-              >
-                Create from blank
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ButtonLink href={editHref} size="default" className="h-8 gap-1.5 px-3">
+            <Pencil className="h-4 w-4" />
+            Edit template
+          </ButtonLink>
           <a
             href={previewHref}
             target="_blank"
