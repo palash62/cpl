@@ -414,6 +414,9 @@ export const adminUpdateCampaignSchema = campaignSchema
   .extend({
     optinPageId: z.string().min(1).optional(),
     vertical: z.string().trim().min(1).optional(),
+    // null clears an existing cap (edit form sends null when daily budget is blank)
+    dailyCap: z.number().int().positive().nullable().optional(),
+    monthlyCap: z.number().int().positive().nullable().optional(),
   });
 
 export const adminBulkEmailSchema = z.object({

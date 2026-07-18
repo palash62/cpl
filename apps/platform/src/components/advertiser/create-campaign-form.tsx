@@ -471,6 +471,7 @@ export function CreateCampaignForm({
           : editCampaign.name;
       }
       if (canEditField("dailyCap")) {
+        // null clears daily budget; omit is not enough when an existing cap must be removed
         patchBody.dailyCap = dailyBudgetValue ? Math.round(dailyBudgetValue) : null;
       }
       if (canEditField("status")) {
