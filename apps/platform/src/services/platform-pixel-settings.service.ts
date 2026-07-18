@@ -21,8 +21,13 @@ export async function getPlatformPixelSettingsForAdmin() {
 }
 
 export async function getPublicPlatformPixelConfig() {
-  const config = await loadStoredPixelConfig();
-  return toPublicPlatformPixelConfig(config);
+  try {
+    const config = await loadStoredPixelConfig();
+    return toPublicPlatformPixelConfig(config);
+  } catch {
+    // Build / prerender without DATABASE_URL (e.g. CI) must not fail the app.
+    return { meta: null, googleAds: null };
+  }
 }
 
 export async function updatePlatformPixelSettings(
