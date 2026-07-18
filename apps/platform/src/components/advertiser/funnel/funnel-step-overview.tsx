@@ -103,7 +103,7 @@ export function FunnelStepOverview({
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const stepName = stepId === "thankYou" ? "thank you" : "optin page";
-  const { previewPath, previewUrl } = resolvePreviewUrl(entity, workflow, stepId, appUrl);
+  const { previewHref, previewUrl } = resolvePreviewUrl(entity, workflow, stepId, appUrl);
   const editHref = workflow.editPath(entity.id, stepId);
   const { craftState, themeJson } = resolveThumbnail(entity, stepId);
   const thumbnailRevision = funnelCraftPreviewRevision(craftState?.craft, themeJson);
@@ -190,7 +190,7 @@ export function FunnelStepOverview({
             </DropdownMenuContent>
           </DropdownMenu>
           <a
-            href={previewPath}
+            href={previewHref}
             target="_blank"
             rel="noreferrer"
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
@@ -224,7 +224,7 @@ export function FunnelStepOverview({
             <Input readOnly value={previewUrl} className="h-10 border-slate-200 bg-slate-50 pl-9 pr-10 font-mono text-xs" />
           </div>
           <a
-            href={previewPath}
+            href={previewHref}
             target="_blank"
             rel="noreferrer"
             className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-10 w-10 shrink-0")}

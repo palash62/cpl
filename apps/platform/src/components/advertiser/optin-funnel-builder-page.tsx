@@ -12,7 +12,20 @@ import { buildCraftFromOptinTemplate } from "@/lib/optin-funnel-craft-templates"
 import { isOptinTemplateId } from "@/lib/optin-templates";
 import { cn } from "@/lib/utils";
 import type { SerializedOptinFunnel } from "@/lib/optin-funnel";
+import { buildFunnelPublicUrl } from "@/lib/platform-host";
 import type { FunnelStepId } from "@/components/advertiser/funnel/funnel-types";
+
+function resolveCustomDomainBase(funnel: SerializedOptinFunnel | null | undefined): string | null {
+  if (!funnel?.isPublished) return null;
+  if (funnel.customDomain?.status !== "VERIFIED") return null;
+  const appUrl =
+    typeof window !== "undefined" ? window.location.origin : "https://leadvix.io";
+  return buildFunnelPublicUrl({
+    slug: funnel.slug,
+    appUrl,
+    customDomain: funnel.customDomain.domain,
+  });
+}
 
 const DEMO_FONT_STACK = "Montserrat, Inter, Segoe UI, system-ui, sans-serif";
 
@@ -106,8 +119,9 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
       ui: "ghl",
       thankYouEnabled: funnel?.thankYouEnabled ?? false,
       customDomainId: funnel?.customDomainId ?? null,
+      customDomainBase: resolveCustomDomainBase(funnel),
     });
-  }, [funnelId, funnel?.thankYouEnabled, funnel?.customDomainId, setBuilderConfig]);
+  }, [funnelId, funnel, setBuilderConfig]);
 
   useEffect(() => {
     setCraftSavedListener((step, craft) => {
@@ -181,6 +195,7 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           ui: "ghl",
           thankYouEnabled: page.thankYouEnabled,
           customDomainId: page.customDomainId ?? null,
+          customDomainBase: resolveCustomDomainBase(page),
         });
       })
       .catch((err) => {

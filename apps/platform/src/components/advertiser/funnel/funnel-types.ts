@@ -175,27 +175,46 @@ export function resolvePreviewUrl(
   workflow: FunnelWorkflowConfig,
   stepId: FunnelStepId,
   appUrl: string,
-): { previewPath: string; previewUrl: string } {
+): { previewPath: string; previewUrl: string; previewHref: string } {
   const pathTemplate = workflow.previewPath(entity.id, stepId);
   const previewPath = pathTemplate.replace("{slug}", entity.slug);
+  const platformPreviewHref = `${appUrl}${previewPath}`;
 
   const verifiedDomain =
     entity.customDomain?.status === "VERIFIED" ? entity.customDomain.domain : null;
-  if (verifiedDomain) {
-    const domainBase = buildFunnelPublicUrl({
-      slug: entity.slug,
-      appUrl,
-      customDomain: verifiedDomain,
-    });
+  if (!verifiedDomain) {
     return {
       previewPath,
-      previewUrl: stepId === "thankYou" ? `${domainBase}/thank-you` : domainBase,
+      previewUrl: platformPreviewHref,
+      previewHref: previewPath,
     };
   }
 
+  const domainBase = buildFunnelPublicUrl({
+    slug: entity.slug,
+    appUrl,
+    customDomain: verifiedDomain,
+  });
+  const publicUrl = stepId === "thankYou" ? `${domainBase}/thank-you` : domainBase;
+
+  // Custom-domain routes only resolve published funnels, so unpublished
+  // previews must stay on the platform /o/{slug} path.
+  if (!entity.isPublished) {
+    return {
+      previewPath,
+      previewUrl: publicUrl,
+      previewHref: previewPath,
+    };
+  }
+
+  const queryIndex = previewPath.indexOf("?");
+  const previewQuery = queryIndex >= 0 ? previewPath.slice(queryIndex) : "";
+  const domainPath = stepId === "thankYou" ? "/thank-you" : "/";
+
   return {
     previewPath,
-    previewUrl: `${appUrl}${previewPath}`,
+    previewUrl: publicUrl,
+    previewHref: `${domainBase}${domainPath}${previewQuery}`,
   };
 }
 

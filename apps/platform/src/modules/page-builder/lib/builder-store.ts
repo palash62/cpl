@@ -17,6 +17,8 @@ export type BuilderConfig = {
   ui?: "ghl" | "classic";
   thankYouEnabled?: boolean;
   customDomainId?: string | null;
+  /** Absolute public base URL of a verified custom domain, e.g. https://www.example.com */
+  customDomainBase?: string | null;
 };
 
 type BuilderUIState = {

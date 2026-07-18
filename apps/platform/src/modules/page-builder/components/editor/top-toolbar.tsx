@@ -126,7 +126,10 @@ export function TopToolbar({ pageId, pageName, pageSlug }: TopToolbarProps) {
     }
     if (isFunnel) {
       const thankYouSuffix = funnelStep === "thankYou" ? "/thank-you" : "";
-      const previewPath = `${builderConfig.publicPathPrefix}${pageSlug}${thankYouSuffix}?preview=1&${frameQuery}${bpQuery}${cacheBust}`;
+      const previewQuery = `?preview=1&${frameQuery}${bpQuery}${cacheBust}`;
+      const previewPath = builderConfig.customDomainBase
+        ? `${builderConfig.customDomainBase}${thankYouSuffix || "/"}${previewQuery}`
+        : `${builderConfig.publicPathPrefix}${pageSlug}${thankYouSuffix}${previewQuery}`;
       window.open(previewPath, "_blank", "noopener,noreferrer");
       return;
     }
