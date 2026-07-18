@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
-import { Loader2, Plus, Save, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +22,9 @@ const PROVIDERS: { value: AutoresponderProvider; label: string; hint: string }[]
   { value: "GETRESPONSE", label: "GetResponse", hint: "Contact list" },
   { value: "SYSTEME", label: "Systeme.io", hint: "Contacts and optional tag automation" },
 ];
+
+const SYSTEME_REFERRAL_SIGNUP_URL =
+  "https://systeme.io/?sa=sa01929641663914a72305c02c42db46b1487c04ca";
 
 const TRIGGERS: { value: AutoresponderTrigger; label: string; description: string }[] = [
   {
@@ -773,6 +777,20 @@ export function AutoresponderConnectionForm({
 
         {form.provider === "SYSTEME" && (
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-600">
+                Don’t have a Systeme.io account?
+              </p>
+              <a
+                href={SYSTEME_REFERRAL_SIGNUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
+              >
+                Create free account
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </div>
             <div className="space-y-2">
               <Label>API key</Label>
               <div className="flex gap-2">
