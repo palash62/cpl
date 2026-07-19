@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import type { CpaOffer, CpaOfferStatus, Prisma } from "@prisma/client";
-import { buildCpaOfferPostbackUrl } from "@cpl/shared";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
 
@@ -24,8 +23,8 @@ export type SerializedCpaOffer = {
   revenue: string;
   payout: string;
   status: CpaOfferStatus;
+  /** Kept for legacy /pbtr/{token} compatibility; not shown in UI. */
   postbackToken: string;
-  postbackUrl: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -85,7 +84,6 @@ export function serializeCpaOffer(row: CpaOffer): SerializedCpaOffer {
     payout: decimalToString(row.payout),
     status: row.status,
     postbackToken: row.postbackToken,
-    postbackUrl: buildCpaOfferPostbackUrl(row.postbackToken),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

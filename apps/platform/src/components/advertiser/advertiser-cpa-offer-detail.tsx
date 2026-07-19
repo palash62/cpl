@@ -180,12 +180,11 @@ export function AdvertiserCpaOfferDetail({ offerId }: { offerId: string }) {
         </section>
 
         <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-900">Tracking & postback</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Tracking</h2>
           <CopyUrlField label="Leadvix tracking URL" value={platformTrackingUrl} />
-          <CopyUrlField label="Postback URL" value={offer.postbackUrl} />
           <p className="text-xs text-slate-500">
-            Use the Leadvix tracking URL in your ads. Give the postback URL to the network. Macros{" "}
-            {"{click_id}"} and {"{payout}"} are replaced on each conversion fire.
+            Use the Leadvix tracking URL in your ads. Networks fire conversions to the platform
+            Global Postback URL using the same {"{click_id}"} returned on click.
           </p>
         </section>
       </div>

@@ -70,7 +70,17 @@ export function buildPixelUrl(pixelToken: string, trackingBaseUrl?: string) {
   return `${base}?lead_id={lead_id}&txn_id={txn_id}`;
 }
 
-/** Unique CPA offer postback URL for networks to fire conversions. */
+/**
+ * Network-wide CPA inbound postback URL (Affsense/Tesaleme style).
+ * Offer + advertiser are resolved from click_id — no per-offer token.
+ */
+export function buildGlobalCpaPostbackUrl(trackingBaseUrl?: string) {
+  return `${trackingBaseUrl ?? getTrackingUrl()}/pbtr?click_id={click_id}&payout={payout}`;
+}
+
+/**
+ * @deprecated Prefer buildGlobalCpaPostbackUrl. Kept for legacy /pbtr/{token} links.
+ */
 export function buildCpaOfferPostbackUrl(
   postbackToken: string,
   trackingBaseUrl?: string,

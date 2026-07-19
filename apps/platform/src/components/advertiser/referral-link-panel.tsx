@@ -1,23 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, ExternalLink, Gift, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildReferralUrl } from "@/lib/referral";
 
 export function ReferralLinkPanel({ referralCode }: { referralCode: string }) {
   const [copied, setCopied] = useState(false);
-  const referralUrl =
-    typeof window !== "undefined"
-      ? buildReferralUrl(window.location.origin, referralCode)
-      : `/?referral_by=${encodeURIComponent(referralCode)}`;
+  // Resolve origin after mount so server and client render the same markup.
+  const [referralUrl, setReferralUrl] = useState(
+    () => `/?referral_by=${encodeURIComponent(referralCode)}`,
+  );
+
+  useEffect(() => {
+    setReferralUrl(buildReferralUrl(window.location.origin, referralCode));
+  }, [referralCode]);
 
   async function copyLink() {
-    const url =
-      typeof window !== "undefined"
-        ? buildReferralUrl(window.location.origin, referralCode)
-        : referralUrl;
-
+    const url = buildReferralUrl(window.location.origin, referralCode);
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

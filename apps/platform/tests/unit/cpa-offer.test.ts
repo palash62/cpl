@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { buildCpaOfferPostbackUrl, buildCpaOfferTrackingUrl } from "@cpl/shared";
+import { buildGlobalCpaPostbackUrl, buildCpaOfferTrackingUrl } from "@cpl/shared";
 import {
   serializeCpaOffer,
   listActiveCpaOffers,
@@ -17,11 +17,11 @@ vi.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma";
 
-describe("buildCpaOfferPostbackUrl", () => {
-  it("builds unique postback URL with macros", () => {
-    const url = buildCpaOfferPostbackUrl("abc123token", "https://leadgenlink.site");
+describe("buildGlobalCpaPostbackUrl", () => {
+  it("builds network-wide postback URL with macros (no offer token)", () => {
+    const url = buildGlobalCpaPostbackUrl("https://leadgenlink.site");
     expect(url).toBe(
-      "https://leadgenlink.site/pbtr/abc123token?click_id={click_id}&payout={payout}",
+      "https://leadgenlink.site/pbtr?click_id={click_id}&payout={payout}",
     );
   });
 });
@@ -41,7 +41,7 @@ describe("buildCpaOfferTrackingUrl", () => {
 });
 
 describe("serializeCpaOffer", () => {
-  it("includes computed postbackUrl from token and marketplace fields", () => {
+  it("includes marketplace fields without exposing per-offer postback URL", () => {
     const prev = process.env.TRACKING_URL;
     process.env.TRACKING_URL = "https://leadgenlink.site";
     try {
@@ -73,9 +73,8 @@ describe("serializeCpaOffer", () => {
       expect(serialized.payoutModel).toBe("CPA");
       expect(serialized.payoutType).toBe("FLAT");
       expect(serialized.thumbnailUrl).toBe("https://example.com/thumb.jpg");
-      expect(serialized.postbackUrl).toContain("/pbtr/tok_xyz?");
-      expect(serialized.postbackUrl).toContain("click_id={click_id}");
-      expect(serialized.postbackUrl).toContain("payout={payout}");
+      expect(serialized.postbackToken).toBe("tok_xyz");
+      expect(serialized).not.toHaveProperty("postbackUrl");
     } finally {
       process.env.TRACKING_URL = prev;
     }

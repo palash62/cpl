@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
   CpaCountryMultiSelect,
@@ -113,7 +113,6 @@ function FieldRow({
 export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [values, setValues] = useState<AdminCpaOfferFormValues>(() => ({
     name: offer?.name ?? "",
     advertiserLabel: offer?.advertiserLabel || "Platform",
@@ -146,13 +145,6 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
       payout > 0
     );
   }, [values]);
-
-  async function copyPostback() {
-    if (!offer?.postbackUrl) return;
-    await navigator.clipboard.writeText(offer.postbackUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
 
   async function handleSubmit() {
     if (!canSubmit || saving) return;
@@ -457,26 +449,6 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
           </FieldRow>
         </div>
       </section>
-
-      {mode === "edit" && offer ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-          <h2 className="text-base font-semibold text-slate-900">Postback URL</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Generated automatically. Networks replace {"{click_id}"} and {"{payout}"}.
-          </p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <input
-              readOnly
-              value={offer.postbackUrl}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-xs text-slate-700"
-            />
-            <Button type="button" variant="outline" className="shrink-0 gap-2" onClick={copyPostback}>
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied!" : "Copy"}
-            </Button>
-          </div>
-        </section>
-      ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-end gap-2 px-4 py-3">

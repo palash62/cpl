@@ -178,18 +178,22 @@ async function main() {
     if (adminCatcher.hits.length < 1) throw new Error("Admin catcher got no hits");
     if (advCatcher.hits.length < 1) throw new Error("Advertiser catcher got no hits");
 
-    // Also hit live /pbtr if tracking is up (optional best-effort)
+    // Also hit live global /pbtr if tracking is up (optional best-effort)
     let pbtrLive: { status?: number; body?: unknown; skipped?: string } = {};
     try {
       const trackingBase = process.env.TRACKING_URL ?? "http://localhost:3001";
+      const missing = await fetch(`${trackingBase}/pbtr?payout=1&secure=testkey123`);
+      if (missing.status !== 404) {
+        throw new Error(`Expected 404 for missing click_id, got ${missing.status}`);
+      }
       const bad = await fetch(
-        `${trackingBase}/pbtr/${encodeURIComponent(offer.postbackToken)}?click_id=${click.id}&payout=1&secure=wrong`,
+        `${trackingBase}/pbtr?click_id=${click.id}&payout=1&secure=wrong`,
       );
       if (bad.status !== 401) {
         throw new Error(`Expected 401 for wrong secure, got ${bad.status}`);
       }
       const good = await fetch(
-        `${trackingBase}/pbtr/${encodeURIComponent(offer.postbackToken)}?click_id=${click.id}&payout=1&secure=testkey123`,
+        `${trackingBase}/pbtr?click_id=${click.id}&payout=1&secure=testkey123`,
       );
       const body = await good.json().catch(() => null);
       pbtrLive = { status: good.status, body };

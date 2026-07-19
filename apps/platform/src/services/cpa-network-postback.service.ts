@@ -21,15 +21,15 @@ async function loadConfig(): Promise<CpaNetworkPostbackConfig> {
 export async function getCpaNetworkPostbackSettings() {
   const config = await loadConfig();
   const trackingBase = getTrackingUrl();
+  const secureSuffix =
+    config.useSecurityKey && config.securityKey
+      ? `&secure=${encodeURIComponent(config.securityKey)}`
+      : "";
   return {
     ...config,
-    s2sPostbackUrlExample: `${trackingBase}/pbtr/{offer_postback_token}?click_id={click_id}&payout={payout}${
-      config.useSecurityKey && config.securityKey
-        ? `&secure=${encodeURIComponent(config.securityKey)}`
-        : ""
-    }`,
+    s2sPostbackUrlExample: `${trackingBase}/pbtr?click_id={click_id}&payout={payout}${secureSuffix}`,
     impressionPixelExample: `${trackingBase}/imptr`,
-    conversionPixelExample: `${trackingBase}/pbtr/{offer_postback_token}`,
+    conversionPixelExample: `${trackingBase}/pbtr?click_id={click_id}${secureSuffix}`,
   };
 }
 

@@ -160,7 +160,8 @@ export function AdminGlobalPostbackForm() {
             <div>
               <Label className="text-sm font-semibold text-slate-800">S2S Postback Url</Label>
               <p className="mt-1 text-xs text-slate-500">
-                Per-offer inbound URL pattern networks should call (token varies by offer).
+                Network-wide inbound URL. Give this same URL to every offer network —{" "}
+                {"{click_id}"} identifies the offer and advertiser from the tracked click.
               </p>
             </div>
             <Input readOnly value={values.s2sPostbackUrlExample} className="bg-slate-50 font-mono text-xs" />
