@@ -41,15 +41,9 @@ describe("assertValidCampaignBudget", () => {
     expect(assertValidCampaignBudget(500)).toBe(500);
   });
 
-  it("rejects budget below spent amount", async () => {
+  it("allows budget below spent amount", async () => {
     const { assertValidCampaignBudget } = await import("@/services/campaign.service");
-
-    expect(() => assertValidCampaignBudget(40, { spent: 50 })).toThrow(
-      expect.objectContaining({
-        code: "VALIDATION_ERROR",
-        message: expect.stringMatching(/already spent/i),
-      }),
-    );
+    expect(assertValidCampaignBudget(40)).toBe(40);
   });
 });
 
@@ -128,7 +122,7 @@ describe("updateCampaignByAdmin budget enforcement", () => {
     expect(prismaMock.campaign.update).toHaveBeenCalled();
   });
 
-  it("allows budget above wallet balance on update when above spent", async () => {
+  it("allows budget above wallet balance on update", async () => {
     const { updateCampaignByAdmin } = await import("@/services/campaign.service");
 
     await updateCampaignByAdmin("camp-1", { budget: 500 }, "admin-1", { actorRole: "ADMIN" });
@@ -140,11 +134,15 @@ describe("updateCampaignByAdmin budget enforcement", () => {
     );
   });
 
-  it("rejects budget below spent amount on update", async () => {
+  it("allows budget below spent amount on update", async () => {
     const { updateCampaignByAdmin } = await import("@/services/campaign.service");
 
-    await expect(
-      updateCampaignByAdmin("camp-1", { budget: 10 }, "admin-1", { actorRole: "ADMIN" }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await updateCampaignByAdmin("camp-1", { budget: 10 }, "admin-1", { actorRole: "ADMIN" });
+
+    expect(prismaMock.campaign.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ budget: 10 }),
+      }),
+    );
   });
 });

@@ -38,20 +38,9 @@ export interface CreateCampaignInput {
   }>;
 }
 
-export function assertValidCampaignBudget(
-  budget: number,
-  options?: { spent?: number },
-) {
+export function assertValidCampaignBudget(budget: number) {
   if (!Number.isFinite(budget) || budget <= 0) {
     throw Errors.validation("Total budget is required", "budget");
-  }
-
-  const spent = Number(options?.spent ?? 0);
-  if (spent > 0 && budget < spent) {
-    throw Errors.validation(
-      `Budget cannot be less than amount already spent ($${spent.toFixed(2)})`,
-      "budget",
-    );
   }
 
   return budget;
@@ -375,9 +364,7 @@ export async function updateCampaignByAdmin(
   }
 
   if (body.budget !== undefined) {
-    assertValidCampaignBudget(Number(body.budget), {
-      spent: Number(campaign.spent),
-    });
+    assertValidCampaignBudget(Number(body.budget));
   }
 
   if (body.targeting !== undefined) {
