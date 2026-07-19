@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { AdminCpaOffersDashboard } from "@/components/admin/admin-cpa-offers-dashboard";
+import { AdminCpaOffersList } from "@/components/admin/admin-cpa-offers-list";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCpaOffersDashboardPage() {
+export default async function AdminCpaOffersListPage() {
   const session = await getSession();
   if (!session?.user?.id || session.user.role !== "ADMIN") {
     redirect("/login");
   }
 
-  return <AdminCpaOffersDashboard />;
+  return <AdminCpaOffersList />;
 }

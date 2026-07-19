@@ -17,17 +17,31 @@ interface AppShellProps {
   title?: string;
   breadcrumbs?: string[];
   viewAs?: { userName: string; userRole: UserRole } | null;
+  /** When false, advertiser CPA marketplace nav is hidden. Default: show. */
+  canAccessCpaOffers?: boolean;
   children: React.ReactNode;
 }
 
-function AppShellInner({ role, title, breadcrumbs, viewAs, children }: AppShellProps) {
+function AppShellInner({
+  role,
+  title,
+  breadcrumbs,
+  viewAs,
+  canAccessCpaOffers = true,
+  children,
+}: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-[var(--theme-bg)]">
-      <NavPrefetch role={role} />
-      <Sidebar role={role} />
-      <MobileNav role={role} open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+      <NavPrefetch role={role} canAccessCpaOffers={canAccessCpaOffers} />
+      <Sidebar role={role} canAccessCpaOffers={canAccessCpaOffers} />
+      <MobileNav
+        role={role}
+        canAccessCpaOffers={canAccessCpaOffers}
+        open={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
+      />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {viewAs ? (
           <ImpersonationBanner userName={viewAs.userName} userRole={viewAs.userRole} />

@@ -10,10 +10,11 @@ import { useNavigationPending } from "./navigation-pending";
 interface SidebarProps {
   role: UserRole;
   collapsed?: boolean;
+  canAccessCpaOffers?: boolean;
   className?: string;
 }
 
-export function Sidebar({ role, collapsed, className }: SidebarProps) {
+export function Sidebar({ role, collapsed, canAccessCpaOffers, className }: SidebarProps) {
   const { startNavigation } = useNavigationPending();
 
   return (
@@ -38,7 +39,7 @@ export function Sidebar({ role, collapsed, className }: SidebarProps) {
           <PlatformLogo collapsed={collapsed} variant="sidebar" />
         </Link>
       </div>
-      <SidebarNavList role={role} collapsed={collapsed} />
+      <SidebarNavList role={role} collapsed={collapsed} canAccessCpaOffers={canAccessCpaOffers} />
       {!collapsed ? <SidebarStatusCard /> : null}
     </aside>
   );

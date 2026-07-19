@@ -191,7 +191,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
       }
 
       toast.success(mode === "edit" ? "Offer updated" : "Offer created");
-      router.push("/admin/cpa-offers");
+      router.push("/admin/cpa-offers/offers");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed");
@@ -204,7 +204,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
     <div className="mx-auto max-w-4xl space-y-6 pb-28">
       <div>
         <Link
-          href="/admin/cpa-offers"
+          href="/admin/cpa-offers/offers"
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -464,7 +464,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
             type="button"
             variant="outline"
             disabled={saving}
-            onClick={() => router.push("/admin/cpa-offers")}
+            onClick={() => router.push("/admin/cpa-offers/offers")}
           >
             Cancel
           </Button>

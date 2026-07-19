@@ -32,6 +32,7 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  children?: NavItem[];
 }
 
 export const ADMIN_NAV: NavItem[] = [
@@ -39,7 +40,16 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Advertisers", href: "/admin/advertisers", icon: Users },
   { label: "Publishers", href: "/admin/publishers", icon: Users },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
-  { label: "CPA Offers", href: "/admin/cpa-offers", icon: Store },
+  {
+    label: "CPA Offers",
+    href: "/admin/cpa-offers",
+    icon: Store,
+    children: [
+      { label: "Dashboard", href: "/admin/cpa-offers", icon: LayoutDashboard },
+      { label: "All Offers", href: "/admin/cpa-offers/offers", icon: Store },
+      { label: "Report", href: "/admin/cpa-offers/report", icon: BarChart3 },
+    ],
+  },
   { label: "Bulk Email", href: "/admin/bulk-email", icon: Mail },
   { label: "Leads", href: "/admin/leads", icon: FileText },
   { label: "Fraud Center", href: "/admin/fraud", icon: ShieldAlert },
@@ -84,12 +94,19 @@ export const PUBLISHER_NAV: NavItem[] = [
   { label: "Settings", href: "/publisher/settings", icon: Settings },
 ];
 
-export function getNavForRole(role: UserRole): NavItem[] {
+export function getNavForRole(
+  role: UserRole,
+  options?: { canAccessCpaOffers?: boolean },
+): NavItem[] {
   switch (role) {
     case "ADMIN":
       return ADMIN_NAV;
-    case "ADVERTISER":
+    case "ADVERTISER": {
+      if (options?.canAccessCpaOffers === false) {
+        return ADVERTISER_NAV.filter((item) => item.href !== "/advertiser/cpa-offers");
+      }
       return ADVERTISER_NAV;
+    }
     case "PUBLISHER":
       return PUBLISHER_NAV;
     default:

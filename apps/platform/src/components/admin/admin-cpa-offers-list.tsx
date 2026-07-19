@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHero } from "@/components/admin/page-hero";
+import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
 import { CpaOfferGeoFlags } from "@/components/cpa/cpa-offer-geo-flags";
 import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
 import { Button } from "@/components/ui/button";
@@ -131,6 +132,8 @@ export function AdminCpaOffersList() {
         title={`All Offers (${total})`}
         description="Create and manage CPA offers for the advertiser marketplace. Each offer gets a unique postback URL."
       />
+
+      <AdminCpaOffersSubNav />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ButtonLink href="/admin/cpa-offers/new" className="gap-2">
