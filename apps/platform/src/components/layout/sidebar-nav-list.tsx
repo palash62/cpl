@@ -43,6 +43,20 @@ function isChildActive(pathname: string, child: NavItem, siblings: NavItem[]) {
   if (child.href === "/admin/cpa-offers/report") {
     return pathname === "/admin/cpa-offers/report" || pathname.startsWith("/admin/cpa-offers/report/");
   }
+  if (child.href === "/admin/global-postback") {
+    return pathname === "/admin/global-postback" || pathname.startsWith("/admin/global-postback/");
+  }
+  if (child.href === "/advertiser/cpa-offers") {
+    return (
+      pathname === "/advertiser/cpa-offers" || pathname.startsWith("/advertiser/cpa-offers/")
+    );
+  }
+  if (child.href === "/advertiser/global-postback") {
+    return (
+      pathname === "/advertiser/global-postback" ||
+      pathname.startsWith("/advertiser/global-postback/")
+    );
+  }
   // Generic fallback: exact or prefix, but not claiming a sibling's more-specific path
   if (pathname === child.href || pathname.startsWith(`${child.href}/`)) {
     const claimedBySibling = siblings.some(

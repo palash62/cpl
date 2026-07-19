@@ -1,16 +1,41 @@
+"use client";
+
+import { useEffect } from "react";
 import Script from "next/script";
+import { usePathname } from "next/navigation";
+import { isPlatformBackendPath } from "@/lib/platform-backend-path";
 
 const DEFAULT_PROPERTY_PATH = "6a5c7630aa83a11d48ca4b80/1jtsirc0m";
 
+declare global {
+  interface Window {
+    Tawk_API?: {
+      hideWidget?: () => void;
+      showWidget?: () => void;
+    };
+  }
+}
+
 /**
- * Site-wide Tawk.to chat widget.
+ * Tawk.to chat for authenticated platform areas only.
+ * Hidden on public funnel / tracking destinations (`/o`, `/p`, `/domains`, etc.).
  * Set NEXT_PUBLIC_TAWK_TO_PROPERTY_PATH="" to disable.
  */
 export function TawkToChat() {
+  const pathname = usePathname();
+  const allowed = isPlatformBackendPath(pathname);
   const propertyPath =
     process.env.NEXT_PUBLIC_TAWK_TO_PROPERTY_PATH?.trim() ?? DEFAULT_PROPERTY_PATH;
 
-  if (!propertyPath) return null;
+  useEffect(() => {
+    if (allowed) {
+      window.Tawk_API?.showWidget?.();
+      return;
+    }
+    window.Tawk_API?.hideWidget?.();
+  }, [allowed]);
+
+  if (!propertyPath || !allowed) return null;
 
   const src = `https://embed.tawk.to/${propertyPath}`;
 
