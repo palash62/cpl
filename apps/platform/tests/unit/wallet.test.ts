@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { creditWallet, debitWallet } from "@/services/wallet.service";
+import {
+  creditWallet,
+  debitWallet,
+  reactivateCampaignsForFunds,
+  PAUSED_REASON_INSUFFICIENT_FUNDS,
+} from "@/services/wallet.service";
 
 function createMockTx(initialBalance: number) {
   let balance = initialBalance;
@@ -16,6 +21,7 @@ function createMockTx(initialBalance: number) {
       findUniqueOrThrow: vi.fn().mockImplementation(async () => ({
         id: "wallet-1",
         balance,
+        lowBalanceAlertTiers: [],
       })),
       update: vi.fn().mockImplementation(async ({ data }: { data: { balance: number } }) => {
         balance = data.balance;
@@ -25,6 +31,9 @@ function createMockTx(initialBalance: number) {
       create: vi.fn().mockImplementation(async ({ data }: { data: typeof ledger[0] }) => {
         ledger.push(data);
       }),
+    },
+    campaign: {
+      updateMany: vi.fn().mockResolvedValue({ count: 2 }),
     },
     getBalance: () => balance,
     getLedger: () => ledger,
@@ -54,9 +63,9 @@ describe("Wallet Service", () => {
 
   it("debits wallet and records ledger entry", async () => {
     const tx = createMockTx(100);
-    const newBalance = await debitWallet(tx as never, "user-1", 30, "lead", "lead-1");
+    const result = await debitWallet(tx as never, "user-1", 30, "lead", "lead-1");
 
-    expect(newBalance).toBe(70);
+    expect(result.newBalance).toBe(70);
     expect(tx.getLedger()[0]).toMatchObject({
       type: "DEBIT",
       amount: 30,
@@ -82,5 +91,22 @@ describe("Wallet Service", () => {
     expect(tx.getBalance()).toBe(85);
     expect(tx.getLedger()).toHaveLength(3);
     expect(tx.getLedger()[2].balanceAfter).toBe(85);
+  });
+
+  it("reactivates campaigns paused for insufficient wallet balance", async () => {
+    const tx = createMockTx(50);
+    await reactivateCampaignsForFunds(tx as never, "advertiser-1");
+
+    expect(tx.campaign.updateMany).toHaveBeenCalledWith({
+      where: {
+        advertiserId: "advertiser-1",
+        status: "PAUSED",
+        pausedReason: PAUSED_REASON_INSUFFICIENT_FUNDS,
+      },
+      data: {
+        status: "ACTIVE",
+        pausedReason: null,
+      },
+    });
   });
 });

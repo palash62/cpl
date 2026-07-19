@@ -4,9 +4,9 @@ import { Errors } from "@/lib/errors";
 import { enrichLeadsWithCountry } from "@/lib/lead-country";
 import { getLeadCpl } from "@/lib/lead-cpl";
 import { normalizeClientIp } from "@cpl/shared";
-import { processLeadPayment, reverseLeadPayment } from "@/services/wallet.service";
+import { processLeadPayment, reverseLeadPayment, PAUSED_REASON_INSUFFICIENT_FUNDS } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
-import { notifyGeneric, notifyRejected } from "@/services/notify.service";
+import { notifyGeneric, notifyRejected, notifyCampaignPausedForFunds } from "@/services/notify.service";
 import {
   evaluateLead,
   getFraudConfig,
@@ -158,22 +158,56 @@ async function finalizeLeadStatus(leadId: string, nextStatus: LeadStatus, reject
       }
       void dispatchAutoresponderEvent({ leadId, event: "LEAD_APPROVED" });
       void dispatchLeadEmailAutomations({ leadId, event: "LEAD_APPROVED" });
-    } catch {
-      await prisma.lead.update({
+    } catch (error) {
+      const insufficientFunds =
+        error instanceof Error && error.message === "INSUFFICIENT_FUNDS";
+
+      if (!insufficientFunds) {
+        throw error;
+      }
+
+      const lead = await prisma.lead.findUnique({
         where: { id: leadId },
-        data: {
-          status: "PENDING",
-          statusHistory: {
-            create: {
-              fromStatus: "APPROVED",
-              toStatus: "PENDING",
-              reason: "Insufficient advertiser funds",
-            },
-          },
+        select: {
+          campaignId: true,
+          campaign: { select: { id: true, name: true, advertiserId: true } },
         },
       });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.lead.update({
+          where: { id: leadId },
+          data: {
+            status: "PENDING",
+            statusHistory: {
+              create: {
+                fromStatus: "APPROVED",
+                toStatus: "PENDING",
+                reason: "Insufficient advertiser funds",
+              },
+            },
+          },
+        });
+
+        if (lead) {
+          await tx.campaign.update({
+            where: { id: lead.campaignId },
+            data: {
+              status: "PAUSED",
+              pausedReason: PAUSED_REASON_INSUFFICIENT_FUNDS,
+            },
+          });
+        }
+      });
+
       void notifyForLeadOutcome(leadId, "PENDING");
       void notifyInsufficientLeadFunds(leadId);
+      if (lead) {
+        void notifyCampaignPausedForFunds(lead.campaign.advertiserId, {
+          campaignId: lead.campaign.id,
+          campaignName: lead.campaign.name,
+        });
+      }
     }
   }
 }

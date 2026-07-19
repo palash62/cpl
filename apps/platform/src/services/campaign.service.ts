@@ -463,9 +463,6 @@ export async function updateCampaignByAdmin(
         `Cannot change status from ${campaign.status} to ${nextStatus}`,
       );
     }
-    if (nextStatus === "ACTIVE" && Number(campaign.spent) >= Number(campaign.budget)) {
-      throw Errors.budgetExceeded();
-    }
     data.status = nextStatus;
     if (nextStatus === "PAUSED") {
       data.pausedReason = actorRole === "ADVERTISER" ? "Paused by you" : "Paused by admin";

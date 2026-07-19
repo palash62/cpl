@@ -433,19 +433,39 @@ export async function notifyCampaignBudgetReached(
   const user = await loadUser(advertiserId);
   if (!user) return;
 
-  const remaining = Math.max(0, params.budget - params.spent);
   const message =
-    `Campaign "${params.campaignName}" has been paused because its total budget was reached. ` +
+    `Campaign "${params.campaignName}" has reached its total budget but will keep running while your wallet has funds. ` +
     `Budget: $${params.budget.toFixed(2)} · Spent: $${params.spent.toFixed(2)} · ` +
-    `Remaining: $${remaining.toFixed(2)} · CPL: $${params.cpl.toFixed(2)}. ` +
-    `Increase the budget and reactivate the campaign to resume traffic.`;
+    `CPL: $${params.cpl.toFixed(2)}. ` +
+    `The campaign pauses automatically only when your wallet balance is too low to pay for the next lead.`;
 
   await notifyGeneric(user, {
-    title: `Campaign paused — budget reached`,
+    title: `Campaign budget reached — still running`,
     message,
     actionPath: `/advertiser/campaigns/${params.campaignId}`,
     actionLabel: "View campaign",
     notificationType: "campaign.budget_reached",
+  });
+}
+
+export async function notifyCampaignPausedForFunds(
+  advertiserId: string,
+  params: {
+    campaignId: string;
+    campaignName: string;
+  },
+) {
+  const user = await loadUser(advertiserId);
+  if (!user) return;
+
+  await notifyGeneric(user, {
+    title: "Campaign paused — wallet empty",
+    message:
+      `Campaign "${params.campaignName}" was paused because your wallet balance is too low to pay for leads. ` +
+      `Deposit funds and the campaign will resume automatically.`,
+    actionPath: "/advertiser/wallet",
+    actionLabel: "Add funds",
+    notificationType: "campaign.paused_insufficient_funds",
   });
 }
 

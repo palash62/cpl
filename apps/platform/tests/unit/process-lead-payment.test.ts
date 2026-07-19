@@ -201,7 +201,7 @@ describe("processLeadPayment", () => {
     expect(prismaMock.ledgerEntry.create).not.toHaveBeenCalled();
   });
 
-  it("pauses campaign when budget is reached and notifies advertiser", async () => {
+  it("keeps campaign active past budget and notifies advertiser once when budget is crossed", async () => {
     balances.set("advertiser-wallet", 100);
     prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
       id: "lead-budget",
@@ -229,8 +229,6 @@ describe("processLeadPayment", () => {
       where: { id: "campaign-1" },
       data: {
         spent: 105,
-        status: "PAUSED",
-        pausedReason: "Budget reached",
       },
     });
     expect(notifyCampaignBudgetReached).toHaveBeenCalledWith(
@@ -243,6 +241,37 @@ describe("processLeadPayment", () => {
         cpl: 10,
       }),
     );
+  });
+
+  it("does not notify budget crossed when spend was already at or above budget", async () => {
+    balances.set("advertiser-wallet", 100);
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-over-budget",
+      isTest: false,
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Already over",
+        cpl: 10,
+        spent: 100,
+        budget: 100,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { notifyCampaignBudgetReached } = await import("@/services/notify.service");
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await processLeadPayment("lead-over-budget");
+
+    expect(prismaMock.campaign.update).toHaveBeenCalledWith({
+      where: { id: "campaign-1" },
+      data: { spent: 110 },
+    });
+    expect(notifyCampaignBudgetReached).not.toHaveBeenCalled();
   });
 
   it("notifies low-balance tiers when debit crosses thresholds", async () => {

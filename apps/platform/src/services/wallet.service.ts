@@ -286,19 +286,14 @@ export async function processLeadPayment(leadId: string) {
       },
     });
 
-    const spent = Number(lead.campaign.spent) + cpl;
+    const previousSpent = Number(lead.campaign.spent);
+    const spent = previousSpent + cpl;
     const budget = Number(lead.campaign.budget);
-    const updateData: Prisma.CampaignUpdateInput = { spent };
-    const pausedForBudget = spent >= budget;
-
-    if (pausedForBudget) {
-      updateData.status = "PAUSED";
-      updateData.pausedReason = "Budget reached";
-    }
+    const crossedBudget = previousSpent < budget && spent >= budget;
 
     await tx.campaign.update({
       where: { id: lead.campaignId },
-      data: updateData,
+      data: { spent },
     });
 
     await tx.lead.update({
@@ -315,7 +310,7 @@ export async function processLeadPayment(leadId: string) {
     );
 
     return {
-      pausedForBudget,
+      crossedBudget,
       campaignId: lead.campaignId,
       campaignName: lead.campaign.name,
       budget,
@@ -331,7 +326,7 @@ export async function processLeadPayment(leadId: string) {
       void notifyLowBalanceTiers(result.advertiserId, result.crossedTiers, result.newBalance);
     }
 
-    if (result?.pausedForBudget) {
+    if (result?.crossedBudget) {
       void notifyCampaignBudgetReached(result.advertiserId, {
         campaignId: result.campaignId,
         campaignName: result.campaignName,
@@ -409,24 +404,33 @@ async function reverseLeadPaymentInTx(
   await tx.platformFee.deleteMany({ where: { leadId } });
 
   const newSpent = Math.max(0, Number(lead.campaign.spent) - cpl);
-  const budget = Number(lead.campaign.budget);
-  const updateData: Prisma.CampaignUpdateInput = { spent: newSpent };
-
-  if (
-    lead.campaign.status === "PAUSED" &&
-    lead.campaign.pausedReason === "Budget reached" &&
-    newSpent < budget
-  ) {
-    updateData.status = "ACTIVE";
-    updateData.pausedReason = null;
-  }
 
   await tx.campaign.update({
     where: { id: lead.campaignId },
-    data: updateData,
+    data: { spent: newSpent },
   });
 
   return { alreadyReversed: false as const, cpl };
+}
+
+/** Pause reason used when a campaign cannot fund the next lead. */
+export const PAUSED_REASON_INSUFFICIENT_FUNDS = "Insufficient wallet balance";
+
+export async function reactivateCampaignsForFunds(
+  tx: Prisma.TransactionClient,
+  userId: string,
+) {
+  return tx.campaign.updateMany({
+    where: {
+      advertiserId: userId,
+      status: "PAUSED",
+      pausedReason: PAUSED_REASON_INSUFFICIENT_FUNDS,
+    },
+    data: {
+      status: "ACTIVE",
+      pausedReason: null,
+    },
+  });
 }
 
 export async function reverseLeadPayment(
@@ -862,6 +866,8 @@ export async function approveDeposit(depositId: string, adminId: string) {
       "Wise deposit approved",
     );
 
+    await reactivateCampaignsForFunds(tx, deposit.userId);
+
     await tx.deposit.update({
       where: { id: depositId },
       data: { status: "COMPLETED", processedAt: new Date() },
@@ -971,6 +977,8 @@ export async function createManualDeposit(
       created.id,
       note || "Manual admin deposit",
     );
+
+    await reactivateCampaignsForFunds(tx, userId);
 
     await tx.auditLog.create({
       data: {

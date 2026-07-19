@@ -8,6 +8,7 @@ const leadState = {
   campaignId: "campaign-1",
   trackingLinkId: null as string | null,
   campaign: {
+    id: "campaign-1",
     advertiserId: "advertiser-1",
     name: "Campaign A",
     advertiser: { id: "advertiser-1", email: "adv@test.com", name: "Adv" },
@@ -23,19 +24,22 @@ const prismaMock = {
   },
   campaign: {
     findUnique: vi.fn().mockResolvedValue({ name: "Campaign A" }),
+    update: vi.fn(),
   },
   $transaction: vi.fn(async (callback: (tx: typeof prismaMock) => unknown) =>
     callback(prismaMock),
   ),
 };
 
+const processLeadPayment = vi.fn();
 const reverseLeadPayment = vi.fn().mockResolvedValue({ alreadyReversed: false, cpl: 1 });
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 vi.mock("@/services/wallet.service", () => ({
-  processLeadPayment: vi.fn(),
+  processLeadPayment: (...args: unknown[]) => processLeadPayment(...args),
   reverseLeadPayment,
   getPlatformSettings: vi.fn(),
+  PAUSED_REASON_INSUFFICIENT_FUNDS: "Insufficient wallet balance",
 }));
 vi.mock("@/modules/fraud", () => ({
   refreshPublisherQuality: vi.fn(),
@@ -50,6 +54,7 @@ vi.mock("@/services/notify.service", () => ({
   notifyApproved: vi.fn(),
   notifyUserById: vi.fn(),
   notifyAdminAlert: vi.fn(),
+  notifyCampaignPausedForFunds: vi.fn(),
 }));
 vi.mock("@/modules/autoresponder", () => ({ dispatchAutoresponderEvent: vi.fn() }));
 vi.mock("@/modules/email-marketing", () => ({ dispatchLeadEmailAutomations: vi.fn() }));
@@ -60,6 +65,7 @@ describe("updateLeadStatus", () => {
     leadState.status = "PENDING";
     leadState.isTest = false;
     reverseLeadPayment.mockResolvedValue({ alreadyReversed: false, cpl: 1 });
+    processLeadPayment.mockResolvedValue(undefined);
     prismaMock.lead.findUniqueOrThrow.mockImplementation(async () => ({ ...leadState }));
     prismaMock.lead.findUnique.mockImplementation(async () => ({ ...leadState }));
   });
@@ -119,6 +125,36 @@ describe("updateLeadStatus", () => {
     ).rejects.toMatchObject({
       message: expect.stringContaining("already rejected"),
     });
+  });
+
+  it("pauses campaign when approval payment fails for insufficient funds", async () => {
+    processLeadPayment.mockRejectedValueOnce(new Error("INSUFFICIENT_FUNDS"));
+
+    const { notifyCampaignPausedForFunds } = await import("@/services/notify.service");
+    const { updateLeadStatus } = await import("@/services/lead.service");
+
+    await updateLeadStatus("lead-1", "APPROVED", "admin-1", undefined, { isAdmin: true });
+
+    expect(prismaMock.campaign.update).toHaveBeenCalledWith({
+      where: { id: "campaign-1" },
+      data: {
+        status: "PAUSED",
+        pausedReason: "Insufficient wallet balance",
+      },
+    });
+    expect(prismaMock.lead.update).toHaveBeenCalledWith({
+      where: { id: "lead-1" },
+      data: expect.objectContaining({
+        status: "PENDING",
+      }),
+    });
+    expect(notifyCampaignPausedForFunds).toHaveBeenCalledWith(
+      "advertiser-1",
+      expect.objectContaining({
+        campaignId: "campaign-1",
+        campaignName: "Campaign A",
+      }),
+    );
   });
 });
 

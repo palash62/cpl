@@ -124,7 +124,7 @@ describe("reverseLeadPayment", () => {
     });
   });
 
-  it("reactivates campaign paused for budget when spend drops below budget", async () => {
+  it("decrements spent without reactivating a budget-paused campaign", async () => {
     leadRecord.campaign.spent = 100;
     leadRecord.campaign.status = "PAUSED";
     leadRecord.campaign.pausedReason = "Budget reached";
@@ -137,8 +137,6 @@ describe("reverseLeadPayment", () => {
       where: { id: "campaign-1" },
       data: {
         spent: 99,
-        status: "ACTIVE",
-        pausedReason: null,
       },
     });
   });

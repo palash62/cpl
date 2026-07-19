@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getResolvedStripeConfig } from "@/services/stripe-settings.service";
-import { creditWallet, getWalletBalance } from "@/services/wallet.service";
+import { creditWallet, getWalletBalance, reactivateCampaignsForFunds } from "@/services/wallet.service";
 import { notifyGeneric } from "@/services/notify.service";
 
 type StripeUserProfile = {
@@ -179,6 +179,8 @@ export async function confirmCardPayment(userId: string, depositId: string) {
       depositId,
       "Credit card deposit",
     );
+
+    await reactivateCampaignsForFunds(tx, userId);
 
     await tx.deposit.update({
       where: { id: depositId },
