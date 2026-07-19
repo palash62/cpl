@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHero } from "@/components/admin/page-hero";
 import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
-import { CpaOfferGeoFlags } from "@/components/cpa/cpa-offer-geo-flags";
-import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
+import { CpaOfferCard, CpaOfferCardGrid } from "@/components/cpa/cpa-offer-card";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
@@ -24,14 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { readApiErrorMessage } from "@/lib/errors";
 import type { CpaOfferListResult, SerializedCpaOffer } from "@/services/cpa-offer.service";
 
@@ -54,10 +45,6 @@ const emptyFilters: AppliedFilters = {
   category: "",
   country: "",
 };
-
-function hasPreviewUrl(url: string) {
-  return Boolean(url && url !== "#");
-}
 
 export function AdminCpaOffersList() {
   const router = useRouter();
@@ -225,121 +212,83 @@ export function AdminCpaOffersList() {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-sky-50 hover:bg-sky-50">
-              <TableHead className="text-slate-700">ID</TableHead>
-              <TableHead className="text-slate-700">Offer</TableHead>
-              <TableHead className="text-slate-700">Revenue</TableHead>
-              <TableHead className="text-slate-700">Payout</TableHead>
-              <TableHead className="text-slate-700">Geo</TableHead>
-              <TableHead className="text-slate-700">Category</TableHead>
-              <TableHead className="text-slate-700">Advertiser</TableHead>
-              <TableHead className="text-right text-slate-700">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
-                  Loading offers…
-                </TableCell>
-              </TableRow>
-            ) : items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
-                  No CPA offers yet. Create one to populate the marketplace.
-                </TableCell>
-              </TableRow>
-            ) : (
-              items.map((offer) => (
-                <TableRow key={offer.id} className="h-[52px]">
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-mono text-xs text-slate-700">
-                      <CpaOfferStatusDot status={offer.status} />
-                      <span title={offer.id}>{offer.id.slice(-6)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <CpaOfferThumb name={offer.name} thumbnailUrl={offer.thumbnailUrl} />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-slate-900">{offer.name}</div>
-                        {hasPreviewUrl(offer.previewUrl) ? (
-                          <a
-                            href={offer.previewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-0.5 inline-flex items-center gap-1 text-xs text-sky-700 hover:underline"
-                          >
-                            Preview <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : null}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">${offer.revenue}</TableCell>
-                  <TableCell className="font-mono text-sm">${offer.payout}</TableCell>
-                  <TableCell>
-                    <CpaOfferGeoFlags country={offer.country} />
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-700">{offer.category}</TableCell>
-                  <TableCell className="text-sm text-sky-800">{offer.advertiserLabel}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
-                        aria-label="Offer actions"
+      {loading ? (
+        <p className="py-10 text-center text-sm text-slate-500">Loading offers…</p>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-500">
+          No CPA offers yet. Create one to populate the marketplace.
+        </div>
+      ) : (
+        <CpaOfferCardGrid>
+          {items.map((offer) => (
+            <CpaOfferCard
+              key={offer.id}
+              offer={offer}
+              showRevenue
+              showAdvertiser
+              footer={
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    onClick={() => router.push(`/admin/cpa-offers/${offer.id}/edit`)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      aria-label="Offer actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/admin/cpa-offers/${offer.id}/edit`)}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/cpa-offers/${offer.id}/edit`)}
-                        >
-                          <Pencil className="mr-2 h-3.5 w-3.5" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={deletingId === offer.id}
-                          onClick={() => handleDelete(offer)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                        <Pencil className="mr-2 h-3.5 w-3.5" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={deletingId === offer.id}
+                        onClick={() => handleDelete(offer)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              }
+            />
+          ))}
+        </CpaOfferCardGrid>
+      )}
 
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-          <p className="text-sm text-slate-500">
-            Showing {items.length} of {total} items
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <p className="text-sm text-slate-500">
+          Showing {items.length} of {total} items
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>

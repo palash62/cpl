@@ -1,21 +1,11 @@
 import { prisma } from "@cpl/database";
+import { injectClickIdIntoTrackingUrl } from "@cpl/shared";
 import { NextResponse } from "next/server";
 
-function appendParams(destination: string, requestUrl: URL): string {
-  try {
-    const target = destination.startsWith("/")
-      ? new URL(destination, requestUrl.origin)
-      : new URL(destination);
-
-    for (const key of ["adv_id", "sub_id", "src"] as const) {
-      const value = requestUrl.searchParams.get(key)?.trim();
-      if (value) target.searchParams.set(key, value);
-    }
-
-    return target.toString();
-  } catch {
-    return destination;
-  }
+function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
+  return request.headers.get("x-real-ip");
 }
 
 export async function GET(
@@ -37,6 +27,51 @@ export async function GET(
   }
 
   const requestUrl = new URL(request.url);
-  const redirectTo = appendParams(offer.trackingUrl, requestUrl);
-  return NextResponse.redirect(redirectTo, 302);
+  const advId = requestUrl.searchParams.get("adv_id")?.trim() || null;
+  const subId = requestUrl.searchParams.get("sub_id")?.trim() || null;
+  const src = requestUrl.searchParams.get("src")?.trim() || null;
+
+  let clickId: string | null = null;
+
+  if (advId) {
+    const advertiser = await prisma.user.findFirst({
+      where: { id: advId, role: "ADVERTISER", status: "ACTIVE" },
+      select: { id: true },
+    });
+
+    if (advertiser) {
+      const click = await prisma.cpaOfferClick.create({
+        data: {
+          offerId: offer.id,
+          advertiserId: advertiser.id,
+          subId: subId?.slice(0, 191) || null,
+          src: src?.slice(0, 191) || null,
+          ip: clientIp(request)?.slice(0, 191) || null,
+          userAgent: request.headers.get("user-agent")?.slice(0, 1000) || null,
+        },
+      });
+      clickId = click.id;
+    }
+  }
+
+  let destination = offer.trackingUrl;
+  try {
+    const target = destination.startsWith("/")
+      ? new URL(destination, requestUrl.origin)
+      : new URL(destination);
+
+    if (advId) target.searchParams.set("adv_id", advId);
+    if (subId) target.searchParams.set("sub_id", subId);
+    if (src) target.searchParams.set("src", src);
+
+    destination = target.toString();
+  } catch {
+    // keep original destination
+  }
+
+  if (clickId) {
+    destination = injectClickIdIntoTrackingUrl(destination, clickId, requestUrl.origin);
+  }
+
+  return NextResponse.redirect(destination, 302);
 }

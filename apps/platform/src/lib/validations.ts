@@ -857,12 +857,24 @@ const cpaThumbnailSchema = z
     { message: "Upload an image or enter a valid URL" },
   );
 
+/** Blank / "#" sentinel allowed; otherwise must be http(s). */
+const cpaPreviewUrlValueSchema = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" || value === "#" ? "#" : value))
+  .refine(
+    (value) =>
+      value === "#" ||
+      (z.string().url().safeParse(value).success && /^https?:\/\//i.test(value)),
+    { message: "Enter a valid preview URL starting with http:// or https://" },
+  );
+
 export const adminCpaOfferCreateSchema = z.object({
   name: z.string().trim().min(2, "Offer name must be at least 2 characters.").max(160),
   network: z.string().trim().min(1).max(120).optional(),
   category: z.string().trim().min(1, "Category is required.").max(120),
   country: z.string().trim().max(500).optional().default(""),
-  previewUrl: z.string().trim().optional(),
+  previewUrl: cpaPreviewUrlValueSchema.optional().default("#"),
   trackingUrl: httpUrlSchema,
   thumbnailUrl: cpaThumbnailSchema,
   advertiserLabel: z.string().trim().min(1, "Advertiser is required.").max(120),
@@ -879,7 +891,7 @@ export const adminCpaOfferUpdateSchema = z.object({
   network: z.string().trim().min(1).max(120).optional(),
   category: z.string().trim().min(1).max(120).optional(),
   country: z.string().trim().max(500).optional(),
-  previewUrl: z.string().trim().optional(),
+  previewUrl: cpaPreviewUrlValueSchema.optional(),
   trackingUrl: httpUrlSchema.optional(),
   thumbnailUrl: cpaThumbnailSchema,
   advertiserLabel: z.string().trim().min(1).max(120).optional(),
@@ -909,4 +921,16 @@ export const cpaConversionListQuerySchema = z.object({
   to: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const adminCpaNetworkPostbackSchema = z.object({
+  useSecurityKey: z.boolean(),
+  securityKey: z.string().trim().max(120).optional().default(""),
+  parallelPostbackUrl: z.string().trim().max(2000).optional().default(""),
+});
+
+export const advertiserGlobalPostbackSchema = z.object({
+  type: z.enum(["S2S", "IMAGE", "HTML"]),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+  endpoint: z.string().trim().max(20_000).optional().default(""),
 });

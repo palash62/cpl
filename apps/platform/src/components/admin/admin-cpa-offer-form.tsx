@@ -30,12 +30,18 @@ import type {
   SerializedCpaOffer,
 } from "@/services/cpa-offer.service";
 
+function previewUrlFromOffer(value: string | undefined | null) {
+  const trimmed = value?.trim() ?? "";
+  return !trimmed || trimmed === "#" ? "" : trimmed;
+}
+
 export type AdminCpaOfferFormValues = {
   name: string;
   advertiserLabel: string;
   category: string;
   countries: string[];
   trackingUrl: string;
+  previewUrl: string;
   thumbnailUrl: string;
   revenueModel: CpaRevenueModel;
   payoutModel: CpaPayoutModel;
@@ -114,6 +120,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
     category: offer?.category ?? "",
     countries: countriesFromStorage(offer?.country ?? ""),
     trackingUrl: offer?.trackingUrl ?? "",
+    previewUrl: previewUrlFromOffer(offer?.previewUrl),
     thumbnailUrl: offer?.thumbnailUrl ?? "",
     revenueModel: offer?.revenueModel ?? "RPA",
     payoutModel: offer?.payoutModel ?? "CPA",
@@ -157,6 +164,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
         category: values.category.trim(),
         country: countriesToStorage(values.countries),
         trackingUrl: values.trackingUrl.trim(),
+        previewUrl: values.previewUrl.trim() || "#",
         thumbnailUrl: values.thumbnailUrl.trim() || null,
         revenueModel: values.revenueModel,
         payoutModel: values.payoutModel,
@@ -314,6 +322,18 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
             value={values.trackingUrl}
             onChange={(e) => setValues((prev) => ({ ...prev, trackingUrl: e.target.value }))}
             placeholder="https://network.com/track?aff=..."
+          />
+        </FieldRow>
+
+        <FieldRow
+          label="Preview URL"
+          help="Landing page or creatives preview shown to advertisers on the offer card."
+        >
+          <Input
+            type="url"
+            value={values.previewUrl}
+            onChange={(e) => setValues((prev) => ({ ...prev, previewUrl: e.target.value }))}
+            placeholder="https://example.com/landing-preview"
           />
         </FieldRow>
       </section>

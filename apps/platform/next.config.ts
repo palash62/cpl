@@ -27,6 +27,13 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  async rewrites() {
+    return [
+      { source: "/privacy", destination: "/privacy.html" },
+      { source: "/terms", destination: "/termsofservice.html" },
+      { source: "/contact", destination: "/contact.html" },
+    ];
+  },
   async headers() {
     const securityHeaders = [
       { key: "X-Content-Type-Options", value: "nosniff" },

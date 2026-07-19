@@ -49,6 +49,29 @@ enum CpaOfferStatus {
   ARCHIVED
 }
 
+enum GlobalPostbackType {
+  S2S
+  IMAGE
+  HTML
+}
+
+enum GlobalPostbackStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CpaPostbackDeliveryTarget {
+  ADMIN_PARALLEL
+  ADVERTISER_GLOBAL
+}
+
+enum CpaPostbackDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
 enum PublisherCampaignStatus {
   PENDING
   APPROVED
@@ -237,6 +260,9 @@ model User {
   advertiserDomains        AdvertiserDomain[]
   landingPages             LandingPage[]
   pageTemplateFavorites    PageTemplateFavorite[]
+  cpaOfferClicks           CpaOfferClick[]
+  cpaOfferConversions      CpaOfferConversion[]
+  advertiserGlobalPostback AdvertiserGlobalPostback?
 
   @@index([role])
   @@index([status])
@@ -1216,6 +1242,7 @@ model CpaOffer {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   conversions     CpaOfferConversion[]
+  clicks          CpaOfferClick[]
 
   @@index([status, createdAt])
   @@index([network])
@@ -1223,15 +1250,72 @@ model CpaOffer {
   @@map("cpa_offers")
 }
 
-model CpaOfferConversion {
-  id        String   @id @default(cuid())
-  offerId   String   @map("offer_id")
-  clickId   String?  @map("click_id")
-  payout    Decimal? @db.Decimal(10, 2)
-  rawQuery  Json?    @map("raw_query")
-  createdAt DateTime @default(now()) @map("created_at")
-  offer     CpaOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+model CpaOfferClick {
+  id           String   @id @default(cuid())
+  offerId      String   @map("offer_id")
+  advertiserId String   @map("advertiser_id")
+  subId        String?  @map("sub_id")
+  src          String?
+  ip           String?
+  userAgent    String?  @map("user_agent") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  offer        CpaOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  advertiser   User     @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  conversions  CpaOfferConversion[]
 
   @@index([offerId, createdAt])
+  @@index([advertiserId])
+  @@map("cpa_offer_clicks")
+}
+
+model CpaOfferConversion {
+  id            String   @id @default(cuid())
+  offerId       String   @map("offer_id")
+  clickId       String?  @map("click_id")
+  advertiserId  String?  @map("advertiser_id")
+  clickRecordId String?  @map("click_record_id")
+  payout        Decimal? @db.Decimal(10, 2)
+  rawQuery      Json?    @map("raw_query")
+  createdAt     DateTime @default(now()) @map("created_at")
+  offer         CpaOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  advertiser    User?    @relation(fields: [advertiserId], references: [id], onDelete: SetNull)
+  clickRecord   CpaOfferClick? @relation(fields: [clickRecordId], references: [id], onDelete: SetNull)
+  deliveries    CpaPostbackDelivery[]
+
+  @@index([offerId, createdAt])
+  @@index([advertiserId, createdAt])
+  @@index([clickRecordId])
   @@map("cpa_offer_conversions")
+}
+
+model AdvertiserGlobalPostback {
+  id           String               @id @default(cuid())
+  advertiserId String               @unique @map("advertiser_id")
+  type         GlobalPostbackType   @default(S2S)
+  status       GlobalPostbackStatus @default(INACTIVE)
+  endpoint     String               @db.Text
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  advertiser   User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@map("advertiser_global_postbacks")
+}
+
+model CpaPostbackDelivery {
+  id           String                     @id @default(cuid())
+  conversionId String                     @map("conversion_id")
+  target       CpaPostbackDeliveryTarget
+  url          String                     @db.Text
+  status       CpaPostbackDeliveryStatus  @default(PENDING)
+  httpStatus   Int?                       @map("http_status")
+  error        String?                    @db.Text
+  attempts     Int                        @default(0)
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+  conversion   CpaOfferConversion         @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+
+  @@unique([conversionId, target])
+  @@index([conversionId])
+  @@index([status, createdAt])
+  @@map("cpa_postback_deliveries")
 }

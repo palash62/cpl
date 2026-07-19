@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ExternalLink, Link2, MoreHorizontal, Search } from "lucide-react";
+import { Link2, MoreHorizontal, Search } from "lucide-react";
 import { CpaOfferTrackingLinkDialog } from "@/components/advertiser/cpa-offer-tracking-link-dialog";
-import { CpaOfferGeoFlags } from "@/components/cpa/cpa-offer-geo-flags";
-import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
+import { CpaOfferCard, CpaOfferCardGrid } from "@/components/cpa/cpa-offer-card";
 import { RoleHero } from "@/components/layout/role-hero";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,14 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { CpaOfferListResult, SerializedCpaOffer } from "@/services/cpa-offer.service";
 
 const PAGE_SIZE = 25;
@@ -143,121 +134,72 @@ export function AdvertiserCpaOffersMarketplace() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-sky-50 hover:bg-sky-50">
-              <TableHead className="text-slate-700">ID</TableHead>
-              <TableHead className="text-slate-700">Icon</TableHead>
-              <TableHead className="text-slate-700">Offer</TableHead>
-              <TableHead className="text-slate-700">Payout</TableHead>
-              <TableHead className="text-slate-700">Geo</TableHead>
-              <TableHead className="text-slate-700">Category</TableHead>
-              <TableHead className="text-right text-slate-700">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
-                  Loading offers…
-                </TableCell>
-              </TableRow>
-            ) : items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
-                  No active offers. Check back later — new CPA offers appear here when published.
-                </TableCell>
-              </TableRow>
-            ) : (
-              items.map((offer) => (
-                <TableRow key={offer.id} className="h-[52px]">
-                  <TableCell className="font-mono text-xs text-slate-700" title={offer.id}>
-                    {offer.id.slice(-6)}
-                  </TableCell>
-                  <TableCell>
-                    <CpaOfferThumb name={offer.name} thumbnailUrl={offer.thumbnailUrl} size="sm" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <CpaOfferStatusDot status={offer.status} />
-                        <span className="truncate font-medium text-slate-900">{offer.name}</span>
-                      </div>
-                      <a
-                        href={offer.previewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-0.5 inline-flex items-center gap-1 text-xs text-sky-700 hover:underline"
+      {loading ? (
+        <p className="py-10 text-center text-sm text-slate-500">Loading offers…</p>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-500">
+          No active offers. Check back later — new CPA offers appear here when published.
+        </div>
+      ) : (
+        <CpaOfferCardGrid>
+          {items.map((offer) => (
+            <CpaOfferCard
+              key={offer.id}
+              offer={offer}
+              footer={
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    onClick={() => setTrackingOffer(offer)}
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    Tracking Link
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      aria-label="More offer actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/advertiser/cpa-offers/${offer.id}`)}
                       >
-                        Preview <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm font-medium text-slate-900">
-                    ${offer.payout}
-                  </TableCell>
-                  <TableCell>
-                    <CpaOfferGeoFlags country={offer.country} />
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-700">{offer.category}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => setTrackingOffer(offer)}
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        Tracking Link
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
-                          aria-label="More offer actions"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => router.push(`/advertiser/cpa-offers/${offer.id}`)}
-                          >
-                            View details
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                        View details
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              }
+            />
+          ))}
+        </CpaOfferCardGrid>
+      )}
 
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-          <p className="text-sm text-slate-500">
-            Showing {items.length} of {total} items
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <p className="text-sm text-slate-500">
+          Showing {items.length} of {total} items
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
         </div>
       </div>
 

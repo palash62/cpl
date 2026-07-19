@@ -26,6 +26,7 @@ import {
   PlayCircle,
   Globe,
   Store,
+  Webhook,
 } from "lucide-react";
 
 export interface NavItem {
@@ -59,6 +60,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Referrals", href: "/admin/referrals", icon: Gift },
   { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
+  { label: "Global Postback", href: "/admin/global-postback", icon: Webhook },
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },
   { label: "Themes", href: "/admin/themes", icon: Palette },
@@ -72,6 +74,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   { label: "Funnels", href: "/advertiser/optin-funnels", icon: LayoutTemplate },
   { label: "Campaigns", href: "/advertiser/campaigns", icon: Megaphone },
   { label: "Offer Marketplace", href: "/advertiser/cpa-offers", icon: Store },
+  { label: "Global Postback", href: "/advertiser/global-postback", icon: Webhook },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
   { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },
@@ -103,7 +106,11 @@ export function getNavForRole(
       return ADMIN_NAV;
     case "ADVERTISER": {
       if (options?.canAccessCpaOffers === false) {
-        return ADVERTISER_NAV.filter((item) => item.href !== "/advertiser/cpa-offers");
+        return ADVERTISER_NAV.filter(
+          (item) =>
+            item.href !== "/advertiser/cpa-offers" &&
+            item.href !== "/advertiser/global-postback",
+        );
       }
       return ADVERTISER_NAV;
     }

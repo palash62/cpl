@@ -11,10 +11,11 @@ export function CpaOfferThumb({
   name: string;
   thumbnailUrl?: string | null;
   className?: string;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const letter = (name.trim()[0] || "?").toUpperCase();
-  const dim = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+  const dim =
+    size === "sm" ? "h-8 w-8 text-xs" : size === "lg" ? "h-14 w-14 text-lg" : "h-10 w-10 text-sm";
 
   if (thumbnailUrl) {
     return (

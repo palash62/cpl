@@ -616,6 +616,24 @@ html {
   font-size: 14px;
 }
 
+.vslLanding footer .footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+}
+
+.vslLanding footer .footer-links a {
+  color: #abb5d2;
+  text-decoration: none;
+}
+
+.vslLanding footer .footer-links a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
 .vslLanding .vsl-desc {
   color: #b9c2dc;
   margin: 18px 0 25px;

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leadvix - Verified Pay Per Lead Network</title>
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:Inter,Arial,sans-serif}
+    html{scroll-behavior:smooth}
+    body{background:#050711;color:#fff;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    .container{width:92%;max-width:1180px;margin:auto}
+    .btn{display:inline-block;padding:16px 30px;border-radius:14px;background:linear-gradient(135deg,#8b3dff,#008cff);font-weight:800;box-shadow:0 0 28px #4d6bff66;transition:.3s}
+    .btn:hover{transform:translateY(-3px);box-shadow:0 0 40px #4d6bff99}
+    .badge{display:inline-block;padding:8px 15px;border:1px solid #334477;border-radius:50px;background:#10172e;color:#8bd7ff;font-size:13px;margin-bottom:20px}
+    .purple{color:#a855ff}.blue{color:#37b7ff}.green{color:#35e68b}.red{color:#ff5570}
+
+    header{padding:20px 0;border-bottom:1px solid #151c35;background:#050711cc;position:sticky;top:0;z-index:99;backdrop-filter:blur(12px)}
+    nav{display:flex;justify-content:space-between;align-items:center}
+    .logo{font-size:25px;font-weight:900;letter-spacing:.5px}
+    .logo span{color:#8b3dff}
+    .navlinks{display:flex;gap:25px;font-size:14px;color:#b9c2dc}
+
+    .hero{position:relative;padding:95px 0 65px}
+    .hero:before{content:"";position:absolute;width:520px;height:520px;background:radial-gradient(circle,#6d35ff66,transparent 70%);top:70px;left:-170px;filter:blur(20px);z-index:-1}
+    .hero:after{content:"";position:absolute;width:420px;height:420px;background:radial-gradient(circle,#008cff44,transparent 70%);right:-120px;top:160px;filter:blur(25px);z-index:-1}
+    .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center}
+    h1{font-size:58px;line-height:1.05;margin-bottom:24px}
+    h1 span{background:linear-gradient(135deg,#25b7ff,#a855ff);-webkit-background-clip:text;color:transparent}
+    .hero p{font-size:19px;color:#c6cce0;margin-bottom:28px;max-width:650px}
+    .hero-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+    .video-btn{padding:15px 22px;border:1px solid #2c355f;border-radius:14px;background:#0c1225;color:#dbe4ff}
+
+    .mockup{background:linear-gradient(145deg,#0b1024,#111936);border:1px solid #27315c;border-radius:26px;padding:22px;box-shadow:0 0 70px #4d3dff38}
+    .screen{background:#060914;border-radius:20px;padding:22px;min-height:390px}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+    .stat{background:#0e1733;border:1px solid #24305a;border-radius:16px;padding:17px}
+    .stat small{color:#94a3c7}
+    .stat b{display:block;font-size:26px;margin-top:6px}
+    .chart{height:160px;border-radius:18px;background:linear-gradient(135deg,#141f46,#0b1024);position:relative;overflow:hidden}
+    .chart:after{content:"";position:absolute;left:20px;right:20px;bottom:40px;height:4px;background:linear-gradient(90deg,#25b7ff,#8b3dff,#31e981);border-radius:20px;box-shadow:40px -30px 0 #25b7ff,120px -10px 0 #8b3dff,220px -65px 0 #31e981}
+    .mini-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+    .mini{background:#0e1733;border:1px solid #24305a;border-radius:14px;padding:13px;font-size:13px;color:#c9d4f5}
+
+    .trust{padding:22px 0}
+    .trust-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+    .trust-card{background:#0b1024;border:1px solid #202b52;border-radius:16px;padding:18px;text-align:center;color:#cbd5f5;font-size:14px}
+
+    section{padding:72px 0}
+    .section-title{text-align:center;margin-bottom:42px}
+    .section-title h2{font-size:38px;margin-bottom:12px;line-height:1.15}
+    .section-title p{color:#aeb8d8;max-width:760px;margin:auto}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+    .box{background:#0b1024;border:1px solid #222d55;border-radius:24px;padding:32px}
+    .box h3{font-size:28px;margin-bottom:15px;line-height:1.2}
+    ul{list-style:none;margin-top:18px}
+    li{margin:12px 0;color:#c5cce3}
+
+    .cost-cards{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+    .cost-card{background:linear-gradient(145deg,#0b1024,#0d1430);border:1px solid #24305a;border-radius:26px;padding:34px;position:relative;overflow:hidden}
+    .cost-card.highlight{border-color:#5c49ff;box-shadow:0 0 50px #5c49ff25}
+    .price-big{font-size:48px;font-weight:900;line-height:1;margin:18px 0}
+    .price-big span{font-size:20px;color:#aeb8d8}
+    .note{font-size:14px;color:#8d98bd;margin-top:12px}
+
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .feature{background:linear-gradient(145deg,#0b1024,#0d1430);border:1px solid #202b52;border-radius:21px;padding:24px;transition:.3s}
+    .feature:hover{transform:translateY(-5px);border-color:#4d63ff}
+    .icon{width:48px;height:48px;border-radius:14px;background:#151f45;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
+    .feature h3{margin-bottom:8px;font-size:20px}
+    .feature p{color:#aeb8d8;font-size:15px}
+
+    .integrations{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .integration{background:#0b1024;border:1px solid #25315e;border-radius:16px;padding:23px;text-align:center;font-weight:900}
+
+    .vsl{background:linear-gradient(145deg,#0b1024,#101833);border:1px solid #263360;border-radius:28px;padding:30px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
+    .video-box{height:315px;background:#050711;border:1px solid #2a3563;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:64px;color:#8b3dff}
+
+    .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}
+    .step{text-align:center;background:#0b1024;border:1px solid #202b52;border-radius:20px;padding:24px}
+    .num{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#8b3dff,#008cff);display:flex;align-items:center;justify-content:center;margin:0 auto 15px;font-weight:900}
+
+    .cta{background:linear-gradient(135deg,#111a3a,#090d1d);border:1px solid #2c3a70;border-radius:30px;padding:58px;text-align:center;box-shadow:0 0 70px #493dff22}
+    .cta h2{font-size:42px;margin-bottom:15px;line-height:1.15}
+
+    footer{padding:35px 0;border-top:1px solid #151c35;color:#8d98bd;text-align:center;font-size:14px}
+.footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;margin-bottom:16px}
+.footer-links a{color:#abb5d2;text-decoration:none}
+.footer-links a:hover{color:#fff;text-decoration:underline}
+
+    @media(max-width:900px){
+      .hero-grid,.grid-2,.cost-cards,.vsl{grid-template-columns:1fr}
+      .features{grid-template-columns:1fr 1fr}
+      .trust-row,.integrations,.steps{grid-template-columns:1fr 1fr}
+      h1{font-size:42px}
+      .navlinks{display:none}
+    }
+    @media(max-width:560px){
+      .features,.trust-row,.integrations,.steps{grid-template-columns:1fr}
+      h1{font-size:36px}
+      .section-title h2{font-size:30px}
+      .cta{padding:36px 22px}
+      .price-big{font-size:38px}
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="container">
+    <nav>
+      <div class="logo"><span>✦</span> LEADVIX</div>
+      <div class="navlinks">
+        <a href="#cost">Cost</a>
+        <a href="#features">Features</a>
+        <a href="#integrations">Integrations</a>
+        <a href="#how">How It Works</a>
+      </div>
+      <a href="#join" class="btn">Join Now →</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <div class="badge">AI-Powered Pay Per Lead Network</div>
+      <h1>Stop Paying $1–$3 Per Click. Start Buying <span>Verified Leads.</span></h1>
+      <p>
+        Leadvix helps advertisers buy 100% verified lead opt-ins from $0.70–$2.50 per lead,
+        instead of wasting budget on expensive clicks that may never convert.
+      </p>
+      <div class="hero-actions">
+        <a href="#join" class="btn">Join Now →</a>
+        <a href="#vsl" class="video-btn">▶ Watch Demo</a>
+      </div>
+    </div>
+
+    <div class="mockup">
+      <div class="screen">
+        <div class="stats">
+          <div class="stat"><small>Verified Leads</small><b>8,742</b></div>
+          <div class="stat"><small>Avg CPL</small><b>$1.24</b></div>
+          <div class="stat"><small>Lead Score</small><b>92%</b></div>
+          <div class="stat"><small>Campaign ROI</small><b>248%</b></div>
+        </div>
+        <div class="chart"></div>
+        <div class="mini-row">
+          <div class="mini">✅ Tier 1 Targeting</div>
+          <div class="mini">✅ Custom CPL Bidding</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="trust">
+  <div class="container trust-row">
+    <div class="trust-card">✅ Verified Lead Opt-ins</div>
+    <div class="trust-card">💰 $0.70–$2.50 CPL</div>
+    <div class="trust-card">🧲 Pre-Made Funnels</div>
+    <div class="trust-card">🔗 API Integrations</div>
+    <div class="trust-card">🤖 AI Optimization</div>
+  </div>
+</div>
+
+<section id="cost">
+  <div class="container">
+    <div class="section-title">
+      <h2>Why Pay $5+ Per Lead When You Can Bid From $0.70?</h2>
+      <p>
+        Quality clicks from Meta, Google Ads, and solo ads can cost $1–$3+ per click.
+        After conversion loss, your real cost per lead often becomes $5+ for Tier 1 countries.
+      </p>
+    </div>
+
+    <div class="cost-cards">
+      <div class="cost-card">
+        <div class="badge">Traditional Traffic Buying</div>
+        <h3>Pay For Clicks First</h3>
+        <div class="price-big">$1–$3+ <span>/ click</span></div>
+        <ul>
+          <li>❌ You pay even if clicks do not convert</li>
+          <li>❌ Final CPL can easily go above $5+</li>
+          <li>❌ More testing cost</li>
+          <li>❌ No guaranteed lead opt-in</li>
+          <li>❌ Lower control over final lead cost</li>
+        </ul>
+      </div>
+
+      <div class="cost-card highlight">
+        <div class="badge">Leadvix Verified Leads</div>
+        <h3>Pay For Verified Leads</h3>
+        <div class="price-big">$0.70–$2.50 <span>/ lead</span></div>
+        <ul>
+          <li>✅ Pay only for valid verified lead opt-ins</li>
+          <li>✅ Bid your desired cost per lead</li>
+          <li>✅ Minimum bid set by country tier</li>
+          <li>✅ Better control over campaign budget</li>
+          <li>✅ Built for Tier 1 lead generation</li>
+        </ul>
+        <p class="note">Final lead cost depends on targeting, country tier, niche, and bid competition.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container grid-2">
+    <div class="box">
+      <h3>Most Advertisers Are <span class="red">Losing Money...</span></h3>
+      <p>You buy traffic, but traffic does not always become real leads.</p>
+      <ul>
+        <li>❌ Bot clicks and fake traffic</li>
+        <li>❌ Low-intent visitors</li>
+        <li>❌ Leads that never convert</li>
+        <li>❌ Complicated funnel setup</li>
+        <li>❌ Wasted budget on clicks instead of results</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3>Meet <span class="purple">Leadvix</span></h3>
+      <p>A smarter Pay Per Lead platform designed to help advertisers pay for valid, verified lead opt-ins — not random clicks.</p>
+      <ul>
+        <li>✅ 100% verified lead opt-ins</li>
+        <li>✅ Pre-made funnels for PPL campaigns</li>
+        <li>✅ GetResponse, AWeber, Systeme.io, Webhook</li>
+        <li>✅ AI lead scoring</li>
+        <li>✅ DFY campaign optimization</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-title">
+      <h2>Everything You Need To Run Better Pay Per Lead Campaigns</h2>
+      <p>
+        Leadvix combines funnel creation, verified lead buying, API integrations,
+        smart scoring, reporting, and AI optimization into one performance marketing platform.
+      </p>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="icon">🧲</div>
+        <h3>Built-in Funnel Builder</h3>
+        <p>Use pre-made funnels to quickly launch Pay Per Lead campaigns without building everything from scratch.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">💰</div>
+        <h3>Custom CPL Bidding</h3>
+        <p>Bid your desired cost per lead based on campaign type, niche, and country tier minimum bid rules.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">🔗</div>
+        <h3>Autoresponder API Integration</h3>
+        <p>Automatically deliver verified leads into GetResponse, AWeber, Systeme.io, or your custom webhook.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">🤖</div>
+        <h3>AI Lead Scoring</h3>
+        <p>Our AI helps score and filter leads so advertisers can focus on higher-quality prospects.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">📈</div>
+        <h3>AI Campaign Optimization</h3>
+        <p>Optimize campaigns using intelligent insights designed to improve lead quality and campaign performance.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">👨‍💻</div>
+        <h3>DFY Campaign Optimization</h3>
+        <p>Our team helps optimize campaign setup, funnel flow, and lead delivery for better results.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">🛡</div>
+        <h3>Lead Verification</h3>
+        <p>Pay only for valid verified lead opt-ins, not clicks, bots, or low-quality traffic.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">📊</div>
+        <h3>Real-Time Analytics</h3>
+        <p>Track campaigns, leads, verification status, conversion rates, CPL, and optimization data in one place.</p>
+      </div>
+
+      <div class="feature">
+        <div class="icon">🎯</div>
+        <h3>Smart Lead Routing</h3>
+        <p>Route leads to the right campaigns, advertisers, or integrations using smart delivery rules.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="integrations">
+  <div class="container">
+    <div class="section-title">
+      <h2>Connect With Your Favorite Autoresponder</h2>
+      <p>Send every verified lead directly into your existing marketing workflow using API integration.</p>
+    </div>
+
+    <div class="integrations">
+      <div class="integration">GetResponse</div>
+      <div class="integration">AWeber</div>
+      <div class="integration">Systeme.io</div>
+      <div class="integration">Webhook</div>
+    </div>
+  </div>
+</section>
+
+<section id="vsl">
+  <div class="container">
+    <div class="vsl">
+      <div class="video-box">▶</div>
+      <div>
+        <div class="badge">Watch The Demo</div>
+        <h2>See How Leadvix Helps You Launch Smarter Lead Campaigns</h2>
+        <p style="color:#b9c2dc;margin:18px 0 25px">
+          Discover how advertisers can launch campaigns, use pre-made funnels,
+          connect autoresponders, verify leads, bid CPL, and optimize performance with AI.
+        </p>
+        <a href="#join" class="btn">Join Now →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="container">
+    <div class="section-title">
+      <h2>How It Works</h2>
+      <p>Launch your Pay Per Lead campaign in a simple step-by-step process.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Create Campaign</h3>
+        <p>Set your offer, targeting, and lead requirements.</p>
+      </div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Set CPL Bid</h3>
+        <p>Choose your desired cost per lead based on country tier.</p>
+      </div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Choose Funnel</h3>
+        <p>Use a pre-made funnel or create your own.</p>
+      </div>
+
+      <div class="step">
+        <div class="num">4</div>
+        <h3>Connect Tools</h3>
+        <p>Connect GetResponse, AWeber, Systeme.io, or Webhook.</p>
+      </div>
+
+      <div class="step">
+        <div class="num">5</div>
+        <h3>Pay For Leads</h3>
+        <p>Pay only for valid, verified lead opt-ins.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container grid-2">
+    <div class="box">
+      <h3>Traditional Traffic Buying</h3>
+      <ul>
+        <li>❌ Pay $1–$3+ per click</li>
+        <li>❌ Final lead cost can reach $5+</li>
+        <li>❌ You pay even when clicks do not convert</li>
+        <li>❌ No built-in funnel builder</li>
+        <li>❌ No AI lead scoring</li>
+        <li>❌ Higher testing risk</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3><span class="purple">Leadvix</span> Pay Per Lead</h3>
+      <ul>
+        <li>✅ Buy verified leads from $0.70–$2.50</li>
+        <li>✅ Pay for valid lead opt-ins, not clicks</li>
+        <li>✅ Set your desired CPL bid</li>
+        <li>✅ Built-in funnel builder</li>
+        <li>✅ API autoresponder integrations</li>
+        <li>✅ AI lead scoring and optimization</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="join">
+  <div class="container">
+    <div class="cta">
+      <h2>Stop Buying Clicks. Start Buying <span class="purple">Verified Leads.</span></h2>
+      <p>
+        Join Leadvix today and start building smarter Pay Per Lead campaigns with verified leads,
+        flexible CPL bidding, pre-made funnels, and AI optimization.
+      </p>
+      <br>
+      <a href="#" class="btn">Join Now →</a>
+      <p style="font-size:13px;color:#8d98bd;margin-top:14px">
+        Pay only for valid, verified lead opt-ins. Minimum bid applies based on country tier.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <nav class="footer-links" aria-label="Footer">
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/contact">Contact</a>
+    </nav>
+    <p>© 2026 Leadvix. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>
