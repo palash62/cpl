@@ -14,7 +14,6 @@ import {
   resolveOptinPageDestination,
 } from "@/services/optin-page.service";
 import { parseCampaignTargeting } from "@/lib/campaign-targeting";
-import { getWalletBalance } from "@/services/wallet.service";
 
 export interface CreateCampaignInput {
   advertiserId: string;
@@ -39,8 +38,7 @@ export interface CreateCampaignInput {
   }>;
 }
 
-export async function assertCampaignBudgetWithinWallet(
-  advertiserId: string,
+export function assertValidCampaignBudget(
   budget: number,
   options?: { spent?: number },
 ) {
@@ -56,20 +54,11 @@ export async function assertCampaignBudgetWithinWallet(
     );
   }
 
-  const wallet = await getWalletBalance(advertiserId);
-  const availableBalance = wallet?.availableBalance ?? 0;
-  if (budget > availableBalance) {
-    throw Errors.validation(
-      `Total budget cannot exceed available wallet balance of $${availableBalance.toFixed(2)}.`,
-      "budget",
-    );
-  }
-
-  return availableBalance;
+  return budget;
 }
 
 export async function createCampaign(input: CreateCampaignInput) {
-  await assertCampaignBudgetWithinWallet(input.advertiserId, input.budget);
+  assertValidCampaignBudget(input.budget);
 
   return prisma.campaign.create({
     data: {
@@ -386,7 +375,7 @@ export async function updateCampaignByAdmin(
   }
 
   if (body.budget !== undefined) {
-    await assertCampaignBudgetWithinWallet(campaign.advertiserId, Number(body.budget), {
+    assertValidCampaignBudget(Number(body.budget), {
       spent: Number(campaign.spent),
     });
   }
