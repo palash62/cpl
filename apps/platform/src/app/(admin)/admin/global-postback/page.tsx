@@ -1,7 +1,13 @@
-import { requireAuth } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session";
 import { AdminGlobalPostbackForm } from "@/components/admin/admin-global-postback-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminGlobalPostbackPage() {
-  await requireAuth(["ADMIN"]);
+  const session = await getSession();
+  if (!session?.user?.id || session.user.role !== "ADMIN") {
+    redirect("/login");
+  }
   return <AdminGlobalPostbackForm />;
 }
