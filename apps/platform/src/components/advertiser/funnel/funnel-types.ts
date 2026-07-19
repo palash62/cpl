@@ -209,7 +209,7 @@ export function resolvePreviewUrl(
 
   const queryIndex = previewPath.indexOf("?");
   const previewQuery = queryIndex >= 0 ? previewPath.slice(queryIndex) : "";
-  const domainPath = stepId === "thankYou" ? "/thank-you" : "/";
+  const domainPath = stepId === "thankYou" ? "/thank-you" : "";
 
   return {
     previewPath,

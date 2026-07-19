@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { OptinLandingPage } from "@/components/optin/optin-landing-page";
 import { PublishedOptinFunnel } from "@/components/optin/published-optin-funnel";
+import { UnpublishedOptinFunnelPage } from "@/components/optin/unpublished-optin-funnel-page";
 import {
   getOptinFunnelPreviewBySlug,
   getPublicOptinFunnel,
@@ -18,6 +19,7 @@ import {
   getAdvertiserCampaignTestFunnel,
   getCampaignTestFunnel,
 } from "@/services/campaign.service";
+import type { PublicOptinFunnel } from "@/lib/optin-funnel";
 
 export type PublicOptinSlugSearchParams = {
   preview?: string;
@@ -55,6 +57,37 @@ async function recordView(slug: string) {
 
 function resolveThankYouPath(slug: string, thankYouPath?: string) {
   return thankYouPath ?? `/o/${slug}/thank-you`;
+}
+
+function renderDraftPreview(
+  slug: string,
+  draft: PublicOptinFunnel,
+  resolvedThankYouPath: string,
+  testCampaignId?: string,
+) {
+  if (usesBuilderRenderer(draft)) {
+    return (
+      <PublishedOptinFunnel
+        slug={slug}
+        craftState={normalizePreviewCraft(draft.craftState?.craft ?? createEmptyCraftState())}
+        theme={draft.themeJson ?? DEFAULT_THEME}
+        formJson={draft.formJson ?? null}
+        thankYouEnabled={draft.thankYouEnabled}
+        destinationUrl={draft.destinationUrl}
+        previewMode={!testCampaignId}
+        testCampaignId={testCampaignId}
+        thankYouPath={resolvedThankYouPath}
+      />
+    );
+  }
+
+  return (
+    <OptinLandingPage
+      page={draft}
+      testCampaignId={testCampaignId}
+      thankYouPath={resolvedThankYouPath}
+    />
+  );
 }
 
 export async function PublicOptinSlugPage({
@@ -110,51 +143,13 @@ export async function PublicOptinSlugPage({
 
     const draft = await getOptinFunnelPreviewBySlug(slug);
     if (!draft) notFound();
-
-    if (usesBuilderRenderer(draft)) {
-      return (
-        <PublishedOptinFunnel
-          slug={slug}
-          craftState={normalizePreviewCraft(draft.craftState?.craft ?? createEmptyCraftState())}
-          theme={draft.themeJson ?? DEFAULT_THEME}
-          formJson={draft.formJson ?? null}
-          thankYouEnabled={draft.thankYouEnabled}
-          destinationUrl={draft.destinationUrl}
-          testCampaignId={testCampaignId}
-          thankYouPath={resolvedThankYouPath}
-        />
-      );
-    }
-
-    return (
-      <OptinLandingPage
-        page={draft}
-        testCampaignId={testCampaignId}
-        thankYouPath={resolvedThankYouPath}
-      />
-    );
+    return renderDraftPreview(slug, draft, resolvedThankYouPath, testCampaignId);
   }
 
   if (preview === "1") {
     const draft = await getOptinFunnelPreviewBySlug(slug);
     if (!draft) notFound();
-
-    if (usesBuilderRenderer(draft)) {
-      return (
-        <PublishedOptinFunnel
-          slug={slug}
-          craftState={normalizePreviewCraft(draft.craftState?.craft ?? createEmptyCraftState())}
-          theme={draft.themeJson ?? DEFAULT_THEME}
-          formJson={draft.formJson ?? null}
-          thankYouEnabled={draft.thankYouEnabled}
-          destinationUrl={draft.destinationUrl}
-          previewMode
-          thankYouPath={resolvedThankYouPath}
-        />
-      );
-    }
-
-    return <OptinLandingPage page={draft} thankYouPath={resolvedThankYouPath} />;
+    return renderDraftPreview(slug, draft, resolvedThankYouPath);
   }
 
   const publishedBuilder = await getPublishedBuilderFunnel(slug);
@@ -174,8 +169,39 @@ export async function PublicOptinSlugPage({
   }
 
   const page = await getPublicOptinFunnel(slug);
-  if (!page) notFound();
+  if (page) {
+    await recordView(slug);
+    return <OptinLandingPage page={page} thankYouPath={resolvedThankYouPath} />;
+  }
 
-  await recordView(slug);
-  return <OptinLandingPage page={page} thankYouPath={resolvedThankYouPath} />;
+  // Unpublished (or missing publishedVersion): draft may still exist.
+  const draftMeta = await prisma.advertiserOptinPage.findFirst({
+    where: { slug, status: { not: "ARCHIVED" } },
+    select: {
+      advertiserId: true,
+      isPublished: true,
+      title: true,
+      name: true,
+    },
+  });
+  if (!draftMeta) notFound();
+
+  const draft = await getOptinFunnelPreviewBySlug(slug);
+  if (!draft) notFound();
+
+  const session = await getSession();
+  const isOwnerOrAdmin =
+    session?.user?.role === "ADMIN" ||
+    (session?.user?.role === "ADVERTISER" && session.user.id === draftMeta.advertiserId);
+
+  if (isOwnerOrAdmin) {
+    return renderDraftPreview(slug, draft, resolvedThankYouPath);
+  }
+
+  return (
+    <UnpublishedOptinFunnelPage
+      slug={slug}
+      title={draftMeta.title?.trim() || draftMeta.name?.trim() || undefined}
+    />
+  );
 }
