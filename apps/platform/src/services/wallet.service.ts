@@ -288,8 +288,10 @@ export async function processLeadPayment(leadId: string) {
 
     const previousSpent = Number(lead.campaign.spent);
     const spent = previousSpent + cpl;
-    const budget = Number(lead.campaign.budget);
-    const crossedBudget = previousSpent < budget && spent >= budget;
+    const budget =
+      lead.campaign.budget == null ? null : Number(lead.campaign.budget);
+    const crossedBudget =
+      budget != null && previousSpent < budget && spent >= budget;
 
     await tx.campaign.update({
       where: { id: lead.campaignId },
@@ -326,7 +328,7 @@ export async function processLeadPayment(leadId: string) {
       void notifyLowBalanceTiers(result.advertiserId, result.crossedTiers, result.newBalance);
     }
 
-    if (result?.crossedBudget) {
+    if (result?.crossedBudget && result.budget != null) {
       void notifyCampaignBudgetReached(result.advertiserId, {
         campaignId: result.campaignId,
         campaignName: result.campaignName,

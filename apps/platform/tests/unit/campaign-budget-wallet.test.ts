@@ -31,18 +31,20 @@ describe("assertValidCampaignBudget", () => {
     vi.clearAllMocks();
   });
 
-  it("rejects missing or non-positive budget", async () => {
+  it("rejects zero or negative budget", async () => {
     const { assertValidCampaignBudget } = await import("@/services/campaign.service");
     expect(() => assertValidCampaignBudget(0)).toThrow(AppError);
+    expect(() => assertValidCampaignBudget(-5)).toThrow(AppError);
   });
 
-  it("allows budget larger than wallet balance", async () => {
+  it("allows null for unlimited budget", async () => {
+    const { assertValidCampaignBudget } = await import("@/services/campaign.service");
+    expect(assertValidCampaignBudget(null)).toBeNull();
+  });
+
+  it("allows any positive budget", async () => {
     const { assertValidCampaignBudget } = await import("@/services/campaign.service");
     expect(assertValidCampaignBudget(500)).toBe(500);
-  });
-
-  it("allows budget below spent amount", async () => {
-    const { assertValidCampaignBudget } = await import("@/services/campaign.service");
     expect(assertValidCampaignBudget(40)).toBe(40);
   });
 });
@@ -53,7 +55,7 @@ describe("createCampaign budget enforcement", () => {
     prismaMock.campaign.create.mockResolvedValue({ id: "camp-1" });
   });
 
-  it("requires a finite budget and does not fall back to unlimited", async () => {
+  it("stores a finite budget when provided", async () => {
     const { createCampaign } = await import("@/services/campaign.service");
 
     await createCampaign({
@@ -71,20 +73,20 @@ describe("createCampaign budget enforcement", () => {
     );
   });
 
-  it("allows create when budget exceeds wallet balance", async () => {
+  it("stores null budget for unlimited campaigns", async () => {
     const { createCampaign } = await import("@/services/campaign.service");
 
     await createCampaign({
       advertiserId: "adv-1",
-      name: "High Budget",
+      name: "Unlimited Campaign",
       category: "GENERIC",
       cpl: 1,
-      budget: 500,
+      budget: null,
     });
 
     expect(prismaMock.campaign.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ budget: 500 }),
+        data: expect.objectContaining({ budget: null }),
       }),
     );
   });
@@ -122,14 +124,14 @@ describe("updateCampaignByAdmin budget enforcement", () => {
     expect(prismaMock.campaign.update).toHaveBeenCalled();
   });
 
-  it("allows budget above wallet balance on update", async () => {
+  it("allows clearing budget to unlimited on update", async () => {
     const { updateCampaignByAdmin } = await import("@/services/campaign.service");
 
-    await updateCampaignByAdmin("camp-1", { budget: 500 }, "admin-1", { actorRole: "ADMIN" });
+    await updateCampaignByAdmin("camp-1", { budget: null }, "admin-1", { actorRole: "ADMIN" });
 
     expect(prismaMock.campaign.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ budget: 500 }),
+        data: expect.objectContaining({ budget: null }),
       }),
     );
   });

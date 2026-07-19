@@ -60,7 +60,7 @@ export default async function AdminCampaignDetailPage({ params }: PageProps) {
           description: campaign.description,
           category: campaign.category,
           cpl: Number(campaign.cpl),
-          budget: Number(campaign.budget),
+          budget: campaign.budget == null ? null : Number(campaign.budget),
           spent: Number(campaign.spent),
           dailyCap: campaign.dailyCap,
           monthlyCap: campaign.monthlyCap,
@@ -86,7 +86,7 @@ export default async function AdminCampaignDetailPage({ params }: PageProps) {
               campaign={{
                 ...campaign,
                 cpl: Number(campaign.cpl),
-                budget: Number(campaign.budget),
+                budget: campaign.budget == null ? null : Number(campaign.budget),
                 spent: Number(campaign.spent),
                 _count: { leads: leadCount },
               }}

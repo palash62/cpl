@@ -274,6 +274,37 @@ describe("processLeadPayment", () => {
     expect(notifyCampaignBudgetReached).not.toHaveBeenCalled();
   });
 
+  it("does not notify budget crossed for unlimited (null) budget campaigns", async () => {
+    balances.set("advertiser-wallet", 100);
+    prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "lead-unlimited",
+      isTest: false,
+      publisherId: "publisher-1",
+      country: "US",
+      campaignId: "campaign-1",
+      campaign: {
+        id: "campaign-1",
+        advertiserId: "advertiser-1",
+        name: "Unlimited campaign",
+        cpl: 10,
+        spent: 95,
+        budget: null,
+      },
+      publisher: { role: "PUBLISHER" },
+    });
+
+    const { notifyCampaignBudgetReached } = await import("@/services/notify.service");
+    const { processLeadPayment } = await import("@/services/wallet.service");
+
+    await processLeadPayment("lead-unlimited");
+
+    expect(prismaMock.campaign.update).toHaveBeenCalledWith({
+      where: { id: "campaign-1" },
+      data: { spent: 105 },
+    });
+    expect(notifyCampaignBudgetReached).not.toHaveBeenCalled();
+  });
+
   it("notifies low-balance tiers when debit crosses thresholds", async () => {
     balances.set("advertiser-wallet", 55);
     prismaMock.lead.findUniqueOrThrow.mockResolvedValueOnce({

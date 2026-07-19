@@ -58,7 +58,12 @@ export async function getEligibleCampaigns(
     },
     include: {
       advertiser: {
-        select: { id: true, name: true, email: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          wallet: { select: { balance: true } },
+        },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -68,7 +73,8 @@ export async function getEligibleCampaigns(
   const platformSettings = await getPlatformSettings();
 
   return campaigns.filter((campaign) => {
-    if (Number(campaign.spent) >= Number(campaign.budget)) return false;
+    const walletBalance = Number(campaign.advertiser.wallet?.balance ?? 0);
+    if (walletBalance < Number(campaign.cpl)) return false;
 
     if (
       campaignExcludesBlockedPublishers(campaign.targeting) &&

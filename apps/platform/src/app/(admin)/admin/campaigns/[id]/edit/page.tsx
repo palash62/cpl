@@ -46,7 +46,7 @@ export default async function AdminCampaignEditPage({ params }: PageProps) {
           status: campaign.status,
           category: campaign.category,
           cpl: Number(campaign.cpl),
-          budget: Number(campaign.budget),
+          budget: campaign.budget == null ? null : Number(campaign.budget),
           dailyCap: campaign.dailyCap,
           publisherAccess: campaign.publisherAccess,
           autoApprove: campaign.autoApprove,

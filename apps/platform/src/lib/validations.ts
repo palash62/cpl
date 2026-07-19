@@ -58,9 +58,9 @@ export const campaignSchema = z.object({
   description: z.string().optional(),
   category: z.enum(["FINANCE", "INSURANCE", "EDUCATION", "REAL_ESTATE", "GENERIC"]),
   cpl: z.number().positive(),
-  budget: z.number().positive("Total budget is required"),
-  dailyCap: z.number().int().positive().optional(),
-  monthlyCap: z.number().int().positive().optional(),
+  budget: z.number().positive().nullable().optional(),
+  dailyCap: z.number().int().positive().nullable().optional(),
+  monthlyCap: z.number().int().positive().nullable().optional(),
   publisherAccess: z.enum(["OPEN", "APPROVAL_REQUIRED", "INVITE_ONLY"]).optional(),
   autoApprove: z.boolean().optional(),
   status: z.enum(["DRAFT", "PENDING", "ACTIVE", "PAUSED"]).optional(),
@@ -414,7 +414,8 @@ export const adminUpdateCampaignSchema = campaignSchema
   .extend({
     optinPageId: z.string().min(1).optional(),
     vertical: z.string().trim().min(1).optional(),
-    // null clears an existing cap (edit form sends null when daily budget is blank)
+    // null clears an existing value (edit form sends null when field is blank)
+    budget: z.number().positive().nullable().optional(),
     dailyCap: z.number().int().positive().nullable().optional(),
     monthlyCap: z.number().int().positive().nullable().optional(),
   });

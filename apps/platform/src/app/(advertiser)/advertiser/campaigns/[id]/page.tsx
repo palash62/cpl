@@ -64,7 +64,7 @@ export default async function AdvertiserCampaignDetailPage({ params }: PageProps
           description: campaign.description,
           category: campaign.category,
           cpl: Number(campaign.cpl),
-          budget: Number(campaign.budget),
+          budget: campaign.budget == null ? null : Number(campaign.budget),
           spent: Number(campaign.spent),
           dailyCap: campaign.dailyCap,
           monthlyCap: campaign.monthlyCap,

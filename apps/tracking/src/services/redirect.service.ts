@@ -120,13 +120,21 @@ async function getEligibleCampaigns(publisherId: string, options?: { countryCode
   const campaigns = await prisma.campaign.findMany({
     where: { status: "ACTIVE" },
     include: {
-      advertiser: { select: { id: true, name: true, email: true } },
+      advertiser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          wallet: { select: { balance: true } },
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   });
 
   return campaigns.filter((campaign) => {
-    if (Number(campaign.spent) >= Number(campaign.budget)) return false;
+    const walletBalance = Number(campaign.advertiser.wallet?.balance ?? 0);
+    if (walletBalance < Number(campaign.cpl)) return false;
     if (
       campaignExcludesBlockedPublishers(campaign.targeting) &&
       blockedAdvertiserIds.has(campaign.advertiserId)

@@ -50,7 +50,7 @@ interface AdminCampaignEditFormProps {
     description: string | null;
     category: CampaignCategory;
     cpl: number;
-    budget: number;
+    budget: number | null;
     dailyCap: number | null;
     monthlyCap: number | null;
     status: CampaignStatus;
@@ -87,7 +87,9 @@ export function AdminCampaignEditForm({ campaign }: AdminCampaignEditFormProps) 
   const [description, setDescription] = useState(campaign.description ?? "");
   const [category, setCategory] = useState(campaign.category);
   const [cpl, setCpl] = useState(String(campaign.cpl));
-  const [budget, setBudget] = useState(String(campaign.budget));
+  const [budget, setBudget] = useState(
+    campaign.budget != null && Number(campaign.budget) > 0 ? String(campaign.budget) : "",
+  );
   const [dailyCap, setDailyCap] = useState(campaign.dailyCap ? String(campaign.dailyCap) : "");
   const [monthlyCap, setMonthlyCap] = useState(
     campaign.monthlyCap ? String(campaign.monthlyCap) : "",
@@ -137,7 +139,11 @@ export function AdminCampaignEditForm({ campaign }: AdminCampaignEditFormProps) 
     if (fullEdit) {
       body.name = name.trim();
       body.cpl = parseFloat(cpl);
-      body.budget = parseFloat(budget);
+      const parsedBudget = budget.trim() ? parseFloat(budget) : null;
+      body.budget =
+        parsedBudget != null && Number.isFinite(parsedBudget) && parsedBudget > 0
+          ? parsedBudget
+          : null;
       body.category = category;
     }
 
@@ -282,8 +288,9 @@ export function AdminCampaignEditForm({ campaign }: AdminCampaignEditFormProps) 
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
               disabled={!fullEdit}
-              required
+              placeholder="Unlimited"
             />
+            <p className="text-xs text-slate-500">Leave blank for unlimited.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="dailyCap">Daily cap</Label>

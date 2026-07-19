@@ -21,9 +21,9 @@ export interface CreateCampaignInput {
   description?: string;
   category: CampaignCategory;
   cpl: number;
-  budget: number;
-  dailyCap?: number;
-  monthlyCap?: number;
+  budget?: number | null;
+  dailyCap?: number | null;
+  monthlyCap?: number | null;
   publisherAccess?: PublisherAccess;
   autoApprove?: boolean;
   status?: CampaignStatus;
@@ -38,16 +38,17 @@ export interface CreateCampaignInput {
   }>;
 }
 
-export function assertValidCampaignBudget(budget: number) {
+/** Positive budget, or null for unlimited. Rejects 0/negative. */
+export function assertValidCampaignBudget(budget: number | null) {
+  if (budget === null) return null;
   if (!Number.isFinite(budget) || budget <= 0) {
-    throw Errors.validation("Total budget is required", "budget");
+    throw Errors.validation("Total budget must be a positive amount or left blank for unlimited", "budget");
   }
-
   return budget;
 }
 
 export async function createCampaign(input: CreateCampaignInput) {
-  assertValidCampaignBudget(input.budget);
+  const budget = assertValidCampaignBudget(input.budget ?? null);
 
   return prisma.campaign.create({
     data: {
@@ -56,7 +57,7 @@ export async function createCampaign(input: CreateCampaignInput) {
       description: input.description,
       category: input.category,
       cpl: input.cpl,
-      budget: input.budget,
+      budget,
       dailyCap: input.dailyCap,
       monthlyCap: input.monthlyCap,
       publisherAccess: "OPEN",
@@ -364,7 +365,9 @@ export async function updateCampaignByAdmin(
   }
 
   if (body.budget !== undefined) {
-    assertValidCampaignBudget(Number(body.budget));
+    (data as Record<string, unknown>).budget = assertValidCampaignBudget(
+      body.budget === null ? null : Number(body.budget),
+    );
   }
 
   if (body.targeting !== undefined) {

@@ -318,7 +318,7 @@ model Campaign {
   description     String?
   category        CampaignCategory @default(GENERIC)
   cpl             Decimal          @db.Decimal(10, 2)
-  budget          Decimal          @db.Decimal(12, 2)
+  budget          Decimal?         @db.Decimal(12, 2)
   spent           Decimal          @default(0) @db.Decimal(12, 2)
   dailyCap        Int?             @map("daily_cap")
   monthlyCap      Int?             @map("monthly_cap")

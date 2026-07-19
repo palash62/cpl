@@ -364,21 +364,30 @@ export function CreateCampaignForm({
     : walletBalance;
 
   const cplValue = parseFloat(cpl) || 0;
-  const totalBudgetValue = totalBudget.trim() ? parseFloat(totalBudget) : null;
+  const totalBudgetValue =
+    totalBudget.trim() && !Number.isNaN(parseFloat(totalBudget)) && parseFloat(totalBudget) > 0
+      ? parseFloat(totalBudget)
+      : null;
   const dailyBudgetValue = dailyBudget.trim() ? parseFloat(dailyBudget) : null;
   const selectedVertical = VERTICALS.find((item) => item.label === vertical);
+  const previousBudget =
+    editCampaign == null || editCampaign.budget == null || Number(editCampaign.budget) <= 0
+      ? null
+      : Number(editCampaign.budget);
   const budgetChanged =
     !isEdit ||
     editCampaign == null ||
-    totalBudgetValue === null ||
-    Math.abs(totalBudgetValue - Number(editCampaign.budget)) > 0.0001;
+    (totalBudgetValue === null) !== (previousBudget === null) ||
+    (totalBudgetValue !== null &&
+      previousBudget !== null &&
+      Math.abs(totalBudgetValue - previousBudget) > 0.0001);
 
   const minCpl = 0.1;
   const cplInvalid = cplValue > 0 && (cplValue < minCpl || cplValue > 100);
-  const budgetMissing = !totalBudget.trim() || totalBudgetValue === null || Number.isNaN(totalBudgetValue) || totalBudgetValue <= 0;
-  const insufficientBalance =
-    cplValue > 0 &&
-    (effectiveWalletBalance < cplValue || (!isEdit && budgetMissing));
+  const budgetInvalid =
+    totalBudget.trim() !== "" &&
+    (totalBudgetValue === null || Number.isNaN(totalBudgetValue) || totalBudgetValue <= 0);
+  const insufficientBalance = cplValue > 0 && effectiveWalletBalance < cplValue;
 
   const selectedOptinPage = optinPages.find((page) => page.id === optinPageId);
 
@@ -409,8 +418,8 @@ export function CreateCampaignForm({
       }
     }
     if (canEditField("budget")) {
-      if (budgetMissing) {
-        setError("Total budget is required.");
+      if (budgetInvalid) {
+        setError("Total budget must be a positive amount, or leave blank for unlimited.");
         return;
       }
     }
@@ -468,7 +477,7 @@ export function CreateCampaignForm({
       }
       if (canEditField("name")) patchBody.name = name.trim();
       if (canEditField("cpl")) patchBody.cpl = cplValue;
-      if (canEditField("budget") && budgetChanged && totalBudgetValue !== null) {
+      if (canEditField("budget") && budgetChanged) {
         patchBody.budget = totalBudgetValue;
       }
       if (canEditField("category")) patchBody.category = selectedVertical?.category;
@@ -505,7 +514,7 @@ export function CreateCampaignForm({
           vertical,
           category: selectedVertical.category,
           cpl: cplValue,
-          budget: totalBudgetValue!,
+          budget: totalBudgetValue,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           status: campaignStatus,
           description: selectedOptinPage
@@ -522,7 +531,7 @@ export function CreateCampaignForm({
             : undefined,
           category: selectedVertical.category,
           cpl: cplValue,
-          budget: totalBudgetValue!,
+          budget: totalBudgetValue,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
@@ -565,7 +574,7 @@ export function CreateCampaignForm({
     optinPageId &&
     vertical &&
     (cplValue >= minCpl || isEdit) &&
-    !budgetMissing &&
+    !budgetInvalid &&
     !insufficientBalance &&
     !cplInvalid &&
     !loadingOptinPages &&
@@ -900,17 +909,16 @@ export function CreateCampaignForm({
                   Total Budget
                 </Label>
                 <FieldHint>
-                  Required. Campaign runs while your wallet has funds.
+                  Leave blank for unlimited. Campaign runs while your wallet has funds.
                 </FieldHint>
                 <div className="pt-1">
                   <CurrencyInput
                     id="totalBudget"
                     value={totalBudget}
                     onChange={setTotalBudget}
-                    placeholder="0.00"
+                    placeholder="Unlimited"
                     min={1}
                     step={1}
-                    required
                     disabled={!canEditField("budget")}
                   />
                 </div>

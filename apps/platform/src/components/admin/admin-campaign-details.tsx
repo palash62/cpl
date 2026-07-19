@@ -44,7 +44,7 @@ export type AdminCampaignDetailsProps = {
     description: string | null;
     category: CampaignCategory;
     cpl: number;
-    budget: number;
+    budget: number | null;
     spent: number;
     dailyCap: number | null;
     monthlyCap: number | null;
@@ -96,7 +96,8 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
         <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs text-slate-500">Budget / spent</p>
           <p className="mt-1 text-xl font-bold text-slate-900">
-            {formatCurrency(campaign.spent)} / {formatCurrency(campaign.budget)}
+            {formatCurrency(campaign.spent)} /{" "}
+            {campaign.budget == null ? "Unlimited" : formatCurrency(campaign.budget)}
           </p>
         </div>
         <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -152,11 +153,18 @@ export function AdminCampaignDetails({ campaign }: AdminCampaignDetailsProps) {
       <PageSection title="Budget & caps" icon={Building2} gradient="revenue">
         <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 lg:grid-cols-4">
           <DetailCell label="CPL bid" value={formatCurrency(campaign.cpl)} />
-          <DetailCell label="Total budget" value={formatCurrency(campaign.budget)} />
+          <DetailCell
+            label="Total budget"
+            value={campaign.budget == null ? "Unlimited" : formatCurrency(campaign.budget)}
+          />
           <DetailCell label="Spent" value={formatCurrency(campaign.spent)} />
           <DetailCell
             label="Remaining"
-            value={formatCurrency(Math.max(0, campaign.budget - campaign.spent))}
+            value={
+              campaign.budget == null
+                ? "—"
+                : formatCurrency(Math.max(0, campaign.budget - campaign.spent))
+            }
           />
           <DetailCell label="Daily budget" value={campaign.dailyCap ?? "Unlimited"} />
           <DetailCell label="Monthly cap" value={campaign.monthlyCap ?? "Unlimited"} />

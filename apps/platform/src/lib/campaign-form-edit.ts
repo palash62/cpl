@@ -10,7 +10,7 @@ export type CampaignEditInitial = {
   status: CampaignStatus;
   category: CampaignCategory;
   cpl: number;
-  budget: number;
+  budget: number | null;
   dailyCap: number | null;
   publisherAccess: string;
   autoApprove: boolean;
@@ -42,7 +42,7 @@ export function getCampaignEditFormDefaults(campaign: CampaignEditInitial) {
     blacklistedOperatingSystems: targeting.blacklistedOperatingSystems,
     excludeBlockedPublishers: targeting.excludeBlockedPublishers,
     cpl: String(campaign.cpl),
-    totalBudget: campaign.budget > 0 ? String(campaign.budget) : "",
+    totalBudget: campaign.budget != null && Number(campaign.budget) > 0 ? String(campaign.budget) : "",
     dailyBudget: campaign.dailyCap ? String(campaign.dailyCap) : "",
     pixelToken: campaign.pixelToken,
   };

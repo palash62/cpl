@@ -129,7 +129,9 @@ export function AdminCampaignReviewDialog({ campaign }: { campaign: CampaignRow 
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-xs text-slate-500">Budget</p>
                 <p className="text-sm font-medium text-slate-900">
-                  {formatCurrency(Number(campaign.budget))}
+                  {campaign.budget == null
+                    ? "Unlimited"
+                    : formatCurrency(Number(campaign.budget))}
                   {campaign.dailyCap ? ` · ${campaign.dailyCap}/day cap` : ""}
                 </p>
               </div>
