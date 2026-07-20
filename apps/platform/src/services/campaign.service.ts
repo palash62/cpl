@@ -476,6 +476,19 @@ export async function updateCampaignByAdmin(
       actionPath: "/advertiser/campaigns",
       notificationType: "campaign.status_changed",
     });
+
+    if (
+      campaign.status === "DRAFT" &&
+      body.status === "PENDING" &&
+      options?.actorRole === "ADVERTISER"
+    ) {
+      void notifyAdminAlert({
+        title: "Campaign pending review",
+        message: `${updated.advertiser.name} submitted "${updated.name}" for approval.`,
+        actionPath: "/admin/campaigns",
+        metadata: { campaignId: id, advertiserId: updated.advertiser.id },
+      });
+    }
   }
 
   return updated;

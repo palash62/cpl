@@ -48,6 +48,30 @@ interface CampaignSummaryPanelProps {
   onStatusChange?: (status: CampaignStatusChoice) => void;
   statusOptions?: string[];
   statusDisabled?: boolean;
+  isEdit?: boolean;
+  editCampaignStatus?: CampaignStatus;
+}
+
+function AdvertiserSubmissionNotice({
+  isEdit,
+  editCampaignStatus,
+}: {
+  isEdit?: boolean;
+  editCampaignStatus?: CampaignStatus;
+}) {
+  if (isEdit && editCampaignStatus === "PENDING") {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+        Your campaign is pending admin review. Once approved, it goes live as Active.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+      Save as draft to finish later, or submit for review when you are ready to go live.
+    </div>
+  );
 }
 
 export function CampaignSummaryPanel({
@@ -67,6 +91,8 @@ export function CampaignSummaryPanel({
   onStatusChange,
   statusOptions,
   statusDisabled = false,
+  isEdit = false,
+  editCampaignStatus,
 }: CampaignSummaryPanelProps) {
   const rows = [
     {
@@ -155,9 +181,7 @@ export function CampaignSummaryPanel({
             </Select>
           </div>
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-            Your campaign will be submitted for admin review. Once approved, it goes live as Active.
-          </div>
+          <AdvertiserSubmissionNotice isEdit={isEdit} editCampaignStatus={editCampaignStatus} />
         )}
       </div>
     </div>

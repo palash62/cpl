@@ -391,8 +391,7 @@ export function CreateCampaignForm({
 
   const selectedOptinPage = optinPages.find((page) => page.id === optinPageId);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(intent: "draft" | "submit") {
     setError("");
 
     if (!name.trim()) {
@@ -423,7 +422,7 @@ export function CreateCampaignForm({
         return;
       }
     }
-    if (insufficientBalance) {
+    if (intent === "submit" && insufficientBalance) {
       setError("You do not have enough balance to create a campaign. Please add funds to your account.");
       return;
     }
@@ -472,7 +471,11 @@ export function CreateCampaignForm({
         // null clears daily budget; omit is not enough when an existing cap must be removed
         patchBody.dailyCap = dailyBudgetValue ? Math.round(dailyBudgetValue) : null;
       }
-      if (canEditField("status")) {
+      if (intent === "draft") {
+        patchBody.status = "DRAFT";
+      } else if (!isAdmin && editCampaign.status === "DRAFT") {
+        patchBody.status = "PENDING";
+      } else if (canEditField("status")) {
         patchBody.status = campaignStatus;
       }
       if (canEditField("name")) patchBody.name = name.trim();
@@ -516,7 +519,7 @@ export function CreateCampaignForm({
           cpl: cplValue,
           budget: totalBudgetValue,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
-          status: campaignStatus,
+          status: intent === "draft" ? "DRAFT" : campaignStatus,
           description: selectedOptinPage
             ? `Optin funnel: ${selectedOptinPage.title}`
             : undefined,
@@ -533,6 +536,7 @@ export function CreateCampaignForm({
           cpl: cplValue,
           budget: totalBudgetValue,
           dailyCap: dailyBudgetValue ? Math.round(dailyBudgetValue) : undefined,
+          ...(intent === "draft" ? { status: "DRAFT" as const } : {}),
           targeting,
           fields: DEFAULT_LEAD_FIELDS,
         };
@@ -548,6 +552,12 @@ export function CreateCampaignForm({
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       setError(body?.error?.message ?? "Failed to create campaign. Please try again.");
+      return;
+    }
+
+    if (intent === "draft") {
+      router.push(backHref);
+      router.refresh();
       return;
     }
 
@@ -569,19 +579,28 @@ export function CreateCampaignForm({
       ? Array.from(new Set([lifecycle.status, ...getAllowedStatusTransitions(lifecycle.status)]))
       : undefined;
 
-  const canSubmit =
+  const canSubmitForm =
     name.trim() &&
     optinPageId &&
     vertical &&
     (cplValue >= minCpl || isEdit) &&
     !budgetInvalid &&
-    !insufficientBalance &&
     !cplInvalid &&
     !loadingOptinPages &&
     (!isAdmin || (advertiserId && !loadingAdvertisers));
 
+  const canSubmitForReview = canSubmitForm && !insufficientBalance;
+  const showDraftActions = !isEdit || editCampaign?.status === "DRAFT";
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSubmit("submit");
+      }}
+      noValidate
+      className="space-y-6"
+    >
       <div
         className="relative overflow-hidden rounded-[18px] px-6 py-5 shadow-md"
         style={{
@@ -992,6 +1011,8 @@ export function CreateCampaignForm({
             onStatusChange={setCampaignStatus}
             statusOptions={statusOptions}
             statusDisabled={!canEditField("status")}
+            isEdit={isEdit}
+            editCampaignStatus={editCampaign?.status}
           />
 
           <BidRecommendationPanel
@@ -1025,27 +1046,48 @@ export function CreateCampaignForm({
             )}
             {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-            <Button
-              type="submit"
-              disabled={loading || !canSubmit || (!isEdit && !!createdPixelToken)}
-              className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
-            >
-              {loading
-                ? isEdit
-                  ? "Saving..."
-                  : isAdmin
-                    ? "Creating..."
-                    : "Submitting..."
-                : isEdit
-                  ? "Save changes"
-                  : createdPixelToken
+            {showDraftActions ? (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={loading || !canSubmitForm || (!isEdit && !!createdPixelToken)}
+                  onClick={() => void handleSubmit("draft")}
+                  className="h-10 w-full rounded-lg font-semibold"
+                >
+                  {loading ? "Saving..." : "Save as draft"}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || !canSubmitForReview || (!isEdit && !!createdPixelToken)}
+                  className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
+                >
+                  {loading
                     ? isAdmin
-                      ? "Campaign created"
-                      : "Campaign submitted"
-                    : isAdmin
-                      ? "Create Campaign"
-                      : "Submit for Review"}
-            </Button>
+                      ? "Creating..."
+                      : "Submitting..."
+                    : isEdit
+                      ? isAdmin
+                        ? "Save changes"
+                        : "Submit for Review"
+                      : createdPixelToken
+                        ? isAdmin
+                          ? "Campaign created"
+                          : "Campaign submitted"
+                        : isAdmin
+                          ? "Create Campaign"
+                          : "Submit for Review"}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="submit"
+                disabled={loading || !canSubmitForReview}
+                className="h-10 w-full rounded-lg bg-[var(--theme-primary)] font-semibold hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? "Saving..." : "Save changes"}
+              </Button>
+            )}
             {createdPixelToken && !isEdit ? (
               <ButtonLink
                 href={backHref}
@@ -1058,11 +1100,11 @@ export function CreateCampaignForm({
                 Cancel
               </ButtonLink>
             )}
-            {!canSubmit && !error && (
+            {!canSubmitForm && !error && (
               <p className="mt-3 text-center text-xs text-slate-500">
                 {isAdmin
                   ? "Select an advertiser and fill required fields to continue"
-                  : "Fill required fields to submit for review"}
+                  : "Fill required fields to save or submit your campaign"}
               </p>
             )}
           </div>

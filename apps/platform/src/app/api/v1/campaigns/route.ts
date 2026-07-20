@@ -158,22 +158,40 @@ export async function POST(request: Request) {
         );
       }
 
+      const requestedStatus = parsed.data.status;
+      if (requestedStatus === "ACTIVE" || requestedStatus === "PAUSED") {
+        return Response.json(
+          {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Advertisers cannot create campaigns as active or paused",
+              status: 403,
+            },
+          },
+          { status: 403 },
+        );
+      }
+
+      const finalStatus = requestedStatus === "DRAFT" ? "DRAFT" : "PENDING";
+
       const campaign = await createCampaignWithOptinPage({
         request,
         advertiserId: session.user.id,
         optinPageId,
         campaignData: {
           ...parsed.data,
-          status: "PENDING",
+          status: finalStatus,
         },
       });
 
-      void notifyAdminAlert({
-        title: "Campaign pending review",
-        message: `${session.user.name} submitted "${campaign.name}" for approval.`,
-        actionPath: "/admin/campaigns",
-        metadata: { campaignId: campaign.id, advertiserId: session.user.id },
-      });
+      if (finalStatus === "PENDING") {
+        void notifyAdminAlert({
+          title: "Campaign pending review",
+          message: `${session.user.name} submitted "${campaign.name}" for approval.`,
+          actionPath: "/admin/campaigns",
+          metadata: { campaignId: campaign.id, advertiserId: session.user.id },
+        });
+      }
 
       return Response.json({ data: campaign }, { status: 201 });
     } catch (error) {
