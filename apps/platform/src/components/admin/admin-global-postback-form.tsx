@@ -296,7 +296,12 @@ export function AdminGlobalPostbackForm() {
                 Loading clicks…
               </div>
             ) : testClicks.length > 0 ? (
-              <Select value={testClickId || undefined} onValueChange={setTestClickId}>
+              <Select
+                value={testClickId || undefined}
+                onValueChange={(v) => {
+                  if (v) setTestClickId(v);
+                }}
+              >
                 <SelectTrigger className="h-11 bg-white font-mono text-sm">
                   <SelectValue placeholder="Select a click" />
                 </SelectTrigger>
