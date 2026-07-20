@@ -209,6 +209,30 @@ describe("postback macros", () => {
         "http://localhost:3001",
       ),
     ).toBe("https://network.test/offer?id=click123");
+
+    expect(
+      injectClickIdIntoTrackingUrl(
+        "https://network.test/click?sub1=[click_id]",
+        "click123",
+        "http://localhost:3001",
+      ),
+    ).toBe("https://network.test/click?sub1=click123");
+
+    expect(
+      injectClickIdIntoTrackingUrl(
+        "https://network.test/click?sub1=[click_id]&sub2=[aff_click_id]",
+        "click123",
+        "http://localhost:3001",
+      ),
+    ).toBe("https://network.test/click?sub1=click123&sub2=click123");
+
+    expect(
+      injectClickIdIntoTrackingUrl(
+        "https://network.test/click?sub1=%7Bclick_id%7D&adv_id=adv123",
+        "click123",
+        "http://localhost:3001",
+      ),
+    ).toBe("https://network.test/click?sub1=click123&adv_id=adv123");
   });
 });
 
@@ -240,7 +264,9 @@ describe("inbound click id parsing", () => {
     expect(normalizeClickId(null)).toBeNull();
     expect(normalizeClickId("{click_id}")).toBeNull();
     expect(normalizeClickId("{aff_click_id}")).toBeNull();
-    expect(inboundClickIdErrorMessage("placeholder")).toMatch(/Replace the \{click_id\}/);
+    expect(normalizeClickId("[click_id]")).toBeNull();
+    expect(normalizeClickId("[aff_click_id]")).toBeNull();
+    expect(inboundClickIdErrorMessage("placeholder")).toMatch(/\[click_id\]/);
     expect(inboundClickIdErrorMessage("unknown")).toMatch(/Unknown click_id/);
   });
 });

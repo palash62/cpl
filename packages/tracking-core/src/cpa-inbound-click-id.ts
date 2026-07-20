@@ -1,6 +1,11 @@
 /** Inbound CPA postback click id parsing (shared by tracking handler + tests). */
 
-const PLACEHOLDER_MACROS = new Set(["{click_id}", "{aff_click_id}"]);
+const PLACEHOLDER_MACROS = new Set([
+  "{click_id}",
+  "{aff_click_id}",
+  "[click_id]",
+  "[aff_click_id]",
+]);
 
 export type InboundClickIdFailure = "missing" | "placeholder" | "unknown";
 
@@ -22,7 +27,7 @@ export function inboundClickIdErrorMessage(failure: InboundClickIdFailure): stri
     case "missing":
       return "click_id is required. Use click_id or aff_click_id with a real platform click id from a CPA tracking link.";
     case "placeholder":
-      return "Replace the {click_id} macro with a real platform click id before firing this postback.";
+      return "Replace the {click_id} or [click_id] macro with a real platform click id before firing this postback.";
     case "unknown":
       return "Unknown click_id. Visit a CPA offer tracking link first to generate a click, then use that id.";
   }

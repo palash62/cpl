@@ -55,6 +55,12 @@ export async function GET(
   }
 
   let destination = offer.trackingUrl;
+
+  // Replace {click_id} macros before URL serialization encodes braces to %7B...%7D.
+  if (clickId) {
+    destination = injectClickIdIntoTrackingUrl(destination, clickId, requestUrl.origin);
+  }
+
   try {
     const target = destination.startsWith("/")
       ? new URL(destination, requestUrl.origin)
@@ -67,10 +73,6 @@ export async function GET(
     destination = target.toString();
   } catch {
     // keep original destination
-  }
-
-  if (clickId) {
-    destination = injectClickIdIntoTrackingUrl(destination, clickId, requestUrl.origin);
   }
 
   return NextResponse.redirect(destination, 302);

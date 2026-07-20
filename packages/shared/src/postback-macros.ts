@@ -61,17 +61,39 @@ export function substitutePostbackMacros(
   return result;
 }
 
+/** Click-id tokens replaced when redirecting traffic to a network tracking URL. */
+export const CLICK_ID_MACRO_TOKENS = [
+  "{click_id}",
+  "{aff_click_id}",
+  "[click_id]",
+  "[aff_click_id]",
+  // After URL parsing/serialization, brace macros are percent-encoded.
+  "%7Bclick_id%7D",
+  "%7Baff_click_id%7D",
+  "%5Bclick_id%5D",
+  "%5Baff_click_id%5D",
+] as const;
+
+function trackingUrlHasClickIdMacro(destination: string): boolean {
+  return CLICK_ID_MACRO_TOKENS.some((token) => destination.includes(token));
+}
+
+/** Replace all supported click-id macro tokens with the platform click id. */
+export function replaceClickIdMacros(destination: string, clickId: string): string {
+  let result = destination;
+  for (const token of CLICK_ID_MACRO_TOKENS) {
+    result = result.split(token).join(clickId);
+  }
+  return result;
+}
+
 export function injectClickIdIntoTrackingUrl(
   destination: string,
   clickId: string,
   requestOrigin: string,
 ): string {
-  if (destination.includes("{click_id}") || destination.includes("{aff_click_id}")) {
-    return destination
-      .split("{click_id}")
-      .join(clickId)
-      .split("{aff_click_id}")
-      .join(clickId);
+  if (trackingUrlHasClickIdMacro(destination)) {
+    return replaceClickIdMacros(destination, clickId);
   }
 
   try {

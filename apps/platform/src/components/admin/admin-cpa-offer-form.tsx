@@ -308,7 +308,7 @@ export function AdminCpaOfferForm({ mode, offer }: AdminCpaOfferFormProps) {
         <FieldRow
           label="Network Tracking URL"
           required
-          help="Destination URL the platform redirect will send traffic to."
+          help="Destination URL for the platform redirect. If the network supports click macros, include {click_id} or [click_id] (e.g. sub1=[click_id]) — Leadvix replaces these with the platform click id."
         >
           <Input
             value={values.trackingUrl}

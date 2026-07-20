@@ -7,6 +7,7 @@ import {
   resolveCpaClickAttribution,
   resolveInboundClickId,
   inboundClickIdErrorMessage,
+  normalizeClickId,
 } from "@cpl/tracking-core";
 
 type ClickRow = {
@@ -57,9 +58,11 @@ function clickIdFailureResponse(getParam: (key: string) => string | null, clickF
   const raw = (rawClickId ?? rawAffClickId ?? "").trim();
 
   let reason: "missing" | "placeholder" | "unknown" = "missing";
-  if (raw === "{click_id}" || raw === "{aff_click_id}") {
+  if (!raw) {
+    reason = "missing";
+  } else if (!normalizeClickId(raw)) {
     reason = "placeholder";
-  } else if (raw) {
+  } else {
     reason = "unknown";
   }
 
