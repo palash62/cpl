@@ -46,9 +46,18 @@ function isChildActive(pathname: string, child: NavItem, siblings: NavItem[]) {
   if (child.href === "/admin/global-postback") {
     return pathname === "/admin/global-postback" || pathname.startsWith("/admin/global-postback/");
   }
+  if (child.href === "/advertiser/cpa-offers/dashboard") {
+    return pathname === "/advertiser/cpa-offers/dashboard" || pathname.startsWith("/advertiser/cpa-offers/dashboard/");
+  }
+  if (child.href === "/advertiser/cpa-offers/report") {
+    return pathname === "/advertiser/cpa-offers/report" || pathname.startsWith("/advertiser/cpa-offers/report/");
+  }
   if (child.href === "/advertiser/cpa-offers") {
     return (
-      pathname === "/advertiser/cpa-offers" || pathname.startsWith("/advertiser/cpa-offers/")
+      pathname === "/advertiser/cpa-offers" ||
+      (pathname.startsWith("/advertiser/cpa-offers/") &&
+        !pathname.startsWith("/advertiser/cpa-offers/dashboard") &&
+        !pathname.startsWith("/advertiser/cpa-offers/report"))
     );
   }
   if (child.href === "/advertiser/global-postback") {

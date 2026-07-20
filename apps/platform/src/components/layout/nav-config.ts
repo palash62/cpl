@@ -79,6 +79,8 @@ export const ADVERTISER_NAV: NavItem[] = [
     icon: Store,
     children: [
       { label: "Offer Marketplace", href: "/advertiser/cpa-offers", icon: Store },
+      { label: "Dashboard", href: "/advertiser/cpa-offers/dashboard", icon: LayoutDashboard },
+      { label: "Report", href: "/advertiser/cpa-offers/report", icon: BarChart3 },
       { label: "Global Postback", href: "/advertiser/global-postback", icon: Webhook },
     ],
   },

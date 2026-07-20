@@ -1,20 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  CalendarRange,
-  DollarSign,
-  Filter,
-  Search,
-  Store,
-} from "lucide-react";
+import { Activity, CalendarRange, DollarSign, Filter, Search, Store } from "lucide-react";
 import { PageHero } from "@/components/admin/page-hero";
-import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
-import {
-  GradientStatCard,
-  NeutralStatCard,
-} from "@/components/admin/gradient-stat-card";
+import { AdvertiserCpaOffersSubNav } from "@/components/advertiser/advertiser-cpa-offers-sub-nav";
+import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { CpaOfferStatusDot } from "@/components/cpa/cpa-offer-thumb";
 import { Button } from "@/components/ui/button";
@@ -67,7 +57,7 @@ function formatRawQuery(raw: unknown) {
   }
 }
 
-export function AdminCpaOffersReport() {
+export function AdvertiserCpaOffersReport() {
   const [result, setResult] = useState<CpaConversionListResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<AppliedFilters>(emptyFilters);
@@ -88,7 +78,7 @@ export function AdminCpaOffersReport() {
       params.set("to", end.toISOString());
     }
 
-    const res = await fetch(`/api/v1/admin/cpa-offers/conversions?${params}`);
+    const res = await fetch(`/api/v1/advertiser/cpa-offers/conversions?${params}`);
     const body = await res.json().catch(() => ({}));
     setResult(body.data ?? null);
     setLoading(false);
@@ -135,7 +125,7 @@ export function AdminCpaOffersReport() {
         badge={loading ? undefined : `${total} conversions · ${rangeLabel}`}
       />
 
-      <AdminCpaOffersSubNav />
+      <AdvertiserCpaOffersSubNav />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <NeutralStatCard
@@ -197,8 +187,7 @@ export function AdminCpaOffersReport() {
         <div
           className="flex items-center gap-2 px-5 py-3.5 text-white"
           style={{
-            backgroundImage:
-              "linear-gradient(135deg, var(--theme-hero-from), var(--theme-hero-to))",
+            backgroundImage: "linear-gradient(135deg, var(--theme-hero-from), var(--theme-hero-to))",
           }}
         >
           <Filter className="h-4 w-4 text-white/80" />
@@ -356,7 +345,7 @@ export function AdminCpaOffersReport() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {row.payout != null ? (
+                    {row.payout ? (
                       <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-semibold tabular-nums text-emerald-700">
                         {formatCurrency(Number(row.payout))}
                       </span>
@@ -365,7 +354,7 @@ export function AdminCpaOffersReport() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {row.revenue != null ? (
+                    {row.revenue ? (
                       <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-0.5 text-sm font-semibold tabular-nums text-sky-700">
                         {formatCurrency(Number(row.revenue))}
                       </span>
@@ -420,3 +409,4 @@ export function AdminCpaOffersReport() {
     </div>
   );
 }
+

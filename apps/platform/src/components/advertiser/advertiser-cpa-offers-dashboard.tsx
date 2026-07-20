@@ -16,23 +16,13 @@ import {
 } from "recharts";
 import { BarChart3, Store } from "lucide-react";
 import { PageHero } from "@/components/admin/page-hero";
-import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
+import { AdvertiserCpaOffersSubNav } from "@/components/advertiser/advertiser-cpa-offers-sub-nav";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
 import { ButtonLink } from "@/components/ui/button-link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type {
-  CpaDashboardRange,
-  CpaDashboardSnapshot,
-} from "@/services/cpa-offer.service";
+import type { CpaDashboardRange, CpaDashboardSnapshot } from "@/services/cpa-offer.service";
 
 const RANGES: Array<{ id: CpaDashboardRange; label: string }> = [
   { id: "today", label: "Today" },
@@ -109,7 +99,10 @@ function MetricCard({
             {sparkValues.map((v, i) => (
               <div
                 key={i}
-                className={cn("min-w-0 flex-1 rounded-t bg-gradient-to-t opacity-80", accentBar)}
+                className={cn(
+                  "min-w-0 flex-1 rounded-t bg-gradient-to-t opacity-80",
+                  accentBar,
+                )}
                 style={{ height: `${Math.max(8, (v / max) * 100)}%` }}
               />
             ))}
@@ -124,7 +117,7 @@ function MetricCard({
   );
 }
 
-export function AdminCpaOffersDashboard() {
+export function AdvertiserCpaOffersDashboard() {
   const [range, setRange] = useState<CpaDashboardRange>("last7d");
   const [chartType, setChartType] = useState<"area" | "bar">("area");
   const [data, setData] = useState<CpaDashboardSnapshot | null>(null);
@@ -135,7 +128,7 @@ export function AdminCpaOffersDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/admin/cpa-offers/dashboard?range=${range}`);
+      const res = await fetch(`/api/v1/advertiser/cpa-offers/dashboard?range=${range}`);
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(body?.error?.message ?? "Failed to load dashboard");
@@ -163,11 +156,11 @@ export function AdminCpaOffersDashboard() {
       <PageHero
         eyebrow="CPA Offers"
         title="Dashboard"
-        description="Performance overview for marketplace offers and postback conversions."
+        description="Your CPA offer performance based on stored click + conversion data."
         badge={data ? data.rangeLabel : undefined}
       />
 
-      <AdminCpaOffersSubNav />
+      <AdvertiserCpaOffersSubNav />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
@@ -189,13 +182,13 @@ export function AdminCpaOffersDashboard() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/admin/cpa-offers/report" variant="outline" className="gap-2">
+          <ButtonLink href="/advertiser/cpa-offers/report" variant="outline" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            Performance Chart
+            Report
           </ButtonLink>
-          <ButtonLink href="/admin/cpa-offers/offers" className="gap-2">
+          <ButtonLink href="/advertiser/cpa-offers" className="gap-2">
             <Store className="h-4 w-4" />
-            Your Offers
+            Offers
           </ButtonLink>
         </div>
       </div>
@@ -214,9 +207,7 @@ export function AdminCpaOffersDashboard() {
           accent="sky"
         >
           <p className="text-3xl font-bold tabular-nums text-slate-900">
-            {loading
-              ? "…"
-              : `${data?.metrics.hits ?? 0} / ${data?.metrics.clicks ?? 0}`}
+            {loading ? "…" : `${data?.metrics.hits ?? 0} / ${data?.metrics.clicks ?? 0}`}
           </p>
         </MetricCard>
 
@@ -241,13 +232,17 @@ export function AdminCpaOffersDashboard() {
         >
           <div className="flex items-end gap-6">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Revenue</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Revenue
+              </p>
               <p className="text-2xl font-bold tabular-nums text-slate-900">
                 {loading ? "…" : formatCurrency(Number(data?.metrics.revenue ?? 0))}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Payout</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Payout
+              </p>
               <p className="text-2xl font-bold tabular-nums text-violet-700">
                 {loading ? "…" : formatCurrency(Number(data?.metrics.payout ?? 0))}
               </p>
@@ -330,14 +325,7 @@ export function AdminCpaOffersDashboard() {
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Area
-                    type="monotone"
-                    dataKey="clicks"
-                    name="Clicks"
-                    stroke="#1e3a8a"
-                    fill="url(#cpaClicks)"
-                    strokeWidth={2}
-                  />
+                  <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#1e3a8a" fill="url(#cpaClicks)" strokeWidth={2} />
                   <Area
                     type="monotone"
                     dataKey="uniqueClicks"
@@ -394,7 +382,7 @@ export function AdminCpaOffersDashboard() {
             <p className="text-xs text-white/75">Latest offers added to the marketplace</p>
           </div>
           <Link
-            href="/admin/cpa-offers/offers"
+            href="/advertiser/cpa-offers"
             className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/25"
           >
             View all
@@ -419,7 +407,7 @@ export function AdminCpaOffersDashboard() {
             ) : !data?.newOffers.length ? (
               <TableRow>
                 <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
-                  No offers yet. Create your first offer to get started.
+                  No offers yet.
                 </TableCell>
               </TableRow>
             ) : (
@@ -428,9 +416,7 @@ export function AdminCpaOffersDashboard() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <CpaOfferStatusDot status={offer.status} />
-                      <span className="font-mono text-xs text-slate-600">
-                        {offer.id.slice(-6)}
-                      </span>
+                      <span className="font-mono text-xs text-slate-600">{offer.id.slice(-6)}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -438,7 +424,7 @@ export function AdminCpaOffersDashboard() {
                       <CpaOfferThumb name={offer.name} thumbnailUrl={offer.thumbnailUrl} size="sm" />
                       <div className="min-w-0">
                         <Link
-                          href={`/admin/cpa-offers/${offer.id}/edit`}
+                          href={`/advertiser/cpa-offers/${offer.id}`}
                           className="block truncate font-medium text-slate-900 hover:text-[var(--theme-primary)]"
                         >
                           {offer.name}
@@ -466,3 +452,4 @@ export function AdminCpaOffersDashboard() {
     </div>
   );
 }
+
