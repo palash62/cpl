@@ -25,4 +25,10 @@ export type ProviderSendResult = {
   ok: boolean;
   httpStatus?: number;
   error?: string;
+  /** When AWeber refreshed tokens, persist these on the connection. */
+  refreshedAweberConfig?: {
+    accessToken: string;
+    refreshToken?: string;
+    tokenExpiresAt: number;
+  };
 };

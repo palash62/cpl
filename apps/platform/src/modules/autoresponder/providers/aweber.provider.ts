@@ -1,14 +1,39 @@
 import type { AweberConfig } from "../types/provider";
 import type { LeadAutoresponderPayload, ProviderSendResult } from "../types/payload";
 import { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG } from "../config/defaults";
+import { ensureFreshAweberAccessToken } from "./aweber-oauth";
 
 export async function sendAweber(
   config: AweberConfig,
   payload: LeadAutoresponderPayload,
 ): Promise<ProviderSendResult> {
-  const { accessToken, accountId, listId } = config;
-  if (!accessToken || !accountId || !listId) {
+  const { accountId, listId } = config;
+  if (!config.accessToken || !accountId || !listId) {
     return { ok: false, error: "AWeber accessToken, accountId, and listId are required" };
+  }
+
+  let accessToken = config.accessToken;
+  let refreshedAweberConfig: ProviderSendResult["refreshedAweberConfig"];
+
+  try {
+    const fresh = await ensureFreshAweberAccessToken({
+      accessToken: config.accessToken,
+      refreshToken: config.refreshToken,
+      tokenExpiresAt: config.tokenExpiresAt,
+    });
+    accessToken = fresh.accessToken;
+    if (fresh.refreshed) {
+      refreshedAweberConfig = {
+        accessToken: fresh.accessToken,
+        refreshToken: fresh.refreshToken,
+        tokenExpiresAt: fresh.tokenExpiresAt,
+      };
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "AWeber token refresh failed",
+    };
   }
 
   const url = `https://api.aweber.com/1.0/accounts/${accountId}/lists/${listId}/subscribers`;
@@ -30,14 +55,20 @@ export async function sendAweber(
 
     if (!res.ok) {
       const text = (await res.text()).slice(0, 500);
-      return { ok: false, httpStatus: res.status, error: text || res.statusText };
+      return {
+        ok: false,
+        httpStatus: res.status,
+        error: text || res.statusText,
+        refreshedAweberConfig,
+      };
     }
 
-    return { ok: true, httpStatus: res.status };
+    return { ok: true, httpStatus: res.status, refreshedAweberConfig };
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : "AWeber request failed",
+      refreshedAweberConfig,
     };
   }
 }

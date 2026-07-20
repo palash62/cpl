@@ -2,7 +2,11 @@ import type { AutoresponderProvider } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendViaProvider } from "../providers/registry";
 import { buildSystemeTestEmail } from "../providers/systeme.provider";
-import { getConnection, getDecryptedConfig } from "./connection.service";
+import {
+  getConnection,
+  getDecryptedConfig,
+  persistAweberTokenRefresh,
+} from "./connection.service";
 import { getConnectionById } from "../repositories/connection.repo";
 import type { LeadAutoresponderPayload } from "../types/payload";
 
@@ -47,6 +51,15 @@ export async function testConnection(id: string, advertiserId: string) {
       event: connection.trigger === "LEAD_APPROVED" ? "lead.approved" : "lead.captured",
     },
   );
+
+  if (result.refreshedAweberConfig) {
+    await persistAweberTokenRefresh(
+      id,
+      advertiserId,
+      config as Record<string, unknown>,
+      result.refreshedAweberConfig,
+    );
+  }
 
   return result;
 }

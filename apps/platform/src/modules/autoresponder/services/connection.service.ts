@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { Errors, AppError } from "@/lib/errors";
 import { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG } from "../config/defaults";
@@ -18,9 +19,14 @@ import {
 } from "../lib/encrypt-secrets";
 import { normalizeGetResponseConfig, verifyGetResponseConfig } from "../providers/getresponse.provider";
 import { verifySystemeConfig } from "../providers/systeme.provider";
+import {
+  AWEBER_SESSION_COOKIE,
+  clearAweberSessionCookieOptions,
+  parseAweberSessionCookie,
+} from "../providers/aweber-oauth";
 import { assertSafeOutboundUrl } from "@/lib/safe-url";
 import type { ConnectionInput, ConnectionPublic } from "../types/connection";
-import type { ConnectionConfig, GetResponseConfig } from "../types/provider";
+import type { AweberConfig, ConnectionConfig, GetResponseConfig } from "../types/provider";
 
 function toPublic(row: Awaited<ReturnType<typeof listConnectionsByAdvertiser>>[number]): ConnectionPublic {
   const config = (row.config ?? {}) as Record<string, unknown>;
@@ -79,6 +85,39 @@ async function assertCampaignOwnedByAdvertiser(campaignId: string, advertiserId:
   }
 }
 
+async function readAweberOAuthSession(advertiserId: string) {
+  const cookieStore = await cookies();
+  const session = parseAweberSessionCookie(cookieStore.get(AWEBER_SESSION_COOKIE)?.value);
+  if (!session || session.advertiserId !== advertiserId) return null;
+  return session;
+}
+
+async function clearAweberOAuthSessionCookie() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(AWEBER_SESSION_COOKIE, "", clearAweberSessionCookieOptions());
+  } catch {
+    // Cookie mutation only works in Route Handlers / Server Actions.
+  }
+}
+
+/** Merge live OAuth session tokens into AWeber config when present. */
+async function applyAweberOAuthSession(
+  advertiserId: string,
+  config: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const session = await readAweberOAuthSession(advertiserId);
+  if (!session) return config;
+
+  return {
+    ...config,
+    accessToken: session.accessToken,
+    accountId: session.accountId,
+    ...(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
+    tokenExpiresAt: session.expiresAt,
+  };
+}
+
 async function assertProviderConfig(
   provider: ConnectionInput["provider"],
   config: ConnectionConfig,
@@ -131,6 +170,29 @@ async function assertProviderConfig(
     }
   }
 
+  if (provider === "AWEBER") {
+    const aweber = config as AweberConfig;
+    const accessToken = aweber.accessToken?.trim() ?? "";
+    const accountId = aweber.accountId?.trim() ?? "";
+    const listId = aweber.listId?.trim() ?? "";
+    if (!accessToken || !accountId || !listId) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Connect with AWeber and select a list before saving",
+        422,
+      );
+    }
+    return {
+      accessToken,
+      accountId,
+      listId,
+      ...(aweber.refreshToken?.trim() ? { refreshToken: aweber.refreshToken.trim() } : {}),
+      ...(typeof aweber.tokenExpiresAt === "number"
+        ? { tokenExpiresAt: aweber.tokenExpiresAt }
+        : {}),
+    };
+  }
+
   return config;
 }
 
@@ -159,7 +221,15 @@ export async function createAdvertiserConnection(advertiserId: string, input: Co
     await assertCampaignOwnedByAdvertiser(input.campaignId, advertiserId);
   }
 
-  const verifiedConfig = await assertProviderConfig(input.provider, input.config);
+  let configPlain = input.config as Record<string, unknown>;
+  if (input.provider === "AWEBER") {
+    configPlain = await applyAweberOAuthSession(advertiserId, configPlain);
+  }
+
+  const verifiedConfig = await assertProviderConfig(
+    input.provider,
+    configPlain as ConnectionConfig,
+  );
   const encrypted = encryptConfigOrThrow(verifiedConfig as Record<string, unknown>);
   const row = await createConnection({
     advertiserId,
@@ -171,6 +241,11 @@ export async function createAdvertiserConnection(advertiserId: string, input: Co
     config: encrypted,
     fieldMapping: input.fieldMapping ?? null,
   });
+
+  if (input.provider === "AWEBER") {
+    await clearAweberOAuthSessionCookie();
+  }
+
   return toPublic(row);
 }
 
@@ -188,9 +263,14 @@ export async function updateAdvertiserConnection(
 
   const existingConfig = existing.config as Record<string, unknown>;
   const existingDecrypted = decryptConfigSecrets(existingConfig);
-  const mergedPlain = input.config
+  let mergedPlain = input.config
     ? mergeConfig(existingDecrypted, input.config)
     : undefined;
+
+  if (mergedPlain && existing.provider === "AWEBER") {
+    mergedPlain = await applyAweberOAuthSession(advertiserId, mergedPlain);
+  }
+
   const nextConfig = mergedPlain ? encryptConfigOrThrow(mergedPlain) : undefined;
 
   if (mergedPlain) {
@@ -209,6 +289,10 @@ export async function updateAdvertiserConnection(
     });
 
     if (updated.count === 0) throw Errors.notFound("Autoresponder connection");
+
+    if (existing.provider === "AWEBER") {
+      await clearAweberOAuthSessionCookie();
+    }
 
     return getConnection(id, advertiserId);
   }
@@ -234,4 +318,24 @@ export async function deleteAdvertiserConnection(id: string, advertiserId: strin
 
 export function getDecryptedConfig(config: object): ConnectionConfig {
   return decryptConfigSecrets(config as Record<string, unknown>) as ConnectionConfig;
+}
+
+/** Persist refreshed AWeber tokens after a send/test. */
+export async function persistAweberTokenRefresh(
+  connectionId: string,
+  advertiserId: string,
+  existingConfig: Record<string, unknown>,
+  refresh: {
+    accessToken: string;
+    refreshToken?: string;
+    tokenExpiresAt: number;
+  },
+) {
+  const next = encryptConfigOrThrow({
+    ...existingConfig,
+    accessToken: refresh.accessToken,
+    ...(refresh.refreshToken ? { refreshToken: refresh.refreshToken } : {}),
+    tokenExpiresAt: refresh.tokenExpiresAt,
+  });
+  await updateConnection(connectionId, advertiserId, { config: next });
 }

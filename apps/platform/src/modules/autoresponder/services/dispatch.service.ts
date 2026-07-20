@@ -9,7 +9,7 @@ import {
   updateDelivery,
 } from "../repositories/delivery.repo";
 import { sendViaProvider } from "../providers/registry";
-import { getDecryptedConfig } from "./connection.service";
+import { getDecryptedConfig, persistAweberTokenRefresh } from "./connection.service";
 import type { LeadAutoresponderPayload } from "../types/payload";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -51,6 +51,15 @@ async function processConnection(
   const config = getDecryptedConfig(connection.config as object);
   const result = await attemptSend(connection.provider, config, payload);
   const attemptCount = (existing?.attemptCount ?? 0) + (result.ok ? 1 : 2);
+
+  if (result.refreshedAweberConfig) {
+    await persistAweberTokenRefresh(
+      connection.id,
+      connection.advertiserId,
+      config as Record<string, unknown>,
+      result.refreshedAweberConfig,
+    );
+  }
 
   await updateDelivery(deliveryId, {
     status: result.ok ? "SUCCESS" : "FAILED",

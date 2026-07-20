@@ -13,9 +13,13 @@ export type MailchimpConfig = {
 };
 
 export type AweberConfig = {
-  accessToken: string;
-  accountId: string;
+  /** Filled from OAuth session on create/update when omitted from the form */
+  accessToken?: string;
+  accountId?: string;
   listId: string;
+  refreshToken?: string;
+  /** Access-token expiry (epoch ms) */
+  tokenExpiresAt?: number;
 };
 
 export type GetResponseConfig = {

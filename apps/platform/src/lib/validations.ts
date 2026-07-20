@@ -495,10 +495,13 @@ const mailchimpConfigSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+/** OAuth path: listId from form; tokens merged from OAuth session or existing connection. */
 const aweberConfigSchema = z.object({
-  accessToken: z.string().min(1, "Access token is required"),
-  accountId: z.string().min(1, "Account ID is required"),
   listId: z.string().min(1, "List ID is required"),
+  accessToken: z.string().optional(),
+  accountId: z.string().optional(),
+  refreshToken: z.string().optional(),
+  tokenExpiresAt: z.number().optional(),
 });
 
 const getResponseConfigSchema = z

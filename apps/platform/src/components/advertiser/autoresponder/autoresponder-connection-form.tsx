@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
-import { ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,8 @@ const SELECT_MENU_WIDE_CLASS = "z-200 !w-[26rem] max-w-[calc(100vw-2rem)]";
 const MASKED_SECRET = "••••••••";
 
 type GetResponseListOption = { campaignId: string; name: string };
+
+type AweberListOption = { id: string; name: string };
 
 type SystemeTagOption = { tagId: string; name: string };
 
@@ -128,8 +130,6 @@ function buildConfig(form: FormState): Record<string, unknown> {
       };
     case "AWEBER":
       return {
-        accessToken: form.accessToken.trim(),
-        accountId: form.accountId.trim(),
         listId: form.listId.trim(),
       };
     case "GETRESPONSE":
@@ -191,10 +191,22 @@ export function AutoresponderConnectionForm({
   const [getResponseLists, setGetResponseLists] = useState<GetResponseListOption[]>([]);
   const [getResponseListsLoading, setGetResponseListsLoading] = useState(false);
   const [getResponseListsError, setGetResponseListsError] = useState<string | null>(null);
+  const [aweberConnected, setAweberConnected] = useState(false);
+  const [aweberLists, setAweberLists] = useState<AweberListOption[]>([]);
+  const [aweberListsLoading, setAweberListsLoading] = useState(false);
+  const [aweberListsError, setAweberListsError] = useState<string | null>(null);
   const [systemeTags, setSystemeTags] = useState<SystemeTagOption[]>([]);
   const [systemeTagsLoading, setSystemeTagsLoading] = useState(false);
   const [systemeTagsError, setSystemeTagsError] = useState<string | null>(null);
+  const [aweberQuery, setAweberQuery] = useState<string | null>(null);
+  const [aweberErrorReason, setAweberErrorReason] = useState<string | null>(null);
   const isEditMode = Boolean(initialConnection);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setAweberQuery(params.get("aweber"));
+    setAweberErrorReason(params.get("reason"));
+  }, []);
 
   const loadGetResponseLists = useCallback(
     async (apiKey: string, connectionId?: string) => {
@@ -253,6 +265,49 @@ export function AutoresponderConnectionForm({
     void loadGetResponseLists(form.apiKey, initialConnection?.id);
   }, [form.provider, form.apiKey, initialConnection?.id, loadGetResponseLists]);
 
+  const loadAweberLists = useCallback(
+    async (connectionId?: string) => {
+      const resolvedConnectionId = connectionId ?? (isEditMode ? initialConnection?.id : undefined);
+      setAweberListsLoading(true);
+      setAweberListsError(null);
+
+      const qs = resolvedConnectionId
+        ? `?connectionId=${encodeURIComponent(resolvedConnectionId)}`
+        : "";
+      const res = await fetch(`/api/v1/advertiser/integrations/aweber/lists${qs}`);
+      const data = await res.json().catch(() => null);
+      setAweberListsLoading(false);
+
+      if (!res.ok) {
+        setAweberLists([]);
+        setAweberListsError(formatApiError(data, "Unable to load AWeber lists"));
+        return;
+      }
+
+      const lists = (data?.data as AweberListOption[]) ?? [];
+      setAweberLists(lists);
+      setAweberConnected(true);
+
+      if (lists.length > 0) {
+        setForm((prev) => {
+          if (prev.provider !== "AWEBER") return prev;
+          const current = prev.listId.trim();
+          if (current && lists.some((list) => list.id === current)) return prev;
+          const nextId = lists[0]?.id ?? "";
+          return nextId ? { ...prev, listId: nextId } : prev;
+        });
+      }
+    },
+    [initialConnection?.id, isEditMode],
+  );
+
+  const checkAweberSession = useCallback(async () => {
+    const res = await fetch("/api/v1/advertiser/integrations/aweber/session");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return false;
+    return Boolean(data?.data?.connected);
+  }, []);
+
   const loadSystemeTags = useCallback(
     async (apiKey: string, connectionId?: string) => {
       const trimmedKey = apiKey.trim();
@@ -309,6 +364,9 @@ export function AutoresponderConnectionForm({
       setForm(emptyForm());
       setGetResponseLists([]);
       setGetResponseListsError(null);
+      setAweberConnected(false);
+      setAweberLists([]);
+      setAweberListsError(null);
       setSystemeTags([]);
       setSystemeTagsError(null);
       return;
@@ -333,10 +391,59 @@ export function AutoresponderConnectionForm({
     if (initialConnection.provider === "GETRESPONSE") {
       void loadGetResponseLists(String(cfg.apiKey ?? ""), initialConnection.id);
     }
+    if (initialConnection.provider === "AWEBER") {
+      const hasSavedTokens = Boolean(cfg.accessToken) || Boolean(cfg.accountId);
+      setAweberConnected(hasSavedTokens);
+      if (hasSavedTokens) {
+        void loadAweberLists(initialConnection.id);
+      }
+    }
     if (initialConnection.provider === "SYSTEME") {
       void loadSystemeTags(String(cfg.apiKey ?? ""), initialConnection.id);
     }
-  }, [initialConnection, loadGetResponseLists, loadSystemeTags]);
+  }, [initialConnection, loadGetResponseLists, loadAweberLists, loadSystemeTags]);
+
+  useEffect(() => {
+    if (form.provider !== "AWEBER") {
+      setAweberLists([]);
+      setAweberListsError(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const hasSaved =
+        isEditMode &&
+        Boolean(initialConnection?.config?.accessToken || initialConnection?.config?.accountId);
+      const sessionConnected = await checkAweberSession();
+      if (cancelled) return;
+
+      const connected = sessionConnected || hasSaved || aweberQuery === "connected";
+      setAweberConnected(connected);
+      if (connected) {
+        void loadAweberLists(initialConnection?.id);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    form.provider,
+    isEditMode,
+    initialConnection?.id,
+    initialConnection?.config?.accessToken,
+    initialConnection?.config?.accountId,
+    aweberQuery,
+    checkAweberSession,
+    loadAweberLists,
+  ]);
+
+  useEffect(() => {
+    if (aweberQuery === "connected" && form.provider !== "AWEBER") {
+      setForm((prev) => ({ ...clearProviderCredentials(prev), provider: "AWEBER" }));
+    }
+  }, [aweberQuery, form.provider]);
 
   useEffect(() => {
     if (form.provider !== "GETRESPONSE") {
@@ -395,6 +502,11 @@ export function AutoresponderConnectionForm({
         ]
       : getResponseLists;
 
+  const aweberListOptions =
+    form.listId && !aweberLists.some((list) => list.id === form.listId)
+      ? [...aweberLists, { id: form.listId, name: `${form.listId} (saved)` }]
+      : aweberLists;
+
   const systemeTagOptions =
     form.systemeTagId &&
     !systemeTags.some((tag) => tag.tagId === form.systemeTagId)
@@ -416,6 +528,19 @@ export function AutoresponderConnectionForm({
       setSaving(false);
       setError("Select a GetResponse list before saving.");
       return;
+    }
+
+    if (form.provider === "AWEBER") {
+      if (!aweberConnected) {
+        setSaving(false);
+        setError("Connect with AWeber before saving.");
+        return;
+      }
+      if (!form.listId.trim()) {
+        setSaving(false);
+        setError("Select an AWeber list before saving.");
+        return;
+      }
     }
 
     const endpoint = isEditMode
@@ -529,7 +654,7 @@ export function AutoresponderConnectionForm({
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_CLASS}>
-              {PROVIDERS.filter((p) => p.value !== "MAILCHIMP" && p.value !== "AWEBER").map((p) => (
+              {PROVIDERS.filter((p) => p.value !== "MAILCHIMP").map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
                 </SelectItem>
@@ -637,35 +762,106 @@ export function AutoresponderConnectionForm({
         )}
 
         {form.provider === "AWEBER" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Access token</Label>
-              <Input
-                type="password"
-                value={form.accessToken}
-                onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
-                required
-                className="bg-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Account ID</Label>
-              <Input
-                value={form.accountId}
-                onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-                required
-                className="bg-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>List ID</Label>
-              <Input
-                value={form.listId}
-                onChange={(e) => setForm({ ...form, listId: e.target.value })}
-                required
-                className="bg-white"
-              />
-            </div>
+          <div className="space-y-4">
+            {aweberQuery === "error" && (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                AWeber connection failed
+                {aweberErrorReason ? ` (${aweberErrorReason})` : ""}. Try connecting again.
+              </p>
+            )}
+
+            {!aweberConnected ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Connect your AWeber account to choose a list. Access tokens are handled securely
+                  via OAuth.
+                </p>
+                <a
+                  href="/api/v1/advertiser/integrations/aweber/authorize"
+                  className={cn(buttonVariants({ variant: "default" }), "inline-flex")}
+                >
+                  Connect with AWeber
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Connected to AWeber
+                  </span>
+                  <a
+                    href="/api/v1/advertiser/integrations/aweber/authorize"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "inline-flex",
+                    )}
+                  >
+                    Reconnect
+                  </a>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={aweberListsLoading}
+                    onClick={() => void loadAweberLists(initialConnection?.id)}
+                  >
+                    {aweberListsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Refresh lists"
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>AWeber list</Label>
+                  {aweberListsLoading ? (
+                    <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading lists…
+                    </div>
+                  ) : aweberListOptions.length > 0 ? (
+                    <Select
+                      value={form.listId || undefined}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        setForm({ ...form, listId: v });
+                      }}
+                    >
+                      <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+                        <SelectValue placeholder="Select a list">
+                          {(() => {
+                            const selected = aweberListOptions.find(
+                              (list) => list.id === form.listId,
+                            );
+                            return selected?.name ?? "Select a list";
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent
+                        align="start"
+                        alignItemWithTrigger={false}
+                        className={`${SELECT_MENU_CLASS} max-h-60`}
+                      >
+                        {aweberListOptions.map((list) => (
+                          <SelectItem key={list.id} value={list.id}>
+                            {list.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-slate-500">No lists found on this AWeber account.</p>
+                  )}
+                  {aweberListsError ? (
+                    <p className="text-xs text-red-600">{aweberListsError}</p>
+                  ) : aweberListOptions.length > 0 ? (
+                    <p className="text-xs text-slate-500">Subscribers are added to the selected list.</p>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
