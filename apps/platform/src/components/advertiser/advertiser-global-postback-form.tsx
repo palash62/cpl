@@ -114,7 +114,7 @@ export function AdvertiserGlobalPostbackForm() {
             Our global postback functionality applies to all CPA offers. When a new conversion
             occurs, we send the conversion information to your designated global postback.
             <div className="mt-2 font-mono text-xs text-sky-800">
-              Example: https://track.example.com/pbtr?aff_click_id=&#123;click_id&#125;
+              Example: https://your-server.com/conversion?click_id=&#123;click_id&#125;&amp;payout=&#123;payout&#125;
             </div>
           </div>
 
@@ -178,7 +178,7 @@ export function AdvertiserGlobalPostbackForm() {
               placeholder={
                 draft.type === "HTML"
                   ? '<img src="https://example.com/pixel?click_id={click_id}" />'
-                  : "https://track.example.com/pbtr?aff_click_id={click_id}&payout={payout}"
+                  : "https://your-server.com/conversion?click_id={click_id}&payout={payout}&aff_id={aff_id}"
               }
               className="font-mono text-xs"
             />

@@ -13,6 +13,11 @@ import {
   advertiserGlobalPostbackSchema,
 } from "@/lib/validations";
 import { resolveCpaClickAttribution } from "../../../../packages/tracking-core/src/cpa-click-attribution";
+import {
+  inboundClickIdErrorMessage,
+  normalizeClickId,
+  resolveInboundClickId,
+} from "../../../../packages/tracking-core/src/cpa-inbound-click-id";
 import { isPostbackSecurityAuthorized } from "../../../../packages/tracking-core/src/cpa-postback-dispatch";
 import { assertSafeOutboundUrl } from "../../../../packages/tracking-core/src/safe-outbound-url";
 
@@ -219,6 +224,27 @@ describe("safe outbound URL", () => {
   });
 });
 
+describe("inbound click id parsing", () => {
+  it("accepts click_id and aff_click_id", () => {
+    const fromClickId = resolveInboundClickId((key) =>
+      key === "click_id" ? "clk_abc" : null,
+    );
+    const fromAff = resolveInboundClickId((key) =>
+      key === "aff_click_id" ? "clk_aff" : null,
+    );
+    expect(fromClickId).toBe("clk_abc");
+    expect(fromAff).toBe("clk_aff");
+  });
+
+  it("rejects missing and placeholder macros", () => {
+    expect(normalizeClickId(null)).toBeNull();
+    expect(normalizeClickId("{click_id}")).toBeNull();
+    expect(normalizeClickId("{aff_click_id}")).toBeNull();
+    expect(inboundClickIdErrorMessage("placeholder")).toMatch(/Replace the \{click_id\}/);
+    expect(inboundClickIdErrorMessage("unknown")).toMatch(/Unknown click_id/);
+  });
+});
+
 describe("CPA postback dispatch", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -272,6 +298,47 @@ describe("CPA postback dispatch", () => {
     const urls = fetchMock.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes("localhost:9999") && u.includes("offer1"))).toBe(true);
     expect(urls.some((u) => u.includes("localhost:9998") && u.includes("click1"))).toBe(true);
+  });
+
+  it("includes click_id in admin parallel URL when macro is present", async () => {
+    const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    vi.doMock("@cpl/database", () => ({
+      prisma: {
+        platformSetting: {
+          findUnique: vi.fn(async () => ({
+            value: {
+              useSecurityKey: false,
+              securityKey: "",
+              parallelPostbackUrl:
+                "http://localhost:9999/hook?offer_id={offer_id}&click_id={click_id}&payout={payout}",
+            },
+          })),
+        },
+        advertiserGlobalPostback: {
+          findUnique: vi.fn(async () => null),
+        },
+        cpaPostbackDelivery: {
+          upsert: vi.fn(async () => ({})),
+        },
+      },
+    }));
+
+    const { dispatchCpaConversionPostbacks } = await import(
+      "../../../../packages/tracking-core/src/cpa-postback-dispatch"
+    );
+
+    await dispatchCpaConversionPostbacks({
+      conversionId: "conv_parallel",
+      offerId: "offer1",
+      advertiserId: "adv1",
+      clickId: "click99",
+      payout: "5",
+    });
+
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("click_id=click99") || u.includes("click99"))).toBe(true);
   });
 
   it("skips inactive advertiser postback", async () => {

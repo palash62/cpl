@@ -1,7 +1,7 @@
 import type { AutoresponderProvider } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendViaProvider } from "../providers/registry";
-import { buildSystemeTestEmail } from "../providers/systeme.provider";
+import { buildAutoresponderTestEmail } from "../lib/test-email";
 import {
   getConnection,
   getDecryptedConfig,
@@ -38,10 +38,7 @@ export async function testConnection(id: string, advertiserId: string) {
   });
 
   const config = getDecryptedConfig(row.config as object);
-  const testEmail =
-    connection.provider === "SYSTEME"
-      ? buildSystemeTestEmail(advertiser?.email)
-      : `cpl-test-${Date.now()}@mailinator.com`;
+  const testEmail = buildAutoresponderTestEmail(advertiser?.email);
 
   const result = await sendViaProvider(
     connection.provider as AutoresponderProvider,

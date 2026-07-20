@@ -1,8 +1,43 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { encryptSecret, decryptSecret, maskConfigForApi } from "@/modules/autoresponder/lib/encrypt-secrets";
+import { buildAutoresponderTestEmail } from "@/modules/autoresponder/lib/test-email";
 import { buildLeadPayload } from "@/modules/autoresponder/mapping/build-payload";
 import { sendWebhook } from "@/modules/autoresponder/providers/webhook.provider";
-import { sendSysteme, verifySystemeConfig } from "@/modules/autoresponder/providers/systeme.provider";
+import { buildSystemeTestEmail, sendSysteme, verifySystemeConfig } from "@/modules/autoresponder/providers/systeme.provider";
+
+describe("buildAutoresponderTestEmail", () => {
+  it("uses plus-tag on advertiser email", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
+    const stamp = Date.now();
+    expect(buildAutoresponderTestEmail("advertiser@cpl.local")).toBe(
+      `advertiser+cpl-test-${stamp}@cpl.local`,
+    );
+    vi.useRealTimers();
+  });
+
+  it("falls back to example.com when advertiser email is missing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
+    const stamp = Date.now();
+    expect(buildAutoresponderTestEmail(null)).toBe(`cpl-test-${stamp}@example.com`);
+    expect(buildAutoresponderTestEmail("")).toBe(`cpl-test-${stamp}@example.com`);
+    vi.useRealTimers();
+  });
+
+  it("never uses mailinator", () => {
+    expect(buildAutoresponderTestEmail("advertiser@cpl.local")).not.toContain("mailinator");
+    expect(buildAutoresponderTestEmail(null)).not.toContain("mailinator");
+  });
+
+  it("buildSystemeTestEmail delegates to shared helper", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
+    const stamp = Date.now();
+    expect(buildSystemeTestEmail("user@leadvix.io")).toBe(`user+cpl-test-${stamp}@leadvix.io`);
+    vi.useRealTimers();
+  });
+});
 
 describe("encrypt-secrets", () => {
   it("round-trips encrypted values", () => {

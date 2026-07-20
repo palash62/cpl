@@ -5,3 +5,4 @@ export * from "./postback-macros";
 export * from "./safe-outbound-url";
 export * from "./cpa-postback-dispatch";
 export * from "./cpa-click-attribution";
+export * from "./cpa-inbound-click-id";

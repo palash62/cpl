@@ -1,6 +1,7 @@
 import type { SystemeConfig } from "../types/provider";
 import type { LeadAutoresponderPayload, ProviderSendResult } from "../types/payload";
 import { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG } from "../config/defaults";
+import { buildAutoresponderTestEmail } from "../lib/test-email";
 
 type SystemeContactResponse = {
   id?: string | number;
@@ -166,14 +167,7 @@ export async function verifySystemeConfig(config: SystemeConfig): Promise<Provid
 }
 
 export function buildSystemeTestEmail(advertiserEmail?: string | null): string {
-  const stamp = Date.now();
-  if (advertiserEmail?.includes("@")) {
-    const [local, domain] = advertiserEmail.split("@");
-    if (local && domain) {
-      return `${local}+cpl-test-${stamp}@${domain}`;
-    }
-  }
-  return `cpl-test-${stamp}@mailinator.com`;
+  return buildAutoresponderTestEmail(advertiserEmail);
 }
 
 export async function sendSysteme(

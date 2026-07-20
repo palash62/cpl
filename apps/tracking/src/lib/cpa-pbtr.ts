@@ -5,6 +5,8 @@ import {
   getCpaNetworkPostbackConfig,
   isPostbackSecurityAuthorized,
   resolveCpaClickAttribution,
+  resolveInboundClickId,
+  inboundClickIdErrorMessage,
 } from "@cpl/tracking-core";
 
 type ClickRow = {
@@ -49,9 +51,26 @@ function parsePayout(payoutRaw: string | null): Prisma.Decimal | null {
   return new Prisma.Decimal(n);
 }
 
-function normalizeClickId(clickIdRaw: string | null): string | null {
-  if (!clickIdRaw || clickIdRaw === "{click_id}") return null;
-  return clickIdRaw.slice(0, 191);
+function clickIdFailureResponse(getParam: (key: string) => string | null, clickFound: boolean) {
+  const rawClickId = getParam("click_id");
+  const rawAffClickId = getParam("aff_click_id");
+  const raw = (rawClickId ?? rawAffClickId ?? "").trim();
+
+  let reason: "missing" | "placeholder" | "unknown" = "missing";
+  if (raw === "{click_id}" || raw === "{aff_click_id}") {
+    reason = "placeholder";
+  } else if (raw) {
+    reason = "unknown";
+  }
+
+  return Response.json(
+    {
+      success: false,
+      message: inboundClickIdErrorMessage(reason),
+      code: clickFound ? "CLICK_NOT_FOUND" : reason === "placeholder" ? "PLACEHOLDER_CLICK_ID" : reason === "missing" ? "MISSING_CLICK_ID" : "UNKNOWN_CLICK_ID",
+    },
+    { status: 404 },
+  );
 }
 
 async function loadClick(inboundClickId: string | null): Promise<ClickRow | null> {
@@ -115,20 +134,14 @@ export async function handleGlobalCpaPostback(request: Request) {
       return Response.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 });
     }
 
-    const inboundClickId = normalizeClickId(getParam("click_id"));
+    const inboundClickId = resolveInboundClickId(getParam);
     if (!inboundClickId) {
-      return Response.json(
-        { success: false, message: "No click data found !!!!" },
-        { status: 404 },
-      );
+      return clickIdFailureResponse(getParam, false);
     }
 
     const clickRow = await loadClick(inboundClickId);
     if (!clickRow) {
-      return Response.json(
-        { success: false, message: "No click data found !!!!" },
-        { status: 404 },
-      );
+      return clickIdFailureResponse(getParam, false);
     }
 
     const offer = await prisma.cpaOffer.findUnique({
@@ -136,10 +149,7 @@ export async function handleGlobalCpaPostback(request: Request) {
       select: { id: true, status: true },
     });
     if (!offer || offer.status === "ARCHIVED") {
-      return Response.json(
-        { success: false, message: "No click data found !!!!" },
-        { status: 404 },
-      );
+      return clickIdFailureResponse(getParam, false);
     }
 
     const attribution = resolveCpaClickAttribution({
@@ -167,6 +177,7 @@ export async function handleGlobalCpaPostback(request: Request) {
     return Response.json({
       ok: true,
       id: event.id,
+      clickId: attribution.attributedClickId,
       attributed: Boolean(attribution.advertiserId),
     });
   } catch (error) {
@@ -197,7 +208,7 @@ export async function handleLegacyTokenCpaPostback(request: Request, token: stri
       return Response.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 });
     }
 
-    const inboundClickId = normalizeClickId(getParam("click_id"));
+    const inboundClickId = resolveInboundClickId(getParam);
     const clickRow = await loadClick(inboundClickId);
     const attribution = resolveCpaClickAttribution({
       offerId: offer.id,
@@ -224,6 +235,7 @@ export async function handleLegacyTokenCpaPostback(request: Request, token: stri
     return Response.json({
       ok: true,
       id: event.id,
+      clickId: attribution.attributedClickId,
       attributed: Boolean(attribution.advertiserId),
     });
   } catch (error) {
