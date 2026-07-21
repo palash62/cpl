@@ -2,8 +2,7 @@
  * Gates advertiser CPA Offer Marketplace visibility.
  *
  * CPA_OFFERS_ADVERTISER_ALLOWLIST:
- * - unset → demo mode, only advertiser@cpl.local
- * - "*" or "" → live (all advertisers)
+ * - unset / "*" / "" → live (all advertisers)
  * - "a@x.com,b@y.com" → only those emails (case-insensitive)
  */
 export const CPA_OFFERS_DEMO_ADVERTISER_EMAIL = "advertiser@cpl.local";
@@ -11,7 +10,7 @@ export const CPA_OFFERS_DEMO_ADVERTISER_EMAIL = "advertiser@cpl.local";
 export function getCpaOffersAdvertiserAllowlist(): string[] | "live" {
   const raw = process.env.CPA_OFFERS_ADVERTISER_ALLOWLIST;
   if (raw === undefined) {
-    return [CPA_OFFERS_DEMO_ADVERTISER_EMAIL];
+    return "live";
   }
   const trimmed = raw.trim();
   if (trimmed === "" || trimmed === "*") {

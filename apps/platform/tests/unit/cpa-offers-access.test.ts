@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  CPA_OFFERS_DEMO_ADVERTISER_EMAIL,
   canAdvertiserAccessCpaOffers,
   getCpaOffersAdvertiserAllowlist,
   isCpaMarketplaceLive,
@@ -19,13 +18,12 @@ describe("cpa-offers-access", () => {
     }
   });
 
-  it("defaults to demo advertiser when env is unset", () => {
+  it("defaults to live for all advertisers when env is unset", () => {
     delete process.env[ENV_KEY];
-    expect(getCpaOffersAdvertiserAllowlist()).toEqual([CPA_OFFERS_DEMO_ADVERTISER_EMAIL]);
-    expect(isCpaMarketplaceLive()).toBe(false);
+    expect(getCpaOffersAdvertiserAllowlist()).toBe("live");
+    expect(isCpaMarketplaceLive()).toBe(true);
+    expect(canAdvertiserAccessCpaOffers("anyone@example.com")).toBe(true);
     expect(canAdvertiserAccessCpaOffers("advertiser@cpl.local")).toBe(true);
-    expect(canAdvertiserAccessCpaOffers("ADVERTISER@CPL.LOCAL")).toBe(true);
-    expect(canAdvertiserAccessCpaOffers("other@example.com")).toBe(false);
     expect(canAdvertiserAccessCpaOffers(null)).toBe(false);
   });
 

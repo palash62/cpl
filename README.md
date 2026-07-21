@@ -88,7 +88,7 @@ Open [http://localhost:3000](http://localhost:3000) (platform)
 | Advertiser | advertiser@cpl.local | password123 |
 | Publisher | publisher@cpl.local | password123 |
 
-CPA Offer Marketplace is gated to the Demo Advertiser until go-live. Set `CPA_OFFERS_ADVERTISER_ALLOWLIST=advertiser@cpl.local` (default when unset) for testing, or `CPA_OFFERS_ADVERTISER_ALLOWLIST=*` to open it to all advertisers.
+CPA Offer Marketplace is available to all advertisers by default. To restrict it, set `CPA_OFFERS_ADVERTISER_ALLOWLIST` to a comma-separated email list (e.g. `advertiser@cpl.local`). Use `*` or leave unset for all advertisers.
 
 ## Environment Variables
 

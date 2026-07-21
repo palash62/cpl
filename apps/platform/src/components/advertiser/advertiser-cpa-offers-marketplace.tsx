@@ -22,14 +22,12 @@ const PAGE_SIZE = 25;
 type AppliedFilters = {
   offerId: string;
   q: string;
-  network: string;
   category: string;
 };
 
 const emptyFilters: AppliedFilters = {
   offerId: "",
   q: "",
-  network: "",
   category: "",
 };
 
@@ -52,7 +50,6 @@ export function AdvertiserCpaOffersMarketplace() {
     params.set("limit", String(PAGE_SIZE));
     if (applied.offerId.trim()) params.set("id", applied.offerId.trim());
     if (applied.q.trim()) params.set("q", applied.q.trim());
-    if (applied.network.trim()) params.set("network", applied.network.trim());
     if (applied.category.trim()) params.set("category", applied.category.trim());
 
     const res = await fetch(`/api/v1/advertiser/cpa-offers?${params}`);
@@ -104,14 +101,6 @@ export function AdvertiserCpaOffersMarketplace() {
               value={draft.q}
               onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
               placeholder="Offer title"
-            />
-          </div>
-          <div className="w-full space-y-1 sm:w-36">
-            <label className="text-xs font-medium text-slate-500">Network</label>
-            <Input
-              value={draft.network}
-              onChange={(e) => setDraft((prev) => ({ ...prev, network: e.target.value }))}
-              placeholder="Network"
             />
           </div>
           <div className="w-full space-y-1 sm:w-36">
