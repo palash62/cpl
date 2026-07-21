@@ -65,7 +65,9 @@ export function CpaOfferSelect({
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-slate-600">{label}</Label>
+      <Label className="text-xs font-semibold tracking-wide text-emerald-700">
+        {label}
+      </Label>
       <Select
         value={value ?? NONE_VALUE}
         disabled={disabled || loading}

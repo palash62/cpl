@@ -140,7 +140,7 @@ export function FunnelSettingsSheet({
                       value={cpaOfferId}
                       onChange={onCpaOfferIdChange}
                       disabled={saving}
-                      label="Select offer"
+                      label="Connect high converting CPA offer"
                       placeholder="Choose a CPA offer"
                     />
                     <p className="text-xs text-slate-500">

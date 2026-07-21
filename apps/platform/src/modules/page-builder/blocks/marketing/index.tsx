@@ -113,7 +113,7 @@ function CtaSettings() {
         <div className="space-y-1.5">
           <CpaOfferSelect
             value={cpaOfferId}
-            label="Select offer"
+            label="Connect high converting CPA offer"
             placeholder="Choose a CPA offer"
             onChange={(offerId) =>
               setProp((p: CtaProps) => {
