@@ -1245,18 +1245,14 @@ export async function getPublicThankYouFunnel(
     }
   }
 
-  return {
-    funnelId: page.id,
-    slug: page.slug,
-    campaignId: page.campaignId,
-    pixelToken: page.campaign.pixelToken,
-    thankYouUseCampaignPixel: page.thankYouUseCampaignPixel,
-    thankYouPixelHtml: page.thankYouPixelHtml,
-    thankYouCraftState: thankYouCraftState ? parseStoredCraftState(thankYouCraftState) : null,
-    thankYouThemeJson: (thankYouThemeJson as ThemeJson) ?? DEFAULT_THEME,
-    leadId: lead.id,
-    previewMode: false,
-  };
+  return buildThankYouFunnelPayload(
+    {
+      ...page,
+      thankYouCraftState,
+      thankYouThemeJson,
+    },
+    { leadId: lead.id, previewMode: false },
+  );
 }
 
 export async function linkOptinFunnelToCampaign(
