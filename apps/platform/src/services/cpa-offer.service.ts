@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { CpaOffer, CpaOfferStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
+import { parseUserAgent } from "@/lib/publisher-leads";
 
 export type CpaRevenueModel = "RPA" | "RPS" | "RPC" | "RPI" | "RPL" | "RPM";
 export type CpaPayoutModel = "CPC" | "CPA" | "CPS" | "CPI" | "CPL" | "CPM";
@@ -1000,6 +1001,11 @@ export type SerializedCpaConversion = {
   revenue: string;
   status: "A" | "P" | "R";
   rawQuery: unknown;
+  ip: string | null;
+  device: string;
+  browser: string;
+  source: string | null;
+  subId: string | null;
   createdAt: string;
 };
 
@@ -1020,6 +1026,61 @@ export type CpaConversionListFilters = {
   page?: number;
   limit?: number;
 };
+
+function serializeCpaConversionRow(
+  row: {
+    id: string;
+    offerId: string;
+    clickId: string | null;
+    payout: { toString(): string } | null;
+    rawQuery: unknown;
+    createdAt: Date;
+    offer: {
+      name: string;
+      status: CpaOfferStatus;
+      revenue: { toString(): string } | null;
+      payout: { toString(): string };
+    };
+    clickRecord: {
+      ip: string | null;
+      userAgent: string | null;
+      src: string | null;
+      subId: string | null;
+    } | null;
+  },
+  status: "A" | "P" | "R",
+): SerializedCpaConversion {
+  const click = row.clickRecord;
+  const { device, browser } = parseUserAgent(click?.userAgent);
+  return {
+    id: row.id,
+    offerId: row.offerId,
+    offerName: row.offer.name,
+    offerStatus: row.offer.status,
+    clickId: row.clickId,
+    payout: row.payout != null ? decimalToString(row.payout) : decimalToString(row.offer.payout),
+    revenue: row.offer.revenue != null ? decimalToString(row.offer.revenue) : "0",
+    status,
+    rawQuery: row.rawQuery,
+    ip: click?.ip ?? null,
+    device,
+    browser,
+    source: click?.src ?? null,
+    subId: click?.subId ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function resolveConversionStatus(
+  byConversionId: Map<string, { hasPending: boolean; hasRejected: boolean }>,
+  conversionId: string,
+): "A" | "P" | "R" {
+  const s = byConversionId.get(conversionId);
+  if (!s) return "A";
+  if (s.hasPending) return "P";
+  if (s.hasRejected) return "R";
+  return "A";
+}
 
 export async function listCpaConversionsForAdmin(
   filters: CpaConversionListFilters,
@@ -1074,6 +1135,7 @@ export async function listCpaConversionsForAdmin(
       where,
       include: {
         offer: { select: { name: true, status: true, revenue: true, payout: true } },
+        clickRecord: { select: { ip: true, userAgent: true, src: true, subId: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
@@ -1120,24 +1182,9 @@ export async function listCpaConversionsForAdmin(
   }
 
   return {
-    items: rows.map((row) => ({
-      id: row.id,
-      offerId: row.offerId,
-      offerName: row.offer.name,
-      offerStatus: row.offer.status,
-      clickId: row.clickId,
-      payout: row.payout != null ? decimalToString(row.payout) : decimalToString(row.offer.payout),
-      revenue: row.offer.revenue != null ? decimalToString(row.offer.revenue) : "0",
-      status: (() => {
-        const s = byConversionId.get(row.id);
-        if (!s) return "A";
-        if (s.hasPending) return "P";
-        if (s.hasRejected) return "R";
-        return "A";
-      })(),
-      rawQuery: row.rawQuery,
-      createdAt: row.createdAt.toISOString(),
-    })),
+    items: rows.map((row) =>
+      serializeCpaConversionRow(row, resolveConversionStatus(byConversionId, row.id)),
+    ),
     total,
     page,
     limit,
@@ -1204,6 +1251,7 @@ export async function listCpaConversionsForAdvertiser(
       where,
       include: {
         offer: { select: { name: true, status: true, revenue: true, payout: true } },
+        clickRecord: { select: { ip: true, userAgent: true, src: true, subId: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
@@ -1250,24 +1298,9 @@ export async function listCpaConversionsForAdvertiser(
   }
 
   return {
-    items: rows.map((row) => ({
-      id: row.id,
-      offerId: row.offerId,
-      offerName: row.offer.name,
-      offerStatus: row.offer.status,
-      clickId: row.clickId,
-      payout: row.payout != null ? decimalToString(row.payout) : decimalToString(row.offer.payout),
-      revenue: row.offer.revenue != null ? decimalToString(row.offer.revenue) : "0",
-      status: (() => {
-        const s = byConversionId.get(row.id);
-        if (!s) return "A";
-        if (s.hasPending) return "P";
-        if (s.hasRejected) return "R";
-        return "A";
-      })(),
-      rawQuery: row.rawQuery,
-      createdAt: row.createdAt.toISOString(),
-    })),
+    items: rows.map((row) =>
+      serializeCpaConversionRow(row, resolveConversionStatus(byConversionId, row.id)),
+    ),
     total,
     page,
     limit,

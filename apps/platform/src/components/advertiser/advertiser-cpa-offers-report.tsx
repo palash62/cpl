@@ -45,15 +45,9 @@ function formatDateTime(iso: string) {
   }
 }
 
-function formatRawQuery(raw: unknown) {
-  if (raw == null) return "—";
-  if (typeof raw === "string") return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
-  try {
-    const text = JSON.stringify(raw);
-    return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-  } catch {
-    return "—";
-  }
+function cellValue(value: string | null | undefined) {
+  if (value == null || value === "") return "—";
+  return value;
 }
 
 export function AdvertiserCpaOffersReport() {
@@ -263,21 +257,25 @@ export function AdvertiserCpaOffersReport() {
               <TableHead>Date</TableHead>
               <TableHead>Offer</TableHead>
               <TableHead>Click ID</TableHead>
+              <TableHead>IP</TableHead>
+              <TableHead>Device</TableHead>
+              <TableHead>Browser</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Sub ID</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Earnings</TableHead>
-              <TableHead>Raw</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-500">
+                <TableCell colSpan={10} className="py-12 text-center text-sm text-slate-500">
                   Loading conversions…
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center">
+                <TableCell colSpan={10} className="py-12 text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
                     <Activity className="h-5 w-5" />
                   </div>
@@ -308,12 +306,39 @@ export function AdvertiserCpaOffersReport() {
                   </TableCell>
                   <TableCell className="max-w-[10rem] truncate font-mono text-xs text-slate-600">
                     {row.clickId ? (
-                      <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">
+                      <span
+                        className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700"
+                        title={row.clickId}
+                      >
                         {row.clickId}
                       </span>
                     ) : (
                       "—"
                     )}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-[8rem] truncate font-mono text-xs text-slate-600"
+                    title={row.ip ?? undefined}
+                  >
+                    {cellValue(row.ip)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-slate-700">
+                    {row.device}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-slate-700">
+                    {row.browser}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-[8rem] truncate text-sm text-slate-700"
+                    title={row.source ?? undefined}
+                  >
+                    {cellValue(row.source)}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-[8rem] truncate font-mono text-xs text-slate-600"
+                    title={row.subId ?? undefined}
+                  >
+                    {cellValue(row.subId)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {row.status === "A" ? (
@@ -338,16 +363,6 @@ export function AdvertiserCpaOffersReport() {
                     ) : (
                       "—"
                     )}
-                  </TableCell>
-                  <TableCell
-                    className="max-w-[14rem] truncate font-mono text-[11px] text-slate-400"
-                    title={
-                      typeof row.rawQuery === "string"
-                        ? row.rawQuery
-                        : JSON.stringify(row.rawQuery ?? "")
-                    }
-                  >
-                    {formatRawQuery(row.rawQuery)}
                   </TableCell>
                 </TableRow>
               ))

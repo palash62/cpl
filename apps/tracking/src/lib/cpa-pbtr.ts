@@ -101,20 +101,23 @@ async function createConversionAndDispatch(input: {
     select: { payout: true },
   });
 
+  // Advertiser earning always uses the offer's configured payout.
+  // Network-reported ?payout= is kept in rawQuery for audit only.
+  const effectivePayout = offer?.payout ?? input.payout ?? null;
+
   const event = await prisma.cpaOfferConversion.create({
     data: {
       offerId: input.offerId,
       clickId: input.attribution.attributedClickId ?? undefined,
       advertiserId: input.attribution.advertiserId ?? undefined,
       clickRecordId: input.attribution.clickRecordId ?? undefined,
-      payout: input.payout ?? undefined,
+      payout: effectivePayout ?? undefined,
       rawQuery: input.rawPayload,
     },
   });
 
   if (input.attribution.advertiserId) {
-    const amount = input.payout ?? offer?.payout ?? null;
-    const earningAmount = amount != null ? Number(amount) : 0;
+    const earningAmount = effectivePayout != null ? Number(effectivePayout) : 0;
     if (earningAmount > 0) {
       const availableAt = new Date();
       availableAt.setDate(availableAt.getDate() + 7);
@@ -150,7 +153,7 @@ async function createConversionAndDispatch(input: {
       offerId: input.offerId,
       advertiserId: input.attribution.advertiserId,
       clickId: input.attribution.attributedClickId,
-      payout: input.payout,
+      payout: effectivePayout,
       source: input.attribution.source,
       subId: input.attribution.subId,
     });
