@@ -90,6 +90,8 @@ function ThankYouFunnelPageContent({
         breakpoint={page.previewMode ? breakpoint : undefined}
         matchEditorCanvas={matchEditorCanvas}
         isGhl
+        advertiserId={page.advertiserId}
+        leadId={page.leadId ?? undefined}
       />
       {page.thankYouPixelHtml && (
         <div dangerouslySetInnerHTML={{ __html: page.thankYouPixelHtml }} />

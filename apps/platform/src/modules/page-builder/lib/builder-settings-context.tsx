@@ -1,25 +1,41 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 export type BuilderSettingsLayout = "ghl" | "classic";
 
-const BuilderSettingsLayoutContext = createContext<BuilderSettingsLayout>("classic");
+type BuilderSettingsContextValue = {
+  layout: BuilderSettingsLayout;
+  advertiserId?: string;
+  showCpaOfferSelect?: boolean;
+};
+
+const BuilderSettingsContext = createContext<BuilderSettingsContextValue>({
+  layout: "classic",
+});
 
 export function BuilderSettingsLayoutProvider({
   layout,
+  advertiserId,
+  showCpaOfferSelect = false,
   children,
 }: {
   layout: BuilderSettingsLayout;
+  advertiserId?: string;
+  showCpaOfferSelect?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <BuilderSettingsLayoutContext.Provider value={layout}>
+    <BuilderSettingsContext.Provider value={{ layout, advertiserId, showCpaOfferSelect }}>
       {children}
-    </BuilderSettingsLayoutContext.Provider>
+    </BuilderSettingsContext.Provider>
   );
 }
 
 export function useBuilderSettingsLayout() {
-  return useContext(BuilderSettingsLayoutContext);
+  return useContext(BuilderSettingsContext).layout;
+}
+
+export function useBuilderSettings() {
+  return useContext(BuilderSettingsContext);
 }

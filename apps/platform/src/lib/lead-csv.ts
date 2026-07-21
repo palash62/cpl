@@ -7,6 +7,7 @@ import {
   formatLeadRejectReason,
   parseUserAgent,
 } from "@/lib/publisher-leads";
+import { formatLeadSaleLabel } from "@/lib/cpa-lead-metrics";
 
 export type LeadCsvRow = {
   id: string;
@@ -31,6 +32,8 @@ export type LeadCsvRow = {
   riskScore: number | null;
   validationResults: Array<{ passed: boolean; rule: string; details: string | null }>;
   statusHistory: Array<{ reason: string | null; toStatus: string }>;
+  salesCount?: number;
+  revenue?: number;
 };
 
 function escapeCsv(value: string): string {
@@ -71,6 +74,8 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
     "device",
     "os",
     "cpl",
+    "sales",
+    "revenue",
     "risk_score",
     "status",
     "is_test",
@@ -105,6 +110,10 @@ export function leadsToCsv(leads: LeadCsvRow[], options: { includeAdvertiser?: b
       device === "—" ? "" : device,
       os === "—" ? "" : os,
       cpl === "—" ? "" : cpl,
+      formatLeadSaleLabel(lead.salesCount ?? 0) === "—"
+        ? "0"
+        : String(lead.salesCount ?? 0),
+      (lead.revenue ?? 0) > 0 ? (lead.revenue ?? 0).toFixed(2) : "0",
       lead.riskScore?.toString() ?? "",
       lead.status,
       lead.isTest ? "true" : "false",

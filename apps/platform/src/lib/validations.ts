@@ -693,6 +693,7 @@ export const optinFunnelUpdateSchema = z.object({
     .refine((value) => !value || z.string().url().safeParse(value).success, {
       message: "Enter a valid destination URL",
     }),
+  cpaOfferId: z.string().trim().nullable().optional(),
   templateId: z.string().optional(),
   headline: z.string().trim().min(3).max(120).optional(),
   subheadline: z.string().trim().min(3).max(200).optional(),

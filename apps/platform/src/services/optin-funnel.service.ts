@@ -34,6 +34,7 @@ import type { CraftSerializedState } from "@/modules/page-builder/types/page-doc
 import type { FormJson } from "@/modules/page-builder/types/form-field";
 import type { OptinFunnelEditorType } from "@prisma/client";
 import { sanitizeHtml } from "@/modules/page-builder/lib/sanitize";
+import { getActiveCpaOfferById } from "@/services/cpa-offer.service";
 
 export type OptinFunnelOption = {
   id: string;
@@ -670,6 +671,7 @@ export async function updateOptinFunnel(
     slug?: string;
     campaignId?: string | null;
     destinationUrl?: string | null;
+    cpaOfferId?: string | null;
     templateId?: OptinTemplateId;
     headline?: string;
     subheadline?: string;
@@ -699,13 +701,29 @@ export async function updateOptinFunnel(
 
   const nextThankYouEnabled =
     input.thankYouEnabled !== undefined ? input.thankYouEnabled : existing.thankYouEnabled;
-  const nextDestinationUrl =
+
+  let nextDestinationUrl =
     input.destinationUrl !== undefined
       ? input.destinationUrl?.trim() || null
       : existing.destinationUrl?.trim() || null;
+  let nextCpaOfferId =
+    input.cpaOfferId !== undefined ? input.cpaOfferId?.trim() || null : existing.cpaOfferId ?? null;
 
-  if (!nextThankYouEnabled && !nextDestinationUrl) {
-    throw Errors.validation("Destination URL is required when thank-you redirect is off.");
+  if (input.cpaOfferId !== undefined && nextCpaOfferId) {
+    try {
+      await getActiveCpaOfferById(nextCpaOfferId);
+    } catch {
+      throw Errors.validation("Selected CPA offer is invalid or not active.");
+    }
+    nextDestinationUrl = null;
+  } else if (input.destinationUrl !== undefined && nextDestinationUrl) {
+    nextCpaOfferId = null;
+  }
+
+  if (!nextThankYouEnabled && !nextDestinationUrl && !nextCpaOfferId) {
+    throw Errors.validation(
+      "Enter a destination URL or select a CPA offer when thank-you redirect is off.",
+    );
   }
   if (!nextThankYouEnabled && nextDestinationUrl) {
     try {
@@ -796,8 +814,11 @@ export async function updateOptinFunnel(
       slug,
       ...(input.campaignId !== undefined ? { campaignId: input.campaignId } : {}),
       ...(input.customDomainId !== undefined ? { customDomainId: nextCustomDomainId } : {}),
-      ...(input.destinationUrl !== undefined
-        ? { destinationUrl: input.destinationUrl?.trim() || null }
+      ...(input.destinationUrl !== undefined || input.cpaOfferId !== undefined
+        ? {
+            destinationUrl: nextDestinationUrl,
+            cpaOfferId: nextCpaOfferId,
+          }
         : {}),
       ...(input.templateId ? { templateId: input.templateId } : {}),
       ...(input.headline ? { headline: input.headline.trim() } : {}),
@@ -954,6 +975,7 @@ export async function duplicateOptinFunnel(id: string, advertiserId: string) {
       title: `${page.title} (Copy)`,
       editorType: page.editorType,
       destinationUrl: page.destinationUrl,
+      cpaOfferId: page.cpaOfferId,
       campaignId: page.campaignId,
       templateId: page.templateId,
       headline: page.headline,
@@ -988,9 +1010,9 @@ export async function publishOptinFunnel(id: string, advertiserId: string) {
   if (!page) throw Errors.notFound("Optin funnel");
 
   // Campaign is linked when the advertiser creates/attaches a campaign — not required to publish the funnel.
-  if (!page.thankYouEnabled && !page.destinationUrl?.trim()) {
+  if (!page.thankYouEnabled && !page.destinationUrl?.trim() && !page.cpaOfferId) {
     throw Errors.validation(
-      "Set a destination URL or enable thank-you redirect in funnel settings before publishing.",
+      "Set a destination URL, select a CPA offer, or enable thank-you redirect in funnel settings before publishing.",
     );
   }
 
@@ -1127,6 +1149,7 @@ function buildThankYouFunnelPayload(
   page: {
     id: string;
     slug: string;
+    advertiserId: string;
     campaignId: string | null;
     thankYouCraftState: unknown;
     thankYouThemeJson: unknown;
@@ -1140,6 +1163,7 @@ function buildThankYouFunnelPayload(
     funnelId: page.id,
     slug: page.slug,
     campaignId: page.campaignId ?? "",
+    advertiserId: page.advertiserId,
     pixelToken: page.campaign?.pixelToken ?? null,
     thankYouUseCampaignPixel: page.thankYouUseCampaignPixel,
     thankYouPixelHtml: page.thankYouPixelHtml,

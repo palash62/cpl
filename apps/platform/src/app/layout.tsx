@@ -20,6 +20,11 @@ export const metadata = {
   description: "Cost Per Lead marketplace for advertisers and publishers",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{

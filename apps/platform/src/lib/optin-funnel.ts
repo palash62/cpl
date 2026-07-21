@@ -38,6 +38,7 @@ export type SerializedOptinFunnel = OptinPageContent & {
   thankYouPixelHtml: string | null;
   thankYouUseCampaignPixel: boolean;
   customDomainId: string | null;
+  cpaOfferId: string | null;
   customDomain: { id: string; domain: string; status: string } | null;
   autosaveAt: string | null;
   createdAt: string;
@@ -96,6 +97,7 @@ export function serializeOptinFunnel(page: {
   thankYouPixelHtml?: string | null;
   thankYouUseCampaignPixel?: boolean;
   customDomainId?: string | null;
+  cpaOfferId?: string | null;
   customDomain?: { id: string; domain: string; status: string } | null;
   createdAt: Date;
   updatedAt: Date;
@@ -117,6 +119,7 @@ export function serializeOptinFunnel(page: {
     thankYouPixelHtml: page.thankYouPixelHtml?.trim() || null,
     thankYouUseCampaignPixel: page.thankYouUseCampaignPixel ?? true,
     customDomainId: page.customDomainId ?? null,
+    cpaOfferId: page.cpaOfferId ?? null,
     customDomain: page.customDomain ?? null,
     autosaveAt: page.autosaveAt?.toISOString() ?? null,
     createdAt: page.createdAt.toISOString(),
@@ -126,10 +129,12 @@ export function serializeOptinFunnel(page: {
 
 export type PublicOptinFunnel = PublicOptinPage & {
   funnelId: string;
+  advertiserId: string;
   editorType: OptinFunnelEditorType;
   thankYouEnabled: boolean;
   thankYouUseCampaignPixel: boolean;
   thankYouPixelHtml: string | null;
+  cpaOfferId: string | null;
   pixelToken: string | null;
   craftState?: PageDocument | null;
   formJson?: FormJson | null;
@@ -155,10 +160,12 @@ export function buildPublicOptinFunnel(
   return {
     ...publicBase,
     funnelId: page.id,
+    advertiserId: page.advertiserId,
     editorType: page.editorType,
     thankYouEnabled: serialized.thankYouEnabled,
     thankYouUseCampaignPixel: serialized.thankYouUseCampaignPixel,
     thankYouPixelHtml: serialized.thankYouPixelHtml,
+    cpaOfferId: serialized.cpaOfferId,
     pixelToken: campaign?.pixelToken ?? null,
     craftState: serialized.craftState,
     formJson: serialized.formJson,
@@ -187,6 +194,7 @@ export type PublicThankYouFunnel = {
   funnelId: string;
   slug: string;
   campaignId: string;
+  advertiserId: string;
   pixelToken: string | null;
   thankYouUseCampaignPixel: boolean;
   thankYouPixelHtml: string | null;

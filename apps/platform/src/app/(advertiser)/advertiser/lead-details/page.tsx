@@ -22,6 +22,7 @@ import {
   shortLeadId,
 } from "@/lib/publisher-leads";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
+import { formatLeadRevenue, formatLeadSaleLabel } from "@/lib/cpa-lead-metrics";
 import { PageSection } from "@/components/admin/page-section";
 import { LeadStatusBadge } from "@/components/admin/admin-ui";
 import { RoleHero } from "@/components/layout/role-hero";
@@ -179,6 +180,8 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Device</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">OS</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">CPL</TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Sales</TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Revenue</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Risk</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">
                   <Suspense fallback={<span>Status</span>}>
@@ -193,7 +196,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={13} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={15} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Try adjusting the campaign filter or date range.
@@ -262,6 +265,12 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
                         {cpl}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
+                        {formatLeadSaleLabel(lead.salesCount)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
+                        {formatLeadRevenue(lead.revenue)}
                       </TableCell>
                       <TableCell className="px-4 py-4">{riskBadge(lead.riskScore)}</TableCell>
                       <TableCell className="px-4 py-4">

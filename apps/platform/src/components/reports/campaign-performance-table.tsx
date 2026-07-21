@@ -32,6 +32,8 @@ export function CampaignPerformanceTable({
     row.approvedLeads,
     row.pendingLeads,
     row.rejectedLeads,
+    row.salesCount,
+    row.revenue,
     row.conversionRate,
     row.approvalRate,
     row.spend,
@@ -60,6 +62,8 @@ export function CampaignPerformanceTable({
             "Approved",
             "Pending",
             "Rejected",
+            "Sales",
+            "Revenue",
             "Conversion %",
             "Approval %",
             "Spend",
@@ -91,6 +95,12 @@ export function CampaignPerformanceTable({
                 Rejected
               </TableHead>
               <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Sales
+              </TableHead>
+              <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Revenue
+              </TableHead>
+              <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Conv.
               </TableHead>
               <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -116,6 +126,8 @@ export function CampaignPerformanceTable({
                 <TableCell className="px-3 text-right tabular-nums">{row.approvedLeads.toLocaleString()}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">{row.pendingLeads.toLocaleString()}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">{row.rejectedLeads.toLocaleString()}</TableCell>
+                <TableCell className="px-3 text-right tabular-nums">{row.salesCount.toLocaleString()}</TableCell>
+                <TableCell className="px-3 text-right tabular-nums">{formatCurrency(row.revenue)}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">{formatPercent(row.conversionRate)}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">{formatPercent(row.approvalRate)}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">{formatCurrency(row.spend)}</TableCell>

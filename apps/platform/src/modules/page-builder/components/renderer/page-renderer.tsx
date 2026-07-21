@@ -31,6 +31,8 @@ type PageRendererProps = {
   landingPageSlug?: string;
   formJson?: FormJson | null;
   onLeadSubmit?: (data: Record<string, string>) => Promise<void>;
+  advertiserId?: string;
+  leadId?: string;
   /** When true, fill a parent flex column (e.g. preview banner + page). */
   fillParent?: boolean;
   /** Override responsive breakpoint (preview from editor device switcher). */
@@ -52,6 +54,8 @@ export function PageRenderer({
   landingPageSlug,
   formJson,
   onLeadSubmit,
+  advertiserId,
+  leadId,
   fillParent = false,
   breakpoint: breakpointProp,
   matchEditorCanvas = false,
@@ -175,6 +179,8 @@ export function PageRenderer({
     breakpoint: breakpointProp,
     matchEditorCanvas,
     isGhl,
+    advertiserId,
+    leadId,
   };
 
   return (

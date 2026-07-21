@@ -21,6 +21,7 @@ import {
   shortLeadId,
 } from "@/lib/publisher-leads";
 import { listLeads, type AdvertiserLeadSort } from "@/services/lead.service";
+import { formatLeadRevenue, formatLeadSaleLabel } from "@/lib/cpa-lead-metrics";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
@@ -187,6 +188,8 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Device</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">OS</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">CPL</TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Sales</TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Revenue</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Risk</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Flags</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">
@@ -203,7 +206,7 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={18} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={20} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Try adjusting the filters or date range.
@@ -275,6 +278,12 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
                         {cpl}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
+                        {formatLeadSaleLabel(lead.salesCount)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
+                        {formatLeadRevenue(lead.revenue)}
                       </TableCell>
                       <TableCell className="px-4 py-4">{riskBadge(lead.riskScore)}</TableCell>
                       <TableCell className="px-4 py-4">

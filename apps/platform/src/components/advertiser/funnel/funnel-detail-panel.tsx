@@ -49,6 +49,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   const [funnelName, setFunnelName] = useState(funnel.name);
   const [thankYouEnabled, setThankYouEnabled] = useState(funnel.thankYouEnabled);
   const [destinationUrl, setDestinationUrl] = useState(funnel.destinationUrl ?? "");
+  const [cpaOfferId, setCpaOfferId] = useState<string | null>(funnel.cpaOfferId ?? null);
   const [thankYouPixelHtml, setThankYouPixelHtml] = useState(funnel.thankYouPixelHtml ?? "");
   const [customDomainId, setCustomDomainId] = useState<string | null>(funnel.customDomainId);
   const [verifiedDomains, setVerifiedDomains] = useState<Array<{ id: string; domain: string }>>([]);
@@ -72,6 +73,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
         setFunnelName(refreshed.name);
         setThankYouEnabled(refreshed.thankYouEnabled);
         setDestinationUrl(refreshed.destinationUrl ?? "");
+        setCpaOfferId(refreshed.cpaOfferId ?? null);
         setThankYouPixelHtml(refreshed.thankYouPixelHtml ?? "");
         setCustomDomainId(refreshed.customDomainId);
       }
@@ -119,19 +121,23 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
   async function saveSettings(patch?: Partial<{
     thankYouEnabled: boolean;
     destinationUrl: string;
+    cpaOfferId: string | null;
     thankYouPixelHtml: string;
     thankYouUseCampaignPixel: boolean;
     customDomainId: string | null;
   }>) {
     const nextThankYouEnabled = patch?.thankYouEnabled ?? thankYouEnabled;
     const nextDestinationUrl = (patch?.destinationUrl ?? destinationUrl).trim();
+    const nextCpaOfferId = patch?.cpaOfferId !== undefined ? patch.cpaOfferId : cpaOfferId;
 
     if (!nextThankYouEnabled) {
-      if (!nextDestinationUrl) {
-        setSettingsMessage("Destination URL is required when thank-you redirect is off.");
+      if (!nextDestinationUrl && !nextCpaOfferId) {
+        setSettingsMessage(
+          "Enter a destination URL or select a CPA offer when thank-you redirect is off.",
+        );
         return false;
       }
-      if (!isValidHttpUrl(nextDestinationUrl)) {
+      if (nextDestinationUrl && !isValidHttpUrl(nextDestinationUrl)) {
         setSettingsMessage("Enter a valid destination URL (https://...).");
         return false;
       }
@@ -153,7 +159,8 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
     const body = {
       name: trimmedName,
       thankYouEnabled: nextThankYouEnabled,
-      destinationUrl: nextDestinationUrl || null,
+      destinationUrl: nextCpaOfferId ? null : nextDestinationUrl || null,
+      cpaOfferId: nextCpaOfferId,
       thankYouPixelHtml: patch?.thankYouPixelHtml ?? thankYouPixelHtml,
       thankYouUseCampaignPixel: patch?.thankYouUseCampaignPixel ?? thankYouUseCampaignPixel,
       customDomainId: patch?.customDomainId !== undefined ? patch.customDomainId : customDomainId,
@@ -177,16 +184,19 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
     setFunnelName(saved.name);
     setThankYouEnabled(saved.thankYouEnabled);
     setDestinationUrl(saved.destinationUrl ?? "");
+    setCpaOfferId(saved.cpaOfferId ?? null);
     setCustomDomainId(saved.customDomainId);
     setSettingsMessage("Settings saved.");
     return true;
   }
 
   async function handleThankYouToggle(enabled: boolean) {
-    if (!enabled && !destinationUrl.trim()) {
+    if (!enabled && !destinationUrl.trim() && !cpaOfferId) {
       setThankYouEnabled(false);
       setSettingsOpen(true);
-      setSettingsMessage("Destination URL is required when thank-you redirect is off.");
+      setSettingsMessage(
+        "Enter a destination URL or select a CPA offer when thank-you redirect is off.",
+      );
       return;
     }
 
@@ -278,6 +288,7 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
                 setFunnelName(saved.name);
                 setThankYouEnabled(saved.thankYouEnabled);
                 setDestinationUrl(saved.destinationUrl ?? "");
+                setCpaOfferId(saved.cpaOfferId ?? null);
                 setThankYouPixelHtml(saved.thankYouPixelHtml ?? "");
                 setCustomDomainId(saved.customDomainId);
               }}
@@ -298,12 +309,21 @@ export function FunnelDetailPanel({ initialFunnel, appUrl }: FunnelDetailPanelPr
         description={workflow.settingsDescription}
         thankYouEnabled={thankYouEnabled}
         destinationUrl={destinationUrl}
+        cpaOfferId={cpaOfferId}
+        showOfferSelect
         thankYouPixelHtml={thankYouPixelHtml}
         saving={savingSettings}
         message={settingsMessage}
         thankYouRedirectHint={thankYouHint}
         onThankYouEnabledChange={(enabled) => void handleThankYouToggle(enabled)}
-        onDestinationUrlChange={setDestinationUrl}
+        onDestinationUrlChange={(url) => {
+          setDestinationUrl(url);
+          if (url.trim()) setCpaOfferId(null);
+        }}
+        onCpaOfferIdChange={(offerId) => {
+          setCpaOfferId(offerId);
+          if (offerId) setDestinationUrl("");
+        }}
         onThankYouPixelHtmlChange={setThankYouPixelHtml}
         onSave={() => void saveSettings()}
       />

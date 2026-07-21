@@ -56,6 +56,8 @@ function sumVisibleRows(rows: AdminEntityReportRow[]) {
       approvedLeads: acc.approvedLeads + row.approvedLeads,
       rejectedLeads: acc.rejectedLeads + row.rejectedLeads,
       pendingLeads: acc.pendingLeads + row.pendingLeads,
+      salesCount: acc.salesCount + row.salesCount,
+      revenue: acc.revenue + row.revenue,
       spend: acc.spend + row.spend,
       earnings: acc.earnings + row.earnings,
     }),
@@ -65,12 +67,15 @@ function sumVisibleRows(rows: AdminEntityReportRow[]) {
       approvedLeads: 0,
       rejectedLeads: 0,
       pendingLeads: 0,
+      salesCount: 0,
+      revenue: 0,
       spend: 0,
       earnings: 0,
     },
   );
   return {
     ...totals,
+    revenue: Math.round(totals.revenue * 100) / 100,
     conversionRate: totals.clicks > 0 ? Math.round((totals.leads / totals.clicks) * 10000) / 100 : 0,
     approvalRate: totals.leads > 0 ? Math.round((totals.approvedLeads / totals.leads) * 10000) / 100 : 0,
   };

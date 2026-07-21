@@ -10,7 +10,7 @@ html {
   background: #050711;
   color: #fff;
   line-height: 1.6;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100vh;
 }
 
@@ -32,6 +32,23 @@ html {
   width: 92%;
   max-width: 1180px;
   margin: auto;
+}
+
+.vslLanding .container,
+.vslLanding .box,
+.vslLanding .cost-card,
+.vslLanding .cta,
+.vslLanding .mockup {
+  max-width: 100%;
+}
+
+.vslLanding h1,
+.vslLanding h2,
+.vslLanding h3,
+.vslLanding .section-title h2,
+.vslLanding .cta h2,
+.vslLanding .box h3 {
+  overflow-wrap: anywhere;
 }
 
 .vslLanding .btn {
@@ -153,78 +170,6 @@ html {
 
 .vslLanding .mobile-nav-panel {
   display: none;
-}
-
-@media (max-width: 900px) {
-  .vslLanding .hero-grid,
-  .vslLanding .grid-2,
-  .vslLanding .cost-cards,
-  .vslLanding .vsl {
-    grid-template-columns: 1fr;
-  }
-
-  .vslLanding .features {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .vslLanding .trust-row,
-  .vslLanding .integrations,
-  .vslLanding .steps {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .vslLanding h1 {
-    font-size: 42px;
-  }
-
-  .vslLanding .navlinks {
-    display: none;
-  }
-
-  .vslLanding .navactions .btn-outline,
-  .vslLanding .navactions .btn {
-    display: none;
-  }
-
-  .vslLanding .mobile-menu-toggle {
-    display: inline-flex;
-  }
-
-  .vslLanding .mobile-nav-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px 18px 20px;
-    border-bottom: 1px solid #24315a;
-    background: rgba(8, 12, 28, 0.96);
-  }
-
-  .vslLanding .mobile-nav-panel > a {
-    display: block;
-    padding: 12px 10px;
-    border-radius: 12px;
-    color: #d7dff5;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .vslLanding .mobile-nav-panel > a:hover {
-    background: rgba(139, 61, 255, 0.12);
-    color: #fff;
-  }
-
-  .vslLanding .mobile-nav-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .vslLanding .mobile-nav-actions .btn,
-  .vslLanding .mobile-nav-actions .btn-outline {
-    display: block;
-    text-align: center;
-  }
 }
 
 .vslLanding .hero {
@@ -645,7 +590,19 @@ html {
   margin-top: 14px;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 900px) {
+  .vslLanding .hero {
+    padding: 56px 0 40px;
+  }
+
+  .vslLanding section {
+    padding: 48px 0;
+  }
+
+  .vslLanding .hero-grid,
+  .vslLanding .grid-2,
+  .vslLanding .cost-cards,
+  .vslLanding .vsl,
   .vslLanding .features,
   .vslLanding .trust-row,
   .vslLanding .integrations,
@@ -654,11 +611,119 @@ html {
   }
 
   .vslLanding h1 {
+    font-size: 42px;
+  }
+
+  .vslLanding .section-title h2 {
+    font-size: 32px;
+  }
+
+  .vslLanding .cta h2 {
+    font-size: 34px;
+  }
+
+  .vslLanding .box h3 {
+    font-size: 24px;
+  }
+
+  .vslLanding .price-big {
+    font-size: 42px;
+  }
+
+  .vslLanding .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vslLanding .hero-actions .btn,
+  .vslLanding .hero-actions .video-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  .vslLanding .cta .btn {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .vslLanding .video-box {
+    aspect-ratio: 16 / 9;
+    height: auto;
+    min-height: 0;
+  }
+
+  .vslLanding .navlinks {
+    display: none;
+  }
+
+  .vslLanding .navactions .btn-outline,
+  .vslLanding .navactions .btn {
+    display: none;
+  }
+
+  .vslLanding .mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .vslLanding .mobile-nav-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 18px 20px;
+    border-bottom: 1px solid #24315a;
+    background: rgba(8, 12, 28, 0.96);
+  }
+
+  .vslLanding .mobile-nav-panel > a {
+    display: block;
+    padding: 12px 10px;
+    border-radius: 12px;
+    color: #d7dff5;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .vslLanding .mobile-nav-panel > a:hover {
+    background: rgba(139, 61, 255, 0.12);
+    color: #fff;
+  }
+
+  .vslLanding .mobile-nav-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .vslLanding .mobile-nav-actions .btn,
+  .vslLanding .mobile-nav-actions .btn-outline {
+    display: block;
+    text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .vslLanding h1 {
     font-size: 36px;
   }
 
   .vslLanding .section-title h2 {
     font-size: 30px;
+  }
+
+  .vslLanding .cta h2 {
+    font-size: 28px;
+  }
+
+  .vslLanding .box {
+    padding: 24px;
+  }
+
+  .vslLanding .cost-card {
+    padding: 26px;
   }
 
   .vslLanding .cta {
@@ -667,5 +732,13 @@ html {
 
   .vslLanding .price-big {
     font-size: 38px;
+  }
+
+  .vslLanding .screen {
+    min-height: 320px;
+  }
+
+  .vslLanding .mockup {
+    padding: 16px;
   }
 }

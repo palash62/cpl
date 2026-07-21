@@ -261,6 +261,8 @@ export function OptinFunnelBuilderPage({ funnelId }: { funnelId: string }) {
           pageName={funnel.name}
           pageSlug={funnel.slug}
           campaignId={funnel.campaignId}
+          advertiserId={funnel.advertiserId}
+          showCpaOfferSelect
         />
       </div>
     </div>

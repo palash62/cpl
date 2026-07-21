@@ -19,7 +19,10 @@ import { usePageTheme } from "@/modules/page-builder/hooks/use-page-theme";
 import { usePublishedPage } from "@/modules/page-builder/lib/published-page-context";
 import { useRenderBreakpoint } from "@/modules/page-builder/hooks/use-render-breakpoint";
 import { useBuilderStore } from "@/modules/page-builder/lib/builder-store";
-import { useBuilderSettingsLayout } from "@/modules/page-builder/lib/builder-settings-context";
+import { useBuilderSettingsLayout, useBuilderSettings } from "@/modules/page-builder/lib/builder-settings-context";
+import { resolveCpaOfferRedirectUrl } from "@cpl/shared";
+import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
+import { CpaOfferSelect } from "@/components/cpa/cpa-offer-select";
 import {
   resolveFullWidthForBreakpoint,
   resolveTypographyForBreakpoint,
@@ -32,6 +35,7 @@ import { sanitizeEmbedUrl } from "@/modules/page-builder/lib/sanitize";
 type CtaProps = BlockProps & {
   text?: string;
   href?: string;
+  cpaOfferId?: string | null;
   openInNewTab?: boolean;
   fullWidth?: boolean;
   buttonAppearance?: ButtonAppearanceProps;
@@ -39,14 +43,27 @@ type CtaProps = BlockProps & {
   buttonSize?: ButtonLegacySize;
 };
 
+function resolveCtaOfferHref(offerId: string, advertiserId?: string, leadId?: string) {
+  if (!advertiserId) return null;
+  const { source, subId } = readOptinTrackingParams();
+  return resolveCpaOfferRedirectUrl(offerId, {
+    advertiserId,
+    src: source,
+    subId,
+    leadId,
+  });
+}
+
 function CtaSettings() {
   const styleBreakpoint = useBuilderStore((s) => s.styleBreakpoint);
   const settingsLayout = useBuilderSettingsLayout();
+  const { advertiserId, showCpaOfferSelect } = useBuilderSettings();
   const isGhl = settingsLayout === "ghl";
   const activeBreakpoint: Breakpoint = isGhl ? styleBreakpoint : "desktop";
-  const { text, href, openInNewTab, fullWidth, typography, buttonSize, responsive, actions: { setProp } } = useNode((node) => ({
+  const { text, href, cpaOfferId, openInNewTab, fullWidth, typography, buttonSize, responsive, actions: { setProp } } = useNode((node) => ({
     text: node.data.props.text as string,
     href: node.data.props.href as string,
+    cpaOfferId: (node.data.props.cpaOfferId as string | null | undefined) ?? null,
     openInNewTab: Boolean(node.data.props.openInNewTab),
     fullWidth:
       Boolean(node.data.props.fullWidth) ||
@@ -66,6 +83,8 @@ function CtaSettings() {
     activeBreakpoint,
     { blockType: "CTA Button" },
   );
+  const offerPreviewUrl =
+    cpaOfferId && advertiserId ? resolveCtaOfferHref(cpaOfferId, advertiserId) : null;
 
   return (
     <div className="space-y-3">
@@ -78,12 +97,38 @@ function CtaSettings() {
         <FieldInput
           value={href ?? ""}
           placeholder="https://example.com"
-          onChange={(e) => setProp((p: CtaProps) => { p.href = e.target.value; })}
+          disabled={Boolean(cpaOfferId)}
+          onChange={(e) =>
+            setProp((p: CtaProps) => {
+              p.href = e.target.value;
+              p.cpaOfferId = null;
+            })
+          }
         />
         <p className="text-[11px] text-slate-500">
           Use a full URL for external links. Use `#form` only when this button should submit the optin form.
         </p>
       </div>
+      {showCpaOfferSelect && (
+        <div className="space-y-1.5">
+          <CpaOfferSelect
+            value={cpaOfferId}
+            label="Select offer"
+            placeholder="Choose a CPA offer"
+            onChange={(offerId) =>
+              setProp((p: CtaProps) => {
+                p.cpaOfferId = offerId;
+                if (offerId) {
+                  p.href = "";
+                }
+              })
+            }
+          />
+          {offerPreviewUrl && (
+            <p className="break-all font-mono text-[10px] text-slate-500">{offerPreviewUrl}</p>
+          )}
+        </div>
+      )}
       <label className="flex items-center gap-2 text-xs text-slate-600">
         <input
           type="checkbox"
@@ -141,6 +186,7 @@ function CtaSettings() {
 export function CtaButton({
   text = "Get Started",
   href = "#",
+  cpaOfferId = null,
   openInNewTab = false,
   fullWidth = false,
   buttonSize,
@@ -152,7 +198,12 @@ export function CtaButton({
   const { actions: { setProp } } = useNode();
   const published = usePublishedPage();
   const breakpoint = useRenderBreakpoint();
-  const normalizedHref = (href ?? "").trim();
+  const offerHref =
+    !enabled && cpaOfferId && published.advertiserId
+      ? resolveCtaOfferHref(cpaOfferId, published.advertiserId, published.leadId)
+      : null;
+  const effectiveHref = (offerHref ?? href ?? "").trim();
+  const normalizedHref = effectiveHref;
   const typographyForBp = resolveTypographyForBreakpoint(props, breakpoint, { blockType: "CTA Button" });
   const isFullWidth = resolveFullWidthForBreakpoint(
     { fullWidth, responsive: props.responsive },
@@ -207,7 +258,7 @@ export function CtaButton({
         </button>
       ) : (
         <a
-          href={href || "#"}
+          href={effectiveHref || "#"}
           target={openInNewTab || isExternalHttp ? "_blank" : undefined}
           rel={openInNewTab || isExternalHttp ? "noopener noreferrer" : undefined}
           style={buttonStyle}

@@ -13,6 +13,8 @@ export type PublishedPageContextValue = {
   breakpoint?: Breakpoint;
   matchEditorCanvas?: boolean;
   isGhl?: boolean;
+  advertiserId?: string;
+  leadId?: string;
 };
 
 const PublishedPageContext = createContext<PublishedPageContextValue>({});

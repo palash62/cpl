@@ -132,6 +132,8 @@ export default async function AdvertiserLeadReportPage({ searchParams }: PagePro
                 <TableHead className="h-11 px-4 text-right text-slate-600">Pending</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Rejected</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Paid</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Sales</TableHead>
+                <TableHead className="h-11 px-4 text-right text-slate-600">Revenue</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Payout Range</TableHead>
                 <TableHead className="h-11 px-4 text-right text-slate-600">Est. Spend</TableHead>
                 <TableHead className="h-11 px-4 text-slate-600">Last Lead</TableHead>
@@ -141,7 +143,7 @@ export default async function AdvertiserLeadReportPage({ searchParams }: PagePro
             <TableBody>
               {publisherReport.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={10} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={12} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No Data Found</p>
                   </TableCell>
                 </TableRow>
@@ -168,6 +170,12 @@ export default async function AdvertiserLeadReportPage({ searchParams }: PagePro
                     </TableCell>
                     <TableCell className="px-4 py-4 text-right text-sm text-slate-700">
                       {row.paidLeads}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-right text-sm text-slate-700">
+                      {row.salesCount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-right text-sm font-medium text-slate-800">
+                      {formatCurrency(row.revenue)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-600">
                       {formatPayoutRange(row.payoutMin, row.payoutMax)}

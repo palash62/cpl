@@ -24,6 +24,7 @@ export type FunnelWorkflowEntity = {
   thankYouCraftState: PageDocument | null;
   thankYouThemeJson: ThemeJson | null;
   destinationUrl: string | null;
+  cpaOfferId: string | null;
   thankYouPixelHtml: string | null;
   updatedAt?: string;
   editorType?: OptinFunnelEditorType | string;
@@ -102,6 +103,7 @@ export function toFunnelWorkflowEntityFromFunnel(funnel: SerializedOptinFunnel):
     thankYouCraftState: funnel.thankYouCraftState,
     thankYouThemeJson: funnel.thankYouThemeJson,
     destinationUrl: funnel.destinationUrl,
+    cpaOfferId: funnel.cpaOfferId,
     thankYouPixelHtml: funnel.thankYouPixelHtml,
     updatedAt: funnel.updatedAt,
     editorType: funnel.editorType,
@@ -133,6 +135,7 @@ export function toFunnelWorkflowEntityFromAdminTemplate(template: OptinFunnelTem
     thankYouCraftState: wrapCraft(template.thankYouCraftState),
     thankYouThemeJson: template.thankYouThemeJson,
     destinationUrl: template.destinationUrl,
+    cpaOfferId: null,
     thankYouPixelHtml: template.thankYouPixelHtml,
     updatedAt: template.createdAt,
     editorType: "BUILDER",

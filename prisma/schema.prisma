@@ -505,6 +505,7 @@ model Lead {
   autoresponderDeliveries AutoresponderDelivery[]
   emailSends              EmailSend[]
   emailContacts           EmailContact[]
+  cpaOfferClicks          CpaOfferClick[]
 
   @@index([campaignId])
   @@index([publisherId])
@@ -749,6 +750,7 @@ model AdvertiserOptinPage {
   name           String   @default("My Optin Funnel")
   title          String   @default("My Optin Page")
   destinationUrl String?  @map("destination_url")
+  cpaOfferId     String?  @map("cpa_offer_id")
   campaignId     String?  @map("campaign_id")
   editorType     OptinFunnelEditorType @default(TEMPLATE) @map("editor_type")
   status         OptinFunnelStatus @default(DRAFT)
@@ -780,6 +782,7 @@ model AdvertiserOptinPage {
 
   advertiser       User                 @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
   campaign         Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  cpaOffer         CpaOffer?            @relation(fields: [cpaOfferId], references: [id], onDelete: SetNull)
   customDomain     AdvertiserDomain?    @relation(fields: [customDomainId], references: [id], onDelete: SetNull)
   versions         OptinFunnelVersion[] @relation("FunnelVersions")
   publishedVersion OptinFunnelVersion?  @relation("FunnelPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
@@ -1252,6 +1255,7 @@ model CpaOffer {
   conversions     CpaOfferConversion[]
   clicks          CpaOfferClick[]
   cpaEarnings     CpaEarning[]
+  optinPages      AdvertiserOptinPage[]
 
   @@index([status, createdAt])
   @@index([network])
@@ -1263,6 +1267,7 @@ model CpaOfferClick {
   id           String   @id @default(cuid())
   offerId      String   @map("offer_id")
   advertiserId String   @map("advertiser_id")
+  leadId       String?  @map("lead_id")
   subId        String?  @map("sub_id")
   src          String?
   ip           String?
@@ -1270,10 +1275,12 @@ model CpaOfferClick {
   createdAt    DateTime @default(now()) @map("created_at")
   offer        CpaOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
   advertiser   User     @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
   conversions  CpaOfferConversion[]
 
   @@index([offerId, createdAt])
   @@index([advertiserId])
+  @@index([leadId])
   @@map("cpa_offer_clicks")
 }
 

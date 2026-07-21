@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { buildGlobalCpaPostbackUrl, buildCpaOfferTrackingUrl } from "@cpl/shared";
+import { buildGlobalCpaPostbackUrl, buildCpaOfferTrackingUrl, resolveCpaOfferRedirectUrl } from "@cpl/shared";
 import {
   serializeCpaOffer,
   listActiveCpaOffers,
@@ -37,6 +37,32 @@ describe("buildCpaOfferTrackingUrl", () => {
     expect(url).toContain("adv_id=adv-9");
     expect(url).toContain("src=facebook");
     expect(url).toContain("sub_id=camp-a");
+  });
+
+  it("includes lead_id when provided", () => {
+    const url = buildCpaOfferTrackingUrl(
+      "offer1",
+      { advertiserId: "adv-9", leadId: "lead-abc" },
+      "https://leadgenlink.site",
+    );
+    expect(url).toContain("lead_id=lead-abc");
+  });
+});
+
+describe("resolveCpaOfferRedirectUrl", () => {
+  it("delegates to buildCpaOfferTrackingUrl", () => {
+    const url = resolveCpaOfferRedirectUrl(
+      "offer42",
+      { advertiserId: "adv-1", src: "email" },
+      "https://track.example.com",
+    );
+    expect(url).toBe(
+      buildCpaOfferTrackingUrl(
+        "offer42",
+        { advertiserId: "adv-1", src: "email" },
+        "https://track.example.com",
+      ),
+    );
   });
 });
 

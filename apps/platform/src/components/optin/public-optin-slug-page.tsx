@@ -74,6 +74,8 @@ function renderDraftPreview(
         formJson={draft.formJson ?? null}
         thankYouEnabled={draft.thankYouEnabled}
         destinationUrl={draft.destinationUrl}
+        cpaOfferId={draft.cpaOfferId}
+        advertiserId={draft.advertiserId}
         previewMode={!testCampaignId}
         testCampaignId={testCampaignId}
         thankYouPath={resolvedThankYouPath}
@@ -124,6 +126,8 @@ export async function PublicOptinSlugPage({
           formJson={publishedBuilder.formJson}
           thankYouEnabled={publishedBuilder.funnel.thankYouEnabled}
           destinationUrl={publishedBuilder.funnel.destinationUrl}
+          cpaOfferId={publishedBuilder.funnel.cpaOfferId}
+          advertiserId={publishedBuilder.funnel.advertiserId}
           testCampaignId={testCampaignId}
           thankYouPath={resolvedThankYouPath}
         />
@@ -163,6 +167,8 @@ export async function PublicOptinSlugPage({
         formJson={publishedBuilder.formJson}
         thankYouEnabled={publishedBuilder.funnel.thankYouEnabled}
         destinationUrl={publishedBuilder.funnel.destinationUrl}
+        cpaOfferId={publishedBuilder.funnel.cpaOfferId}
+        advertiserId={publishedBuilder.funnel.advertiserId}
         thankYouPath={resolvedThankYouPath}
       />
     );

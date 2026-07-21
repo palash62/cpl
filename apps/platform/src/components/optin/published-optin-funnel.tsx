@@ -14,6 +14,7 @@ import {
   createSignalCollector,
 } from "@/modules/fraud/client/collect-signals";
 import { readOptinTrackingParams } from "@/lib/optin-tracking-params";
+import { resolveCpaOfferRedirectUrl } from "@cpl/shared";
 import {
   isAcceptedLeadStatus,
   trackLeadConversion,
@@ -26,6 +27,8 @@ type PublishedOptinFunnelProps = {
   formJson: FormJson | null;
   thankYouEnabled: boolean;
   destinationUrl?: string | null;
+  cpaOfferId?: string | null;
+  advertiserId?: string;
   previewMode?: boolean;
   testCampaignId?: string;
   thankYouPath?: string;
@@ -38,6 +41,8 @@ function PublishedOptinFunnelContent({
   formJson,
   thankYouEnabled,
   destinationUrl,
+  cpaOfferId,
+  advertiserId,
   previewMode,
   testCampaignId,
   thankYouPath,
@@ -106,12 +111,19 @@ function PublishedOptinFunnelContent({
         return;
       }
 
-      const redirectUrl = destinationUrl?.trim();
+      const redirectUrl = cpaOfferId && advertiserId
+        ? resolveCpaOfferRedirectUrl(cpaOfferId, {
+            advertiserId,
+            src: source,
+            subId,
+            leadId,
+          })
+        : destinationUrl?.trim();
       if (redirectUrl && !previewMode) {
         window.location.assign(redirectUrl);
       }
     },
-    [slug, thankYouEnabled, destinationUrl, previewMode, testCampaignId, thankYouPath],
+    [slug, thankYouEnabled, destinationUrl, cpaOfferId, advertiserId, previewMode, testCampaignId, thankYouPath],
   );
 
   const page = (
@@ -125,6 +137,7 @@ function PublishedOptinFunnelContent({
       matchEditorCanvas={previewMode && matchEditorCanvas}
       isGhl
       onLeadSubmit={previewMode ? undefined : handleSubmit}
+      advertiserId={advertiserId}
     />
   );
 

@@ -30,8 +30,10 @@ export async function GET(
   const advId = requestUrl.searchParams.get("adv_id")?.trim() || null;
   const subId = requestUrl.searchParams.get("sub_id")?.trim() || null;
   const src = requestUrl.searchParams.get("src")?.trim() || null;
+  const leadIdParam = requestUrl.searchParams.get("lead_id")?.trim() || null;
 
   let clickId: string | null = null;
+  let leadId: string | null = null;
 
   if (advId) {
     const advertiser = await prisma.user.findFirst({
@@ -40,10 +42,22 @@ export async function GET(
     });
 
     if (advertiser) {
+      if (leadIdParam) {
+        const lead = await prisma.lead.findFirst({
+          where: {
+            id: leadIdParam,
+            campaign: { advertiserId: advertiser.id },
+          },
+          select: { id: true },
+        });
+        if (lead) leadId = lead.id;
+      }
+
       const click = await prisma.cpaOfferClick.create({
         data: {
           offerId: offer.id,
           advertiserId: advertiser.id,
+          leadId,
           subId: subId?.slice(0, 191) || null,
           src: src?.slice(0, 191) || null,
           ip: clientIp(request)?.slice(0, 191) || null,

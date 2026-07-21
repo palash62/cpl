@@ -27,6 +27,7 @@ import { shouldCreditPublisherForLead } from "@/lib/publisher-leads";
 import { resolveLeadEmail, withResolvedLeadEmail } from "@/lib/lead-email";
 import { validateEmailDeliverability } from "@/lib/email-deliverability";
 import { parseCampaignTargeting } from "@/lib/campaign-targeting";
+import { loadCpaMetricsByLeadIds } from "@/lib/cpa-lead-metrics";
 
 type LeadValidationField = {
   fieldName: string;
@@ -1065,6 +1066,20 @@ async function enrichLeadListRows<
   return withIpAndCpl;
 }
 
+async function attachCpaMetricsToLeadRows<
+  T extends { id: string },
+>(rows: T[]): Promise<Array<T & { salesCount: number; revenue: number }>> {
+  const metricsByLeadId = await loadCpaMetricsByLeadIds(rows.map((row) => row.id));
+  return rows.map((row) => {
+    const metrics = metricsByLeadId.get(row.id);
+    return {
+      ...row,
+      salesCount: metrics?.salesCount ?? 0,
+      revenue: metrics?.revenue ?? 0,
+    };
+  });
+}
+
 export async function listLeads(filters: LeadListFilters & { page?: number; limit?: number }) {
   const page = filters.page ?? 1;
   const limit = filters.limit ?? 10;
@@ -1084,7 +1099,8 @@ export async function listLeads(filters: LeadListFilters & { page?: number; limi
   ]);
 
   const enriched = await enrichLeadListRows(data);
-  const backfill = enriched
+  const withCpaMetrics = await attachCpaMetricsToLeadRows(enriched);
+  const backfill = withCpaMetrics
     .map((lead, index) => {
       const original = data[index];
       if (
@@ -1117,7 +1133,7 @@ export async function listLeads(filters: LeadListFilters & { page?: number; limi
   }
 
   return {
-    data: enriched,
+    data: withCpaMetrics,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
   };
 }
@@ -1136,7 +1152,7 @@ export async function listLeadsForExport(filters: LeadListFilters) {
     take: LEAD_EXPORT_MAX,
   });
 
-  return enrichLeadListRows(data);
+  return attachCpaMetricsToLeadRows(await enrichLeadListRows(data));
 }
 
 export type AdvertiserPublisherLeadReportRow = {
@@ -1146,6 +1162,8 @@ export type AdvertiserPublisherLeadReportRow = {
   pendingLeads: number;
   rejectedLeads: number;
   paidLeads: number;
+  salesCount: number;
+  revenue: number;
   estimatedSpend: number;
   payoutMin: number | null;
   payoutMax: number | null;
@@ -1215,6 +1233,7 @@ export async function listAdvertiserPublisherLeadReport(filters: {
   const paidCplByLeadId = await loadPaidLeadCplByLeadId(
     leads.filter((lead) => lead.status === "PAID").map((lead) => lead.id),
   );
+  const cpaMetricsByLeadId = await loadCpaMetricsByLeadIds(leads.map((lead) => lead.id));
 
   const grouped = new Map<string, AdvertiserPublisherLeadReportRow>();
 
@@ -1226,6 +1245,8 @@ export async function listAdvertiserPublisherLeadReport(filters: {
       pendingLeads: 0,
       rejectedLeads: 0,
       paidLeads: 0,
+      salesCount: 0,
+      revenue: 0,
       estimatedSpend: 0,
       payoutMin: null,
       payoutMax: null,
@@ -1237,6 +1258,11 @@ export async function listAdvertiserPublisherLeadReport(filters: {
     existing.payoutMax = existing.payoutMax === null ? cpl : Math.max(existing.payoutMax, cpl);
 
     existing.totalLeads += 1;
+    const leadCpaMetrics = cpaMetricsByLeadId.get(lead.id);
+    if (leadCpaMetrics) {
+      existing.salesCount += leadCpaMetrics.salesCount;
+      existing.revenue += leadCpaMetrics.revenue;
+    }
     if (lead.status === "APPROVED") {
       existing.approvedLeads += 1;
       existing.estimatedSpend += cpl;

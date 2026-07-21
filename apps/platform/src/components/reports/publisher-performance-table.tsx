@@ -33,6 +33,8 @@ export function PublisherPerformanceTable({
     row.pendingLeads,
     row.rejectedLeads,
     row.paidLeads,
+    row.salesCount,
+    row.revenue,
     row.estimatedSpend,
     row.payoutMin,
     row.payoutMax,
@@ -58,6 +60,8 @@ export function PublisherPerformanceTable({
             "Pending",
             "Rejected",
             "Paid",
+            "Sales",
+            "Revenue",
             "Estimated Spend",
             "Payout Min",
             "Payout Max",
@@ -85,6 +89,12 @@ export function PublisherPerformanceTable({
                 Rejected
               </TableHead>
               <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Sales
+              </TableHead>
+              <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Revenue
+              </TableHead>
+              <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Spend
               </TableHead>
               <TableHead className="px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -105,6 +115,12 @@ export function PublisherPerformanceTable({
                 <TableCell className="px-3 text-right tabular-nums">{row.pendingLeads.toLocaleString()}</TableCell>
                 <TableCell className="px-3 text-right tabular-nums">
                   {row.rejectedLeads.toLocaleString()}
+                </TableCell>
+                <TableCell className="px-3 text-right tabular-nums">
+                  {row.salesCount.toLocaleString()}
+                </TableCell>
+                <TableCell className="px-3 text-right tabular-nums">
+                  {formatCurrency(row.revenue)}
                 </TableCell>
                 <TableCell className="px-3 text-right tabular-nums">
                   {formatCurrency(row.estimatedSpend)}

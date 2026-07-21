@@ -55,6 +55,12 @@ export function AdminReportsTable({
               Rejected
             </TableHead>
             <TableHead className="h-10 px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Sales
+            </TableHead>
+            <TableHead className="h-10 px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Revenue
+            </TableHead>
+            <TableHead className="h-10 px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
               Conv.
             </TableHead>
             <TableHead className="h-10 px-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -87,6 +93,12 @@ export function AdminReportsTable({
               <TableCell className="px-3 py-3 text-right text-sm text-red-600">
                 {row.rejectedLeads.toLocaleString()}
               </TableCell>
+              <TableCell className="px-3 py-3 text-right text-sm text-slate-700">
+                {row.salesCount.toLocaleString()}
+              </TableCell>
+              <TableCell className="px-3 py-3 text-right text-sm font-medium text-slate-900">
+                {formatCurrency(row.revenue)}
+              </TableCell>
               <TableCell className="px-3 py-3 text-right text-sm font-medium text-[var(--theme-primary)]">
                 {formatPercent(row.conversionRate)}
               </TableCell>
@@ -115,6 +127,8 @@ export function AdminReportsSummaryBar({
     approvedLeads: number;
     conversionRate: number;
     approvalRate: number;
+    salesCount: number;
+    revenue: number;
     spend: number;
     earnings: number;
   };
@@ -127,6 +141,8 @@ export function AdminReportsSummaryBar({
     { label: "Approved", value: totals.approvedLeads.toLocaleString() },
     { label: "Conversion", value: formatPercent(totals.conversionRate) },
     { label: "Approval", value: formatPercent(totals.approvalRate) },
+    { label: "Sales", value: totals.salesCount.toLocaleString() },
+    { label: "Revenue", value: formatCurrency(totals.revenue) },
     {
       label: mode === "publisher" ? "Earnings" : "Spend",
       value: formatCurrency(mode === "publisher" ? totals.earnings : totals.spend),

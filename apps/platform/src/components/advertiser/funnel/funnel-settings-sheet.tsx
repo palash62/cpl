@@ -11,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { CpaOfferSelect } from "@/components/cpa/cpa-offer-select";
 
 type FunnelSettingsSheetProps = {
   open: boolean;
@@ -22,12 +23,15 @@ type FunnelSettingsSheetProps = {
   description?: string;
   thankYouEnabled: boolean;
   destinationUrl: string;
+  cpaOfferId?: string | null;
+  showOfferSelect?: boolean;
   thankYouPixelHtml: string;
   saving: boolean;
   message: string | null;
   thankYouRedirectHint?: string;
   onThankYouEnabledChange: (enabled: boolean) => void;
   onDestinationUrlChange: (url: string) => void;
+  onCpaOfferIdChange?: (offerId: string | null) => void;
   onThankYouPixelHtmlChange: (html: string) => void;
   onSave: () => void;
 };
@@ -42,15 +46,20 @@ export function FunnelSettingsSheet({
   description = "Configure submit behavior and tracking for this funnel.",
   thankYouEnabled,
   destinationUrl,
+  cpaOfferId = null,
+  showOfferSelect = false,
   thankYouPixelHtml,
   saving,
   message,
   thankYouRedirectHint,
   onThankYouEnabledChange,
   onDestinationUrlChange,
+  onCpaOfferIdChange,
   onThankYouPixelHtmlChange,
   onSave,
 }: FunnelSettingsSheetProps) {
+  const hasOfferSelected = Boolean(cpaOfferId);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto border-l border-slate-200 bg-white sm:max-w-md">
@@ -102,21 +111,43 @@ export function FunnelSettingsSheet({
             </label>
 
             {!thankYouEnabled && (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-600">
-                  Destination URL <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="url"
-                  required
-                  value={destinationUrl}
-                  onChange={(e) => onDestinationUrlChange(e.target.value)}
-                  placeholder="https://example.com/thank-you"
-                  className="h-9 border-slate-200 text-sm"
-                />
-                <p className="text-xs text-slate-500">
-                  Required when thank-you redirect is off. Users go here after form submit.
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-slate-600">
+                    Destination URL {!hasOfferSelected && <span className="text-red-500">*</span>}
+                  </Label>
+                  <Input
+                    type="url"
+                    value={destinationUrl}
+                    onChange={(e) => onDestinationUrlChange(e.target.value)}
+                    placeholder="https://example.com/thank-you"
+                    className="h-9 border-slate-200 text-sm"
+                    disabled={saving || hasOfferSelected}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Users go here after form submit when thank-you redirect is off.
+                  </p>
+                </div>
+
+                {showOfferSelect && onCpaOfferIdChange && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-slate-200" />
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">or</span>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
+                    <CpaOfferSelect
+                      value={cpaOfferId}
+                      onChange={onCpaOfferIdChange}
+                      disabled={saving}
+                      label="Select offer"
+                      placeholder="Choose a CPA offer"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Selecting an offer redirects visitors through your CPA tracking link after submit.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -142,7 +173,7 @@ export function FunnelSettingsSheet({
               {saving ? "Saving..." : "Save settings"}
             </Button>
             {message && (
-              <p className={`text-sm ${message.includes("Unable") || message.includes("required") || message.includes("valid") || message.includes("characters") ? "text-red-600" : "text-emerald-600"}`}>
+              <p className={`text-sm ${message.includes("Unable") || message.includes("required") || message.includes("valid") || message.includes("characters") || message.includes("offer") ? "text-red-600" : "text-emerald-600"}`}>
                 {message}
               </p>
             )}

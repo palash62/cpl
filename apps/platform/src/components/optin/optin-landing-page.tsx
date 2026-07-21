@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicOptinPage } from "@/lib/optin-page";
+import type { PublicOptinFunnel } from "@/lib/optin-funnel";
+import { resolveCpaOfferRedirectUrl } from "@cpl/shared";
 import { OptinPageLayout, OptinSuccessScreen } from "@/components/optin/optin-page-layout";
 import {
   attachSignalListeners,
@@ -19,7 +21,7 @@ export function OptinLandingPage({
   testCampaignId,
   thankYouPath,
 }: {
-  page: PublicOptinPage;
+  page: PublicOptinPage | PublicOptinFunnel;
   testCampaignId?: string;
   thankYouPath?: string;
 }) {
@@ -29,18 +31,34 @@ export function OptinLandingPage({
   const [error, setError] = useState("");
   const signalRef = useRef(createSignalCollector());
 
+  const cpaOfferId = "cpaOfferId" in page ? page.cpaOfferId : null;
+  const advertiserId = "advertiserId" in page ? page.advertiserId : undefined;
   const redirectUrl = page.destinationUrl?.trim() || null;
   const readOnlyPreview = page.previewMode && !testCampaignId;
+
+  function resolvePostSubmitRedirect(source?: string, subId?: string, leadId?: string) {
+    if (cpaOfferId && advertiserId) {
+      return resolveCpaOfferRedirectUrl(cpaOfferId, {
+        advertiserId,
+        src: source,
+        subId,
+        leadId,
+      });
+    }
+    return redirectUrl;
+  }
 
   useEffect(() => {
     return attachSignalListeners(signalRef.current);
   }, []);
 
   useEffect(() => {
-    if (status !== "success" || readOnlyPreview || !redirectUrl) return;
-
-    window.location.assign(redirectUrl);
-  }, [status, readOnlyPreview, redirectUrl]);
+    if (status !== "success" || readOnlyPreview) return;
+    const { source, subId } = readOptinTrackingParams();
+    const target = resolvePostSubmitRedirect(source, subId);
+    if (!target) return;
+    window.location.assign(target);
+  }, [status, readOnlyPreview, redirectUrl, cpaOfferId, advertiserId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,11 +122,19 @@ export function OptinLandingPage({
       return;
     }
 
+    const target = resolvePostSubmitRedirect(source, subId, leadId);
+    if (target && !readOnlyPreview) {
+      window.location.assign(target);
+      return;
+    }
+
     setStatus("success");
   }
 
   if (status === "success") {
-    if (redirectUrl && !readOnlyPreview) {
+    const { source, subId } = readOptinTrackingParams();
+    const target = resolvePostSubmitRedirect(source, subId);
+    if (target && !readOnlyPreview) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-200">
           <p className="text-sm">Redirecting you…</p>

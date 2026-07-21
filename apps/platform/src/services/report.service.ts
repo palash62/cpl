@@ -3,6 +3,7 @@ import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { calculatePublisherPayout } from "@/lib/platform-settings";
 import { getPlatformSettingsConfig } from "@/lib/platform-settings-server";
 import { getLeadCpl } from "@/lib/lead-cpl";
+import { loadCpaMetricsByCampaignIds, loadCpaMetricsByLeadIds } from "@/lib/cpa-lead-metrics";
 import type { LeadStatus } from "@prisma/client";
 import {
   getAdvertiserPeriodRange,
@@ -446,6 +447,8 @@ export type AdminEntityReportRow = {
   pendingLeads: number;
   conversionRate: number;
   approvalRate: number;
+  salesCount: number;
+  revenue: number;
   spend: number;
   earnings: number;
 };
@@ -459,6 +462,8 @@ export type AdminReportsBreakdown = {
     pendingLeads: number;
     conversionRate: number;
     approvalRate: number;
+    salesCount: number;
+    revenue: number;
     spend: number;
     earnings: number;
   };
@@ -486,11 +491,23 @@ function buildReportRow(
     approvedLeads: number;
     rejectedLeads: number;
     pendingLeads: number;
+    salesCount: number;
+    revenue: number;
     spend: number;
     earnings: number;
   },
 ): AdminEntityReportRow {
-  const { clicks, leads, approvedLeads, rejectedLeads, pendingLeads, spend, earnings } = stats;
+  const {
+    clicks,
+    leads,
+    approvedLeads,
+    rejectedLeads,
+    pendingLeads,
+    salesCount,
+    revenue,
+    spend,
+    earnings,
+  } = stats;
   const conversionRate = clicks > 0 ? Math.round((leads / clicks) * 10000) / 100 : 0;
   const approvalRate = leads > 0 ? Math.round((approvedLeads / leads) * 10000) / 100 : 0;
 
@@ -503,6 +520,8 @@ function buildReportRow(
     approvedLeads,
     rejectedLeads,
     pendingLeads,
+    salesCount,
+    revenue: Math.round(revenue * 100) / 100,
     spend: Math.round(spend * 100) / 100,
     earnings: Math.round(earnings * 100) / 100,
     conversionRate,
@@ -515,6 +534,8 @@ type LeadBucket = {
   approvedLeads: number;
   rejectedLeads: number;
   pendingLeads: number;
+  salesCount: number;
+  revenue: number;
   spend: number;
   earnings: number;
 };
@@ -525,6 +546,8 @@ function emptyBucket(): LeadBucket {
     approvedLeads: 0,
     rejectedLeads: 0,
     pendingLeads: 0,
+    salesCount: 0,
+    revenue: 0,
     spend: 0,
     earnings: 0,
   };
@@ -605,27 +628,29 @@ export async function getAdminReportsBreakdown(filters?: {
   ]);
 
   const paidLeadIds = leads.filter((lead) => lead.status === "PAID").map((lead) => lead.id);
-  const [publisherCredits, advertiserDebits] =
+  const [publisherCredits, advertiserDebits, cpaMetricsByLeadId] = await Promise.all([
     paidLeadIds.length > 0
-      ? await Promise.all([
-          prisma.ledgerEntry.findMany({
-            where: { type: "CREDIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
-            select: {
-              referenceId: true,
-              amount: true,
-              wallet: { select: { userId: true } },
-            },
-          }),
-          prisma.ledgerEntry.findMany({
-            where: { type: "DEBIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
-            select: {
-              referenceId: true,
-              amount: true,
-              wallet: { select: { userId: true } },
-            },
-          }),
-        ])
-      : [[], []];
+      ? prisma.ledgerEntry.findMany({
+          where: { type: "CREDIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
+          select: {
+            referenceId: true,
+            amount: true,
+            wallet: { select: { userId: true } },
+          },
+        })
+      : Promise.resolve([]),
+    paidLeadIds.length > 0
+      ? prisma.ledgerEntry.findMany({
+          where: { type: "DEBIT", referenceType: "lead", referenceId: { in: paidLeadIds } },
+          select: {
+            referenceId: true,
+            amount: true,
+            wallet: { select: { userId: true } },
+          },
+        })
+      : Promise.resolve([]),
+    loadCpaMetricsByLeadIds(leads.map((lead) => lead.id)),
+  ]);
 
   const earningsByLeadId = new Map(
     publisherCredits.map((entry) => [entry.referenceId!, Number(entry.amount)]),
@@ -677,13 +702,22 @@ export async function getAdminReportsBreakdown(filters?: {
 
   for (const lead of leads) {
     const amounts = resolveLeadAmounts(lead);
+    const cpaMetrics = cpaMetricsByLeadId.get(lead.id);
 
     const publisherBucket = publisherLeadMap.get(lead.publisherId) ?? emptyBucket();
     applyLeadToBucket(publisherBucket, lead.status, amounts.spend, amounts.earnings);
+    if (cpaMetrics) {
+      publisherBucket.salesCount += cpaMetrics.salesCount;
+      publisherBucket.revenue += cpaMetrics.revenue;
+    }
     publisherLeadMap.set(lead.publisherId, publisherBucket);
 
     const advertiserBucket = advertiserLeadMap.get(lead.campaign.advertiserId) ?? emptyBucket();
     applyLeadToBucket(advertiserBucket, lead.status, amounts.spend, amounts.earnings);
+    if (cpaMetrics) {
+      advertiserBucket.salesCount += cpaMetrics.salesCount;
+      advertiserBucket.revenue += cpaMetrics.revenue;
+    }
     advertiserLeadMap.set(lead.campaign.advertiserId, advertiserBucket);
   }
 
@@ -719,6 +753,8 @@ export async function getAdminReportsBreakdown(filters?: {
         approvedLeads: bucket.approvedLeads,
         rejectedLeads: bucket.rejectedLeads,
         pendingLeads: bucket.pendingLeads,
+        salesCount: bucket.salesCount,
+        revenue: bucket.revenue,
         spend: bucket.spend,
         earnings: bucket.earnings,
       });
@@ -734,6 +770,8 @@ export async function getAdminReportsBreakdown(filters?: {
         approvedLeads: bucket.approvedLeads,
         rejectedLeads: bucket.rejectedLeads,
         pendingLeads: bucket.pendingLeads,
+        salesCount: bucket.salesCount,
+        revenue: bucket.revenue,
         spend: bucket.spend,
         earnings: 0,
       });
@@ -744,6 +782,9 @@ export async function getAdminReportsBreakdown(filters?: {
   const totalLeads = publisherRows.reduce((sum, row) => sum + row.leads, 0);
   const totalApproved = publisherRows.reduce((sum, row) => sum + row.approvedLeads, 0);
 
+  const totalSalesCount = publisherRows.reduce((sum, row) => sum + row.salesCount, 0);
+  const totalRevenue = publisherRows.reduce((sum, row) => sum + row.revenue, 0);
+
   return {
     totals: {
       clicks: totalClicks,
@@ -751,6 +792,8 @@ export async function getAdminReportsBreakdown(filters?: {
       approvedLeads: totalApproved,
       rejectedLeads: publisherRows.reduce((sum, row) => sum + row.rejectedLeads, 0),
       pendingLeads: publisherRows.reduce((sum, row) => sum + row.pendingLeads, 0),
+      salesCount: totalSalesCount,
+      revenue: Math.round(totalRevenue * 100) / 100,
       spend: advertiserRows.reduce((sum, row) => sum + row.spend, 0),
       earnings: publisherRows.reduce((sum, row) => sum + row.earnings, 0),
       conversionRate: totalClicks > 0 ? Math.round((totalLeads / totalClicks) * 10000) / 100 : 0,
@@ -772,6 +815,8 @@ export type CampaignPerformanceRow = {
   approvedLeads: number;
   rejectedLeads: number;
   pendingLeads: number;
+  salesCount: number;
+  revenue: number;
   spend: number;
   cpl: number;
   conversionRate: number;
@@ -1056,7 +1101,7 @@ export async function getCampaignPerformanceReport(filters: {
   const campaignIds = campaigns.map((c) => c.id);
   const dateRange = { createdAt: { gte: filters.from, lte: filters.to } };
 
-  const [leads, clicks] = await Promise.all([
+  const [leads, clicks, cpaMetricsByCampaign] = await Promise.all([
     prisma.lead.findMany({
       where: { campaignId: { in: campaignIds }, isTest: false, ...dateRange },
       select: { campaignId: true, status: true, cpl: true, campaign: { select: { cpl: true } } },
@@ -1068,6 +1113,7 @@ export async function getCampaignPerformanceReport(filters: {
       },
       select: { trackingLink: { select: { campaignId: true } } },
     }),
+    loadCpaMetricsByCampaignIds(campaignIds, filters.from, filters.to),
   ]);
 
   const clickMap = new Map<string, number>();
@@ -1093,6 +1139,7 @@ export async function getCampaignPerformanceReport(filters: {
       const approvalRate =
         bucket.leads > 0 ? Math.round((bucket.approvedLeads / bucket.leads) * 10000) / 100 : 0;
       const cpl = bucket.approvedLeads > 0 ? bucket.spend / bucket.approvedLeads : Number(campaign.cpl);
+      const cpaMetrics = cpaMetricsByCampaign.get(campaign.id);
 
       return {
         campaignId: campaign.id,
@@ -1103,6 +1150,8 @@ export async function getCampaignPerformanceReport(filters: {
         approvedLeads: bucket.approvedLeads,
         rejectedLeads: bucket.rejectedLeads,
         pendingLeads: bucket.pendingLeads,
+        salesCount: cpaMetrics?.salesCount ?? 0,
+        revenue: Math.round((cpaMetrics?.revenue ?? 0) * 100) / 100,
         spend: Math.round(bucket.spend * 100) / 100,
         cpl: Math.round(cpl * 100) / 100,
         conversionRate,

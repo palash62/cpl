@@ -40,6 +40,8 @@ type LandingPageBuilderProps = {
   pageName: string;
   pageSlug: string;
   campaignId: string | null;
+  advertiserId?: string;
+  showCpaOfferSelect?: boolean;
 };
 
 function EditorEffects({ pageId }: { pageId: string }) {
@@ -54,6 +56,8 @@ export function LandingPageBuilder({
   pageName,
   pageSlug,
   campaignId,
+  advertiserId,
+  showCpaOfferSelect = false,
 }: LandingPageBuilderProps) {
   const { theme } = useActivePageTheme();
   const breakpoint = useBuilderStore((s) => s.breakpoint);
@@ -69,7 +73,11 @@ export function LandingPageBuilder({
   const resolvedCraftState = ensureEditorCraftState(initialCraftState);
 
   return (
-    <BuilderSettingsLayoutProvider layout={isGhl ? "ghl" : "classic"}>
+    <BuilderSettingsLayoutProvider
+      layout={isGhl ? "ghl" : "classic"}
+      advertiserId={advertiserId}
+      showCpaOfferSelect={showCpaOfferSelect}
+    >
       <Editor resolver={craftResolver} enabled onRender={RenderNode}>
         <EditorEffects pageId={pageId} />
         <div className="flex h-full min-h-0 flex-col">
