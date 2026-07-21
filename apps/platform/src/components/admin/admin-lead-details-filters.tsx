@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 import { FilterX } from "lucide-react";
 import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
+import { formatPublisherOptionLabel } from "@/lib/payout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,8 +21,16 @@ const SELECT_TRIGGER_CLASS =
 
 const SELECT_MENU_CLASS = "z-200 !w-[22rem] max-w-[calc(100vw-2rem)]";
 
+const LABEL_CLASS = "text-xs font-medium text-slate-500";
+
 type CampaignOption = { id: string; name: string };
 type AdvertiserOption = { id: string; name: string };
+type PublisherOption = {
+  id: string;
+  name: string;
+  email: string;
+  publisherProfile?: { website: string | null } | null;
+};
 
 const STATUSES = [
   { value: "all", label: "All statuses" },
@@ -41,9 +50,11 @@ function normalizeSelectValue(value: string | null, allowed: string[]) {
 export function AdminLeadDetailsFilters({
   campaigns,
   advertisers,
+  publishers,
 }: {
   campaigns: CampaignOption[];
   advertisers: AdvertiserOption[];
+  publishers: PublisherOption[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +67,9 @@ export function AdminLeadDetailsFilters({
   const [campaignId, setCampaignId] = useState(() =>
     normalizeSelectValue(searchParams.get("campaignId"), ["all", ...campaigns.map((c) => c.id)]),
   );
+  const [publisherId, setPublisherId] = useState(() =>
+    normalizeSelectValue(searchParams.get("publisherId"), ["all", ...publishers.map((p) => p.id)]),
+  );
   const [status, setStatus] = useState(() =>
     normalizeSelectValue(searchParams.get("status"), STATUSES.map((s) => s.value)),
   );
@@ -67,6 +81,7 @@ export function AdminLeadDetailsFilters({
       overrides?: Partial<{
         advertiserId: string;
         campaignId: string;
+        publisherId: string;
         status: string;
         from: string;
         to: string;
@@ -77,6 +92,7 @@ export function AdminLeadDetailsFilters({
       const values = {
         advertiserId: overrides?.advertiserId ?? advertiserId,
         campaignId: overrides?.campaignId ?? campaignId,
+        publisherId: overrides?.publisherId ?? publisherId,
         status: overrides?.status ?? status,
         from: overrides?.from ?? dateFrom,
         to: overrides?.to ?? dateTo,
@@ -90,6 +106,12 @@ export function AdminLeadDetailsFilters({
 
       if (values.campaignId && values.campaignId !== "all") params.set("campaignId", values.campaignId);
       else params.delete("campaignId");
+
+      if (values.publisherId && values.publisherId !== "all") {
+        params.set("publisherId", values.publisherId);
+      } else {
+        params.delete("publisherId");
+      }
 
       if (values.status && values.status !== "all") params.set("status", values.status);
       else params.delete("status");
@@ -106,7 +128,17 @@ export function AdminLeadDetailsFilters({
         router.push(`${pathname}?${params.toString()}`);
       });
     },
-    [advertiserId, campaignId, status, dateFrom, dateTo, pathname, router, searchParams],
+    [
+      advertiserId,
+      campaignId,
+      publisherId,
+      status,
+      dateFrom,
+      dateTo,
+      pathname,
+      router,
+      searchParams,
+    ],
   );
 
   function clearFilters() {
@@ -114,6 +146,7 @@ export function AdminLeadDetailsFilters({
     const to = defaultCampaignDateTo();
     setAdvertiserId("all");
     setCampaignId("all");
+    setPublisherId("all");
     setStatus("all");
     setDateFrom(from);
     setDateTo(to);
@@ -125,14 +158,16 @@ export function AdminLeadDetailsFilters({
   const hasFilters =
     searchParams.has("advertiserId") ||
     searchParams.has("campaignId") ||
+    searchParams.has("publisherId") ||
     searchParams.has("status") ||
     searchParams.has("sort") ||
     (searchParams.has("page") && searchParams.get("page") !== "1");
 
   return (
     <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
-      <div className="flex w-full flex-wrap items-center gap-2">
-        <div className="min-w-[180px] flex-1">
+      <div className="flex w-full flex-wrap items-end gap-2">
+        <div className="min-w-[180px] flex-1 space-y-1">
+          <label className={LABEL_CLASS}>Advertiser</label>
           <Select
             value={advertiserId}
             onValueChange={(value) => {
@@ -155,7 +190,8 @@ export function AdminLeadDetailsFilters({
           </Select>
         </div>
 
-        <div className="min-w-[200px] flex-1">
+        <div className="min-w-[200px] flex-1 space-y-1">
+          <label className={LABEL_CLASS}>Campaign</label>
           <Select
             value={campaignId}
             onValueChange={(value) => {
@@ -178,7 +214,32 @@ export function AdminLeadDetailsFilters({
           </Select>
         </div>
 
-        <div className="min-w-[160px]">
+        <div className="min-w-[180px] flex-1 space-y-1">
+          <label className={LABEL_CLASS}>Publisher</label>
+          <Select
+            value={publisherId}
+            onValueChange={(value) => {
+              if (!value) return;
+              setPublisherId(value);
+              applyFilters({ publisherId: value });
+            }}
+          >
+            <SelectTrigger className={SELECT_TRIGGER_CLASS}>
+              <SelectValue placeholder="All publishers" />
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false} className={SELECT_MENU_CLASS}>
+              <SelectItem value="all">All publishers</SelectItem>
+              {publishers.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {formatPublisherOptionLabel(p)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="min-w-[160px] space-y-1">
+          <label className={LABEL_CLASS}>Status</label>
           <Select
             value={status}
             onValueChange={(value) => {
@@ -200,23 +261,28 @@ export function AdminLeadDetailsFilters({
           </Select>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="h-8 w-[132px] rounded-md border-slate-200 bg-white text-xs"
-          />
-          <span className="text-xs text-slate-400">to</span>
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="h-8 w-[132px] rounded-md border-slate-200 bg-white text-xs"
-          />
+        <div className="flex shrink-0 items-end gap-1.5">
+          <div className="space-y-1">
+            <label className={LABEL_CLASS}>From</label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-8 w-[132px] rounded-md border-slate-200 bg-white text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className={LABEL_CLASS}>To</label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-8 w-[132px] rounded-md border-slate-200 bg-white text-xs"
+            />
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 pb-0.5">
           <Button
             size="sm"
             onClick={() => applyFilters()}
