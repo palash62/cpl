@@ -96,6 +96,11 @@ async function createConversionAndDispatch(input: {
   payout: Prisma.Decimal | null;
   rawPayload: Prisma.InputJsonValue;
 }) {
+  const offer = await prisma.cpaOffer.findUnique({
+    where: { id: input.offerId },
+    select: { payout: true },
+  });
+
   const event = await prisma.cpaOfferConversion.create({
     data: {
       offerId: input.offerId,
@@ -106,6 +111,38 @@ async function createConversionAndDispatch(input: {
       rawQuery: input.rawPayload,
     },
   });
+
+  if (input.attribution.advertiserId) {
+    const amount = input.payout ?? offer?.payout ?? null;
+    const earningAmount = amount != null ? Number(amount) : 0;
+    if (earningAmount > 0) {
+      const availableAt = new Date();
+      availableAt.setDate(availableAt.getDate() + 7);
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.cpaWallet.upsert({
+            where: { advertiserId: input.attribution.advertiserId! },
+            create: { advertiserId: input.attribution.advertiserId! },
+            update: {},
+          });
+
+          await tx.cpaEarning.create({
+            data: {
+              advertiserId: input.attribution.advertiserId!,
+              conversionId: event.id,
+              offerId: input.offerId,
+              amount: earningAmount,
+              availableAt,
+              status: "PENDING",
+            },
+          });
+        });
+      } catch (error) {
+        console.error("[pbtr] CPA earning creation failed", error);
+      }
+    }
+  }
 
   try {
     await dispatchCpaConversionPostbacks({

@@ -10,7 +10,6 @@ import {
   Store,
 } from "lucide-react";
 import { PageHero } from "@/components/admin/page-hero";
-import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
 import {
   GradientStatCard,
   NeutralStatCard,
@@ -134,8 +133,6 @@ export function AdminCpaOffersReport() {
         description="Conversion postbacks by offer, click ID, and payout."
         badge={loading ? undefined : `${total} conversions · ${rangeLabel}`}
       />
-
-      <AdminCpaOffersSubNav />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <NeutralStatCard

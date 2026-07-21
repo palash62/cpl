@@ -16,7 +16,6 @@ import {
 } from "recharts";
 import { BarChart3, Store } from "lucide-react";
 import { PageHero } from "@/components/admin/page-hero";
-import { AdminCpaOffersSubNav } from "@/components/admin/admin-cpa-offers-sub-nav";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { CpaOfferStatusDot, CpaOfferThumb } from "@/components/cpa/cpa-offer-thumb";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -166,8 +165,6 @@ export function AdminCpaOffersDashboard() {
         description="Performance overview for marketplace offers and postback conversions."
         badge={data ? data.rangeLabel : undefined}
       />
-
-      <AdminCpaOffersSubNav />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">

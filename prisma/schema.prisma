@@ -116,6 +116,12 @@ enum PayoutStatus {
 enum PayoutKind {
   PUBLISHER
   REFERRAL
+  CPA
+}
+
+enum CpaEarningStatus {
+  PENDING
+  AVAILABLE
 }
 
 enum PayoutMethod {
@@ -263,6 +269,8 @@ model User {
   cpaOfferClicks           CpaOfferClick[]
   cpaOfferConversions      CpaOfferConversion[]
   advertiserGlobalPostback AdvertiserGlobalPostback?
+  cpaWallet                CpaWallet?
+  cpaEarnings              CpaEarning[]
 
   @@index([role])
   @@index([status])
@@ -1243,6 +1251,7 @@ model CpaOffer {
   updatedAt       DateTime       @updatedAt @map("updated_at")
   conversions     CpaOfferConversion[]
   clicks          CpaOfferClick[]
+  cpaEarnings     CpaEarning[]
 
   @@index([status, createdAt])
   @@index([network])
@@ -1281,11 +1290,45 @@ model CpaOfferConversion {
   advertiser    User?    @relation(fields: [advertiserId], references: [id], onDelete: SetNull)
   clickRecord   CpaOfferClick? @relation(fields: [clickRecordId], references: [id], onDelete: SetNull)
   deliveries    CpaPostbackDelivery[]
+  cpaEarning    CpaEarning?
 
   @@index([offerId, createdAt])
   @@index([advertiserId, createdAt])
   @@index([clickRecordId])
   @@map("cpa_offer_conversions")
+}
+
+model CpaWallet {
+  id           String   @id @default(cuid())
+  advertiserId String   @unique @map("advertiser_id")
+  balance      Decimal  @default(0) @db.Decimal(12, 2)
+  holdBalance  Decimal  @default(0) @db.Decimal(12, 2) @map("hold_balance")
+  currency     String   @default("USD")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  advertiser User @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@map("cpa_wallets")
+}
+
+model CpaEarning {
+  id           String           @id @default(cuid())
+  advertiserId String           @map("advertiser_id")
+  conversionId String           @unique @map("conversion_id")
+  offerId      String           @map("offer_id")
+  amount       Decimal          @db.Decimal(10, 2)
+  availableAt  DateTime         @map("available_at")
+  status       CpaEarningStatus @default(PENDING)
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  advertiser User               @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  conversion CpaOfferConversion @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+  offer      CpaOffer           @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([advertiserId, createdAt])
+  @@index([advertiserId, status, availableAt])
+  @@map("cpa_earnings")
 }
 
 model AdvertiserGlobalPostback {

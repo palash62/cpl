@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, CalendarRange, DollarSign, Filter, Search, Store } from "lucide-react";
+import { Activity, CalendarRange, DollarSign, Filter, Search } from "lucide-react";
 import { PageHero } from "@/components/admin/page-hero";
-import { AdvertiserCpaOffersSubNav } from "@/components/advertiser/advertiser-cpa-offers-sub-nav";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { CpaOfferStatusDot } from "@/components/cpa/cpa-offer-thumb";
@@ -121,13 +120,11 @@ export function AdvertiserCpaOffersReport() {
       <PageHero
         eyebrow="CPA Offers"
         title="Report"
-        description="Conversion postbacks by offer, click ID, and payout."
+        description="Conversion postbacks by offer, click ID, and earnings."
         badge={loading ? undefined : `${total} conversions · ${rangeLabel}`}
       />
 
-      <AdvertiserCpaOffersSubNav />
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <NeutralStatCard
           label="Hits / Clicks"
           value={loading ? "…" : `${stats?.hits ?? 0} / ${stats?.clicks ?? 0}`}
@@ -145,20 +142,10 @@ export function AdvertiserCpaOffersReport() {
           variant="approved"
         />
         <GradientStatCard
-          label="Revenue | Payout"
-          value={
-            loading
-              ? "…"
-              : `${formatCurrency(Number(stats?.revenue ?? 0))} / ${formatCurrency(Number(stats?.payout ?? 0))}`
-          }
+          label="Earnings"
+          value={loading ? "…" : formatCurrency(Number(stats?.payout ?? 0))}
           icon={DollarSign}
           variant="revenue"
-        />
-        <NeutralStatCard
-          label="Profit"
-          value={loading ? "…" : formatCurrency(Number(stats?.profit ?? 0))}
-          icon={DollarSign}
-          accent="orange"
         />
       </div>
 
@@ -265,7 +252,7 @@ export function AdvertiserCpaOffersReport() {
           </div>
           {!loading && total > 0 ? (
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-              Page payout {formatCurrency(pageStats.payoutSum)}
+              Page earnings {formatCurrency(pageStats.payoutSum)}
             </span>
           ) : null}
         </div>
@@ -277,21 +264,20 @@ export function AdvertiserCpaOffersReport() {
               <TableHead>Offer</TableHead>
               <TableHead>Click ID</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Payout</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
+              <TableHead className="text-right">Earnings</TableHead>
               <TableHead>Raw</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-sm text-slate-500">
+                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-500">
                   Loading conversions…
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center">
+                <TableCell colSpan={6} className="py-12 text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
                     <Activity className="h-5 w-5" />
                   </div>
@@ -348,15 +334,6 @@ export function AdvertiserCpaOffersReport() {
                     {row.payout ? (
                       <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-semibold tabular-nums text-emerald-700">
                         {formatCurrency(Number(row.payout))}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.revenue ? (
-                      <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-0.5 text-sm font-semibold tabular-nums text-sky-700">
-                        {formatCurrency(Number(row.revenue))}
                       </span>
                     ) : (
                       "—"

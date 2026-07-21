@@ -299,6 +299,26 @@ export type CpaDashboardSnapshot = {
   }>;
 };
 
+export type CpaEarningsByPeriod = {
+  today: string;
+  yesterday: string;
+  last7d: string;
+  last30d: string;
+};
+
+export type CpaDailyStatRow = {
+  date: string;
+  hops: number;
+  sales: number;
+  earnings: string;
+  other: string;
+};
+
+export type AdvertiserCpaDashboardSnapshot = CpaDashboardSnapshot & {
+  earningsByPeriod: CpaEarningsByPeriod;
+  dailyStats: CpaDailyStatRow[];
+};
+
 function startOfUtcDay(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
@@ -706,11 +726,32 @@ export async function getCpaDashboardSnapshot(
 export async function getAdvertiserCpaDashboardSnapshot(
   advertiserId: string,
   range: CpaDashboardRange = "last7d",
-): Promise<CpaDashboardSnapshot> {
+): Promise<AdvertiserCpaDashboardSnapshot> {
   const resolved = resolveDashboardRange(range);
   const { from, to, prevFrom, prevTo, label } = resolved;
 
-  const [current, previous, series, newOfferRows] = await Promise.all([
+  const now = new Date();
+  const todayStart = startOfUtcDay(now);
+  const todayEnd = endOfUtcDay(now);
+  const yesterdayStart = addUtcDays(todayStart, -1);
+  const yesterdayEnd = endOfUtcDay(yesterdayStart);
+  const last7From = addUtcDays(todayStart, -6);
+  const last30From = addUtcDays(todayStart, -29);
+  const dailyFrom = last7From;
+  const dailyTo = todayEnd;
+
+  const [
+    current,
+    previous,
+    series,
+    newOfferRows,
+    todayMoney,
+    yesterdayMoney,
+    last7Money,
+    last30Money,
+    dailyClickRows,
+    dailyConversionRows,
+  ] = await Promise.all([
     computeDashboardTotals({ from, to, advertiserId }),
     computeDashboardTotals({ from: prevFrom, to: prevTo, advertiserId }),
     buildDashboardSeries({ from, to, advertiserId }),
@@ -727,7 +768,63 @@ export async function getAdvertiserCpaDashboardSnapshot(
         payout: true,
       },
     }),
+    revenuePayoutProfitTotals({ from: todayStart, to: todayEnd, advertiserId }),
+    revenuePayoutProfitTotals({
+      from: yesterdayStart,
+      to: yesterdayEnd,
+      advertiserId,
+    }),
+    revenuePayoutProfitTotals({ from: last7From, to: todayEnd, advertiserId }),
+    revenuePayoutProfitTotals({ from: last30From, to: todayEnd, advertiserId }),
+    prisma.cpaOfferClick.findMany({
+      where: {
+        advertiserId,
+        createdAt: { gte: dailyFrom, lte: dailyTo },
+      },
+      select: { createdAt: true },
+    }),
+    prisma.cpaOfferConversion.findMany({
+      where: {
+        advertiserId,
+        createdAt: { gte: dailyFrom, lte: dailyTo },
+      },
+      select: {
+        createdAt: true,
+        payout: true,
+        offer: { select: { payout: true } },
+      },
+    }),
   ]);
+
+  const hopsByDay = new Map<string, number>();
+  for (const row of dailyClickRows) {
+    const key = startOfUtcDay(row.createdAt).toISOString().slice(0, 10);
+    hopsByDay.set(key, (hopsByDay.get(key) ?? 0) + 1);
+  }
+
+  const salesByDay = new Map<string, number>();
+  const earningsByDay = new Map<string, number>();
+  for (const row of dailyConversionRows) {
+    const key = startOfUtcDay(row.createdAt).toISOString().slice(0, 10);
+    salesByDay.set(key, (salesByDay.get(key) ?? 0) + 1);
+    const payout =
+      row.payout != null ? Number(row.payout) : Number(row.offer.payout ?? 0);
+    earningsByDay.set(key, (earningsByDay.get(key) ?? 0) + payout);
+  }
+
+  // Newest day first (Warrior+Plus style).
+  const dailyStats: CpaDailyStatRow[] = eachUtcDay(dailyFrom, dailyTo)
+    .map((day) => {
+      const key = day.toISOString().slice(0, 10);
+      return {
+        date: key,
+        hops: hopsByDay.get(key) ?? 0,
+        sales: salesByDay.get(key) ?? 0,
+        earnings: moneyToString(earningsByDay.get(key) ?? 0),
+        other: "0.00",
+      };
+    })
+    .reverse();
 
   return {
     range,
@@ -762,6 +859,13 @@ export async function getAdvertiserCpaDashboardSnapshot(
       category: row.category,
       payout: decimalToString(row.payout),
     })),
+    earningsByPeriod: {
+      today: moneyToString(todayMoney.payout),
+      yesterday: moneyToString(yesterdayMoney.payout),
+      last7d: moneyToString(last7Money.payout),
+      last30d: moneyToString(last30Money.payout),
+    },
+    dailyStats,
   };
 }
 

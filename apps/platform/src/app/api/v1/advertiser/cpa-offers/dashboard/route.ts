@@ -35,6 +35,13 @@ export async function GET(request: Request) {
             },
             series: [],
             newOffers: [],
+            earningsByPeriod: {
+              today: "0.00",
+              yesterday: "0.00",
+              last7d: "0.00",
+              last30d: "0.00",
+            },
+            dailyStats: [],
           },
         });
       }

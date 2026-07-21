@@ -17,32 +17,9 @@ import {
   type BankPayoutDetails,
 } from "@/lib/payout-payment-details";
 import { cn } from "@/lib/utils";
+import type { AdminPayoutRow } from "@/lib/payout";
 
-type PayoutRow = {
-  id: string;
-  amount: unknown;
-  method: string;
-  status: string;
-  kind?: string;
-  paymentDetails?: unknown;
-  rejectionReason?: string | null;
-  rejectedAt?: string | Date | null;
-  createdAt: string | Date;
-  publisher: {
-    name: string;
-    email: string;
-    wallet?: { balance: unknown; holdBalance: unknown; currency: string } | null;
-    publisherProfile?: {
-      website?: string | null;
-      country?: string | null;
-      city?: string | null;
-      state?: string | null;
-      kycStatus: string;
-    } | null;
-  };
-};
-
-export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
+export function AdminPayoutReviewDialog({ payout }: { payout: AdminPayoutRow }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,9 +28,11 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
   const [status, setStatus] = useState(payout.status);
   const [rejectionReason, setRejectionReason] = useState(payout.rejectionReason ?? "");
 
-  const wallet = payout.publisher.wallet;
-  const balance = wallet ? Number(wallet.balance) : null;
-  const holdBalance = wallet ? Number(wallet.holdBalance) : null;
+  const walletSource =
+    payout.kind === "CPA" ? payout.publisher.cpaWallet : payout.publisher.wallet;
+  const wallet = walletSource;
+  const balance = wallet?.balance ?? null;
+  const holdBalance = wallet?.holdBalance ?? null;
   const available = balance !== null && holdBalance !== null ? balance - holdBalance : null;
   const profile = payout.publisher.publisherProfile;
   const canDecide = isPendingPayoutStatus(status);
@@ -117,7 +96,7 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-2xl font-bold text-emerald-600">
-                  {formatCurrency(Number(payout.amount))}
+                  {formatCurrency(payout.amount)}
                 </p>
                 <p className="text-sm text-slate-600">{formatPayoutMethodLabel(payout.method)}</p>
               </div>
@@ -133,7 +112,11 @@ export function AdminPayoutReviewDialog({ payout }: { payout: PayoutRow }) {
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-xs text-slate-500">Kind</p>
                 <Badge variant="outline" className="mt-1 capitalize">
-                  {payout.kind === "REFERRAL" ? "Referral" : "Publisher"}
+                  {payout.kind === "REFERRAL"
+                    ? "Referral"
+                    : payout.kind === "CPA"
+                      ? "CPA"
+                      : "Publisher"}
                 </Badge>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">

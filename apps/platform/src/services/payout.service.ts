@@ -5,10 +5,14 @@ import {
   holdWalletFunds,
   releaseWalletHold,
 } from "@/services/wallet.service";
+import {
+  debitCpaWalletForPayout,
+  releaseCpaWalletHold,
+} from "@/services/cpa-wallet.service";
 import { Errors } from "@/lib/errors";
 import { getMinPayoutForMethod } from "@/lib/platform-settings";
 import { isPendingPayoutStatus, PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
-import { payoutPublisherSelect } from "@/lib/payout";
+import { payoutPublisherSelect, payoutCpaPublisherSelect, serializePayoutForClient } from "@/lib/payout";
 import type { PayoutPaymentDetails } from "@/lib/payout-payment-details";
 import type { Prisma, PayoutKind, PayoutMethod } from "@prisma/client";
 import { REFERRAL_MIN_PAYOUT } from "@/lib/referral";
@@ -193,14 +197,18 @@ export async function approvePayout(payoutId: string, adminId: string) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await debitWalletForPayout(
-      tx,
-      payout.publisherId,
-      Number(payout.amount),
-      payoutId,
-      payout.kind === "REFERRAL" ? "Referral payout processed" : "Payout processed",
-      payout.kind === "REFERRAL" ? "referral_payout" : "payout",
-    );
+    if (payout.kind === "CPA") {
+      await debitCpaWalletForPayout(tx, payout.publisherId, Number(payout.amount));
+    } else {
+      await debitWalletForPayout(
+        tx,
+        payout.publisherId,
+        Number(payout.amount),
+        payoutId,
+        payout.kind === "REFERRAL" ? "Referral payout processed" : "Payout processed",
+        payout.kind === "REFERRAL" ? "referral_payout" : "payout",
+      );
+    }
 
     await tx.payout.update({
       where: { id: payoutId },
@@ -247,7 +255,11 @@ export async function rejectPayout(payoutId: string, adminId: string, reason: st
   }
 
   await prisma.$transaction(async (tx) => {
-    await releaseWalletHold(tx, payout.publisherId, Number(payout.amount));
+    if (payout.kind === "CPA") {
+      await releaseCpaWalletHold(tx, payout.publisherId, Number(payout.amount));
+    } else {
+      await releaseWalletHold(tx, payout.publisherId, Number(payout.amount));
+    }
 
     await tx.payout.update({
       where: { id: payoutId },
@@ -287,11 +299,27 @@ export async function rejectPayout(payoutId: string, adminId: string, reason: st
 }
 
 export async function listPendingPayouts() {
-  return prisma.payout.findMany({
-    where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
+  const rows = await prisma.payout.findMany({
+    where: {
+      status: { in: [...PENDING_PAYOUT_STATUSES] },
+      kind: { in: ["PUBLISHER", "REFERRAL"] },
+    },
     include: { publisher: { select: payoutPublisherSelect } },
     orderBy: { createdAt: "desc" },
   });
+  return rows.map(serializePayoutForClient);
+}
+
+export async function listPendingCpaPayouts() {
+  const rows = await prisma.payout.findMany({
+    where: {
+      status: { in: [...PENDING_PAYOUT_STATUSES] },
+      kind: "CPA",
+    },
+    include: { publisher: { select: payoutCpaPublisherSelect } },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(serializePayoutForClient);
 }
 
 export async function listAdminPayouts(options: {
@@ -335,10 +363,13 @@ export async function listAdminPayouts(options: {
     }
   }
 
+  const publisherSelect =
+    options.kind === "CPA" ? payoutCpaPublisherSelect : payoutPublisherSelect;
+
   const [data, total] = await Promise.all([
     prisma.payout.findMany({
       where,
-      include: { publisher: { select: payoutPublisherSelect } },
+      include: { publisher: { select: publisherSelect } },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
@@ -347,7 +378,7 @@ export async function listAdminPayouts(options: {
   ]);
 
   return {
-    data,
+    data: data.map(serializePayoutForClient),
     meta: {
       total,
       page,
@@ -451,7 +482,17 @@ export async function listPayouts(filters: {
   ]);
 
   return {
-    data,
+    data: data.map((row) =>
+      serializePayoutForClient({
+        ...row,
+        publisher: {
+          name: row.publisher.name,
+          email: row.publisher.email,
+          wallet: null,
+          publisherProfile: null,
+        },
+      }),
+    ),
     meta: {
       page,
       limit,
