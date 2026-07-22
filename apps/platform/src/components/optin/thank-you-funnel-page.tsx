@@ -92,6 +92,8 @@ function ThankYouFunnelPageContent({
         isGhl
         advertiserId={page.advertiserId}
         leadId={page.leadId ?? undefined}
+        funnelId={page.funnelId}
+        campaignId={page.campaignId}
       />
       {page.thankYouPixelHtml && (
         <div dangerouslySetInnerHTML={{ __html: page.thankYouPixelHtml }} />

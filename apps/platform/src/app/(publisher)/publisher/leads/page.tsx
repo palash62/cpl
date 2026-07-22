@@ -136,6 +136,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Device</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">OS</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Source</TableHead>
+                <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">CTA</TableHead>
                 <TableHead className="h-11 min-w-[180px] whitespace-nowrap px-4 text-slate-600">
                   Reject Reason
                 </TableHead>
@@ -144,7 +145,7 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={9} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={10} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Share your Smart Link to start generating leads.
@@ -191,6 +192,17 @@ export default async function PublisherLeadsPage({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell className="whitespace-nowrap px-4 py-4 text-sm capitalize text-slate-600">
                         {lead.source ?? "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-4">
+                        {lead.ctaClicked ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200">
+                            No
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-[220px] px-4 py-4 text-sm text-slate-600">
                         <p

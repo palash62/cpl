@@ -11,7 +11,7 @@ export async function recordFunnelEvent(input: {
   userAgent?: string;
   metadata?: Record<string, unknown>;
 }) {
-  return prisma.funnelEvent.create({
+  const event = await prisma.funnelEvent.create({
     data: {
       funnelId: input.funnelId,
       campaignId: input.campaignId,
@@ -23,6 +23,15 @@ export async function recordFunnelEvent(input: {
       metadata: input.metadata ? (input.metadata as object) : undefined,
     },
   });
+
+  if (input.eventType === "CTA_CLICK" && input.leadId) {
+    await prisma.lead.updateMany({
+      where: { id: input.leadId, ctaClicked: false },
+      data: { ctaClicked: true },
+    });
+  }
+
+  return event;
 }
 
 export async function getFunnelAnalyticsSummary(funnelId: string) {

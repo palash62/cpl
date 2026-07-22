@@ -231,6 +231,31 @@ export function CtaButton({
     asLink: true,
   });
 
+  function trackCtaClick() {
+    if (enabled || !published.leadId || !published.funnelId || !published.campaignId) return;
+    const payload = JSON.stringify({
+      funnelId: published.funnelId,
+      campaignId: published.campaignId,
+      leadId: published.leadId,
+      eventType: "CTA_CLICK",
+      step: "thank_you",
+    });
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        const blob = new Blob([payload], { type: "application/json" });
+        if (navigator.sendBeacon("/api/v1/funnel-events", blob)) return;
+      }
+      void fetch("/api/v1/funnel-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      });
+    } catch {
+      // Navigation must not be blocked if tracking fails.
+    }
+  }
+
   const label = (
     <ButtonLabelContent
       text={text ?? ""}
@@ -263,6 +288,7 @@ export function CtaButton({
           rel={openInNewTab || isExternalHttp ? "noopener noreferrer" : undefined}
           style={buttonStyle}
           className={hoverClass}
+          onClick={trackCtaClick}
         >
           {label}
         </a>

@@ -155,6 +155,7 @@ export default async function AdminLeadsPage({ searchParams }: PageProps) {
       cpl,
       sales: formatLeadSaleLabel(lead.salesCount),
       revenue: formatLeadRevenue(lead.revenue),
+      ctaClicked: Boolean(lead.ctaClicked),
       riskScore: lead.riskScore,
       flags: failedFlags.map((r) => r.rule),
       notes,

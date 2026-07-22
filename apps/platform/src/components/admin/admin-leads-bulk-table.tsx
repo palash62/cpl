@@ -48,6 +48,7 @@ export type AdminLeadTableRow = {
   cpl: string;
   sales: string;
   revenue: string;
+  ctaClicked: boolean;
   riskScore: number | null;
   flags: string[];
   notes: string;
@@ -205,6 +206,7 @@ export function AdminLeadsBulkTable({ rows }: { rows: AdminLeadTableRow[] }) {
               <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">CPL</TableHead>
               <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Sales</TableHead>
               <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Revenue</TableHead>
+              <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">CTA</TableHead>
               <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Risk</TableHead>
               <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Flags</TableHead>
               <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">
@@ -220,7 +222,7 @@ export function AdminLeadsBulkTable({ rows }: { rows: AdminLeadTableRow[] }) {
           <TableBody>
             {rows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={20} className="h-48 px-6 py-16 text-center">
+                <TableCell colSpan={21} className="h-48 px-6 py-16 text-center">
                   <p className="text-base font-medium text-slate-500">No leads found</p>
                   <p className="mt-1 text-sm text-slate-400">
                     Try adjusting the filters or date range.
@@ -298,6 +300,17 @@ export function AdminLeadsBulkTable({ rows }: { rows: AdminLeadTableRow[] }) {
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-700">
                       {lead.revenue}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-4">
+                      {lead.ctaClicked ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200">
+                          No
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="px-4 py-4">{riskBadge(lead.riskScore)}</TableCell>
                     <TableCell className="px-4 py-4">

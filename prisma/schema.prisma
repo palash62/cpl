@@ -490,6 +490,8 @@ model Lead {
   isTest            Boolean    @default(false) @map("is_test")
   /// Snapshotted campaign CPL/bid at lead creation (historical spend).
   cpl               Decimal?   @db.Decimal(10, 2)
+  /// True after the lead clicks a thank-you page CTA button.
+  ctaClicked        Boolean    @default(false) @map("cta_clicked")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
@@ -741,6 +743,7 @@ enum FunnelEventType {
   SUBMIT
   THANK_YOU_VIEW
   PIXEL_FIRE
+  CTA_CLICK
 }
 
 model AdvertiserOptinPage {

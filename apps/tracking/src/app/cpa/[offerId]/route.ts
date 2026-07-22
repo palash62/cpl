@@ -65,6 +65,13 @@ export async function GET(
         },
       });
       clickId = click.id;
+
+      if (leadId) {
+        await prisma.lead.updateMany({
+          where: { id: leadId, ctaClicked: false },
+          data: { ctaClicked: true },
+        });
+      }
     }
   }
 

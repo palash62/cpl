@@ -15,6 +15,8 @@ export type PublishedPageContextValue = {
   isGhl?: boolean;
   advertiserId?: string;
   leadId?: string;
+  funnelId?: string;
+  campaignId?: string;
 };
 
 const PublishedPageContext = createContext<PublishedPageContextValue>({});

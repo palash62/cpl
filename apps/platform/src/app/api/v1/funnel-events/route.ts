@@ -6,7 +6,7 @@ const funnelEventSchema = z.object({
   funnelId: z.string().min(1),
   campaignId: z.string().min(1),
   leadId: z.string().optional(),
-  eventType: z.enum(["VIEW", "SUBMIT", "THANK_YOU_VIEW", "PIXEL_FIRE"]),
+  eventType: z.enum(["VIEW", "SUBMIT", "THANK_YOU_VIEW", "PIXEL_FIRE", "CTA_CLICK"]),
   step: z.string().optional(),
 });
 
