@@ -20,7 +20,7 @@ function buildSamplePayload(email: string): LeadAutoresponderPayload {
     phone: "+15551234567",
     country: "US",
     campaign: { id: "test_campaign", name: "Test Campaign" },
-    publisher: { id: "test_publisher", name: "Test Publisher" },
+    publisher: { id: "test_publisher" },
     source: "test",
     subId: "test-sub",
     submittedAt: new Date().toISOString(),

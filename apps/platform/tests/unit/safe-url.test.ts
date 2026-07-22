@@ -28,6 +28,13 @@ describe("assertSafeOutboundUrl", () => {
     });
   });
 
+  it("allows http localhost catchers in non-production", async () => {
+    const localhost = await assertSafeOutboundUrl("http://localhost:9876/hook");
+    expect(localhost.hostname).toBe("localhost");
+    const loopback = await assertSafeOutboundUrl("http://127.0.0.1:9876/hook");
+    expect(loopback.hostname).toBe("127.0.0.1");
+  });
+
   it("blocks non-https in production mode", async () => {
     const prev = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";

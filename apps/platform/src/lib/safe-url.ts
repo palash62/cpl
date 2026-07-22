@@ -80,7 +80,8 @@ export async function assertSafeOutboundUrl(
     allowHttpLocalhost &&
     (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
   ) {
-    // ok in non-production
+    // Explicit local catchers in non-production — skip SSRF private-IP DNS checks.
+    return parsed;
   } else {
     throw Errors.validation("Outbound URL must use HTTPS");
   }

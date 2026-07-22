@@ -1,9 +1,112 @@
+import http from "node:http";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { autoresponderConnectionSchema } from "@/lib/validations";
 import { encryptSecret, decryptSecret, maskConfigForApi } from "@/modules/autoresponder/lib/encrypt-secrets";
+import { renderWebhookBody } from "@/modules/autoresponder/lib/render-webhook-body";
 import { buildAutoresponderTestEmail } from "@/modules/autoresponder/lib/test-email";
 import { buildLeadPayload } from "@/modules/autoresponder/mapping/build-payload";
 import { sendWebhook } from "@/modules/autoresponder/providers/webhook.provider";
 import { buildSystemeTestEmail, sendSysteme, verifySystemeConfig } from "@/modules/autoresponder/providers/systeme.provider";
+
+const samplePayload = {
+  event: "lead.captured" as const,
+  leadId: "lead_1",
+  email: "jane@example.com",
+  firstName: "Jane",
+  lastName: "Doe",
+  phone: "+15551212",
+  campaign: { id: "c1", name: "Demo" },
+  publisher: { id: "p1" },
+  source: "facebook",
+  subId: "sub-1",
+  submittedAt: "2026-06-30T12:00:00.000Z",
+};
+
+describe("renderWebhookBody", () => {
+  it("returns default CPL JSON when template is empty", () => {
+    const result = renderWebhookBody("", samplePayload);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(JSON.parse(result.body)).toEqual(samplePayload);
+  });
+
+  it("renders placeholders into a custom JSON shape", () => {
+    const result = renderWebhookBody(
+      `{
+        "formName": "My Opt-in Form",
+        "contact": {
+          "email": "{{email}}",
+          "firstName": "{{firstName}}",
+          "lastName": "{{lastName}}",
+          "phone": "{{phone}}"
+        }
+      }`,
+      samplePayload,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(JSON.parse(result.body)).toEqual({
+      formName: "My Opt-in Form",
+      contact: {
+        email: "jane@example.com",
+        firstName: "Jane",
+        lastName: "Doe",
+        phone: "+15551212",
+      },
+    });
+  });
+
+  it("escapes quotes inside placeholder values", () => {
+    const result = renderWebhookBody(
+      `{"email":"{{email}}"}`,
+      { ...samplePayload, email: 'a"b@example.com' },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(JSON.parse(result.body).email).toBe('a"b@example.com');
+  });
+
+  it("fails when rendered template is not valid JSON", () => {
+    const result = renderWebhookBody(`{ email: {{email}} }`, samplePayload);
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("webhook URL validation", () => {
+  function parseWebhook(url: string, bodyTemplate?: string) {
+    return autoresponderConnectionSchema.safeParse({
+      name: "Test webhook",
+      provider: "WEBHOOK",
+      trigger: "LEAD_CAPTURED",
+      campaignId: null,
+      config: { url, ...(bodyTemplate !== undefined ? { bodyTemplate } : {}) },
+    });
+  }
+
+  it("accepts https webhook URLs", () => {
+    expect(parseWebhook("https://hooks.zapier.com/hooks/catch/1/abc").success).toBe(true);
+  });
+
+  it("rejects email addresses used as webhook URLs", () => {
+    const result = parseWebhook("ppalash62@gmail.com");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects mailto URLs", () => {
+    const result = parseWebhook("mailto:ppalash62@gmail.com");
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a valid bodyTemplate", () => {
+    expect(
+      parseWebhook("https://example.com/hook", '{"email":"{{email}}"}').success,
+    ).toBe(true);
+  });
+
+  it("rejects invalid bodyTemplate JSON", () => {
+    expect(parseWebhook("https://example.com/hook", "{not-json").success).toBe(false);
+  });
+});
 
 describe("buildAutoresponderTestEmail", () => {
   it("uses plus-tag on advertiser email", () => {
@@ -63,7 +166,7 @@ describe("buildLeadPayload", () => {
     subId: "sub1",
     createdAt: new Date("2026-06-30T12:00:00Z"),
     campaign: { id: "camp_1", name: "Demo" },
-    publisher: { id: "pub_1", name: "Publisher" },
+    publisher: { id: "pub_1" },
   } as never;
 
   it("builds payload with email", () => {
@@ -102,7 +205,7 @@ describe("sendWebhook", () => {
         leadId: "1",
         email: "a@b.com",
         campaign: { id: "c", name: "C" },
-        publisher: { id: "p", name: "P" },
+        publisher: { id: "p" },
         submittedAt: new Date().toISOString(),
       },
     );
@@ -111,6 +214,97 @@ describe("sendWebhook", () => {
       "https://example.com/hook",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+});
+
+describe("sendWebhook live localhost", () => {
+  it("delivers signed payload to a local catcher", async () => {
+    let receivedBody = "";
+    let receivedSig = "";
+
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(chunk as Buffer));
+      req.on("end", () => {
+        receivedBody = Buffer.concat(chunks).toString("utf8");
+        receivedSig = String(req.headers["x-cpl-signature"] ?? "");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      server.close();
+      throw new Error("Failed to bind local catcher");
+    }
+
+    const url = `http://127.0.0.1:${address.port}/hook`;
+    const payload = {
+      event: "lead.captured" as const,
+      leadId: "lead_local_1",
+      email: "jane@example.com",
+      firstName: "Jane",
+      campaign: { id: "c", name: "C" },
+      publisher: { id: "p" },
+      submittedAt: new Date().toISOString(),
+    };
+
+    const result = await sendWebhook({ url, secret: "local-test-secret" }, payload);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(receivedBody).email).toBe("jane@example.com");
+    expect(receivedSig).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("posts rendered bodyTemplate JSON to a local catcher", async () => {
+    let receivedBody = "";
+
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(chunk as Buffer));
+      req.on("end", () => {
+        receivedBody = Buffer.concat(chunks).toString("utf8");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      server.close();
+      throw new Error("Failed to bind local catcher");
+    }
+
+    const url = `http://127.0.0.1:${address.port}/hook`;
+    const result = await sendWebhook(
+      {
+        url,
+        bodyTemplate: `{
+          "formName": "My Opt-in Form",
+          "contact": { "email": "{{email}}", "firstName": "{{firstName}}" }
+        }`,
+      },
+      {
+        event: "lead.captured",
+        leadId: "lead_tmpl",
+        email: "tmpl@example.com",
+        firstName: "Pat",
+        campaign: { id: "c", name: "C" },
+        publisher: { id: "p" },
+        submittedAt: new Date().toISOString(),
+      },
+    );
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(receivedBody)).toEqual({
+      formName: "My Opt-in Form",
+      contact: { email: "tmpl@example.com", firstName: "Pat" },
+    });
   });
 });
 
@@ -212,7 +406,7 @@ describe("sendSysteme", () => {
         email: "lead@example.com",
         firstName: "Jane",
         campaign: { id: "c", name: "C" },
-        publisher: { id: "p", name: "P" },
+        publisher: { id: "p" },
         submittedAt: new Date().toISOString(),
       },
     );
@@ -243,7 +437,7 @@ describe("sendSysteme", () => {
         leadId: "1",
         email: "lead@example.com",
         campaign: { id: "c", name: "C" },
-        publisher: { id: "p", name: "P" },
+        publisher: { id: "p" },
         submittedAt: new Date().toISOString(),
       },
     );

@@ -6,7 +6,7 @@ import { DEFAULT_FIELD_MAPPING } from "../config/defaults";
 
 type LeadWithRelations = Lead & {
   campaign: { id: string; name: string };
-  publisher: { id: string; name: string };
+  publisher: { id: string };
 };
 
 function pickField(
@@ -38,7 +38,7 @@ export function buildLeadPayload(
     phone: pickField(data, mapping, "phone"),
     country: lead.country ?? pickField(data, mapping, "country"),
     campaign: { id: lead.campaign.id, name: lead.campaign.name },
-    publisher: { id: lead.publisher.id, name: lead.publisher.name },
+    publisher: { id: lead.publisher.id },
     source: lead.source ?? undefined,
     subId: lead.subId ?? undefined,
     submittedAt: lead.createdAt.toISOString(),

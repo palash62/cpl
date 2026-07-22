@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AutoresponderProvider, AutoresponderTrigger } from "@prisma/client";
-import { CheckCircle2, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
+import { CheckCircle2, BookOpen, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { WEBHOOK_BODY_PLACEHOLDERS } from "@/modules/autoresponder/lib/render-webhook-body";
 
 const PROVIDERS: { value: AutoresponderProvider; label: string; hint: string }[] = [
   { value: "WEBHOOK", label: "Custom Webhook", hint: "Zapier, Make, n8n" },
@@ -75,6 +82,7 @@ type FormState = {
   campaignId: string;
   url: string;
   secret: string;
+  bodyTemplate: string;
   apiKey: string;
   serverPrefix: string;
   listId: string;
@@ -91,6 +99,7 @@ const emptyForm = (): FormState => ({
   campaignId: "all",
   url: "",
   secret: "",
+  bodyTemplate: "",
   apiKey: "",
   serverPrefix: "",
   listId: "",
@@ -105,6 +114,7 @@ function clearProviderCredentials(form: FormState): FormState {
     ...form,
     url: "",
     secret: "",
+    bodyTemplate: "",
     apiKey: "",
     serverPrefix: "",
     listId: "",
@@ -121,6 +131,7 @@ function buildConfig(form: FormState): Record<string, unknown> {
       return {
         url: form.url.trim(),
         ...(form.secret.trim() && { secret: form.secret.trim() }),
+        bodyTemplate: form.bodyTemplate.trim(),
       };
     case "MAILCHIMP":
       return {
@@ -200,6 +211,7 @@ export function AutoresponderConnectionForm({
   const [systemeTagsError, setSystemeTagsError] = useState<string | null>(null);
   const [aweberQuery, setAweberQuery] = useState<string | null>(null);
   const [aweberErrorReason, setAweberErrorReason] = useState<string | null>(null);
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
   const isEditMode = Boolean(initialConnection);
 
   useEffect(() => {
@@ -379,6 +391,7 @@ export function AutoresponderConnectionForm({
       campaignId: initialConnection.campaignId ?? "all",
       url: String(cfg.url ?? ""),
       secret: String(cfg.secret ?? ""),
+      bodyTemplate: String(cfg.bodyTemplate ?? ""),
       apiKey: String(cfg.apiKey ?? ""),
       serverPrefix: String(cfg.serverPrefix ?? ""),
       listId: String(cfg.listId ?? ""),
@@ -518,6 +531,31 @@ export function AutoresponderConnectionForm({
     setSaving(true);
     setError(null);
 
+    if (form.provider === "WEBHOOK") {
+      const webhookUrl = form.url.trim();
+      const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(webhookUrl);
+      if (!webhookUrl || looksLikeEmail || !/^https?:\/\//i.test(webhookUrl)) {
+        setSaving(false);
+        setError(
+          "Enter a valid webhook URL starting with https:// (not an email address)",
+        );
+        return;
+      }
+      const template = form.bodyTemplate.trim();
+      if (template) {
+        const dryRun = template.replace(/\{\{\s*[a-zA-Z0-9_.]+\s*\}\}/g, "");
+        try {
+          JSON.parse(dryRun);
+        } catch {
+          setSaving(false);
+          setError(
+            "Custom JSON body must be valid JSON. Use placeholders like {{email}} inside string values.",
+          );
+          return;
+        }
+      }
+    }
+
     if (form.provider === "SYSTEME" && form.systemeTagId.trim() && !/^\d+$/.test(form.systemeTagId.trim())) {
       setSaving(false);
       setError("Systeme.io tag ID must be numeric (any length). Leave blank if you are not using a tag.");
@@ -584,6 +622,7 @@ export function AutoresponderConnectionForm({
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -700,6 +739,21 @@ export function AutoresponderConnectionForm({
 
         {form.provider === "WEBHOOK" && (
           <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">
+                Works with Zapier, Make, n8n, webhook.site, or any HTTPS endpoint.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => setGuidelinesOpen(true)}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                Guidelines
+              </Button>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="ar-url">Webhook URL</Label>
               <Input
@@ -711,6 +765,9 @@ export function AutoresponderConnectionForm({
                 required
                 className="bg-white"
               />
+              <p className="text-xs text-slate-500">
+                Paste a Catch Hook / webhook URL — not your email address.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ar-secret">Signing secret (optional)</Label>
@@ -722,6 +779,21 @@ export function AutoresponderConnectionForm({
                 placeholder="Adds X-CPL-Signature header to requests"
                 className="bg-white"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ar-body-template">Custom JSON body (optional)</Label>
+              <textarea
+                id="ar-body-template"
+                value={form.bodyTemplate}
+                onChange={(e) => setForm({ ...form, bodyTemplate: e.target.value })}
+                rows={8}
+                placeholder={`{\n  "formName": "My Opt-in Form",\n  "contact": {\n    "email": "{{email}}",\n    "firstName": "{{firstName}}",\n    "lastName": "{{lastName}}",\n    "phone": "{{phone}}"\n  }\n}`}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+              <p className="text-xs text-slate-500">
+                Leave blank to send the default LeadVix payload. Use placeholders like{" "}
+                <code className="rounded bg-slate-100 px-1">{"{{email}}"}</code> for custom APIs.
+              </p>
             </div>
           </div>
         )}
@@ -1105,5 +1177,71 @@ export function AutoresponderConnectionForm({
         </Button>
       </div>
     </form>
+
+    <Dialog open={guidelinesOpen} onOpenChange={setGuidelinesOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Custom Webhook guidelines</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 text-sm text-slate-700">
+          <div>
+            <p className="font-medium text-slate-900">1. Webhook URL</p>
+            <p className="mt-1 text-slate-600">
+              Use an HTTPS endpoint from Zapier, Make, n8n, webhook.site, or your own API. Do not put
+              an email address in this field.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">2. Default payload</p>
+            <p className="mt-1 text-slate-600">
+              If Custom JSON body is empty, LeadVix POSTs the standard lead payload (
+              <code className="rounded bg-slate-100 px-1 text-xs">event</code>,{" "}
+              <code className="rounded bg-slate-100 px-1 text-xs">email</code>,{" "}
+              <code className="rounded bg-slate-100 px-1 text-xs">firstName</code>, campaign,
+              publisher, etc.).
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">3. Custom JSON body</p>
+            <p className="mt-1 text-slate-600">
+              For destinations that need a different JSON shape, paste a valid JSON template and use
+              placeholders. Example:
+            </p>
+            <pre className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] text-slate-800">{`{
+  "formName": "My Opt-in Form",
+  "contact": {
+    "email": "{{email}}",
+    "firstName": "{{firstName}}",
+    "lastName": "{{lastName}}",
+    "phone": "{{phone}}"
+  }
+}`}</pre>
+            <p className="mt-2 text-slate-600">Available placeholders:</p>
+            <p className="mt-1 font-mono text-[11px] leading-relaxed text-slate-600">
+              {WEBHOOK_BODY_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">4. Zapier / Make</p>
+            <p className="mt-1 text-slate-600">
+              You can also leave Custom JSON body empty, send to a Catch Hook, then map fields in
+              Zapier or Make to any third-party API.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">5. Test</p>
+            <p className="mt-1 text-slate-600">
+              After saving, use <strong>Test</strong> on the connection to send a sample lead and
+              confirm the destination receives the body you expect.
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            Third-party APIs may require exact field names (for example a form name that matches
+            their mapping). Check that product&apos;s webhook docs when building your template.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

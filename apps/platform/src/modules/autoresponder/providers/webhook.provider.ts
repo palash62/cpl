@@ -3,6 +3,7 @@ import type { WebhookConfig } from "../types/provider";
 import type { LeadAutoresponderPayload, ProviderSendResult } from "../types/payload";
 import { DEFAULT_AUTORESPONDER_PLATFORM_CONFIG } from "../config/defaults";
 import { assertSafeOutboundUrl } from "@/lib/safe-url";
+import { renderWebhookBody } from "../lib/render-webhook-body";
 
 export async function sendWebhook(
   config: WebhookConfig,
@@ -22,8 +23,13 @@ export async function sendWebhook(
     };
   }
 
+  const rendered = renderWebhookBody(config.bodyTemplate, payload);
+  if (!rendered.ok) {
+    return { ok: false, error: rendered.error };
+  }
+
   const method = config.method ?? "POST";
-  const body = JSON.stringify(payload);
+  const body = rendered.body;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(config.headers ?? {}),

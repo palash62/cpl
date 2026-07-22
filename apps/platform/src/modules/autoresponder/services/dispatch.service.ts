@@ -77,7 +77,7 @@ export async function dispatchAutoresponderEvent(input: {
     where: { id: input.leadId },
     include: {
       campaign: { select: { id: true, name: true, advertiserId: true } },
-      publisher: { select: { id: true, name: true } },
+      publisher: { select: { id: true } },
     },
   });
 

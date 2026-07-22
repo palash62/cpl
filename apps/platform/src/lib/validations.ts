@@ -481,12 +481,36 @@ export const adminCreateAdvertiserSchema = z.object({
   status: z.enum(["ACTIVE", "PENDING"]).optional(),
 });
 
-const webhookConfigSchema = z.object({
-  url: z.string().url("Enter a valid webhook URL"),
-  method: z.enum(["POST", "PUT"]).optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  secret: z.string().optional(),
-});
+const WEBHOOK_URL_ERROR =
+  "Enter a valid webhook URL starting with https:// (not an email address)";
+
+const webhookConfigSchema = z
+  .object({
+    url: z
+      .string()
+      .trim()
+      .url(WEBHOOK_URL_ERROR)
+      .refine((value) => /^https?:\/\//i.test(value), { message: WEBHOOK_URL_ERROR }),
+    method: z.enum(["POST", "PUT"]).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    secret: z.string().optional(),
+    bodyTemplate: z.string().max(20_000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const template = value.bodyTemplate?.trim();
+    if (!template) return;
+    const dryRun = template.replace(/\{\{\s*[a-zA-Z0-9_.]+\s*\}\}/g, "");
+    try {
+      JSON.parse(dryRun);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bodyTemplate"],
+        message:
+          "Custom JSON body must be valid JSON. Use placeholders like {{email}} inside string values.",
+      });
+    }
+  });
 
 const mailchimpConfigSchema = z.object({
   apiKey: z.string().min(1, "API key is required"),

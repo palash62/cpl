@@ -35,7 +35,15 @@ Connections apply to leads on your campaigns — including traffic from publishe
 - **All campaigns** — every lead on any of your campaigns triggers the connection.
 - **Specific campaign** — only leads on that campaign are sent.
 
-## Webhook payload
+## Custom Webhook setup
+
+1. In Zapier / Make / n8n, create a **Catch Hook** (or custom webhook) and copy the **HTTPS URL**.
+2. On **Advertiser → Integrations**, choose **Custom Webhook** and paste that URL into **Webhook URL** (not an email address).
+3. Optionally set a signing secret, pick a trigger and campaign scope, then save.
+4. Click **Guidelines** in the form for placeholder help, or leave **Custom JSON body** blank for the default payload.
+5. Click **Test** on the connection — your tool should receive a sample JSON payload.
+
+### Default payload
 
 ```json
 {
@@ -45,18 +53,44 @@ Connections apply to leads on your campaigns — including traffic from publishe
   "firstName": "Jane",
   "phone": "+1...",
   "campaign": { "id": "...", "name": "..." },
-  "publisher": { "id": "...", "name": "..." },
+  "publisher": { "id": "..." },
   "source": "facebook",
   "subId": "ad-123",
   "submittedAt": "2026-06-30T12:00:00.000Z"
 }
 ```
 
-If you set a signing secret, requests include an `X-CPL-Signature` header (HMAC-SHA256 of the body).
+If you set a signing secret, requests include an `X-CPL-Signature` header (HMAC-SHA256 of the raw body, hex-encoded).
+
+### Custom JSON body (global template)
+
+For destinations that need a different JSON shape, paste a valid JSON template. Use placeholders inside string values:
+
+`{{email}}`, `{{firstName}}`, `{{lastName}}`, `{{phone}}`, `{{country}}`, `{{campaign.id}}`, `{{campaign.name}}`, `{{publisher.id}}`, `{{source}}`, `{{subId}}`, `{{leadId}}`, `{{event}}`, `{{submittedAt}}`
+
+Example:
+
+```json
+{
+  "formName": "My Opt-in Form",
+  "contact": {
+    "email": "{{email}}",
+    "firstName": "{{firstName}}",
+    "lastName": "{{lastName}}",
+    "phone": "{{phone}}"
+  }
+}
+```
+
+Leave the template blank to keep the default LeadVix payload (recommended for Zapier / Make / n8n).
+
+### Zapier / Make bridge
+
+You can also send the default payload to a Catch Hook, then map fields in Zapier or Make to any third-party API.
 
 ## Field mapping
 
-By default, lead form fields `email`, `first_name`, `last_name`, `phone`, and `country` are mapped automatically. Custom mappings can be added in a future release.
+By default, lead form fields `email`, `first_name`, `last_name`, `phone`, and `country` are mapped automatically into the CPL payload (and thus into template placeholders).
 
 ## Compliance
 

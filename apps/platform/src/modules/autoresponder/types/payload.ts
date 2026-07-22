@@ -9,7 +9,7 @@ export type LeadAutoresponderPayload = {
   phone?: string;
   country?: string;
   campaign: { id: string; name: string };
-  publisher: { id: string; name: string };
+  publisher: { id: string };
   source?: string;
   subId?: string;
   submittedAt: string;

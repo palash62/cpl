@@ -3,6 +3,8 @@ export type WebhookConfig = {
   method?: "POST" | "PUT";
   headers?: Record<string, string>;
   secret?: string;
+  /** Optional JSON template with {{placeholders}}. Empty → default CPL payload. */
+  bodyTemplate?: string;
 };
 
 export type MailchimpConfig = {
