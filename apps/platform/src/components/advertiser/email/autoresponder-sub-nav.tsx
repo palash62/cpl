@@ -59,7 +59,7 @@ export function AutoresponderSubNav() {
   return (
     <nav
       aria-label="Autoresponder"
-      className="shrink-0 lg:w-56"
+      className="w-full shrink-0 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm lg:sticky lg:top-4 lg:w-56 lg:self-start"
     >
       <div className="mb-2 flex items-center gap-2 px-1 lg:mb-3">
         <Mail className="h-4 w-4 text-[var(--theme-primary)]" />
@@ -67,7 +67,7 @@ export function AutoresponderSubNav() {
           Autoresponder
         </span>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
         {NAV_ITEMS.map((item) => {
           const active = isActive(pathname, item);
           const Icon = item.icon;

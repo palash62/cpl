@@ -110,16 +110,20 @@ export const PUBLISHER_NAV: NavItem[] = [
 
 export function getNavForRole(
   role: UserRole,
-  options?: { canAccessCpaOffers?: boolean },
+  options?: { canAccessCpaOffers?: boolean; canAccessAutoresponder?: boolean },
 ): NavItem[] {
   switch (role) {
     case "ADMIN":
       return ADMIN_NAV;
     case "ADVERTISER": {
+      let items = ADVERTISER_NAV;
       if (options?.canAccessCpaOffers === false) {
-        return ADVERTISER_NAV.filter((item) => item.href !== "/advertiser/cpa-offers");
+        items = items.filter((item) => item.href !== "/advertiser/cpa-offers");
       }
-      return ADVERTISER_NAV;
+      if (options?.canAccessAutoresponder === false) {
+        items = items.filter((item) => item.href !== "/advertiser/email");
+      }
+      return items;
     }
     case "PUBLISHER":
       return PUBLISHER_NAV;

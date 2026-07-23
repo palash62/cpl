@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { RoleHero } from "@/components/layout/role-hero";
-import { EmailAutomationWizard } from "@/components/advertiser/email/email-automation-wizard";
+import { NewAutomationExperience } from "@/components/advertiser/email/automation-builder";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +12,5 @@ export default async function NewEmailAutomationPage() {
     orderBy: { name: "asc" },
   });
 
-  return (
-    <div className="space-y-6">
-      <RoleHero eyebrow="Email" title="New automation" description="Set up a welcome sequence or drip campaign." />
-      <EmailAutomationWizard campaigns={campaigns} />
-    </div>
-  );
+  return <NewAutomationExperience campaigns={campaigns} />;
 }

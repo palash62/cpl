@@ -649,6 +649,11 @@ export const emailAutomationStepSchema = z.object({
   templateId: z.string().cuid(),
   delayMinutes: z.number().int().min(0).max(525600),
   order: z.number().int().min(0),
+  fromName: z
+    .union([z.literal(""), z.string().trim().min(2).max(80)])
+    .optional()
+    .nullable(),
+  fromEmail: z.union([z.literal(""), z.string().email()]).optional().nullable(),
 });
 
 export const emailAutomationSchema = z.object({

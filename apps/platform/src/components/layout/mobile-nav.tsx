@@ -14,11 +14,13 @@ export function MobileNav({
   open,
   onOpenChange,
   canAccessCpaOffers,
+  canAccessAutoresponder,
 }: {
   role: UserRole;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canAccessCpaOffers?: boolean;
+  canAccessAutoresponder?: boolean;
 }) {
   const pathname = usePathname();
   const { startNavigation } = useNavigationPending();
@@ -58,6 +60,7 @@ export function MobileNav({
           <SidebarNavList
             role={role}
             canAccessCpaOffers={canAccessCpaOffers}
+            canAccessAutoresponder={canAccessAutoresponder}
             onNavigate={() => onOpenChange(false)}
           />
           <SidebarStatusCard />

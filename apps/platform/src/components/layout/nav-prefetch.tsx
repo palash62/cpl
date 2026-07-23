@@ -15,19 +15,27 @@ function safePrefetch(router: ReturnType<typeof useRouter>, href: string) {
 
 export function NavPrefetch({
   role,
-  canAccessCpaOffers,
+  canAccessCpaOffers = true,
+  canAccessAutoresponder = true,
 }: {
   role: UserRole;
   canAccessCpaOffers?: boolean;
+  canAccessAutoresponder?: boolean;
 }) {
   const router = useRouter();
+  // Single stable key so adding more access flags never changes useEffect deps size.
+  const accessKey = `${canAccessCpaOffers ? 1 : 0}:${canAccessAutoresponder ? 1 : 0}`;
 
   useEffect(() => {
     let cancelled = false;
 
     const prefetchNav = () => {
       if (cancelled) return;
-      for (const item of getNavForRole(role, { canAccessCpaOffers })) {
+      const [cpa, autoresponder] = accessKey.split(":");
+      for (const item of getNavForRole(role, {
+        canAccessCpaOffers: cpa === "1",
+        canAccessAutoresponder: autoresponder === "1",
+      })) {
         safePrefetch(router, item.href);
         for (const child of item.children ?? []) {
           safePrefetch(router, child.href);
@@ -42,7 +50,7 @@ export function NavPrefetch({
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [role, canAccessCpaOffers, router]);
+  }, [role, accessKey, router]);
 
   return null;
 }

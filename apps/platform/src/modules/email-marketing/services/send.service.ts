@@ -18,6 +18,7 @@ export async function processEmailSend(sendId: string) {
       contact: true,
       template: true,
       automation: true,
+      step: true,
       lead: {
         include: {
           campaign: { select: { name: true } },
@@ -58,7 +59,10 @@ export async function processEmailSend(sendId: string) {
     },
   });
 
-  const fromEmail = verifiedIdentity?.fromEmail ?? sesConfig.fromEmail;
+  const fromEmail =
+    send.step?.fromEmail?.trim() ||
+    verifiedIdentity?.fromEmail ||
+    sesConfig.fromEmail;
 
   const mergeData: Record<string, string> = {
     first_name: send.contact.firstName ?? "",
@@ -67,10 +71,11 @@ export async function processEmailSend(sendId: string) {
     phone: send.contact.phone ?? "",
     campaign_name: send.lead?.campaign?.name ?? "",
     company_name:
-      settings?.fromName ??
-      send.automation?.fromName ??
-      advertiser?.advertiserProfile?.company ??
-      advertiser?.name ??
+      send.step?.fromName?.trim() ||
+      settings?.fromName ||
+      send.automation?.fromName ||
+      advertiser?.advertiserProfile?.company ||
+      advertiser?.name ||
       "Our Team",
     unsubscribe_url: unsubscribeUrl,
   };
@@ -87,10 +92,11 @@ export async function processEmailSend(sendId: string) {
   html = appendUnsubscribeFooter(html, unsubscribeUrl);
 
   const fromName =
-    send.automation?.fromName ??
-    settings?.fromName ??
-    advertiser?.advertiserProfile?.company ??
-    advertiser?.name ??
+    send.step?.fromName?.trim() ||
+    send.automation?.fromName ||
+    settings?.fromName ||
+    advertiser?.advertiserProfile?.company ||
+    advertiser?.name ||
     "Team";
 
   const replyTo =

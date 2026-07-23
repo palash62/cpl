@@ -232,14 +232,16 @@ export function SidebarNavList({
   collapsed,
   onNavigate,
   canAccessCpaOffers,
+  canAccessAutoresponder,
 }: {
   role: UserRole;
   collapsed?: boolean;
   onNavigate?: () => void;
   canAccessCpaOffers?: boolean;
+  canAccessAutoresponder?: boolean;
 }) {
   const pathname = usePathname();
-  const items = getNavForRole(role, { canAccessCpaOffers });
+  const items = getNavForRole(role, { canAccessCpaOffers, canAccessAutoresponder });
 
   return (
     <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">

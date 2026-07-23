@@ -1,11 +1,30 @@
 import { RoleHero } from "@/components/layout/role-hero";
+import { AutoresponderSubNav } from "@/components/advertiser/email/autoresponder-sub-nav";
+import { canAdvertiserAccessAutoresponder } from "@/lib/autoresponder-access";
+import { getSession } from "@/lib/session";
 import { Mail } from "lucide-react";
 
 /**
- * Autoresponder UI is temporarily gated. Email/autoresponder modules and APIs
- * remain in the codebase — restore AutoresponderSubNav + {children} when ready.
+ * Autoresponder UI is gated to an allowlist (demo advertiser by default).
+ * Other advertisers see Coming soon. Set AUTORESPONDER_ADVERTISER_ALLOWLIST=* to open fully.
  */
-export default function EmailModuleLayout({ children: _children }: { children: React.ReactNode }) {
+export default async function EmailModuleLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getSession();
+  const canAccess = canAdvertiserAccessAutoresponder(session?.user?.email);
+
+  if (canAccess) {
+    return (
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <AutoresponderSubNav />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <RoleHero

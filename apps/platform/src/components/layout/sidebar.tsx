@@ -11,10 +11,17 @@ interface SidebarProps {
   role: UserRole;
   collapsed?: boolean;
   canAccessCpaOffers?: boolean;
+  canAccessAutoresponder?: boolean;
   className?: string;
 }
 
-export function Sidebar({ role, collapsed, canAccessCpaOffers, className }: SidebarProps) {
+export function Sidebar({
+  role,
+  collapsed,
+  canAccessCpaOffers,
+  canAccessAutoresponder,
+  className,
+}: SidebarProps) {
   const { startNavigation } = useNavigationPending();
 
   return (
@@ -39,7 +46,12 @@ export function Sidebar({ role, collapsed, canAccessCpaOffers, className }: Side
           <PlatformLogo collapsed={collapsed} variant="sidebar" />
         </Link>
       </div>
-      <SidebarNavList role={role} collapsed={collapsed} canAccessCpaOffers={canAccessCpaOffers} />
+      <SidebarNavList
+        role={role}
+        collapsed={collapsed}
+        canAccessCpaOffers={canAccessCpaOffers}
+        canAccessAutoresponder={canAccessAutoresponder}
+      />
       {!collapsed ? <SidebarStatusCard /> : null}
     </aside>
   );

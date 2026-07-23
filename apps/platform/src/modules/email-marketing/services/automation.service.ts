@@ -48,7 +48,7 @@ export async function createAutomation(
     campaignId?: string | null;
     fromName: string;
     replyTo?: string | null;
-    steps: { templateId: string; delayMinutes: number; order: number }[];
+    steps: { templateId: string; delayMinutes: number; order: number; fromName?: string | null; fromEmail?: string | null }[];
   },
 ) {
   const count = await prisma.emailAutomation.count({ where: { advertiserId } });
@@ -95,6 +95,8 @@ export async function createAutomation(
           order: s.order,
           delayMinutes: s.delayMinutes,
           templateId: s.templateId,
+          fromName: s.fromName?.trim() || null,
+          fromEmail: s.fromEmail?.trim() || null,
         })),
       },
     },
@@ -114,7 +116,7 @@ export async function updateAutomation(
     fromName: string;
     replyTo: string | null;
     status: EmailAutomationStatus;
-    steps: { templateId: string; delayMinutes: number; order: number }[];
+    steps: { templateId: string; delayMinutes: number; order: number; fromName?: string | null; fromEmail?: string | null }[];
   }>,
 ) {
   const existing = await getAutomation(advertiserId, id);
@@ -123,6 +125,14 @@ export async function updateAutomation(
     if (!data.steps.length) {
       throw new AppError("VALIDATION_ERROR", "At least one step is required", 422);
     }
+    for (const step of data.steps) {
+      const template = await prisma.emailTemplate.findFirst({
+        where: { id: step.templateId, advertiserId },
+      });
+      if (!template) {
+        throw new AppError("NOT_FOUND", `Template ${step.templateId} not found`, 404);
+      }
+    }
     await prisma.emailAutomationStep.deleteMany({ where: { automationId: id } });
     await prisma.emailAutomationStep.createMany({
       data: data.steps.map((s) => ({
@@ -130,6 +140,8 @@ export async function updateAutomation(
         order: s.order,
         delayMinutes: s.delayMinutes,
         templateId: s.templateId,
+        fromName: s.fromName?.trim() || null,
+        fromEmail: s.fromEmail?.trim() || null,
       })),
     });
   }

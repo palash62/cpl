@@ -74,6 +74,7 @@ type AweberListOption = { id: string; name: string };
 type SystemeTagOption = { tagId: string; name: string };
 
 const SYSTEME_NO_TAG = "__none__";
+const LIST_NONE = "__none__";
 
 type FormState = {
   name: string;
@@ -895,10 +896,10 @@ export function AutoresponderConnectionForm({
                     </div>
                   ) : aweberListOptions.length > 0 ? (
                     <Select
-                      value={form.listId || undefined}
+                      value={form.listId || LIST_NONE}
                       onValueChange={(v) => {
                         if (!v) return;
-                        setForm({ ...form, listId: v });
+                        setForm({ ...form, listId: v === LIST_NONE ? "" : v });
                       }}
                     >
                       <SelectTrigger className={SELECT_TRIGGER_CLASS}>
@@ -916,6 +917,7 @@ export function AutoresponderConnectionForm({
                         alignItemWithTrigger={false}
                         className={`${SELECT_MENU_CLASS} max-h-60`}
                       >
+                        <SelectItem value={LIST_NONE}>Select a list</SelectItem>
                         {aweberListOptions.map((list) => (
                           <SelectItem key={list.id} value={list.id}>
                             {list.name}
@@ -987,10 +989,13 @@ export function AutoresponderConnectionForm({
                 </div>
               ) : getResponseListOptions.length > 0 ? (
                 <Select
-                  value={form.getResponseListId || undefined}
+                  value={form.getResponseListId || LIST_NONE}
                   onValueChange={(v) => {
                     if (!v) return;
-                    setForm({ ...form, getResponseListId: v });
+                    setForm({
+                      ...form,
+                      getResponseListId: v === LIST_NONE ? "" : v,
+                    });
                   }}
                 >
                   <SelectTrigger className={SELECT_TRIGGER_CLASS}>
@@ -1011,6 +1016,7 @@ export function AutoresponderConnectionForm({
                     alignItemWithTrigger={false}
                     className={`${SELECT_MENU_WIDE_CLASS} max-h-60`}
                   >
+                    <SelectItem value={LIST_NONE}>Select a list</SelectItem>
                     {getResponseListOptions.map((list) => (
                       <SelectItem key={list.campaignId} value={list.campaignId}>
                         {list.name === list.campaignId

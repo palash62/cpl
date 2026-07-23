@@ -1050,6 +1050,8 @@ model EmailAutomationStep {
   order        Int
   delayMinutes Int      @default(0) @map("delay_minutes")
   templateId   String   @map("template_id")
+  fromName     String?  @map("from_name")
+  fromEmail    String?  @map("from_email")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

@@ -19,6 +19,8 @@ interface AppShellProps {
   viewAs?: { userName: string; userRole: UserRole } | null;
   /** When false, advertiser CPA marketplace nav is hidden. Default: show. */
   canAccessCpaOffers?: boolean;
+  /** When false, advertiser Autoresponder nav is hidden. Default: show. */
+  canAccessAutoresponder?: boolean;
   children: React.ReactNode;
 }
 
@@ -28,17 +30,27 @@ function AppShellInner({
   breadcrumbs,
   viewAs,
   canAccessCpaOffers = true,
+  canAccessAutoresponder = true,
   children,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-[var(--theme-bg)]">
-      <NavPrefetch role={role} canAccessCpaOffers={canAccessCpaOffers} />
-      <Sidebar role={role} canAccessCpaOffers={canAccessCpaOffers} />
+      <NavPrefetch
+        role={role}
+        canAccessCpaOffers={canAccessCpaOffers}
+        canAccessAutoresponder={canAccessAutoresponder}
+      />
+      <Sidebar
+        role={role}
+        canAccessCpaOffers={canAccessCpaOffers}
+        canAccessAutoresponder={canAccessAutoresponder}
+      />
       <MobileNav
         role={role}
         canAccessCpaOffers={canAccessCpaOffers}
+        canAccessAutoresponder={canAccessAutoresponder}
         open={mobileNavOpen}
         onOpenChange={setMobileNavOpen}
       />

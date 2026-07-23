@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Megaphone, Building2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button-link";
 
@@ -5,14 +8,19 @@ interface AdminHeroProps {
   userName?: string;
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
+function greetingForHour(hour: number) {
   if (hour < 12) return "Good Morning";
   if (hour < 17) return "Good Afternoon";
   return "Good Evening";
 }
 
 export function AdminHero({ userName = "Admin" }: AdminHeroProps) {
+  const [greeting, setGreeting] = useState("Welcome");
+
+  useEffect(() => {
+    setGreeting(greetingForHour(new Date().getHours()));
+  }, []);
+
   return (
     <div
       className="relative overflow-hidden rounded-[18px] px-6 py-5 shadow-md"
@@ -32,7 +40,7 @@ export function AdminHero({ userName = "Admin" }: AdminHeroProps) {
             Platform Control Center
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-white md:text-[1.65rem]">
-            {getGreeting()}, {userName}
+            {greeting}, {userName}
           </h1>
           <p className="mt-1.5 max-w-lg text-sm text-white/80">
             Monitor your LeadVix platform from one powerful dashboard.

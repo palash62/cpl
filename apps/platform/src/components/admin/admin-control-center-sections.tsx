@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -83,9 +83,15 @@ export function AdminWelcomeSummary({
   platformStatus: AdminControlCenterData["platformStatus"];
   summary: AdminControlCenterData["summary"];
 }) {
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+  // Compute greeting/date on the client only — server and browser timezones often differ.
+  const [greeting, setGreeting] = useState("Welcome");
+  const [todayLabel, setTodayLabel] = useState("");
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    setGreeting(hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening");
+    setTodayLabel(format(new Date(), "EEEE, MMMM d, yyyy"));
+  }, []);
 
   return (
     <div
@@ -103,7 +109,7 @@ export function AdminWelcomeSummary({
             {greeting}, {userName} 👋
           </h1>
           <p className="mt-2 text-sm text-white/85">
-            {format(new Date(), "EEEE, MMMM d, yyyy")} · Platform is{" "}
+            {todayLabel ? `${todayLabel} · ` : null}Platform is{" "}
             <span
               className={cn(
                 "font-semibold",
