@@ -121,7 +121,7 @@ const FontFamily = Extension.create({
       unsetFontFamily:
         () =>
         ({ chain }) =>
-          chain().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run(),
+          chain().setMark("textStyle", { fontFamily: null }).run(),
     };
   },
 });
@@ -207,6 +207,8 @@ function ToolbarSelect({
 function ComposeToolbar({ editor }: { editor: Editor }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  // TipTap command typings break across workspace duplicate @tiptap packages.
+  const chain = () => (editor.chain() as any).focus();
 
   const currentFamily =
     (editor.getAttributes("textStyle").fontFamily as string | undefined) ||
@@ -234,7 +236,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
       }
       const uploadedUrl = payload?.data?.url as string | undefined;
       if (!uploadedUrl) throw new Error("Upload failed");
-      editor.chain().focus().setImage({ src: uploadedUrl }).run();
+      chain().setImage({ src: uploadedUrl }).run();
       toast.success("Image added");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -257,7 +259,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
           {EMAIL_MERGE_TAGS.map((tag) => (
             <DropdownMenuItem
               key={tag}
-              onClick={() => editor.chain().focus().insertContent(`{{${tag}}}`).run()}
+              onClick={() => chain().insertContent(`{{${tag}}}`).run()}
             >
               {`{{${tag}}}`}
             </DropdownMenuItem>
@@ -270,14 +272,14 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
       <ToolbarBtn
         title="Undo"
         disabled={!editor.can().undo()}
-        onClick={() => editor.chain().focus().undo().run()}
+        onClick={() => chain().undo().run()}
       >
         <Undo2 className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Redo"
         disabled={!editor.can().redo()}
-        onClick={() => editor.chain().focus().redo().run()}
+        onClick={() => chain().redo().run()}
       >
         <Redo2 className="size-3.5" />
       </ToolbarBtn>
@@ -289,14 +291,14 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
         value={currentFamily}
         className="max-w-[120px]"
         options={FONT_FAMILIES.map((f) => ({ label: f.label, value: f.value }))}
-        onChange={(v) => editor.chain().focus().setFontFamily(v).run()}
+        onChange={(v) => chain().setFontFamily(v).run()}
       />
       <ToolbarSelect
         title="Font size"
         value={currentSize}
         className="max-w-[72px]"
         options={FONT_SIZES.map((s) => ({ label: s, value: s }))}
-        onChange={(v) => editor.chain().focus().setFontSize(v).run()}
+        onChange={(v) => chain().setFontSize(v).run()}
       />
       <ToolbarSelect
         title="Paragraph style"
@@ -317,10 +319,10 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
           { label: "Heading 3", value: "h3" },
         ]}
         onChange={(v) => {
-          if (v === "p") editor.chain().focus().setParagraph().run();
-          else if (v === "h1") editor.chain().focus().toggleHeading({ level: 1 }).run();
-          else if (v === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
-          else if (v === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
+          if (v === "p") chain().setParagraph().run();
+          else if (v === "h1") chain().toggleHeading({ level: 1 }).run();
+          else if (v === "h2") chain().toggleHeading({ level: 2 }).run();
+          else if (v === "h3") chain().toggleHeading({ level: 3 }).run();
         }}
       />
 
@@ -329,28 +331,28 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
       <ToolbarBtn
         title="Bold"
         active={editor.isActive("bold")}
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        onClick={() => chain().toggleBold().run()}
       >
         <Bold className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Italic"
         active={editor.isActive("italic")}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        onClick={() => chain().toggleItalic().run()}
       >
         <Italic className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Underline"
         active={editor.isActive("underline")}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        onClick={() => chain().toggleUnderline().run()}
       >
         <UnderlineIcon className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Strikethrough"
         active={editor.isActive("strike")}
-        onClick={() => editor.chain().focus().toggleStrike().run()}
+        onClick={() => chain().toggleStrike().run()}
       >
         <Strikethrough className="size-3.5" />
       </ToolbarBtn>
@@ -377,7 +379,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
             <DropdownMenuItem
               key={c}
               className="size-6 justify-center rounded-md p-0"
-              onClick={() => editor.chain().focus().setColor(c).run()}
+              onClick={() => chain().setColor(c).run()}
             >
               <span
                 className="size-4 rounded-full border border-slate-200"
@@ -387,7 +389,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
           ))}
           <DropdownMenuItem
             className="col-span-6 justify-center text-xs"
-            onClick={() => editor.chain().focus().unsetColor().run()}
+            onClick={() => chain().unsetColor().run()}
           >
             Reset color
           </DropdownMenuItem>
@@ -406,7 +408,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
             <DropdownMenuItem
               key={c}
               className="size-6 justify-center rounded-md p-0"
-              onClick={() => editor.chain().focus().toggleHighlight({ color: c }).run()}
+              onClick={() => chain().toggleHighlight({ color: c }).run()}
             >
               <span
                 className="size-4 rounded-full border border-slate-200"
@@ -416,7 +418,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
           ))}
           <DropdownMenuItem
             className="col-span-4 justify-center text-xs"
-            onClick={() => editor.chain().focus().unsetHighlight().run()}
+            onClick={() => chain().unsetHighlight().run()}
           >
             Clear highlight
           </DropdownMenuItem>
@@ -428,27 +430,27 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
       <ToolbarBtn
         title="Bullet list"
         active={editor.isActive("bulletList")}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        onClick={() => chain().toggleBulletList().run()}
       >
         <List className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Numbered list"
         active={editor.isActive("orderedList")}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        onClick={() => chain().toggleOrderedList().run()}
       >
         <ListOrdered className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Quote"
         active={editor.isActive("blockquote")}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        onClick={() => chain().toggleBlockquote().run()}
       >
         <Quote className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Horizontal rule"
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        onClick={() => chain().setHorizontalRule().run()}
       >
         <Minus className="size-3.5" />
       </ToolbarBtn>
@@ -458,21 +460,21 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
       <ToolbarBtn
         title="Align left"
         active={editor.isActive({ textAlign: "left" })}
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+        onClick={() => chain().setTextAlign("left").run()}
       >
         <AlignLeft className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Align center"
         active={editor.isActive({ textAlign: "center" })}
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+        onClick={() => chain().setTextAlign("center").run()}
       >
         <AlignCenter className="size-3.5" />
       </ToolbarBtn>
       <ToolbarBtn
         title="Align right"
         active={editor.isActive({ textAlign: "right" })}
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+        onClick={() => chain().setTextAlign("right").run()}
       >
         <AlignRight className="size-3.5" />
       </ToolbarBtn>
@@ -487,10 +489,10 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
           const url = window.prompt("URL", prev ?? "https://");
           if (url === null) return;
           if (!url.trim()) {
-            editor.chain().focus().extendMarkRange("link").unsetLink().run();
+            chain().extendMarkRange("link").unsetLink().run();
             return;
           }
-          editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+          chain().extendMarkRange("link").setLink({ href: url.trim() }).run();
         }}
       >
         <Link2 className="size-3.5" />
@@ -517,7 +519,7 @@ function ComposeToolbar({ editor }: { editor: Editor }) {
 
       <ToolbarBtn
         title="Clear formatting"
-        onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+        onClick={() => chain().unsetAllMarks().clearNodes().run()}
       >
         <RemoveFormatting className="size-3.5" />
       </ToolbarBtn>
@@ -559,16 +561,16 @@ export function EmailComposeEditor({ value, onChange, className }: Props) {
           "prose prose-sm max-w-none min-h-[180px] px-3 py-2 outline-none focus:outline-none [&_img]:max-w-full [&_img]:rounded-md",
       },
     },
-    onUpdate: ({ editor: ed }) => {
+    onUpdate: ({ editor: ed }: { editor: Editor }) => {
       onChange(ed.getHTML());
     },
-  });
+  } as any);
 
   useEffect(() => {
     if (!editor) return;
     const current = editor.getHTML();
     if (value !== current) {
-      editor.commands.setContent(value || "", false);
+      editor.commands.setContent(value || "", { emitUpdate: false });
     }
   }, [editor, value]);
 

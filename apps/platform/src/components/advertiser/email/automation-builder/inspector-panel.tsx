@@ -150,6 +150,7 @@ function EmailContentForm({ state }: { state: AutomationBuilderState }) {
   }
 
   async function onSaveAction() {
+    if (!selectedStep) return;
     setSavingAction(true);
     await saveStepAction(selectedStep.clientId);
     setSavingAction(false);
