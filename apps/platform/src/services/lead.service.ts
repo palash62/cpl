@@ -6,7 +6,7 @@ import { getLeadCpl } from "@/lib/lead-cpl";
 import { normalizeClientIp } from "@cpl/shared";
 import { processLeadPayment, reverseLeadPayment, PAUSED_REASON_INSUFFICIENT_FUNDS } from "@/services/wallet.service";
 import { getPlatformSettings } from "@/services/wallet.service";
-import { notifyGeneric, notifyRejected, notifyCampaignPausedForFunds } from "@/services/notify.service";
+import { notifyGeneric, notifyCampaignPausedForFunds } from "@/services/notify.service";
 import {
   evaluateLead,
   getFraudConfig,
@@ -62,51 +62,25 @@ function resolveOptinFormJson(optinPage: {
   return raw as FormJson;
 }
 
-async function notifyForLeadOutcome(leadId: string, status: LeadStatus, reason?: string) {
+async function notifyForLeadOutcome(leadId: string, status: LeadStatus, _reason?: string) {
+  if (status !== "PENDING") return;
+
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
     include: {
       campaign: {
         include: { advertiser: { select: { id: true, email: true, name: true } } },
       },
-      publisher: { select: { id: true, email: true, name: true } },
     },
   });
   if (!lead) return;
 
-  const campaignName = lead.campaign.name;
-  const publisherAttributed =
-    Boolean(lead.trackingLinkId) || lead.publisherId !== lead.campaign.advertiserId;
-
-  if (status === "PENDING") {
-    void notifyGeneric(lead.campaign.advertiser, {
-      title: "New lead awaiting review",
-      message: `A new lead was submitted for campaign "${campaignName}".`,
-      actionPath: "/advertiser/lead-details",
-      notificationType: "lead.pending",
-    });
-    return;
-  }
-
-  if (status === "REJECTED" && publisherAttributed) {
-    void notifyRejected(
-      lead.publisher,
-      "Lead",
-      reason || "Lead did not pass validation.",
-      undefined,
-      "lead.rejected",
-    );
-    return;
-  }
-
-  if ((status === "APPROVED" || status === "PAID") && publisherAttributed) {
-    void notifyGeneric(lead.publisher, {
-      title: status === "PAID" ? "Lead paid" : "Lead approved",
-      message: `A lead for campaign "${campaignName}" was approved and earnings were credited.`,
-      actionPath: "/publisher/earnings",
-      notificationType: "lead.approved",
-    });
-  }
+  void notifyGeneric(lead.campaign.advertiser, {
+    title: "New lead awaiting review",
+    message: `A new lead was submitted for campaign "${lead.campaign.name}".`,
+    actionPath: "/advertiser/lead-details",
+    notificationType: "lead.pending",
+  });
 }
 
 async function notifyInsufficientLeadFunds(leadId: string) {

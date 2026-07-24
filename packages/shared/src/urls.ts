@@ -123,4 +123,8 @@ export function buildPlatformLeadSubmitUrl() {
   return `${getPlatformUrl()}/api/internal/v1/leads/submit`;
 }
 
+export function buildPlatformCpaSaleNotifyUrl() {
+  return `${getPlatformUrl()}/api/internal/v1/cpa-sale-notify`;
+}
+
 export { getPlatformUrl, getTrackingUrl };

@@ -1,6 +1,10 @@
 import { prisma } from "@cpl/database";
 import { Prisma } from "@prisma/client";
 import {
+  buildPlatformCpaSaleNotifyUrl,
+  getInternalServiceToken,
+} from "@cpl/shared";
+import {
   dispatchCpaConversionPostbacks,
   getCpaNetworkPostbackConfig,
   isPostbackSecurityAuthorized,
@@ -90,6 +94,30 @@ async function loadClick(inboundClickId: string | null): Promise<ClickRow | null
   });
 }
 
+function notifyAdvertiserCpaSale(input: {
+  advertiserId: string;
+  offerId: string;
+  amount: number;
+  conversionId: string;
+}) {
+  const token = getInternalServiceToken();
+  if (!token) {
+    console.error("[pbtr] CPA sale notify skipped: INTERNAL_SERVICE_TOKEN not configured");
+    return;
+  }
+
+  void fetch(buildPlatformCpaSaleNotifyUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Service-Token": token,
+    },
+    body: JSON.stringify(input),
+  }).catch((error) => {
+    console.error("[pbtr] CPA sale notify request failed", error);
+  });
+}
+
 async function createConversionAndDispatch(input: {
   offerId: string;
   attribution: ReturnType<typeof resolveCpaClickAttribution>;
@@ -98,7 +126,7 @@ async function createConversionAndDispatch(input: {
 }) {
   const offer = await prisma.cpaOffer.findUnique({
     where: { id: input.offerId },
-    select: { payout: true },
+    select: { payout: true, name: true },
   });
 
   // Advertiser earning always uses the offer's configured payout.
@@ -140,6 +168,13 @@ async function createConversionAndDispatch(input: {
               status: "PENDING",
             },
           });
+        });
+
+        void notifyAdvertiserCpaSale({
+          advertiserId: input.attribution.advertiserId!,
+          offerId: input.offerId,
+          amount: earningAmount,
+          conversionId: event.id,
         });
       } catch (error) {
         console.error("[pbtr] CPA earning creation failed", error);
