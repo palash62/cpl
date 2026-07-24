@@ -8,3 +8,7 @@ export const PLATFORM_EMAILS = {
     process.env.SMTP_FROM?.trim() ||
     "LeadVix <noreply@mg.leadvix.io>",
 } as const;
+
+export function formatSupportFrom(email: string) {
+  return `LeadVix <${email.trim()}>`;
+}

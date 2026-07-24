@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { EmailComposeEditor } from "@/components/advertiser/email/automation-builder/email-compose-editor";
 
 type Recipient = {
   id: string;
@@ -17,6 +18,20 @@ type Recipient = {
 };
 
 type AudienceRole = "ADVERTISER" | "PUBLISHER";
+
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isEmptyHtml(html: string) {
+  return htmlToPlainText(html).length < 10;
+}
 
 export function AdminBulkEmailForm() {
   const [audience, setAudience] = useState<AudienceRole>("ADVERTISER");
@@ -35,6 +50,10 @@ export function AdminBulkEmailForm() {
     skipped: number;
     notFound: number;
   } | null>(null);
+
+  const [testTo, setTestTo] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLoadingRecipients(true);
@@ -55,6 +74,9 @@ export function AdminBulkEmailForm() {
     );
   }, [recipients, search]);
 
+  const bodyReady = subject.trim().length >= 3 && !isEmptyHtml(message);
+  const testEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testTo.trim());
+
   function toggleRecipient(id: string) {
     setSelectedIds((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -72,6 +94,7 @@ export function AdminBulkEmailForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!bodyReady || selectedIds.length === 0) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -82,7 +105,7 @@ export function AdminBulkEmailForm() {
       body: JSON.stringify({
         userIds: selectedIds,
         subject: subject.trim(),
-        message: message.trim(),
+        message,
       }),
     });
     const data = await res.json();
@@ -94,6 +117,29 @@ export function AdminBulkEmailForm() {
     }
 
     setResult(data.data);
+  }
+
+  async function handleSendTest() {
+    if (!bodyReady || !testEmailValid) return;
+    setTesting(true);
+    setTestMsg(null);
+    setError(null);
+    const res = await fetch("/api/v1/admin/bulk-email/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: testTo.trim(),
+        subject: subject.trim(),
+        message,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    setTesting(false);
+    if (!res.ok) {
+      setTestMsg(data?.error?.message ?? "Test send failed");
+      return;
+    }
+    setTestMsg(data?.message ?? "Test email sent");
   }
 
   return (
@@ -136,16 +182,49 @@ export function AdminBulkEmailForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="message">Message</Label>
-          <textarea
-            id="message"
-            rows={10}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write your message to selected recipients..."
-            required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-primary)]/15"
-          />
+          <Label>Message</Label>
+          <EmailComposeEditor value={message} onChange={setMessage} />
+        </div>
+
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+          <Label htmlFor="testTo">Test email</Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id="testTo"
+              type="email"
+              value={testTo}
+              onChange={(e) => {
+                setTestTo(e.target.value);
+                setTestMsg(null);
+              }}
+              placeholder="you@example.com"
+              className="min-w-[200px] flex-1 bg-white"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={testing || !bodyReady || !testEmailValid}
+              onClick={() => void handleSendTest()}
+              className="gap-2"
+            >
+              <Mail className="h-4 w-4" />
+              {testing ? "Sending…" : "Send test mail"}
+            </Button>
+          </div>
+          {testMsg ? (
+            <p
+              className={cn(
+                "text-xs",
+                testMsg.toLowerCase().includes("fail") ? "text-red-600" : "text-emerald-700",
+              )}
+            >
+              {testMsg}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              Sends the current subject and body to one address without selecting recipients.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -165,11 +244,13 @@ export function AdminBulkEmailForm() {
 
         <Button
           type="submit"
-          disabled={loading || selectedIds.length === 0 || !subject.trim() || !message.trim()}
+          disabled={loading || selectedIds.length === 0 || !bodyReady}
           className="h-10 gap-2 rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
         >
           <Send className="h-4 w-4" />
-          {loading ? "Sending..." : `Send to ${selectedIds.length} recipient${selectedIds.length === 1 ? "" : "s"}`}
+          {loading
+            ? "Sending..."
+            : `Send to ${selectedIds.length} recipient${selectedIds.length === 1 ? "" : "s"}`}
         </Button>
       </div>
 
@@ -191,7 +272,7 @@ export function AdminBulkEmailForm() {
             </Button>
           </div>
           <div className="relative mt-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -201,7 +282,7 @@ export function AdminBulkEmailForm() {
           </div>
         </div>
 
-        <div className="max-h-[520px] overflow-y-auto divide-y divide-slate-100">
+        <div className="max-h-[520px] divide-y divide-slate-100 overflow-y-auto">
           {loadingRecipients ? (
             <p className="px-5 py-8 text-sm text-slate-500">Loading recipients...</p>
           ) : filteredRecipients.length === 0 ? (

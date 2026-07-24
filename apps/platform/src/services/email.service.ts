@@ -67,7 +67,7 @@ async function sendViaSmtp(
 
   try {
     await transport.sendMail({
-      from: smtpConfig.from,
+      from: input.from ?? smtpConfig.from,
       to: input.to,
       subject: input.subject,
       html: input.html,
@@ -93,7 +93,7 @@ export async function sendEmail(
     const mailgun = getMailgunConfig()!;
     const result = await sendViaMailgun({
       to: input.to,
-      from: mailgun.from,
+      from: input.from ?? mailgun.from,
       subject: input.subject,
       html: input.html,
       text: input.text,
@@ -135,6 +135,16 @@ export async function getAdminAlertEmail() {
 export async function getSupportEmail() {
   const config = await getResolvedEmailConfig();
   return config.supportEmail || null;
+}
+
+export async function getSupportFromEmail(): Promise<string | null> {
+  const explicit = process.env.SUPPORT_FROM_EMAIL?.trim();
+  if (explicit) return explicit;
+
+  const mailgun = getMailgunConfig();
+  if (mailgun?.domain) return `support@${mailgun.domain}`;
+
+  return getSupportEmail();
 }
 
 export async function testSmtpConnection(testTo?: string) {

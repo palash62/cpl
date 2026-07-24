@@ -94,9 +94,9 @@ export function renderGenericEmail(params: BaseParams & { title: string; message
   const greeting = params.recipientName ? `Hi ${params.recipientName},` : "Hi,";
   const body = `<p style="margin:0 0 12px;">${greeting}</p>
     <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0f172a;">${params.title}</p>
-    <p style="margin:0;">${params.message}</p>
+    <div style="margin:0;">${params.message}</div>
     ${params.actionUrl ? buttonHtml(params.actionLabel ?? "View details", params.actionUrl) : ""}`;
-  const text = `${greeting}\n\n${params.title}\n${params.message}${params.actionUrl ? `\n\n${params.actionUrl}` : ""}`;
+  const text = `${greeting}\n\n${params.title}\n${params.message.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()}${params.actionUrl ? `\n\n${params.actionUrl}` : ""}`;
   return {
     subject: params.title,
     html: emailLayout(body, params.appUrl),

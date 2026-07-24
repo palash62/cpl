@@ -1102,16 +1102,21 @@ export async function sendAdminBulkEmail(input: {
   }
 
   const { getResolvedEmailConfig } = await import("@/services/smtp-settings.service");
-  const { sendEmail, getSupportEmail } = await import("@/services/email.service");
+  const { sendEmail, getSupportEmail, getSupportFromEmail } = await import("@/services/email.service");
   const { renderGenericEmail } = await import("@/lib/email/templates");
+  const { formatSupportFrom } = await import("@/lib/email/addresses");
 
   const config = await getResolvedEmailConfig();
-  const supportEmail = await getSupportEmail();
-  const htmlMessage = input.message
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("<br/>");
+  const supportReplyTo = await getSupportEmail();
+  if (!supportReplyTo) {
+    throw new AppError("VALIDATION_ERROR", "Support email is not configured", 422);
+  }
+  const supportFrom = await getSupportFromEmail();
+  if (!supportFrom) {
+    throw new AppError("VALIDATION_ERROR", "Support email is not configured", 422);
+  }
+  const from = formatSupportFrom(supportFrom);
+  const htmlMessage = input.message.trim();
 
   let sent = 0;
   let failed = 0;
@@ -1122,7 +1127,7 @@ export async function sendAdminBulkEmail(input: {
       appUrl: config.appUrl,
       recipientName: user.name,
       title: input.subject,
-      message: htmlMessage || input.message,
+      message: htmlMessage,
     });
 
     const result = await sendEmail({
@@ -1131,7 +1136,8 @@ export async function sendAdminBulkEmail(input: {
       html: rendered.html,
       text: rendered.text,
       template: "generic",
-      replyTo: supportEmail ?? undefined,
+      from,
+      replyTo: supportReplyTo,
       metadata: {
         kind: "admin_bulk_email",
         userId: user.id,
@@ -1168,4 +1174,66 @@ export async function sendAdminBulkEmail(input: {
     skipped,
     notFound: uniqueIds.length - users.length,
   };
+}
+
+export async function sendAdminBulkEmailTest(input: {
+  to: string;
+  subject: string;
+  message: string;
+  actorId: string;
+}) {
+  const { getResolvedEmailConfig } = await import("@/services/smtp-settings.service");
+  const { sendEmail, getSupportEmail, getSupportFromEmail } = await import("@/services/email.service");
+  const { renderGenericEmail } = await import("@/lib/email/templates");
+  const { formatSupportFrom } = await import("@/lib/email/addresses");
+
+  const config = await getResolvedEmailConfig();
+  const supportReplyTo = await getSupportEmail();
+  if (!supportReplyTo) {
+    throw new AppError("VALIDATION_ERROR", "Support email is not configured", 422);
+  }
+  const supportFrom = await getSupportFromEmail();
+  if (!supportFrom) {
+    throw new AppError("VALIDATION_ERROR", "Support email is not configured", 422);
+  }
+  const from = formatSupportFrom(supportFrom);
+  const htmlMessage = input.message.trim();
+
+  const rendered = renderGenericEmail({
+    appUrl: config.appUrl,
+    recipientName: "there",
+    title: input.subject,
+    message: htmlMessage,
+  });
+
+  const result = await sendEmail({
+    to: input.to,
+    subject: `[Test] ${input.subject}`,
+    html: rendered.html,
+    text: rendered.text,
+    template: "generic",
+    from,
+    replyTo: supportReplyTo,
+    metadata: {
+      kind: "admin_bulk_email_test",
+      actorId: input.actorId,
+    },
+  });
+
+  if (result.skipped) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Email provider is not configured. Configure Mailgun/SMTP first.",
+      422,
+    );
+  }
+  if (!result.sent) {
+    throw new AppError(
+      "INTERNAL_ERROR",
+      result.error ?? "Failed to send test email",
+      500,
+    );
+  }
+
+  return { sent: true, to: input.to };
 }

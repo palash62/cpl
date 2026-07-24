@@ -423,7 +423,39 @@ export const adminUpdateCampaignSchema = campaignSchema
 export const adminBulkEmailSchema = z.object({
   userIds: z.array(z.string().min(1)).min(1, "Select at least one recipient"),
   subject: z.string().trim().min(3, "Subject must be at least 3 characters").max(200),
-  message: z.string().trim().min(10, "Message must be at least 10 characters").max(10000),
+  message: z
+    .string()
+    .trim()
+    .min(1, "Message is required")
+    .max(50000, "Message is too long")
+    .refine(
+      (html) =>
+        html
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/gi, " ")
+          .replace(/\s+/g, " ")
+          .trim().length >= 10,
+      "Message must be at least 10 characters",
+    ),
+});
+
+export const adminBulkEmailTestSchema = z.object({
+  to: z.string().trim().email("Enter a valid email address"),
+  subject: z.string().trim().min(3, "Subject must be at least 3 characters").max(200),
+  message: z
+    .string()
+    .trim()
+    .min(1, "Message is required")
+    .max(50000, "Message is too long")
+    .refine(
+      (html) =>
+        html
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/gi, " ")
+          .replace(/\s+/g, " ")
+          .trim().length >= 10,
+      "Message must be at least 10 characters",
+    ),
 });
 
 export const adminPublisherSpecialPayoutSchema = z
