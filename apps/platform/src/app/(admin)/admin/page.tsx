@@ -4,16 +4,10 @@ import { getAdminControlCenterData } from "@/services/admin-dashboard.service";
 import {
   AdminActionCenter,
   AdminBusinessOverviewStats,
-  AdminFraudMonitoring,
-  AdminFinancialSummary,
-  AdminNotificationsPanel,
   AdminPendingApprovalCenter,
   AdminPlatformHealthPanel,
   AdminProfitOverview,
-  AdminRecentActivitiesPanel,
-  AdminRecentLeadsPanel,
   AdminRevenueOverview,
-  AdminSupportSnapshot,
   AdminTopPerformers,
   AdminWelcomeSummary,
 } from "@/components/admin/admin-control-center-sections";
@@ -73,34 +67,12 @@ export default async function AdminDashboardPage() {
       {/* 7. Top Performers */}
       <AdminTopPerformers data={data.topPerformers} />
 
-      {/* 8 & 9. Recent Activities + Recent Leads */}
-      <div className="grid gap-5 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <AdminRecentActivitiesPanel activities={data.recentActivities} />
-        </div>
-        <div className="lg:col-span-3">
-          <AdminRecentLeadsPanel leads={data.recentLeads} />
-        </div>
-      </div>
-
-      {/* 10. Platform Health */}
+      {/* 8. Platform Health */}
       <AdminPlatformHealthPanel
         health={data.platformHealth}
-        pendingPayouts={data.financial.pendingPayoutsCount}
-        openTickets={data.support.openTickets}
+        pendingPayouts={data.summary.pendingWithdrawals}
+        openTickets={data.summary.openTickets}
       />
-
-      {/* 11 & 12. Support + Fraud */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <AdminSupportSnapshot support={data.support} />
-        <AdminFraudMonitoring fraud={data.fraud} />
-      </div>
-
-      {/* 13 & 14. Financial + Notifications */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <AdminFinancialSummary financial={data.financial} />
-        <AdminNotificationsPanel notifications={data.notifications} />
-      </div>
     </div>
   );
 }

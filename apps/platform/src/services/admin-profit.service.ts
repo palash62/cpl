@@ -1,11 +1,169 @@
+import {
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  eachYearOfInterval,
+  endOfDay,
+  format,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfYear,
+} from "date-fns";
 import { prisma } from "@/lib/prisma";
 
 export type AdminProfitSnapshot = {
   advertiserPayment: number;
   publisherPayout: number;
   referralPay: number;
+  /** Platform profit (advertiser − publisher − referral). Kept as adminProfit for existing callers. */
   adminProfit: number;
 };
+
+export type ProfitGroupBy = "day" | "month" | "year";
+export type ProfitPeriod = "today" | "month" | "year" | "custom";
+
+export const ADMIN_PROFIT_SHARE = 0.8;
+export const PARTNER_PROFIT_SHARE = 0.2;
+
+export type PlatformProfitSplit = {
+  platformProfit: number;
+  adminProfit: number;
+  partnerProfit: number;
+};
+
+export type ProfitBreakdownRow = {
+  period: string;
+  advertiserPayment: number;
+  publisherPayout: number;
+  referralPay: number;
+  platformProfit: number;
+  adminProfit: number;
+  partnerProfit: number;
+};
+
+export type AdminProfitPageData = {
+  from: Date;
+  to: Date;
+  groupBy: ProfitGroupBy;
+  summary: {
+    advertiserPayment: number;
+    publisherPayout: number;
+    referralPay: number;
+    platformProfit: number;
+    adminProfit: number;
+    partnerProfit: number;
+  };
+  rows: ProfitBreakdownRow[];
+};
+
+function roundMoney(value: number) {
+  return Math.round(value * 10000) / 10000;
+}
+
+export function splitPlatformProfit(platformProfit: number): PlatformProfitSplit {
+  const platform = roundMoney(platformProfit);
+  const adminProfit = roundMoney(platform * ADMIN_PROFIT_SHARE);
+  const partnerProfit = roundMoney(platform - adminProfit);
+  return {
+    platformProfit: platform,
+    adminProfit,
+    partnerProfit,
+  };
+}
+
+function dateFormatPattern(groupBy: ProfitGroupBy) {
+  switch (groupBy) {
+    case "month":
+      return "%Y-%m";
+    case "year":
+      return "%Y";
+    default:
+      return "%Y-%m-%d";
+  }
+}
+
+function bucketLabelFormat(groupBy: ProfitGroupBy) {
+  switch (groupBy) {
+    case "month":
+      return "yyyy-MM";
+    case "year":
+      return "yyyy";
+    default:
+      return "yyyy-MM-dd";
+  }
+}
+
+export function generateProfitBuckets(from: Date, to: Date, groupBy: ProfitGroupBy): string[] {
+  const fmt = bucketLabelFormat(groupBy);
+  if (groupBy === "year") {
+    return eachYearOfInterval({ start: from, end: to }).map((d) => format(d, fmt));
+  }
+  if (groupBy === "month") {
+    return eachMonthOfInterval({ start: from, end: to }).map((d) => format(d, fmt));
+  }
+  return eachDayOfInterval({ start: from, end: to }).map((d) => format(d, fmt));
+}
+
+export function resolveProfitPageRange(params: {
+  period?: string;
+  from?: string;
+  to?: string;
+  group?: string;
+}): {
+  period: ProfitPeriod;
+  from: Date;
+  to: Date;
+  fromStr: string;
+  toStr: string;
+  groupBy: ProfitGroupBy;
+} {
+  const now = new Date();
+  let period: ProfitPeriod =
+    params.period === "today" ||
+    params.period === "month" ||
+    params.period === "year" ||
+    params.period === "custom"
+      ? params.period
+      : params.from || params.to
+        ? "custom"
+        : "month";
+
+  let from: Date;
+  let to: Date;
+
+  if (period === "today") {
+    from = startOfDay(now);
+    to = endOfDay(now);
+  } else if (period === "year") {
+    from = startOfYear(now);
+    to = endOfDay(now);
+  } else if (period === "month") {
+    from = startOfMonth(now);
+    to = endOfDay(now);
+  } else {
+    const fromStr = params.from ?? format(startOfMonth(now), "yyyy-MM-dd");
+    const toStr = params.to ?? format(now, "yyyy-MM-dd");
+    from = startOfDay(parseISO(fromStr));
+    to = endOfDay(parseISO(toStr));
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+      from = startOfMonth(now);
+      to = endOfDay(now);
+      period = "month";
+    }
+  }
+
+  const fromStr = format(from, "yyyy-MM-dd");
+  const toStr = format(to, "yyyy-MM-dd");
+
+  const groupBy: ProfitGroupBy =
+    params.group === "day" || params.group === "month" || params.group === "year"
+      ? params.group
+      : period === "year"
+        ? "month"
+        : "day";
+
+  return { period, from, to, fromStr, toStr, groupBy };
+}
 
 async function getAdvertiserPaymentsForRange(from: Date, to: Date) {
   const rows = await prisma.$queryRaw<{ total: unknown }[]>`
@@ -47,6 +205,71 @@ async function getReferralPayForRange(from: Date, to: Date) {
   return Number(result._sum.amount ?? 0);
 }
 
+async function getGroupedTotals(
+  from: Date,
+  to: Date,
+  groupBy: ProfitGroupBy,
+): Promise<{
+  advertiser: Map<string, number>;
+  publisher: Map<string, number>;
+  referral: Map<string, number>;
+}> {
+  const pattern = dateFormatPattern(groupBy);
+
+  const [advertiserRows, publisherRows, referralRows] = await Promise.all([
+    prisma.$queryRaw<{ bucket: string; total: unknown }[]>`
+      SELECT DATE_FORMAT(l.updated_at, ${pattern}) AS bucket,
+             COALESCE(SUM(c.cpl), 0) AS total
+      FROM leads l
+      INNER JOIN campaigns c ON c.id = l.campaign_id
+      WHERE l.status = 'PAID'
+        AND l.updated_at >= ${from}
+        AND l.updated_at <= ${to}
+      GROUP BY bucket
+      ORDER BY bucket
+    `,
+    prisma.$queryRaw<{ bucket: string; total: unknown }[]>`
+      SELECT DATE_FORMAT(le.created_at, ${pattern}) AS bucket,
+             COALESCE(SUM(le.amount), 0) AS total
+      FROM ledger_entries le
+      INNER JOIN wallets w ON w.id = le.wallet_id
+      INNER JOIN users u ON u.id = w.user_id
+      WHERE le.type = 'CREDIT'
+        AND le.reference_type = 'lead'
+        AND u.role = 'PUBLISHER'
+        AND le.created_at >= ${from}
+        AND le.created_at <= ${to}
+      GROUP BY bucket
+      ORDER BY bucket
+    `,
+    prisma.$queryRaw<{ bucket: string; total: unknown }[]>`
+      SELECT DATE_FORMAT(le.created_at, ${pattern}) AS bucket,
+             COALESCE(SUM(le.amount), 0) AS total
+      FROM ledger_entries le
+      WHERE le.type = 'CREDIT'
+        AND le.reference_type = 'referral'
+        AND le.created_at >= ${from}
+        AND le.created_at <= ${to}
+      GROUP BY bucket
+      ORDER BY bucket
+    `,
+  ]);
+
+  const toMap = (rows: { bucket: string; total: unknown }[]) => {
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      if (row.bucket) map.set(String(row.bucket), Number(row.total ?? 0));
+    }
+    return map;
+  };
+
+  return {
+    advertiser: toMap(advertiserRows),
+    publisher: toMap(publisherRows),
+    referral: toMap(referralRows),
+  };
+}
+
 export async function getAdminProfitForRange(from: Date, to: Date): Promise<AdminProfitSnapshot> {
   const [advertiserPayment, publisherPayout, referralPay] = await Promise.all([
     getAdvertiserPaymentsForRange(from, to),
@@ -76,4 +299,50 @@ export async function getAdminProfitSnapshots(ranges: {
   ]);
 
   return { today, last7Days, last30Days, lifetime };
+}
+
+export async function getAdminProfitPageData(
+  from: Date,
+  to: Date,
+  groupBy: ProfitGroupBy,
+): Promise<AdminProfitPageData> {
+  const [snapshot, grouped] = await Promise.all([
+    getAdminProfitForRange(from, to),
+    getGroupedTotals(from, to, groupBy),
+  ]);
+
+  const split = splitPlatformProfit(snapshot.adminProfit);
+  const buckets = generateProfitBuckets(from, to, groupBy);
+
+  const rows: ProfitBreakdownRow[] = buckets.map((period) => {
+    const advertiserPayment = roundMoney(grouped.advertiser.get(period) ?? 0);
+    const publisherPayout = roundMoney(grouped.publisher.get(period) ?? 0);
+    const referralPay = roundMoney(grouped.referral.get(period) ?? 0);
+    const platformProfit = roundMoney(advertiserPayment - publisherPayout - referralPay);
+    const shares = splitPlatformProfit(platformProfit);
+    return {
+      period,
+      advertiserPayment,
+      publisherPayout,
+      referralPay,
+      platformProfit: shares.platformProfit,
+      adminProfit: shares.adminProfit,
+      partnerProfit: shares.partnerProfit,
+    };
+  });
+
+  return {
+    from,
+    to,
+    groupBy,
+    summary: {
+      advertiserPayment: roundMoney(snapshot.advertiserPayment),
+      publisherPayout: roundMoney(snapshot.publisherPayout),
+      referralPay: roundMoney(snapshot.referralPay),
+      platformProfit: split.platformProfit,
+      adminProfit: split.adminProfit,
+      partnerProfit: split.partnerProfit,
+    },
+    rows,
+  };
 }

@@ -38,6 +38,7 @@ export interface NavItem {
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "Profit", href: "/admin/profit", icon: TrendingUp },
   { label: "Advertisers", href: "/admin/advertisers", icon: Users },
   { label: "Publishers", href: "/admin/publishers", icon: Users },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },

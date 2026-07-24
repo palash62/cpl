@@ -2,20 +2,16 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import {
   AlertTriangle,
   ArrowRight,
-  Bell,
   Building2,
   CheckCircle2,
   DollarSign,
   FileText,
-  LifeBuoy,
   Megaphone,
-  ShieldAlert,
   Users,
-  Wallet,
   XCircle,
   TrendingUp,
   Minus,
@@ -23,7 +19,6 @@ import {
 import type { AdminControlCenterData } from "@/services/admin-dashboard.service";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { ButtonLink } from "@/components/ui/button-link";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -389,172 +384,6 @@ export function AdminTopPerformers({
   );
 }
 
-export function AdminFinancialSummary({
-  financial,
-}: {
-  financial: AdminControlCenterData["financial"];
-}) {
-  const items = [
-    { label: "Admin Profit", value: formatCurrency(financial.adminProfit), bg: "bg-emerald-50", text: "text-emerald-700" },
-    { label: "Advertiser Payments", value: formatCurrency(financial.advertiserPayment), bg: "bg-sky-50", text: "text-sky-700" },
-    { label: "Publisher Payouts", value: formatCurrency(financial.publisherPayout), bg: "bg-amber-50", text: "text-amber-700" },
-    { label: "Referral Pay", value: formatCurrency(financial.referralPay), bg: "bg-violet-50", text: "text-violet-700" },
-    { label: "Wallet Balance", value: formatCurrency(financial.walletBalance), bg: "bg-slate-50", text: "text-slate-700" },
-    { label: "Pending Payouts", value: formatCurrency(financial.pendingPayoutsAmount), bg: "bg-orange-50", text: "text-orange-700" },
-  ];
-
-  return (
-    <AccentCard accent="emerald">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-          <Wallet className="h-4 w-4" />
-        </div>
-        <SectionHeader title="Financial Summary" description="Money flow across the platform" />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <div key={item.label} className={cn("rounded-xl border border-slate-100 px-4 py-3", item.bg)}>
-            <p className="text-xs font-medium text-slate-500">{item.label}</p>
-            <p className={cn("mt-1 text-lg font-bold", item.text)}>{item.value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <ButtonLink href="/admin/wallets" size="sm" variant="outline">
-          View Wallets
-        </ButtonLink>
-        <ButtonLink href="/admin/payouts" size="sm" variant="outline">
-          Review Withdrawals
-        </ButtonLink>
-      </div>
-    </AccentCard>
-  );
-}
-
-export function AdminFraudMonitoring({
-  fraud,
-}: {
-  fraud: AdminControlCenterData["fraud"];
-}) {
-  const items = [
-    { label: "Duplicate Flags", value: fraud.duplicateLeads, href: "/admin/fraud?filter=duplicate", bg: "bg-rose-50 hover:bg-rose-100/60" },
-    { label: "VPN / Proxy", value: fraud.vpnLeads, href: "/admin/fraud?filter=vpn", bg: "bg-amber-50 hover:bg-amber-100/60" },
-    { label: "High Risk", value: fraud.highRiskDevices, href: "/admin/fraud?filter=high-risk", bg: "bg-orange-50 hover:bg-orange-100/60" },
-    { label: "Avg Risk Score", value: `${fraud.spamScoreAvg}%`, href: "/admin/fraud", bg: "bg-red-50 hover:bg-red-100/60" },
-  ];
-
-  return (
-    <AccentCard accent="rose">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-            <ShieldAlert className="h-4 w-4" />
-          </div>
-          <SectionHeader title="Fraud & Quality Monitoring" description="Protect lead quality and advertiser ROI" />
-        </div>
-        <ButtonLink href="/admin/fraud" size="sm" variant="outline">
-          Review
-        </ButtonLink>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={cn("rounded-xl border border-slate-200 p-4 transition-colors", item.bg)}
-          >
-            <p className="text-2xl font-bold text-slate-900">{item.value}</p>
-            <p className="mt-1 text-sm text-slate-600">{item.label}</p>
-          </Link>
-        ))}
-      </div>
-    </AccentCard>
-  );
-}
-
-export function AdminSupportSnapshot({
-  support,
-}: {
-  support: AdminControlCenterData["support"];
-}) {
-  return (
-    <AccentCard accent="sky">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-          <LifeBuoy className="h-4 w-4" />
-        </div>
-        <SectionHeader title="Support Center" description="Customer issues requiring attention" />
-      </div>
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-          <p className="text-2xl font-bold text-slate-900">{support.openTickets}</p>
-          <p className="text-sm text-slate-600">Open tickets</p>
-        </div>
-        <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-4">
-          <p className="text-2xl font-bold text-orange-700">{support.urgentTickets}</p>
-          <p className="text-sm text-orange-700">High priority</p>
-        </div>
-      </div>
-      {support.recentClosed.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Recently closed
-          </p>
-          {support.recentClosed.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
-            >
-              <span className="truncate text-slate-700">{ticket.subject}</span>
-              <span className="shrink-0 text-xs text-slate-400">
-                {formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <ButtonLink href="/admin/support" className="mt-4" size="sm">
-        Open Support Center
-      </ButtonLink>
-    </AccentCard>
-  );
-}
-
-export function AdminNotificationsPanel({
-  notifications,
-}: {
-  notifications: AdminControlCenterData["notifications"];
-}) {
-  return (
-    <AccentCard accent="indigo">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-          <Bell className="h-4 w-4" />
-        </div>
-        <SectionHeader title="Notifications" description="Important platform alerts" />
-      </div>
-      {notifications.length === 0 ? (
-        <p className="text-sm text-slate-500">No recent notifications</p>
-      ) : (
-        <div className="space-y-2">
-          {notifications.map((n) => (
-            <div key={n.id} className="rounded-lg border border-slate-100 px-3 py-2.5">
-              <p className="text-sm font-medium text-slate-800">{n.title}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{n.body}</p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-      <ButtonLink href="/admin/notifications" variant="outline" size="sm" className="mt-4">
-        View all notifications
-      </ButtonLink>
-    </AccentCard>
-  );
-}
-
 export function AdminPlatformHealthPanel({
   health,
   pendingPayouts,
@@ -602,167 +431,6 @@ export function AdminPlatformHealthPanel({
           <p className="text-xs text-slate-500">Open tickets</p>
         </div>
       </div>
-    </AccentCard>
-  );
-}
-
-export function AdminRecentActivitiesPanel({
-  activities,
-}: {
-  activities: AdminControlCenterData["recentActivities"];
-}) {
-  return (
-    <AccentCard accent="violet">
-      <SectionHeader title="Recent Activities" description="Latest platform events" />
-      {activities.length === 0 ? (
-        <p className="text-sm text-slate-500">No recent activity</p>
-      ) : (
-        <div className="space-y-2">
-          {activities.map((item) => (
-            <div key={item.id} className="rounded-lg border border-slate-100 px-3 py-2.5">
-              <p className="text-sm font-medium text-slate-800">
-                {item.action.replaceAll("_", " ")} · {item.entityType}
-              </p>
-              <p className="text-xs text-slate-500">by {item.actorName}</p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-      <ButtonLink href="/admin/audit-log" variant="outline" size="sm" className="mt-4">
-        View audit log
-      </ButtonLink>
-    </AccentCard>
-  );
-}
-
-function LeadStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    APPROVED: "bg-emerald-50 text-emerald-700",
-    PAID: "bg-cyan-50 text-cyan-700",
-    REJECTED: "bg-red-50 text-red-700",
-    PENDING: "bg-orange-50 text-orange-700",
-    VALIDATING: "bg-violet-50 text-violet-700",
-    CAPTURED: "bg-slate-100 text-slate-700",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        styles[status] ?? "bg-slate-100 text-slate-600",
-      )}
-    >
-      {status.toLowerCase()}
-    </span>
-  );
-}
-
-function LeadQuickActions({ leadId, status }: { leadId: string; status: string }) {
-  const [loading, setLoading] = useState<string | null>(null);
-
-  async function updateStatus(next: "APPROVED" | "REJECTED") {
-    setLoading(next);
-    try {
-      await fetch("/api/v1/leads", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, status }),
-      });
-      window.location.reload();
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  if (!["PENDING", "VALIDATING", "CAPTURED"].includes(status)) {
-    return (
-      <ButtonLink href="/admin/leads" variant="outline" size="sm" className="h-7 text-xs">
-        View
-      </ButtonLink>
-    );
-  }
-
-  return (
-    <div className="flex justify-end gap-1">
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="h-7 px-2 text-xs text-emerald-700"
-        disabled={!!loading}
-        onClick={() => updateStatus("APPROVED")}
-      >
-        <CheckCircle2 className="mr-1 h-3 w-3" />
-        Approve
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="h-7 px-2 text-xs text-red-600"
-        disabled={!!loading}
-        onClick={() => updateStatus("REJECTED")}
-      >
-        <XCircle className="mr-1 h-3 w-3" />
-        Reject
-      </Button>
-    </div>
-  );
-}
-
-export function AdminRecentLeadsPanel({
-  leads,
-}: {
-  leads: AdminControlCenterData["recentLeads"];
-}) {
-  return (
-    <AccentCard accent="sky" padding={false}>
-      <div className="border-b border-slate-100 bg-[var(--theme-primary-soft)]/40 px-6 py-5">
-        <SectionHeader
-          title="Recent Leads"
-          description="Quickly review the newest submissions"
-        />
-      </div>
-      {leads.length === 0 ? (
-        <p className="px-6 py-12 text-center text-sm text-slate-500">No leads yet</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-6 py-3">Lead</th>
-                <th className="px-4 py-3">Campaign</th>
-                <th className="px-4 py-3">Publisher</th>
-                <th className="px-4 py-3">Advertiser</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Submitted</th>
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-t border-slate-100 hover:bg-blue-50/30">
-                  <td className="px-6 py-3 font-medium text-slate-800">{lead.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{lead.campaign}</td>
-                  <td className="px-4 py-3 text-slate-600">{lead.publisher}</td>
-                  <td className="px-4 py-3 text-slate-600">{lead.advertiser}</td>
-                  <td className="px-4 py-3">
-                    <LeadStatusBadge status={lead.status} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {format(new Date(lead.createdAt), "MMM d, h:mm a")}
-                  </td>
-                  <td className="px-6 py-3">
-                    <LeadQuickActions leadId={lead.id} status={lead.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </AccentCard>
   );
 }

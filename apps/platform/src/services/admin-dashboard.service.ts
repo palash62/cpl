@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getResolvedEmailConfig } from "@/services/smtp-settings.service";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import { getAdminProfitSnapshots } from "@/services/admin-profit.service";
-import { getFraudDashboardMetrics } from "@/modules/fraud";
 import {
   endOfDay,
   endOfMonth,
@@ -12,13 +11,6 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
-
-function leadDisplayName(data: unknown) {
-  if (!data || typeof data !== "object") return "Lead";
-  const record = data as Record<string, string>;
-  const name = [record.first_name, record.last_name].filter(Boolean).join(" ").trim();
-  return name || record.email || record.phone || "Lead";
-}
 
 async function getRevenueForRange(from: Date, to: Date) {
   const result = await prisma.platformFee.aggregate({
@@ -78,7 +70,7 @@ async function getLeadsTrend(days: number) {
   return Array.from(map.entries()).map(([date, count]) => ({ date, count }));
 }
 
-export async function getAdminControlCenterData(adminUserId: string) {
+export async function getAdminControlCenterData(_adminUserId: string) {
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
@@ -107,20 +99,11 @@ export async function getAdminControlCenterData(adminUserId: string) {
     revenueLastMonth,
     revenueLifetime,
     pendingPayoutsCount,
-    pendingPayoutsAmount,
-    completedPayoutsMonth,
     openTickets,
     urgentTickets,
-    recentClosedTickets,
     draftCampaigns,
     pendingAdvertisers,
     pendingPublisherKyc,
-    fraudMetrics,
-    suspendedUsers,
-    walletAggregate,
-    recentLeads,
-    recentAuditLogs,
-    recentNotifications,
     topCampaignsRaw,
     leadsTrend,
     revenueTrend,
@@ -154,13 +137,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
     getRevenueForRange(lastMonthStart, lastMonthEnd),
     getRevenueForRange(new Date(0), todayEnd),
     prisma.payout.count({ where: { status: { in: [...PENDING_PAYOUT_STATUSES] } } }),
-    prisma.payout.aggregate({
-      where: { status: { in: [...PENDING_PAYOUT_STATUSES] } },
-      _sum: { amount: true },
-    }),
-    prisma.payout.count({
-      where: { status: "COMPLETED", processedAt: { gte: monthStart } },
-    }),
     prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
     prisma.supportTicket.count({
       where: {
@@ -168,43 +144,11 @@ export async function getAdminControlCenterData(adminUserId: string) {
         priority: { in: ["HIGH", "URGENT"] },
       },
     }),
-    prisma.supportTicket.findMany({
-      where: { status: { in: ["RESOLVED", "CLOSED"] } },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      select: { id: true, subject: true, status: true, updatedAt: true },
-    }),
     prisma.campaign.count({ where: { status: "DRAFT" } }),
     prisma.user.count({
       where: { role: "ADVERTISER", status: "PENDING", emailVerified: null },
     }),
     prisma.user.count({ where: { role: "PUBLISHER", status: "PENDING" } }),
-    getFraudDashboardMetrics(),
-    prisma.user.count({ where: { status: "SUSPENDED" } }),
-    prisma.wallet.aggregate({ _sum: { balance: true, holdBalance: true } }),
-    prisma.lead.findMany({
-      take: 10,
-      orderBy: { createdAt: "desc" },
-      include: {
-        campaign: {
-          select: {
-            name: true,
-            advertiser: { select: { name: true } },
-          },
-        },
-        publisher: { select: { name: true } },
-      },
-    }),
-    prisma.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      include: { actor: { select: { name: true } } },
-    }),
-    prisma.notification.findMany({
-      where: { userId: adminUserId },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
     prisma.campaign.findMany({
       orderBy: { spent: "desc" },
       take: 5,
@@ -459,22 +403,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
       publishers: topPublishers,
       campaigns: topCampaigns,
     },
-    recentActivities: recentAuditLogs.map((log) => ({
-      id: log.id,
-      action: log.action,
-      entityType: log.entityType,
-      actorName: log.actor.name,
-      createdAt: log.createdAt,
-    })),
-    recentLeads: recentLeads.map((lead) => ({
-      id: lead.id,
-      name: leadDisplayName(lead.data),
-      status: lead.status,
-      createdAt: lead.createdAt,
-      campaign: lead.campaign.name,
-      publisher: lead.publisher.name,
-      advertiser: lead.campaign.advertiser.name,
-    })),
     platformHealth: {
       database: dbHealthy ? "Healthy" : "Down",
       api: "Healthy",
@@ -482,26 +410,6 @@ export async function getAdminControlCenterData(adminUserId: string) {
       backgroundJobs: "Healthy",
       cache: "Healthy",
     },
-    support: {
-      openTickets,
-      urgentTickets,
-      recentClosed: recentClosedTickets,
-    },
-    fraud: fraudMetrics,
-    financial: {
-      walletBalance: Number(walletAggregate._sum.balance ?? 0),
-      holdBalance: Number(walletAggregate._sum.holdBalance ?? 0),
-      pendingPayoutsCount,
-      pendingPayoutsAmount: Number(pendingPayoutsAmount._sum.amount ?? 0),
-      completedPayoutsMonth,
-      platformRevenue: revenueLifetime,
-      commissionEarned: revenueLifetime,
-      adminProfit: adminProfitSnapshots.lifetime.adminProfit,
-      advertiserPayment: adminProfitSnapshots.lifetime.advertiserPayment,
-      publisherPayout: adminProfitSnapshots.lifetime.publisherPayout,
-      referralPay: adminProfitSnapshots.lifetime.referralPay,
-    },
-    notifications: recentNotifications,
     legacy: {
       totalCampaigns,
       totalLeads,

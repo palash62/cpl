@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { getAdminProfitForRange } from "@/services/admin-profit.service";
+import { getAdminProfitForRange, splitPlatformProfit } from "@/services/admin-profit.service";
 
 describe("Admin Profit Service", () => {
   beforeEach(() => {
@@ -41,7 +41,9 @@ describe("Admin Profit Service", () => {
     mockQueryRaw.mockResolvedValue([{ total: 500 }]);
     mockLedgerAggregate
       .mockResolvedValueOnce({ _sum: { amount: 150 } })
-      .mockResolvedValueOnce({ _sum: { amount: 100 * REFERRAL_LEVEL_1_RATE + 100 * REFERRAL_LEVEL_2_RATE } });
+      .mockResolvedValueOnce({
+        _sum: { amount: 100 * REFERRAL_LEVEL_1_RATE + 100 * REFERRAL_LEVEL_2_RATE },
+      });
 
     const result = await getAdminProfitForRange(new Date(), new Date());
 
@@ -65,5 +67,19 @@ describe("Admin Profit Service", () => {
         }),
       }),
     );
+  });
+
+  it("splits platform profit 80% admin / 20% partner", () => {
+    const split = splitPlatformProfit(580);
+    expect(split.platformProfit).toBe(580);
+    expect(split.adminProfit).toBe(464);
+    expect(split.partnerProfit).toBe(116);
+    expect(split.adminProfit + split.partnerProfit).toBe(split.platformProfit);
+  });
+
+  it("keeps admin and partner shares totaling platform profit for fractional amounts", () => {
+    const split = splitPlatformProfit(100.33);
+    expect(split.adminProfit + split.partnerProfit).toBe(split.platformProfit);
+    expect(split.adminProfit).toBeCloseTo(100.33 * 0.8, 4);
   });
 });
