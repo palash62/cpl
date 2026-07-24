@@ -1,6 +1,15 @@
+"use client";
+
+import { Suspense } from "react";
 import { formatCurrency } from "@/components/admin/admin-ui";
+import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { ExportCsvButton } from "@/components/reports/export-csv-button";
-import type { AdminProfitPageData } from "@/services/admin-profit.service";
+import {
+  formatProfitDateDisplay,
+  formatProfitPeriodLabel,
+  type AdminProfitPageData,
+  type ProfitGroupBy,
+} from "@/services/admin-profit.service";
 import { cn } from "@/lib/utils";
 
 function moneyClass(value: number) {
@@ -59,13 +68,23 @@ export function AdminProfitSummaryCards({
 }
 
 export function AdminProfitReportTable({
-  rows,
+  allRows,
+  pageRows,
+  groupBy,
   fromStr,
   toStr,
+  page,
+  totalPages,
+  total,
 }: {
-  rows: AdminProfitPageData["rows"];
+  allRows: AdminProfitPageData["rows"];
+  pageRows: AdminProfitPageData["rows"];
+  groupBy: ProfitGroupBy;
   fromStr: string;
   toStr: string;
+  page: number;
+  totalPages: number;
+  total: number;
 }) {
   const headers = [
     "Period",
@@ -77,8 +96,11 @@ export function AdminProfitReportTable({
     "Partner profit (20%)",
   ];
 
-  const csvRows = rows.map((row) => [
-    row.period,
+  const fromLabel = formatProfitDateDisplay(fromStr);
+  const toLabel = formatProfitDateDisplay(toStr);
+
+  const csvRows = allRows.map((row) => [
+    formatProfitPeriodLabel(row.period, groupBy),
     row.advertiserPayment,
     row.publisherPayout,
     row.referralPay,
@@ -93,7 +115,7 @@ export function AdminProfitReportTable({
         <div>
           <h2 className="text-base font-semibold text-slate-900">Profit report</h2>
           <p className="text-sm text-slate-500">
-            Breakdown for {fromStr} → {toStr}
+            Breakdown for {fromLabel} → {toLabel}
           </p>
         </div>
         <ExportCsvButton
@@ -103,41 +125,48 @@ export function AdminProfitReportTable({
         />
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <p className="px-5 py-12 text-center text-sm text-slate-500">No profit data for this range.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                {headers.map((header) => (
-                  <th key={header} className="px-4 py-3 first:pl-5 last:pr-5">
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.period} className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-3 pl-5 font-medium text-slate-800">{row.period}</td>
-                  <td className="px-4 py-3 text-slate-700">{formatCurrency(row.advertiserPayment)}</td>
-                  <td className="px-4 py-3 text-slate-700">{formatCurrency(row.publisherPayout)}</td>
-                  <td className="px-4 py-3 text-slate-700">{formatCurrency(row.referralPay)}</td>
-                  <td className={cn("px-4 py-3 font-semibold", moneyClass(row.platformProfit))}>
-                    {formatCurrency(row.platformProfit)}
-                  </td>
-                  <td className={cn("px-4 py-3 font-semibold", moneyClass(row.adminProfit))}>
-                    {formatCurrency(row.adminProfit)}
-                  </td>
-                  <td className={cn("px-4 py-3 pr-5 font-semibold", moneyClass(row.partnerProfit))}>
-                    {formatCurrency(row.partnerProfit)}
-                  </td>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  {headers.map((header) => (
+                    <th key={header} className="px-4 py-3 first:pl-5 last:pr-5">
+                      {header}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {pageRows.map((row) => (
+                  <tr key={row.period} className="border-t border-slate-100 hover:bg-slate-50/60">
+                    <td className="px-4 py-3 pl-5 font-medium text-slate-800">
+                      {formatProfitPeriodLabel(row.period, groupBy)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{formatCurrency(row.advertiserPayment)}</td>
+                    <td className="px-4 py-3 text-slate-700">{formatCurrency(row.publisherPayout)}</td>
+                    <td className="px-4 py-3 text-slate-700">{formatCurrency(row.referralPay)}</td>
+                    <td className={cn("px-4 py-3 font-semibold", moneyClass(row.platformProfit))}>
+                      {formatCurrency(row.platformProfit)}
+                    </td>
+                    <td className={cn("px-4 py-3 font-semibold", moneyClass(row.adminProfit))}>
+                      {formatCurrency(row.adminProfit)}
+                    </td>
+                    <td className={cn("px-4 py-3 pr-5 font-semibold", moneyClass(row.partnerProfit))}>
+                      {formatCurrency(row.partnerProfit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Suspense fallback={null}>
+            <UsersTablePagination page={page} totalPages={totalPages} total={total} />
+          </Suspense>
+        </>
       )}
     </div>
   );

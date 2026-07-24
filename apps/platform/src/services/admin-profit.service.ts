@@ -104,6 +104,29 @@ export function generateProfitBuckets(from: Date, to: Date, groupBy: ProfitGroup
   return eachDayOfInterval({ start: from, end: to }).map((d) => format(d, fmt));
 }
 
+/** Display label for an ISO bucket key (keeps SQL merge keys unchanged). */
+export function formatProfitPeriodLabel(period: string, groupBy: ProfitGroupBy): string {
+  if (groupBy === "year") return period;
+  if (groupBy === "month") {
+    const [y, m] = period.split("-");
+    if (y && m) return `${m}-${y}`;
+    return period;
+  }
+  // day: yyyy-MM-dd → dd-mm-yyyy
+  const [y, m, d] = period.split("-");
+  if (y && m && d) return `${d}-${m}-${y}`;
+  return period;
+}
+
+/** Format an ISO date string (yyyy-MM-dd) as dd-mm-yyyy for UI/CSV subtitles. */
+export function formatProfitDateDisplay(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-");
+  if (y && m && d) return `${d}-${m}-${y}`;
+  return isoDate;
+}
+
+export const PROFIT_TABLE_PAGE_SIZE = 20;
+
 export function resolveProfitPageRange(params: {
   period?: string;
   from?: string;
@@ -312,7 +335,7 @@ export async function getAdminProfitPageData(
   ]);
 
   const split = splitPlatformProfit(snapshot.adminProfit);
-  const buckets = generateProfitBuckets(from, to, groupBy);
+  const buckets = generateProfitBuckets(from, to, groupBy).reverse();
 
   const rows: ProfitBreakdownRow[] = buckets.map((period) => {
     const advertiserPayment = roundMoney(grouped.advertiser.get(period) ?? 0);

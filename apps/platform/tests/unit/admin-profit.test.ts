@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { getAdminProfitForRange, splitPlatformProfit } from "@/services/admin-profit.service";
+import { getAdminProfitForRange, splitPlatformProfit, formatProfitPeriodLabel, formatProfitDateDisplay } from "@/services/admin-profit.service";
 
 describe("Admin Profit Service", () => {
   beforeEach(() => {
@@ -81,5 +81,12 @@ describe("Admin Profit Service", () => {
     const split = splitPlatformProfit(100.33);
     expect(split.adminProfit + split.partnerProfit).toBe(split.platformProfit);
     expect(split.adminProfit).toBeCloseTo(100.33 * 0.8, 4);
+  });
+
+  it("formats period labels as dd-mm-yyyy for day grouping", () => {
+    expect(formatProfitPeriodLabel("2026-07-24", "day")).toBe("24-07-2026");
+    expect(formatProfitPeriodLabel("2026-07", "month")).toBe("07-2026");
+    expect(formatProfitPeriodLabel("2026", "year")).toBe("2026");
+    expect(formatProfitDateDisplay("2026-07-24")).toBe("24-07-2026");
   });
 });

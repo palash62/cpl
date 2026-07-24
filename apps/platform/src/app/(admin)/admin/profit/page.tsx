@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import {
   getAdminProfitPageData,
+  PROFIT_TABLE_PAGE_SIZE,
   resolveProfitPageRange,
 } from "@/services/admin-profit.service";
 import { PageHero } from "@/components/admin/page-hero";
@@ -20,6 +21,7 @@ interface PageProps {
     from?: string;
     to?: string;
     group?: string;
+    page?: string;
   }>;
 }
 
@@ -32,6 +34,16 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const range = resolveProfitPageRange(params);
   const data = await getAdminProfitPageData(range.from, range.to, range.groupBy);
+
+  const total = data.rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PROFIT_TABLE_PAGE_SIZE));
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page =
+    Number.isFinite(requestedPage) && requestedPage >= 1
+      ? Math.min(requestedPage, totalPages)
+      : 1;
+  const start = (page - 1) * PROFIT_TABLE_PAGE_SIZE;
+  const pageRows = data.rows.slice(start, start + PROFIT_TABLE_PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -52,7 +64,16 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
 
       <AdminProfitSummaryCards summary={data.summary} />
 
-      <AdminProfitReportTable rows={data.rows} fromStr={range.fromStr} toStr={range.toStr} />
+      <AdminProfitReportTable
+        allRows={data.rows}
+        pageRows={pageRows}
+        groupBy={range.groupBy}
+        fromStr={range.fromStr}
+        toStr={range.toStr}
+        page={page}
+        totalPages={totalPages}
+        total={total}
+      />
     </div>
   );
 }

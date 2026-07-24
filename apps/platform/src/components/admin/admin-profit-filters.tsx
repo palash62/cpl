@@ -51,6 +51,10 @@ export function AdminProfitFilters({
         if (!value) params.delete(key);
         else params.set(key, value);
       }
+      // Filter changes should always restart at page 1
+      if (!("page" in next) || next.page === undefined) {
+        params.delete("page");
+      }
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`);
       });
