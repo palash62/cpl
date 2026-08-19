@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { EMAIL_MARKETING_CONFIG_KEY } from "@/lib/email/email-marketing-settings";
 import { parseEmailMarketingConfig } from "../config/platform-config";
 import { upsertContactFromLead } from "./contact.service";
+import { getListCampaignIds } from "./list.service";
 import { enqueueEmailSend } from "../queue/email-queue";
 
 type AutomationWithSteps = {
@@ -65,6 +66,20 @@ async function queueAutomationStepsForContact(input: {
   return queued;
 }
 
+async function resolveBackfillCampaignIds(automation: {
+  advertiserId: string;
+  campaignId: string | null;
+  listId: string | null;
+}): Promise<string[]> {
+  if (automation.campaignId) {
+    return [automation.campaignId];
+  }
+  if (!automation.listId) {
+    return [];
+  }
+  return getListCampaignIds(automation.advertiserId, automation.listId);
+}
+
 export async function backfillAutomationForExistingContacts(automationId: string) {
   const platformRow = await prisma.platformSetting.findUnique({
     where: { key: EMAIL_MARKETING_CONFIG_KEY },
@@ -79,14 +94,19 @@ export async function backfillAutomationForExistingContacts(automationId: string
     },
   });
 
-  if (!automation || automation.status !== "ACTIVE" || !automation.campaignId) {
+  if (!automation || automation.status !== "ACTIVE") {
+    return { queuedSends: 0, contacts: 0 };
+  }
+
+  const campaignIds = await resolveBackfillCampaignIds(automation);
+  if (campaignIds.length === 0) {
     return { queuedSends: 0, contacts: 0 };
   }
 
   const contacts = await prisma.emailContact.findMany({
     where: {
       advertiserId: automation.advertiserId,
-      sourceCampaignId: automation.campaignId,
+      sourceCampaignId: { in: campaignIds },
       status: "SUBSCRIBED",
     },
     select: { id: true, sourceLeadId: true },
