@@ -12,7 +12,7 @@ import {
   getConfiguredPlatformPublicIp,
   getPlatformPublicIp,
   getPlatformPublicIps,
-} from "@/lib/platform-host";
+} from "@/lib/platform-public-ip";
 
 const ENV_KEYS = ["PLATFORM_PUBLIC_IP", "PLATFORM_URL", "APP_URL", "AUTH_URL", "NEXT_PUBLIC_PLATFORM_URL"] as const;
 

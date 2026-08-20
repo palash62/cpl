@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserDomainsPanel } from "@/components/advertiser/domains/advertiser-domains-panel";
 import { getSession } from "@/lib/session";
-import { getPlatformHost, getPlatformPublicIp } from "@/lib/platform-host";
+import { getPlatformHost } from "@/lib/platform-host";
+import { getPlatformPublicIp } from "@/lib/platform-public-ip";
 
 export const dynamic = "force-dynamic";
 

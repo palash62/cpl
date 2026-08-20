@@ -1,7 +1,8 @@
 import dns from "node:dns/promises";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
-import { getPlatformHost, getPlatformPublicIps, isPlatformHost } from "@/lib/platform-host";
+import { getPlatformHost, isPlatformHost } from "@/lib/platform-host";
+import { getPlatformPublicIps } from "@/lib/platform-public-ip";
 
 export type AdvertiserDomainStatus = "PENDING" | "VERIFIED" | "FAILED";
 
