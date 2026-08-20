@@ -1,7 +1,7 @@
 import dns from "node:dns/promises";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
-import { getPlatformHost, isPlatformHost } from "@/lib/platform-host";
+import { getPlatformHost, getPlatformPublicIps, isPlatformHost } from "@/lib/platform-host";
 
 export type AdvertiserDomainStatus = "PENDING" | "VERIFIED" | "FAILED";
 
@@ -40,8 +40,9 @@ async function dnsPointsToPlatform(domain: string, platformHost: string): Promis
   try {
     const [domainIps, platformIps] = await Promise.all([
       dns.resolve4(domain),
-      dns.resolve4(target),
+      getPlatformPublicIps(),
     ]);
+    if (platformIps.length === 0) return false;
     return domainIps.some((ip) => platformIps.includes(ip));
   } catch {
     return false;

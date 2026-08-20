@@ -31,6 +31,8 @@ TRACKING_URL="${TRACKING_URL:-https://leadgenlink.site}"
 DATABASE_URL="${DATABASE_URL:-mysql://cpl:cpl_dev_pass@localhost:3306/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-change-me-to-a-random-64-char-secret}"
 AUTH_SECRET="${AUTH_SECRET:-change-me-auth-secret-min-32-characters}"
+# Public A-record IP shown on /advertiser/domains (host DNS often maps leadvix.io → 127.0.0.1).
+PLATFORM_PUBLIC_IP="${PLATFORM_PUBLIC_IP:-13.235.217.121}"
 
 preserve_env AUTH_SECRET
 preserve_env INTERNAL_SERVICE_TOKEN
@@ -45,6 +47,7 @@ preserve_env SMTP_FROM
 preserve_env ADMIN_ALERT_EMAIL
 preserve_env SUPPORT_EMAIL
 preserve_env FRAUD_EMAIL_API_KEY
+preserve_env PLATFORM_PUBLIC_IP
 
 # Transactional email (verification, welcome, password reset) — pick Mailgun OR SMTP.
 MAILGUN_API_KEY="${MAILGUN_API_KEY:-}"
@@ -84,6 +87,7 @@ PLATFORM_URL="$PLATFORM_URL"
 TRACKING_URL="$TRACKING_URL"
 NEXT_PUBLIC_PLATFORM_URL="$PLATFORM_URL"
 NEXT_PUBLIC_TRACKING_URL="$TRACKING_URL"
+PLATFORM_PUBLIC_IP="$PLATFORM_PUBLIC_IP"
 PORT=3000
 NODE_ENV=production
 FRAUD_EMAIL_API_KEY="${FRAUD_EMAIL_API_KEY:-}"

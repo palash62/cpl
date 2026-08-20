@@ -103,6 +103,37 @@ describe("advertiser-domain.service", () => {
     );
   });
 
+  it("marks domain verified when A record matches PLATFORM_PUBLIC_IP", async () => {
+    const prev = process.env.PLATFORM_PUBLIC_IP;
+    process.env.PLATFORM_PUBLIC_IP = "13.235.217.121";
+    try {
+      prismaMock.advertiserDomain.findFirst.mockResolvedValue({
+        id: "dom-1",
+        advertiserId: "adv-1",
+        domain: "brand.com",
+        status: "PENDING",
+      });
+      dnsMock.resolveCname.mockRejectedValue(new Error("no cname"));
+      dnsMock.resolve4.mockImplementation(async (host: string) => {
+        if (host === "brand.com") return ["13.235.217.121"];
+        return ["127.0.0.1"];
+      });
+      prismaMock.advertiserDomain.update.mockResolvedValue({
+        id: "dom-1",
+        domain: "brand.com",
+        status: "VERIFIED",
+        funnels: [],
+      });
+
+      const result = await verifyAdvertiserDomain("adv-1", "dom-1");
+
+      expect(result.status).toBe("VERIFIED");
+    } finally {
+      if (prev === undefined) delete process.env.PLATFORM_PUBLIC_IP;
+      else process.env.PLATFORM_PUBLIC_IP = prev;
+    }
+  });
+
   it("marks domain failed when DNS does not point to platform", async () => {
     prismaMock.advertiserDomain.findFirst.mockResolvedValue({
       id: "dom-1",
