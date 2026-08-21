@@ -54,13 +54,13 @@ export function EmailVerifiedBadge({ verified }: { verified: boolean }) {
     <Badge
       variant="outline"
       className={cn(
-        "font-medium",
+        "px-1.5 py-0 text-[11px] font-medium leading-5",
         verified
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
           : "border-slate-200 bg-slate-50 text-slate-600",
       )}
     >
-      {verified ? "Email verified" : "Email not verified"}
+      {verified ? "Verified" : "Unverified"}
     </Badge>
   );
 }
