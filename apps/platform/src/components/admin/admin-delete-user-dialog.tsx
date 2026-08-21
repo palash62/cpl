@@ -40,7 +40,14 @@ export function AdminDeleteUserDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const roleLabel = role === "ADVERTISER" ? "advertiser" : "publisher";
+  const roleLabel =
+    role === "ADVERTISER"
+      ? "advertiser"
+      : role === "PUBLISHER"
+        ? "publisher"
+        : role === "PLATFORM_MANAGER"
+          ? "platform manager"
+          : "user";
   const blocked = Boolean(disabledReason);
 
   async function handleDelete() {

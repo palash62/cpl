@@ -13,7 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function UsersTableFilters() {
+export function UsersTableFilters({
+  suspendedLabel = "Blocked",
+  hidePending = false,
+}: {
+  suspendedLabel?: string;
+  hidePending?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -100,8 +106,8 @@ export function UsersTableFilters() {
           <SelectContent>
             <SelectItem value="all">All status</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="SUSPENDED">Blocked</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="SUSPENDED">{suspendedLabel}</SelectItem>
+            {!hidePending ? <SelectItem value="PENDING">Pending</SelectItem> : null}
           </SelectContent>
         </Select>
 

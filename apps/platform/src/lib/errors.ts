@@ -192,6 +192,12 @@ export function errorResponse(error: unknown, requestId?: string) {
 export const Errors = {
   invalidCredentials: () =>
     new AppError("AUTH_INVALID_CREDENTIALS", "Invalid email or password", 401),
+  sessionExpired: () =>
+    new AppError(
+      "AUTH_SESSION_EXPIRED",
+      "Your session expired. Please sign in again.",
+      401,
+    ),
   forbidden: () =>
     new AppError("PERMISSION_DENIED", "You do not have permission", 403),
   notFound: (entity: string) =>

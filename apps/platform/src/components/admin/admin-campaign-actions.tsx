@@ -90,7 +90,7 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="relative flex items-center justify-end gap-1 whitespace-nowrap">
       <Button
         type="button"
         variant="outline"
@@ -185,7 +185,14 @@ export function AdminCampaignActions({ campaign }: AdminCampaignActionsProps) {
           Delete
         </Button>
       )}
-      {error && !deleteOpen && <p className="w-full text-right text-xs text-red-600">{error}</p>}
+      {error && !deleteOpen ? (
+        <p
+          className="absolute -bottom-4 right-0 max-w-[12rem] truncate text-right text-xs text-red-600"
+          title={error}
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

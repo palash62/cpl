@@ -111,11 +111,11 @@ export async function isAuthorizedAppSession(session: AppSession): Promise<boole
 export async function requireAuth(allowedRoles?: UserRole[]) {
   const session = await getSession();
   if (!session?.user) {
-    throw Errors.invalidCredentials();
+    throw Errors.sessionExpired();
   }
   const valid = await isAuthorizedAppSession(session);
   if (!valid) {
-    throw Errors.invalidCredentials();
+    throw Errors.sessionExpired();
   }
   if (allowedRoles && !allowedRoles.includes(session.user.role)) {
     throw Errors.forbidden();
@@ -133,17 +133,17 @@ export async function requireRealAdmin() {
   try {
     session = await auth();
   } catch {
-    throw Errors.invalidCredentials();
+    throw Errors.sessionExpired();
   }
   if (!session?.user) {
-    throw Errors.invalidCredentials();
+    throw Errors.sessionExpired();
   }
   if (session.user.role !== "ADMIN") {
     throw Errors.forbidden();
   }
   const valid = await hasValidUserSession(session.user.id, "ADMIN", session.tokenVersion);
   if (!valid) {
-    throw Errors.invalidCredentials();
+    throw Errors.sessionExpired();
   }
   return session;
 }
@@ -151,11 +151,11 @@ export async function requireRealAdmin() {
 export async function requireApiAuth(allowedRoles?: UserRole[]) {
   const session = await getSession();
   if (!session?.user) {
-    return { error: Errors.invalidCredentials(), session: null };
+    return { error: Errors.sessionExpired(), session: null };
   }
   const valid = await isAuthorizedAppSession(session);
   if (!valid) {
-    return { error: Errors.invalidCredentials(), session: null };
+    return { error: Errors.sessionExpired(), session: null };
   }
   if (allowedRoles && !allowedRoles.includes(session.user.role)) {
     return { error: Errors.forbidden(), session: null };

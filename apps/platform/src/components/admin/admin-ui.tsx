@@ -29,7 +29,13 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function UserStatusBadge({ status }: { status: UserStatus }) {
+export function UserStatusBadge({
+  status,
+  suspendedLabel = "blocked",
+}: {
+  status: UserStatus;
+  suspendedLabel?: string;
+}) {
   const styles: Record<UserStatus, string> = {
     ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
     SUSPENDED: "border-red-200 bg-red-50 text-red-700",
@@ -38,7 +44,7 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
 
   return (
     <Badge variant="outline" className={cn("font-medium capitalize", styles[status])}>
-      {status === "SUSPENDED" ? "blocked" : status.toLowerCase()}
+      {status === "SUSPENDED" ? suspendedLabel : status.toLowerCase()}
     </Badge>
   );
 }

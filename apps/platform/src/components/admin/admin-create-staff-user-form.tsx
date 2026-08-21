@@ -53,6 +53,7 @@ export function AdminCreateStaffUserForm({
     const res = await fetch("/api/v1/admin/staff-users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         name: name.trim(),
         email: email.trim(),
@@ -65,7 +66,17 @@ export function AdminCreateStaffUserForm({
     setLoading(false);
 
     if (!res.ok) {
-      setError(data?.error?.message ?? "Unable to create platform manager");
+      const message =
+        data?.error?.message ??
+        (res.status === 401
+          ? "Your session expired. Please sign in again."
+          : "Unable to create platform manager");
+      setError(message);
+      if (res.status === 401) {
+        setTimeout(() => {
+          router.push("/login");
+        }, 1200);
+      }
       return;
     }
 
