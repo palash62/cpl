@@ -191,11 +191,13 @@ export function AutoresponderConnectionForm({
   onSaved,
   initialConnection,
   onCancelEdit,
+  aweberOAuthConfigured = true,
 }: {
   campaigns: CampaignOption[];
   onSaved: (connection?: EditableConnection) => void;
   initialConnection?: EditableConnection | null;
   onCancelEdit?: () => void;
+  aweberOAuthConfigured?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -845,16 +847,25 @@ export function AutoresponderConnectionForm({
 
             {!aweberConnected ? (
               <div className="space-y-3">
-                <p className="text-sm text-slate-600">
-                  Connect your AWeber account to choose a list. Access tokens are handled securely
-                  via OAuth.
-                </p>
-                <a
-                  href="/api/v1/advertiser/integrations/aweber/authorize"
-                  className={cn(buttonVariants({ variant: "default" }), "inline-flex")}
-                >
-                  Connect with AWeber
-                </a>
+                {!aweberOAuthConfigured ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    AWeber Connect is not available — platform OAuth is not configured on the
+                    server. Contact support or use Email Marketing instead.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-600">
+                      Connect your AWeber account to choose a list. Access tokens are handled
+                      securely via OAuth.
+                    </p>
+                    <a
+                      href="/api/v1/advertiser/integrations/aweber/authorize"
+                      className={cn(buttonVariants({ variant: "default" }), "inline-flex")}
+                    >
+                      Connect with AWeber
+                    </a>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4">

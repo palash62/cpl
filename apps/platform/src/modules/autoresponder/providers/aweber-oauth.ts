@@ -58,6 +58,10 @@ export function getAweberClientSecret() {
   return process.env.AWEBER_CLIENT_SECRET?.trim() ?? "";
 }
 
+export function isAweberOAuthConfigured(): boolean {
+  return Boolean(getAweberClientId() && getAweberClientSecret());
+}
+
 export function getAweberRedirectUri() {
   const override = process.env.AWEBER_REDIRECT_URI?.trim();
   if (override) return override.replace(/\/$/, "");

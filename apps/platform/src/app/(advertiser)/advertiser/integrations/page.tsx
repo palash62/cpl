@@ -5,6 +5,7 @@ import { AutoresponderConnectionsPanel } from "@/components/advertiser/autorespo
 import Link from "next/link";
 import { Info, Mail } from "lucide-react";
 import { redirect } from "next/navigation";
+import { isAweberOAuthConfigured } from "@/modules/autoresponder/providers/aweber-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export default async function AdvertiserIntegrationsPage() {
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+
+  const aweberOAuthConfigured = isAweberOAuthConfigured();
 
   return (
     <div className="space-y-6">
@@ -45,6 +48,20 @@ export default async function AdvertiserIntegrationsPage() {
         </p>
       </div>
 
+      {!aweberOAuthConfigured && (
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p>
+            AWeber Connect is not available yet — platform OAuth is not configured on the server.
+            Use{" "}
+            <Link href="/advertiser/email" className="font-medium text-amber-800 hover:underline">
+              Email Marketing
+            </Link>{" "}
+            or contact support if you need AWeber integration.
+          </p>
+        </div>
+      )}
+
       <div
         className="flex gap-3 rounded-xl border px-4 py-3 text-sm text-slate-700"
         style={{
@@ -60,7 +77,10 @@ export default async function AdvertiserIntegrationsPage() {
         </p>
       </div>
 
-      <AutoresponderConnectionsPanel campaigns={campaigns} />
+      <AutoresponderConnectionsPanel
+        campaigns={campaigns}
+        aweberOAuthConfigured={aweberOAuthConfigured}
+      />
     </div>
   );
 }

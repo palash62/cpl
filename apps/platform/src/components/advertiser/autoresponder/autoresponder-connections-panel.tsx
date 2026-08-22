@@ -33,7 +33,13 @@ const TRIGGER_LABELS: Record<string, string> = {
   LEAD_APPROVED: "On approval",
 };
 
-export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: CampaignOption[] }) {
+export function AutoresponderConnectionsPanel({
+  campaigns,
+  aweberOAuthConfigured = true,
+}: {
+  campaigns: CampaignOption[];
+  aweberOAuthConfigured?: boolean;
+}) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -167,6 +173,7 @@ export function AutoresponderConnectionsPanel({ campaigns }: { campaigns: Campai
           <AutoresponderConnectionForm
             campaigns={campaigns}
             initialConnection={editing}
+            aweberOAuthConfigured={aweberOAuthConfigured}
             onCancelEdit={() => setEditing(null)}
             onSaved={(saved) => {
               if (saved) {
