@@ -42,8 +42,16 @@ export type AweberListOption = {
   name: string;
 };
 
+function firstNonEmptyEnv(...keys: string[]): string {
+  for (const key of keys) {
+    const val = process.env[key]?.trim();
+    if (val) return val;
+  }
+  return "";
+}
+
 function getSigningSecret() {
-  const secret = process.env.AUTH_SECRET ?? process.env.INTEGRATION_ENCRYPTION_KEY ?? "";
+  const secret = firstNonEmptyEnv("AUTH_SECRET", "INTEGRATION_ENCRYPTION_KEY");
   if (!secret || secret.length < 16) {
     throw new Error("AUTH_SECRET or INTEGRATION_ENCRYPTION_KEY is required for AWeber OAuth");
   }

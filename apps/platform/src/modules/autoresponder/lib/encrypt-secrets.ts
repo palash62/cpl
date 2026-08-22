@@ -14,8 +14,16 @@ const SECRET_KEYS = new Set([
 export const SECRET_CONFIG_KEYS = SECRET_KEYS;
 export const MASKED_SECRET = "••••••••";
 
+function firstNonEmptyEnv(...keys: string[]): string {
+  for (const key of keys) {
+    const val = process.env[key]?.trim();
+    if (val) return val;
+  }
+  return "";
+}
+
 function getEncryptionKey() {
-  const raw = process.env.INTEGRATION_ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "";
+  const raw = firstNonEmptyEnv("INTEGRATION_ENCRYPTION_KEY", "AUTH_SECRET");
   if (!raw || raw.length < 16) {
     throw new Error("INTEGRATION_ENCRYPTION_KEY or AUTH_SECRET (min 16 chars) required");
   }
