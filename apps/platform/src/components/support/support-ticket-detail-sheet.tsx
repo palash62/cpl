@@ -90,9 +90,8 @@ export function SupportTicketDetailSheet({
             <span>{ticket?.subject ?? "Support ticket"}</span>
           </SheetTitle>
           {ticket && (
-            <SheetDescription asChild>
-              <div className="space-y-2 pt-1 text-left">
-                <div className="flex flex-wrap gap-2">
+            <SheetDescription className="space-y-2 pt-1 text-left">
+              <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
                     {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
                   </Badge>
@@ -116,7 +115,6 @@ export function SupportTicketDetailSheet({
                   Opened{" "}
                   {formatUserDateTime(ticket.createdAt, session?.user?.timezone, "MMM d, yyyy HH:mm")}
                 </p>
-              </div>
             </SheetDescription>
           )}
         </SheetHeader>

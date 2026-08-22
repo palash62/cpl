@@ -223,7 +223,7 @@ async function assertAdminCanManageStaffMessage(messageId: string, actorId: stri
     select: { role: true },
   });
   if (!isAdminPortalRole(actor?.role)) {
-    throw Errors.forbidden("Only admins can manage support messages");
+    throw Errors.forbidden();
   }
 
   const message = await prisma.ticketMessage.findUnique({
@@ -237,7 +237,7 @@ async function assertAdminCanManageStaffMessage(messageId: string, actorId: stri
     throw Errors.notFound("Message");
   }
   if (!isStaffSupportRole(message.sender.role)) {
-    throw Errors.forbidden("Only staff replies can be edited or deleted");
+    throw Errors.forbidden();
   }
   return message;
 }
