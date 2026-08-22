@@ -29,7 +29,13 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function UserStatusBadge({ status }: { status: UserStatus }) {
+export function UserStatusBadge({
+  status,
+  suspendedLabel = "blocked",
+}: {
+  status: UserStatus;
+  suspendedLabel?: string;
+}) {
   const styles: Record<UserStatus, string> = {
     ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
     SUSPENDED: "border-red-200 bg-red-50 text-red-700",
@@ -38,7 +44,7 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
 
   return (
     <Badge variant="outline" className={cn("font-medium capitalize", styles[status])}>
-      {status === "SUSPENDED" ? "blocked" : status.toLowerCase()}
+      {status === "SUSPENDED" ? suspendedLabel : status.toLowerCase()}
     </Badge>
   );
 }
@@ -48,13 +54,13 @@ export function EmailVerifiedBadge({ verified }: { verified: boolean }) {
     <Badge
       variant="outline"
       className={cn(
-        "font-medium",
+        "px-1.5 py-0 text-[11px] font-medium leading-5",
         verified
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
           : "border-slate-200 bg-slate-50 text-slate-600",
       )}
     >
-      {verified ? "Email verified" : "Email not verified"}
+      {verified ? "Verified" : "Unverified"}
     </Badge>
   );
 }

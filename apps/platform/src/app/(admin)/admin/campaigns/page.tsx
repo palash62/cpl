@@ -146,80 +146,88 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
-                  <TableHead className="h-11 px-6 text-slate-600">Campaign</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Advertiser</TableHead>
-                  <TableHead className="h-11 px-4 text-right text-slate-600">CPL</TableHead>
-                  <TableHead className="h-11 px-4 text-center text-slate-600">Leads</TableHead>
-                  <TableHead className="h-11 px-4 text-right text-slate-600">Spent</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Created</TableHead>
-                  <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.map((c) => (
-                  <TableRow key={c.id} className="border-slate-100 transition-colors hover:bg-blue-50/40">
-                    <TableCell className="px-6 py-4">
-                      <p className="font-medium text-slate-900">{c.name}</p>
-                      <p className="text-xs text-slate-500">{c.category}</p>
-                    </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-3.5 w-3.5 text-indigo-400" />
-                        <span className="text-sm text-slate-700">{c.advertiser.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-right">
-                      <span className="font-semibold text-[var(--theme-primary)]">
-                        {formatCurrency(Number(c.cpl))}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-center">
-                      <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-semibold text-indigo-700">
-                        {c._count.leads}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-right text-sm font-medium text-slate-700">
-                      {formatCurrency(Number(c.spent))}
-                    </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <CampaignStatusBadge status={c.status} />
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-slate-500">
-                      {formatUserDateTime(c.createdAt, tz, "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="px-6 py-4 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <ButtonLink
-                          href={`/admin/campaigns/${c.id}`}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </ButtonLink>
-                        <AdminCampaignActions
-                          campaign={{
-                            id: c.id,
-                            name: c.name,
-                            status: c.status,
-                            leadCount: c._count.leads,
-                            funnelSlug:
-                              c.optinPages[0]?.slug ??
-                              parseCampaignTargeting(c.targeting).optinSlug,
-                          }}
-                        />
-                      </div>
-                    </TableCell>
+            <div className="min-w-0 max-w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow
+                    className="border-none hover:bg-transparent"
+                    style={{ background: "var(--theme-primary-soft)" }}
+                  >
+                    <TableHead className="h-10 px-6 text-slate-600">Campaign</TableHead>
+                    <TableHead className="h-10 px-4 text-slate-600">Advertiser</TableHead>
+                    <TableHead className="h-10 px-4 text-right text-slate-600">CPL</TableHead>
+                    <TableHead className="h-10 px-4 text-center text-slate-600">Leads</TableHead>
+                    <TableHead className="h-10 px-4 text-right text-slate-600">Spent</TableHead>
+                    <TableHead className="h-10 px-4 text-slate-600">Status</TableHead>
+                    <TableHead className="h-10 px-4 text-slate-600">Created</TableHead>
+                    <TableHead className="h-10 px-6 text-right text-slate-600">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((c) => (
+                    <TableRow
+                      key={c.id}
+                      className="border-slate-100 transition-colors hover:bg-blue-50/40"
+                    >
+                      <TableCell className="px-6 py-2.5">
+                        <div className="min-w-0 max-w-[14rem]">
+                          <p className="truncate text-sm font-medium text-slate-900">{c.name}</p>
+                          <p className="truncate text-xs text-slate-500">{c.category}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <div className="flex max-w-[10rem] items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                          <span className="truncate text-sm text-slate-700">{c.advertiser.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5 text-right">
+                        <span className="font-semibold text-[var(--theme-primary)]">
+                          {formatCurrency(Number(c.cpl))}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5 text-center">
+                        <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-semibold text-indigo-700">
+                          {c._count.leads}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5 text-right text-sm font-medium text-slate-700">
+                        {formatCurrency(Number(c.spent))}
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <CampaignStatusBadge status={c.status} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 py-2.5 text-sm text-slate-500">
+                        {formatUserDateTime(c.createdAt, tz, "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="px-6 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                          <ButtonLink
+                            href={`/admin/campaigns/${c.id}`}
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </ButtonLink>
+                          <AdminCampaignActions
+                            campaign={{
+                              id: c.id,
+                              name: c.name,
+                              status: c.status,
+                              leadCount: c._count.leads,
+                              funnelSlug:
+                                c.optinPages[0]?.slug ??
+                                parseCampaignTargeting(c.targeting).optinSlug,
+                            }}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
             <Suspense>
               <UsersTablePagination page={meta.page} totalPages={meta.totalPages} total={meta.total} />

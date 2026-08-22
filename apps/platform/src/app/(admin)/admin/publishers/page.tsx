@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { formatUserDateTime } from "@/lib/user-timezone";
-import { Mail, Megaphone, ShieldAlert, UserCheck, Users, Share2 } from "lucide-react";
+import { Megaphone, ShieldAlert, UserCheck, Users, Share2 } from "lucide-react";
 import type { UserStatus } from "@prisma/client";
 import { listUsers, getUserDeleteEligibility, listActiveCampaignsForSmartLinkAllowlist } from "@/services/admin.service";
 import { getSession } from "@/lib/session";
@@ -146,115 +146,133 @@ export default async function AdminPublishersPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
-                  <TableHead className="h-11 px-6 text-slate-600">Publisher</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">KYC</TableHead>
-                  <TableHead className="h-11 px-4 text-center text-slate-600">Spam Score</TableHead>
-                  <TableHead className="h-11 px-4 text-center text-slate-600">Leads</TableHead>
-                  <TableHead className="h-11 px-4 text-right text-slate-600">Earnings</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Joined</TableHead>
-                  <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {publishers.map((publisher, index) => {
-                  const balance = Number(publisher.wallet?.balance ?? 0);
-                  const deleteEligibility = getUserDeleteEligibility(
-                    {
-                      id: publisher.id,
-                      role: publisher.role,
-                      wallet: publisher.wallet,
-                      _count: publisher._count,
-                    },
-                    adminId,
-                  );
-                  const spamScore = resolveSpamScore(
-                    publisher.id,
-                    publisher.publisherProfile?.spamScore,
-                  );
-                  return (
-                    <TableRow key={publisher.id} className="border-slate-100 transition-colors hover:bg-indigo-50/40">
-                      <TableCell className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar size="lg">
-                            <AvatarFallback className={cn("text-sm font-semibold", avatarColors[index % avatarColors.length])}>
-                              {getInitials(publisher.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-900">{publisher.name}</p>
-                            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
-                              <Mail className="h-3 w-3 shrink-0 text-[var(--theme-primary)]" />
-                              {publisher.email}
+            <div className="min-w-0 max-w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow
+                    className="border-none hover:bg-transparent"
+                    style={{ background: "var(--theme-primary-soft)" }}
+                  >
+                    <TableHead className="h-8 px-6 text-slate-600">Publisher</TableHead>
+                    <TableHead className="h-8 px-4 text-slate-600">KYC</TableHead>
+                    <TableHead className="h-8 px-4 text-center text-slate-600">Spam Score</TableHead>
+                    <TableHead className="h-8 px-4 text-center text-slate-600">Leads</TableHead>
+                    <TableHead className="h-8 px-4 text-right text-slate-600">Earnings</TableHead>
+                    <TableHead className="h-8 px-4 text-slate-600">Status</TableHead>
+                    <TableHead className="h-8 px-4 text-slate-600">Joined</TableHead>
+                    <TableHead className="h-8 px-6 text-right text-slate-600">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {publishers.map((publisher, index) => {
+                    const balance = Number(publisher.wallet?.balance ?? 0);
+                    const deleteEligibility = getUserDeleteEligibility(
+                      {
+                        id: publisher.id,
+                        role: publisher.role,
+                        wallet: publisher.wallet,
+                        _count: publisher._count,
+                      },
+                      adminId,
+                    );
+                    const spamScore = resolveSpamScore(
+                      publisher.id,
+                      publisher.publisherProfile?.spamScore,
+                    );
+                    return (
+                      <TableRow
+                        key={publisher.id}
+                        className="border-slate-100 transition-colors hover:bg-indigo-50/40"
+                      >
+                        <TableCell className="px-6 py-1.5">
+                          <div className="flex min-w-0 items-center gap-1.5" title={publisher.email}>
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback
+                                className={cn(
+                                  "text-[10px] font-semibold",
+                                  avatarColors[index % avatarColors.length],
+                                )}
+                              >
+                                {getInitials(publisher.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <p className="truncate text-sm font-medium text-slate-900">
+                              {publisher.name}
                             </p>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        {publisher.publisherProfile ? (
-                          <KycStatusBadge status={publisher.publisherProfile.kycStatus} />
-                        ) : (
-                          <span className="text-sm text-slate-400">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-center">
-                        <SpamScoreBadge score={spamScore} />
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-center">
-                        <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-violet-50 px-2.5 py-1 text-sm font-semibold text-violet-700">
-                          {publisher._count.leads}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-right">
-                        <span className={cn("text-sm font-semibold tabular-nums", balance > 0 ? "text-emerald-600" : "text-slate-400")}>
-                          {formatCurrency(balance)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        <div className="flex flex-col gap-1.5">
-                          <UserStatusBadge status={publisher.status} />
-                          <EmailVerifiedBadge verified={!!publisher.emailVerified} />
-                          {publisher.status === "PENDING" && publisher.emailVerified && (
-                            <span className="text-xs text-emerald-700">Ready for admin approval</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5">
+                          {publisher.publisherProfile ? (
+                            <KycStatusBadge status={publisher.publisherProfile.kycStatus} />
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-sm text-slate-500">
-                        {formatUserDateTime(publisher.createdAt, tz, "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <AdminLoginAsButton
-                            userId={publisher.id}
-                            userName={publisher.name}
-                            disabled={publisher.status !== "ACTIVE"}
-                          />
-                          <PublisherActionsMenu
-                            publisher={{
-                              ...publisher,
-                              publisherProfile: publisher.publisherProfile
-                                ? {
-                                    ...publisher.publisherProfile,
-                                    spamScore: resolveSpamScore(
-                                      publisher.id,
-                                      publisher.publisherProfile.spamScore,
-                                    ),
-                                  }
-                                : publisher.publisherProfile,
-                            }}
-                            campaigns={campaigns}
-                            deleteDisabledReason={deleteEligibility.reason}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5 text-center">
+                          <SpamScoreBadge score={spamScore} />
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5 text-center">
+                          <span className="inline-flex min-w-7 items-center justify-center rounded-md bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                            {publisher._count.leads}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5 text-right">
+                          <span
+                            className={cn(
+                              "text-sm font-semibold tabular-nums",
+                              balance > 0 ? "text-emerald-600" : "text-slate-400",
+                            )}
+                          >
+                            {formatCurrency(balance)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5">
+                          <div
+                            className="flex items-center gap-1"
+                            title={
+                              publisher.status === "PENDING" && publisher.emailVerified
+                                ? "Ready for admin approval"
+                                : undefined
+                            }
+                          >
+                            <UserStatusBadge status={publisher.status} />
+                            <EmailVerifiedBadge verified={!!publisher.emailVerified} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-1.5 text-sm text-slate-500">
+                          {formatUserDateTime(publisher.createdAt, tz, "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="px-6 py-1.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <AdminLoginAsButton
+                              userId={publisher.id}
+                              userName={publisher.name}
+                              disabled={publisher.status !== "ACTIVE"}
+                            />
+                            <PublisherActionsMenu
+                              publisher={{
+                                ...publisher,
+                                publisherProfile: publisher.publisherProfile
+                                  ? {
+                                      ...publisher.publisherProfile,
+                                      spamScore: resolveSpamScore(
+                                        publisher.id,
+                                        publisher.publisherProfile.spamScore,
+                                      ),
+                                    }
+                                  : publisher.publisherProfile,
+                              }}
+                              campaigns={campaigns}
+                              deleteDisabledReason={deleteEligibility.reason}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
             <Suspense>
               <UsersTablePagination page={meta.page} totalPages={meta.totalPages} total={meta.total} />
             </Suspense>

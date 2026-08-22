@@ -107,7 +107,33 @@ function LoginForm() {
 
   async function handleCredentialsSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await requestOtpCode();
+    setError("");
+    setInfo("");
+    setShowResend(false);
+    setLoading(true);
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // ADMIN / PLATFORM_MANAGER: password login (OTP bypass) via credentials provider.
+      const adminResult = await signIn("credentials", {
+        email: normalizedEmail,
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      });
+
+      if (adminResult?.ok && !adminResult.error) {
+        window.location.href = "/";
+        return;
+      }
+
+      // Advertiser / publisher (and failed admin password): continue with OTP flow.
+      await requestOtpCode();
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { formatUserDateTime } from "@/lib/user-timezone";
-import { Building2, Mail, Megaphone, UserCheck, Users, Wallet } from "lucide-react";
+import { Building2, Megaphone, UserCheck, Users, Wallet } from "lucide-react";
 import type { UserStatus } from "@prisma/client";
 import { listUsers, getUserDeleteEligibility } from "@/services/admin.service";
 import { getSession } from "@/lib/session";
@@ -15,13 +15,10 @@ import {
   UserStatusBadge,
 } from "@/components/admin/admin-ui";
 import { UsersTableFilters } from "@/components/admin/users-table-filters";
-import { UserStatusActions } from "@/components/admin/user-status-actions";
 import { AdminLoginAsButton } from "@/components/admin/admin-login-as-button";
 import { AdminCreateAdvertiserDialog } from "@/components/admin/admin-create-advertiser-dialog";
-import { AdminDeleteUserDialog } from "@/components/admin/admin-delete-user-dialog";
-import { AdminResendVerificationButton } from "@/components/admin/admin-resend-verification-button";
-import { ButtonLink } from "@/components/ui/button-link";
-import { Eye } from "lucide-react";
+import { AdvertiserActionsMenu } from "@/components/admin/advertiser-actions-menu";
+import { AdvertiserUtmCell } from "@/components/admin/advertiser-utm-cell";
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -125,129 +122,121 @@ export default async function AdminAdvertisersPage({ searchParams }: PageProps) 
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-none hover:bg-transparent" style={{ background: "var(--theme-primary-soft)" }}>
-                  <TableHead className="h-11 px-6 text-slate-600">Advertiser</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Company</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">UTM</TableHead>
-                  <TableHead className="h-11 px-4 text-center text-slate-600">Campaigns</TableHead>
-                  <TableHead className="h-11 px-4 text-right text-slate-600">Wallet</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Status</TableHead>
-                  <TableHead className="h-11 px-4 text-slate-600">Joined</TableHead>
-                  <TableHead className="h-11 px-6 text-right text-slate-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {advertisers.map((advertiser, index) => {
-                  const balance = Number(advertiser.wallet?.balance ?? 0);
-                  const deleteEligibility = getUserDeleteEligibility(
-                    {
-                      id: advertiser.id,
-                      role: advertiser.role,
-                      wallet: advertiser.wallet,
-                      _count: advertiser._count,
-                    },
-                    adminId,
-                  );
-                  return (
-                    <TableRow key={advertiser.id} className="border-slate-100 transition-colors hover:bg-blue-50/40">
-                      <TableCell className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar size="lg">
-                            <AvatarFallback className={cn("text-sm font-semibold", avatarColors[index % avatarColors.length])}>
-                              {getInitials(advertiser.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-900">{advertiser.name}</p>
-                            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
-                              <Mail className="h-3 w-3 shrink-0 text-[var(--theme-primary)]" />
-                              {advertiser.email}
+            <div className="min-w-0 max-w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow
+                    className="border-none hover:bg-transparent"
+                    style={{ background: "var(--theme-primary-soft)" }}
+                  >
+                    <TableHead className="h-8 px-6 text-slate-600">Advertiser</TableHead>
+                    <TableHead className="h-8 w-40 max-w-[10rem] px-4 text-slate-600">UTM</TableHead>
+                    <TableHead className="h-8 px-4 text-center text-slate-600">Campaigns</TableHead>
+                    <TableHead className="h-8 px-4 text-right text-slate-600">Wallet</TableHead>
+                    <TableHead className="h-8 px-4 text-slate-600">Status</TableHead>
+                    <TableHead className="h-8 px-4 text-slate-600">Joined</TableHead>
+                    <TableHead className="h-8 px-6 text-right text-slate-600">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {advertisers.map((advertiser, index) => {
+                    const balance = Number(advertiser.wallet?.balance ?? 0);
+                    const deleteEligibility = getUserDeleteEligibility(
+                      {
+                        id: advertiser.id,
+                        role: advertiser.role,
+                        wallet: advertiser.wallet,
+                        _count: advertiser._count,
+                      },
+                      adminId,
+                    );
+                    return (
+                      <TableRow
+                        key={advertiser.id}
+                        className="border-slate-100 transition-colors hover:bg-blue-50/40"
+                      >
+                        <TableCell className="px-6 py-1.5">
+                          <div className="flex min-w-0 items-center gap-1.5" title={advertiser.email}>
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback
+                                className={cn(
+                                  "text-[10px] font-semibold",
+                                  avatarColors[index % avatarColors.length],
+                                )}
+                              >
+                                {getInitials(advertiser.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <p className="truncate text-sm font-medium text-slate-900">
+                              {advertiser.name}
                             </p>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
-                          <span className="text-sm text-slate-700">
-                            {advertiser.advertiserProfile?.company ?? "—"}
+                        </TableCell>
+                        <TableCell className="w-40 max-w-[10rem] px-4 py-1.5">
+                          <AdvertiserUtmCell
+                            source={advertiser.signupUtmSource}
+                            medium={advertiser.signupUtmMedium}
+                            campaign={advertiser.signupUtmCampaign}
+                            content={advertiser.signupUtmContent}
+                            term={advertiser.signupUtmTerm}
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5 text-center">
+                          <span className="inline-flex min-w-7 items-center justify-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            {advertiser._count.campaigns}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-sm text-slate-600">
-                        <div className="space-y-0.5">
-                          <p>source: {advertiser.signupUtmSource ?? "—"}</p>
-                          <p>medium: {advertiser.signupUtmMedium ?? "—"}</p>
-                          <p>campaign: {advertiser.signupUtmCampaign ?? "—"}</p>
-                          <p>content: {advertiser.signupUtmContent ?? "—"}</p>
-                          <p>term: {advertiser.signupUtmTerm ?? "—"}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-center">
-                        <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-semibold text-indigo-700">
-                          {advertiser._count.campaigns}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-right">
-                        <span className={cn("text-sm font-semibold tabular-nums", balance > 0 ? "text-emerald-600" : "text-slate-400")}>
-                          {formatCurrency(balance)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col gap-1.5">
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5 text-right">
+                          <span
+                            className={cn(
+                              "text-sm font-semibold tabular-nums",
+                              balance > 0 ? "text-emerald-600" : "text-slate-400",
+                            )}
+                          >
+                            {formatCurrency(balance)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-4 py-1.5">
+                          <div
+                            className="flex items-center gap-1"
+                            title={
+                              advertiser.status === "PENDING" && !advertiser.emailVerified
+                                ? "Awaiting email verification"
+                                : undefined
+                            }
+                          >
                             <UserStatusBadge status={advertiser.status} />
                             <EmailVerifiedBadge verified={!!advertiser.emailVerified} />
-                            {advertiser.status === "PENDING" && !advertiser.emailVerified && (
-                              <span className="text-xs text-amber-700">Awaiting email verification</span>
-                            )}
                           </div>
-                          {!advertiser.emailVerified && advertiser.status !== "SUSPENDED" && (
-                            <AdminResendVerificationButton
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-1.5 text-sm text-slate-500">
+                          {formatUserDateTime(advertiser.createdAt, tz, "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="px-6 py-1.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <AdminLoginAsButton
                               userId={advertiser.id}
-                              userEmail={advertiser.email}
-                              emailVerified={!!advertiser.emailVerified}
+                              userName={advertiser.name}
+                              disabled={advertiser.status !== "ACTIVE"}
                             />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-sm text-slate-500">
-                        {formatUserDateTime(advertiser.createdAt, tz, "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <ButtonLink
-                            href={`/admin/advertisers/${advertiser.id}`}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            View
-                          </ButtonLink>
-                          <AdminLoginAsButton
-                            userId={advertiser.id}
-                            userName={advertiser.name}
-                            disabled={advertiser.status !== "ACTIVE"}
-                          />
-                          {!(advertiser.status === "PENDING" && !advertiser.emailVerified) && (
-                            <UserStatusActions userId={advertiser.id} currentStatus={advertiser.status} />
-                          )}
-                          <AdminDeleteUserDialog
-                            userId={advertiser.id}
-                            userName={advertiser.name}
-                            role="ADVERTISER"
-                            disabledReason={deleteEligibility.reason}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            <AdvertiserActionsMenu
+                              advertiser={{
+                                id: advertiser.id,
+                                name: advertiser.name,
+                                email: advertiser.email,
+                                status: advertiser.status,
+                                emailVerified: !!advertiser.emailVerified,
+                              }}
+                              deleteDisabledReason={deleteEligibility.reason}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
             <Suspense>
               <UsersTablePagination page={meta.page} totalPages={meta.totalPages} total={meta.total} />
             </Suspense>

@@ -83,6 +83,7 @@ interface NeutralStatCardProps {
   icon: LucideIcon;
   accent: AccentVariant;
   trend?: number;
+  compact?: boolean;
   className?: string;
 }
 
@@ -92,6 +93,7 @@ export function NeutralStatCard({
   icon: Icon,
   accent,
   trend,
+  compact = false,
   className,
 }: NeutralStatCardProps) {
   const styles = accentStyles[accent];
@@ -100,7 +102,8 @@ export function NeutralStatCard({
   return (
     <div
       className={cn(
-        "group rounded-[18px] border border-slate-200/80 border-t-[3px] bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md",
+        "group border border-slate-200/80 border-t-[3px] bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md",
+        compact ? "rounded-xl p-3" : "rounded-[18px] p-5",
         styles.border,
         className,
       )}
@@ -108,11 +111,12 @@ export function NeutralStatCard({
       <div className="flex items-start justify-between">
         <div
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-105",
+            "flex items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-105",
+            compact ? "h-8 w-8" : "h-10 w-10",
             styles.icon,
           )}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className={compact ? "h-4 w-4" : "h-5 w-5"} />
         </div>
         {trend !== undefined && (
           <span
@@ -126,9 +130,18 @@ export function NeutralStatCard({
           </span>
         )}
       </div>
-      <div className="mt-4">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{value}</p>
+      <div className={compact ? "mt-2" : "mt-4"}>
+        <p className={cn("font-medium text-slate-500", compact ? "text-xs" : "text-sm")}>
+          {label}
+        </p>
+        <p
+          className={cn(
+            "mt-1 font-bold tracking-tight text-slate-900",
+            compact ? "text-lg" : "text-2xl",
+          )}
+        >
+          {value}
+        </p>
       </div>
     </div>
   );

@@ -134,7 +134,11 @@ export async function DELETE(request: Request) {
         return errorResponse(Errors.notFound("User"));
       }
 
-      if (
+      if (target.role === "PLATFORM_MANAGER") {
+        if (session.user.role !== "ADMIN") {
+          return errorResponse(Errors.forbidden());
+        }
+      } else if (
         !canManagePortalUsers(
           session.user.role,
           session.user.staffMenuAccess,

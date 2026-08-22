@@ -611,6 +611,8 @@ export async function createAdvertiserAccount(data: {
 export async function listPlatformManagers(filters?: {
   search?: string;
   status?: UserStatus;
+  dateFrom?: Date;
+  dateTo?: Date;
   page?: number;
   limit?: number;
 }) {
@@ -618,6 +620,8 @@ export async function listPlatformManagers(filters?: {
     role: "PLATFORM_MANAGER",
     search: filters?.search,
     status: filters?.status,
+    dateFrom: filters?.dateFrom,
+    dateTo: filters?.dateTo,
     page: filters?.page,
     limit: filters?.limit,
   });
