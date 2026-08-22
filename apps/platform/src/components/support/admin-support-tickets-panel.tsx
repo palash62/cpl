@@ -1,25 +1,16 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { formatUserDateTime } from "@/lib/user-timezone";
-import { useSession } from "next-auth/react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  LifeBuoy,
-  MessageSquare,
-  Ticket,
-  Users,
-  XCircle,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, Clock, LifeBuoy, MessageSquare, Ticket, XCircle } from "lucide-react";
 import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-stat-card";
 import { PageSection } from "@/components/admin/page-section";
 import { avatarColors, getInitials } from "@/components/admin/admin-ui";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { TicketConversation } from "@/components/support/ticket-conversation";
+import {
+  SupportTicketDetailSheet,
+  type SupportTicketDetail,
+} from "@/components/support/support-ticket-detail-sheet";
 import {
   Table,
   TableBody,
@@ -36,34 +27,22 @@ import {
 } from "@/lib/support-tickets";
 import { cn } from "@/lib/utils";
 
-interface TicketMessage {
-  id: string;
-  body: string;
-  createdAt: string;
-  sender?: { name: string; role: string };
-}
-
-interface SupportTicket {
-  id: string;
-  subject: string;
-  category: string;
-  status: string;
-  createdAt: string;
-  user?: { name: string; email: string; role: string };
-  messages?: TicketMessage[];
-}
-
 export function AdminSupportTicketsPanel() {
-  const { data: session } = useSession();
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [tickets, setTickets] = useState<SupportTicketDetail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
-  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [showReplyForm, setShowReplyForm] = useState(false);
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [closingId, setClosingId] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [managingMessageId, setManagingMessageId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const selectedTicket = tickets.find((t) => t.id === selectedTicketId) ?? null;
 
   const stats = useMemo(() => {
     const open = tickets.filter((t) => t.status === "OPEN").length;
@@ -72,26 +51,54 @@ export function AdminSupportTicketsPanel() {
     return { total: tickets.length, open, inProgress, closed };
   }, [tickets]);
 
+  function applyTicketUpdate(updated: SupportTicketDetail) {
+    setTickets((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
   async function load() {
+    setLoadError(null);
     const res = await fetch("/api/v1/support/tickets");
     const data = await res.json();
+    if (!res.ok) {
+      setLoadError(data?.error?.message ?? "Unable to load support tickets");
+      setLoading(false);
+      return;
+    }
     setTickets(data.data ?? []);
     setLoading(false);
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
-  async function sendReply(ticketId: string) {
-    if (!replyBody.trim()) return;
+  function openTicket(ticketId: string) {
+    setSelectedTicketId(ticketId);
+    setSheetOpen(true);
+    setShowReplyForm(false);
+    setReplyBody("");
+    setReplyError(null);
+    setCloseError(null);
+  }
+
+  function closeSheet() {
+    setSheetOpen(false);
+    setSelectedTicketId(null);
+    setShowReplyForm(false);
+    setReplyBody("");
+    setReplyError(null);
+    setCloseError(null);
+  }
+
+  async function sendReply() {
+    if (!selectedTicketId || !replyBody.trim()) return;
     setSending(true);
     setReplyError(null);
 
     const res = await fetch("/api/v1/support/tickets", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId, body: replyBody.trim() }),
+      body: JSON.stringify({ ticketId: selectedTicketId, body: replyBody.trim() }),
     });
     const data = await res.json();
 
@@ -102,47 +109,93 @@ export function AdminSupportTicketsPanel() {
       return;
     }
 
+    if (data.data) {
+      applyTicketUpdate(data.data as SupportTicketDetail);
+    }
     setReplyBody("");
-    setReplyingId(null);
-    setExpandedId(ticketId);
-    load();
+    setShowReplyForm(false);
   }
 
-  async function closeTicket(ticketId: string) {
+  async function closeTicket() {
+    if (!selectedTicketId) return;
     if (!window.confirm("Close this support ticket? The user will be notified.")) {
       return;
     }
 
-    setClosingId(ticketId);
+    setClosing(true);
     setCloseError(null);
 
     const res = await fetch("/api/v1/support/tickets", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId, action: "close" }),
+      body: JSON.stringify({ ticketId: selectedTicketId, action: "close" }),
     });
     const data = await res.json();
 
-    setClosingId(null);
+    setClosing(false);
 
     if (!res.ok) {
       setCloseError(data?.error?.message ?? "Unable to close ticket");
       return;
     }
 
-    setReplyingId(null);
+    if (data.data) {
+      applyTicketUpdate(data.data as SupportTicketDetail);
+    }
+    setShowReplyForm(false);
     setReplyBody("");
     setReplyError(null);
-    setExpandedId(ticketId);
-    load();
   }
 
-  function toggleExpand(ticketId: string) {
-    setExpandedId((current) => (current === ticketId ? null : ticketId));
-    setReplyingId(null);
-    setReplyBody("");
+  async function editMessage(messageId: string, body: string): Promise<boolean> {
+    setManagingMessageId(messageId);
+    setEditSaving(true);
     setReplyError(null);
-    setCloseError(null);
+
+    const res = await fetch("/api/v1/support/tickets", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "editMessage", messageId, body }),
+    });
+    const data = await res.json();
+
+    setEditSaving(false);
+    setManagingMessageId(null);
+
+    if (!res.ok) {
+      setReplyError(data?.error?.message ?? "Unable to edit reply");
+      return false;
+    }
+
+    if (data.data) {
+      applyTicketUpdate(data.data as SupportTicketDetail);
+    }
+    return true;
+  }
+
+  async function deleteMessage(messageId: string) {
+    setManagingMessageId(messageId);
+    setEditSaving(true);
+    setReplyError(null);
+
+    const res = await fetch("/api/v1/support/tickets", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "deleteMessage", messageId }),
+    });
+    const data = await res.json();
+
+    setEditSaving(false);
+    setManagingMessageId(null);
+
+    if (!res.ok) {
+      setReplyError(data?.error?.message ?? "Unable to delete reply");
+      return;
+    }
+
+    if (data.data) {
+      applyTicketUpdate(data.data as SupportTicketDetail);
+    }
   }
 
   if (loading) {
@@ -160,10 +213,16 @@ export function AdminSupportTicketsPanel() {
 
       <PageSection
         title="All Tickets"
-        description="Review conversations and send admin replies to users"
+        description="Click a ticket to view the conversation and reply"
         icon={LifeBuoy}
         gradient="approved"
+        contentClassName="overflow-visible"
       >
+        {loadError && (
+          <p className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {loadError}
+          </p>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -189,137 +248,59 @@ export function AdminSupportTicketsPanel() {
               ) : (
                 tickets.map((ticket, index) => {
                   const lastMessage = ticket.messages?.[ticket.messages.length - 1];
-                  const isExpanded = expandedId === ticket.id;
-                  const isClosed = ticket.status === "CLOSED";
 
                   return (
-                    <Fragment key={ticket.id}>
-                      <TableRow
-                        className="cursor-pointer border-slate-100 transition-colors hover:bg-blue-50/40"
-                        onClick={() => toggleExpand(ticket.id)}
-                      >
-                        <TableCell className="px-4 py-4">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          {ticket.user && (
-                            <div className="flex items-center gap-3">
-                              <Avatar size="sm">
-                                <AvatarFallback
-                                  className={cn(
-                                    "text-xs font-semibold",
-                                    avatarColors[index % avatarColors.length],
-                                  )}
-                                >
-                                  {getInitials(ticket.user.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">{ticket.user.name}</p>
-                                <p className="text-xs text-slate-500">{ticket.user.email}</p>
-                              </div>
+                    <TableRow
+                      key={ticket.id}
+                      className="cursor-pointer border-slate-100 transition-colors hover:bg-blue-50/40"
+                      onClick={() => openTicket(ticket.id)}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        {ticket.user && (
+                          <div className="flex items-center gap-3">
+                            <Avatar size="sm">
+                              <AvatarFallback
+                                className={cn(
+                                  "text-xs font-semibold",
+                                  avatarColors[index % avatarColors.length],
+                                )}
+                              >
+                                {getInitials(ticket.user.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{ticket.user.name}</p>
+                              <p className="text-xs text-slate-500">{ticket.user.email}</p>
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4 py-4 font-medium text-slate-900">
-                          {ticket.subject}
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
-                            {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <Badge
-                            variant="outline"
-                            className={SUPPORT_STATUS_STYLES[ticket.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}
-                          >
-                            {formatTicketStatus(ticket.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs px-4 py-4 text-sm text-slate-600">
-                          {lastMessage
-                            ? truncateTicketMessage(lastMessage.body, 60)
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={6} className="bg-slate-50/60 px-6 py-5">
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                <Users className="h-3.5 w-3.5" />
-                                <span>
-                                  {ticket.user?.name} · {ticket.user?.role} ·{" "}
-                                  {formatUserDateTime(ticket.createdAt, session?.user?.timezone, "MMM d, yyyy")}
-                                </span>
-                              </div>
-                              {closeError && expandedId === ticket.id && (
-                                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                  {closeError}
-                                </p>
-                              )}
-                              {replyError && (
-                                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                  {replyError}
-                                </p>
-                              )}
-                              <TicketConversation
-                                messages={ticket.messages ?? []}
-                                replyBody={replyBody}
-                                onReplyBodyChange={setReplyBody}
-                                onSendReply={() => sendReply(ticket.id)}
-                                onCancelReply={() => {
-                                  setReplyingId(null);
-                                  setReplyBody("");
-                                  setReplyError(null);
-                                }}
-                                showReplyForm={replyingId === ticket.id}
-                                onStartReply={() => {
-                                  setReplyingId(ticket.id);
-                                  setReplyBody("");
-                                  setReplyError(null);
-                                }}
-                                sendingReply={sending}
-                                replyLabel="Admin reply to user"
-                                allowReply={!isClosed}
-                                closedMessage="This ticket is closed."
-                                hideReplyTrigger
-                              />
-                              {!isClosed && (
-                                <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setReplyingId(ticket.id);
-                                      setReplyBody("");
-                                      setReplyError(null);
-                                    }}
-                                  >
-                                    Reply
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="gap-1.5 border-slate-300 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                                    disabled={closingId === ticket.id}
-                                    onClick={() => closeTicket(ticket.id)}
-                                  >
-                                    <XCircle className="h-3.5 w-3.5" />
-                                    {closingId === ticket.id ? "Closing..." : "Close Ticket"}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 font-medium text-slate-900">
+                        {ticket.subject}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
+                          {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <Badge
+                          variant="outline"
+                          className={
+                            SUPPORT_STATUS_STYLES[ticket.status] ??
+                            "border-slate-200 bg-slate-50 text-slate-600"
+                          }
+                        >
+                          {formatTicketStatus(ticket.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs px-4 py-4 text-sm text-slate-600">
+                        {lastMessage ? truncateTicketMessage(lastMessage.body, 60) : "—"}
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
@@ -327,6 +308,40 @@ export function AdminSupportTicketsPanel() {
           </Table>
         </div>
       </PageSection>
+
+      <SupportTicketDetailSheet
+        ticket={selectedTicket}
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSheet();
+          else setSheetOpen(true);
+        }}
+        variant="admin"
+        replyBody={replyBody}
+        onReplyBodyChange={setReplyBody}
+        showReplyForm={showReplyForm}
+        onStartReply={() => {
+          setShowReplyForm(true);
+          setReplyBody("");
+          setReplyError(null);
+        }}
+        onCancelReply={() => {
+          setShowReplyForm(false);
+          setReplyBody("");
+          setReplyError(null);
+        }}
+        onSendReply={() => void sendReply()}
+        sendingReply={sending}
+        replyError={replyError}
+        closeError={closeError}
+        onCloseTicket={() => void closeTicket()}
+        closingTicket={closing}
+        allowMessageManagement
+        onEditMessage={(messageId, body) => void editMessage(messageId, body)}
+        onDeleteMessage={(messageId) => void deleteMessage(messageId)}
+        managingMessageId={managingMessageId}
+        editSaving={editSaving}
+      />
     </div>
   );
 }

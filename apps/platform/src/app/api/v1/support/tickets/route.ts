@@ -8,6 +8,8 @@ import {
   addTicketMessage,
   getTicketForUser,
   closeSupportTicket,
+  updateTicketMessage,
+  deleteTicketMessage,
 } from "@/services/notification.service";
 
 export async function GET(request: Request) {
@@ -62,17 +64,65 @@ export async function PATCH(request: Request) {
   return withAuth(async (session) => {
     try {
       const body = await request.json();
-      const ticketId = body.ticketId as string | undefined;
+      const isAdmin = isAdminPortalRole(session.user.role);
+      const action = body.action as string | undefined;
 
+      if (action === "editMessage") {
+        if (!isAdmin) {
+          return Response.json(
+            { error: { code: "FORBIDDEN", message: "Only admins can edit support messages", status: 403 } },
+            { status: 403 },
+          );
+        }
+        const messageId = body.messageId as string | undefined;
+        const messageBody = typeof body.body === "string" ? body.body.trim() : "";
+        if (!messageId) {
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message: "Message ID is required", status: 422 } },
+            { status: 422 },
+          );
+        }
+        if (!messageBody) {
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message: "Message body is required", status: 422 } },
+            { status: 422 },
+          );
+        }
+        const updated = await updateTicketMessage(messageId, session.user.id, messageBody);
+        if (!updated) {
+          return errorResponse(Errors.notFound("Ticket"));
+        }
+        return Response.json({ data: updated });
+      }
+
+      if (action === "deleteMessage") {
+        if (!isAdmin) {
+          return Response.json(
+            { error: { code: "FORBIDDEN", message: "Only admins can delete support messages", status: 403 } },
+            { status: 403 },
+          );
+        }
+        const messageId = body.messageId as string | undefined;
+        if (!messageId) {
+          return Response.json(
+            { error: { code: "VALIDATION_ERROR", message: "Message ID is required", status: 422 } },
+            { status: 422 },
+          );
+        }
+        const updated = await deleteTicketMessage(messageId, session.user.id);
+        if (!updated) {
+          return errorResponse(Errors.notFound("Ticket"));
+        }
+        return Response.json({ data: updated });
+      }
+
+      const ticketId = body.ticketId as string | undefined;
       if (!ticketId) {
         return Response.json(
           { error: { code: "VALIDATION_ERROR", message: "Ticket ID is required", status: 422 } },
           { status: 422 },
         );
       }
-
-      const isAdmin = isAdminPortalRole(session.user.role);
-      const action = body.action as string | undefined;
 
       if (action === "close") {
         if (!isAdmin) {

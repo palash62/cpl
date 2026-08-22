@@ -15,7 +15,8 @@ export default function PublisherSupportPage() {
 
       <PublisherInfoBanner>
         Submit a ticket below and track replies in the conversation thread. When support responds,
-        you will see their message highlighted in the ticket details. Click a row to expand and reply.
+        you will see their message highlighted in the ticket details. Click a row to view the full
+        conversation and reply.
       </PublisherInfoBanner>
 
       <SupportTicketsPanel />

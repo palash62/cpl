@@ -1,11 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatUserDateTime } from "@/lib/user-timezone";
 import { useSession } from "next-auth/react";
 import {
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Clock,
   LifeBuoy,
@@ -18,7 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TicketConversation } from "@/components/support/ticket-conversation";
+import {
+  SupportTicketDetailSheet,
+  type SupportTicketDetail,
+} from "@/components/support/support-ticket-detail-sheet";
 import {
   Table,
   TableBody,
@@ -29,64 +31,78 @@ import {
 } from "@/components/ui/table";
 import {
   formatTicketStatus,
+  isStaffSupportRole,
   SUPPORT_CATEGORY_LABELS,
   SUPPORT_STATUS_STYLES,
   truncateTicketMessage,
 } from "@/lib/support-tickets";
 import { cn } from "@/lib/utils";
 
-interface TicketMessage {
-  id: string;
-  body: string;
-  createdAt: string;
-  sender?: { name: string; role: string };
-}
-
-interface SupportTicket {
-  id: string;
-  subject: string;
-  category: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  messages?: TicketMessage[];
-}
-
 export function SupportTicketsPanel() {
   const { data: session } = useSession();
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [tickets, setTickets] = useState<SupportTicketDetail[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("GENERAL");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
-  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [showReplyForm, setShowReplyForm] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+
+  const selectedTicket = tickets.find((t) => t.id === selectedTicketId) ?? null;
 
   const stats = useMemo(() => {
     const open = tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS").length;
     const resolved = tickets.filter((t) => t.status === "RESOLVED" || t.status === "CLOSED").length;
-    const withAdminReply = tickets.filter((t) =>
-      t.messages?.some((m) => m.sender?.role === "ADMIN"),
+    const withStaffReply = tickets.filter((t) =>
+      t.messages?.some((m) => isStaffSupportRole(m.sender?.role)),
     ).length;
-    return { total: tickets.length, open, resolved, withAdminReply };
+    return { total: tickets.length, open, resolved, withStaffReply };
   }, [tickets]);
 
+  function applyTicketUpdate(updated: SupportTicketDetail) {
+    setTickets((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
   async function load() {
+    setLoadError(null);
     const res = await fetch("/api/v1/support/tickets");
     const data = await res.json();
+    if (!res.ok) {
+      setLoadError(data?.error?.message ?? "Unable to load support tickets");
+      setLoading(false);
+      return;
+    }
     setTickets(data.data ?? []);
     setLoading(false);
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
+
+  function openTicket(ticketId: string) {
+    setSelectedTicketId(ticketId);
+    setSheetOpen(true);
+    setShowReplyForm(false);
+    setReplyBody("");
+    setReplyError(null);
+  }
+
+  function closeSheet() {
+    setSheetOpen(false);
+    setSelectedTicketId(null);
+    setShowReplyForm(false);
+    setReplyBody("");
+    setReplyError(null);
+  }
 
   async function createTicket(e: React.FormEvent) {
     e.preventDefault();
@@ -118,18 +134,18 @@ export function SupportTicketsPanel() {
     setCategory("GENERAL");
     setSuccess("Support ticket created successfully.");
     setSubmitting(false);
-    load();
+    void load();
   }
 
-  async function sendReply(ticketId: string) {
-    if (!replyBody.trim()) return;
+  async function sendReply() {
+    if (!selectedTicketId || !replyBody.trim()) return;
     setSendingReply(true);
     setReplyError(null);
 
     const res = await fetch("/api/v1/support/tickets", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId, body: replyBody.trim() }),
+      body: JSON.stringify({ ticketId: selectedTicketId, body: replyBody.trim() }),
     });
     const data = await res.json();
 
@@ -140,17 +156,11 @@ export function SupportTicketsPanel() {
       return;
     }
 
+    if (data.data) {
+      applyTicketUpdate(data.data as SupportTicketDetail);
+    }
     setReplyBody("");
-    setReplyingId(null);
-    setExpandedId(ticketId);
-    load();
-  }
-
-  function toggleExpand(ticketId: string) {
-    setExpandedId((current) => (current === ticketId ? null : ticketId));
-    setReplyingId(null);
-    setReplyBody("");
-    setReplyError(null);
+    setShowReplyForm(false);
   }
 
   if (loading) {
@@ -172,7 +182,7 @@ export function SupportTicketsPanel() {
         <GradientStatCard
           variant="approved"
           label="Support Replies"
-          value={stats.withAdminReply}
+          value={stats.withStaffReply}
           icon={LifeBuoy}
         />
       </div>
@@ -258,7 +268,13 @@ export function SupportTicketsPanel() {
         description="Click a ticket to view the full conversation and admin replies"
         icon={LifeBuoy}
         gradient="approved"
+        contentClassName="overflow-visible"
       >
+        {loadError && (
+          <p className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {loadError}
+          </p>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -284,95 +300,61 @@ export function SupportTicketsPanel() {
               ) : (
                 tickets.map((ticket) => {
                   const lastMessage = ticket.messages?.[ticket.messages.length - 1];
-                  const hasAdminReply = ticket.messages?.some((m) => m.sender?.role === "ADMIN");
-                  const isExpanded = expandedId === ticket.id;
-                  const isClosed = ticket.status === "CLOSED";
+                  const hasStaffReply = ticket.messages?.some((m) =>
+                    isStaffSupportRole(m.sender?.role),
+                  );
 
                   return (
-                    <Fragment key={ticket.id}>
-                      <TableRow
-                        className="cursor-pointer border-slate-100 transition-colors hover:bg-blue-50/40"
-                        onClick={() => toggleExpand(ticket.id)}
-                      >
-                        <TableCell className="px-4 py-4">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
+                    <TableRow
+                      key={ticket.id}
+                      className="cursor-pointer border-slate-100 transition-colors hover:bg-blue-50/40"
+                      onClick={() => openTicket(ticket.id)}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-sm text-slate-600">
+                        {formatUserDateTime(ticket.createdAt, session?.user?.timezone, "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-900">{ticket.subject}</span>
+                          {hasStaffReply && (
+                            <span className="rounded-full bg-[var(--theme-primary-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--theme-primary)]">
+                              Replied
+                            </span>
                           )}
-                        </TableCell>
-                        <TableCell className="px-4 py-4 text-sm text-slate-600">
-                          {formatUserDateTime(ticket.createdAt, session?.user?.timezone, "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-900">{ticket.subject}</span>
-                            {hasAdminReply && !isExpanded && (
-                              <span className="rounded-full bg-[var(--theme-primary-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--theme-primary)]">
-                                Replied
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
-                            {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <Badge
-                            variant="outline"
-                            className={SUPPORT_STATUS_STYLES[ticket.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}
-                          >
-                            {formatTicketStatus(ticket.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs px-4 py-4 text-sm text-slate-600">
-                          {lastMessage ? (
-                            <>
-                              <span className="font-medium text-slate-700">
-                                {lastMessage.sender?.role === "ADMIN" ? "Support: " : "You: "}
-                              </span>
-                              {truncateTicketMessage(lastMessage.body, 60)}
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={6} className="bg-slate-50/60 px-6 py-5">
-                            <div onClick={(e) => e.stopPropagation()}>
-                              {replyError && (
-                                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                  {replyError}
-                                </p>
-                              )}
-                              <TicketConversation
-                                messages={ticket.messages ?? []}
-                                replyBody={replyBody}
-                                onReplyBodyChange={setReplyBody}
-                                onSendReply={() => sendReply(ticket.id)}
-                                onCancelReply={() => {
-                                  setReplyingId(null);
-                                  setReplyBody("");
-                                  setReplyError(null);
-                                }}
-                                showReplyForm={replyingId === ticket.id}
-                                onStartReply={() => {
-                                  setReplyingId(ticket.id);
-                                  setReplyBody("");
-                                  setReplyError(null);
-                                }}
-                                sendingReply={sendingReply}
-                                allowReply={!isClosed}
-                              />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700">
+                          {SUPPORT_CATEGORY_LABELS[ticket.category] ?? ticket.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <Badge
+                          variant="outline"
+                          className={
+                            SUPPORT_STATUS_STYLES[ticket.status] ??
+                            "border-slate-200 bg-slate-50 text-slate-600"
+                          }
+                        >
+                          {formatTicketStatus(ticket.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs px-4 py-4 text-sm text-slate-600">
+                        {lastMessage ? (
+                          <>
+                            <span className="font-medium text-slate-700">
+                              {isStaffSupportRole(lastMessage.sender?.role) ? "Support: " : "You: "}
+                            </span>
+                            {truncateTicketMessage(lastMessage.body, 60)}
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
@@ -380,6 +362,32 @@ export function SupportTicketsPanel() {
           </Table>
         </div>
       </PageSection>
+
+      <SupportTicketDetailSheet
+        ticket={selectedTicket}
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSheet();
+          else setSheetOpen(true);
+        }}
+        variant="user"
+        replyBody={replyBody}
+        onReplyBodyChange={setReplyBody}
+        showReplyForm={showReplyForm}
+        onStartReply={() => {
+          setShowReplyForm(true);
+          setReplyBody("");
+          setReplyError(null);
+        }}
+        onCancelReply={() => {
+          setShowReplyForm(false);
+          setReplyBody("");
+          setReplyError(null);
+        }}
+        onSendReply={() => void sendReply()}
+        sendingReply={sendingReply}
+        replyError={replyError}
+      />
     </div>
   );
 }

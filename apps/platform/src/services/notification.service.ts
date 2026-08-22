@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { TicketCategory } from "@prisma/client";
 import { isAdminPortalRole } from "@/lib/admin-portal";
+import { Errors } from "@/lib/errors";
+import { isStaffSupportRole } from "@/lib/support-tickets";
 import { notifyAdminAlert, notifyGeneric } from "@/services/notify.service";
 import { getSupportEmail } from "@/services/email.service";
 
@@ -198,6 +200,75 @@ export async function getTicketForUser(ticketId: string, userId: string, isAdmin
   if (!ticket) return null;
   if (!isAdmin && ticket.userId !== userId) return null;
   return ticket;
+}
+
+const ticketDetailInclude = {
+  messages: {
+    orderBy: { createdAt: "asc" as const },
+    include: { sender: { select: { name: true, role: true } } },
+  },
+  user: { select: { name: true, email: true, role: true, id: true } },
+};
+
+async function loadTicketDetail(ticketId: string) {
+  return prisma.supportTicket.findUnique({
+    where: { id: ticketId },
+    include: ticketDetailInclude,
+  });
+}
+
+async function assertAdminCanManageStaffMessage(messageId: string, actorId: string) {
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { role: true },
+  });
+  if (!isAdminPortalRole(actor?.role)) {
+    throw Errors.forbidden("Only admins can manage support messages");
+  }
+
+  const message = await prisma.ticketMessage.findUnique({
+    where: { id: messageId },
+    include: {
+      sender: { select: { role: true } },
+      ticket: { select: { id: true } },
+    },
+  });
+  if (!message) {
+    throw Errors.notFound("Message");
+  }
+  if (!isStaffSupportRole(message.sender.role)) {
+    throw Errors.forbidden("Only staff replies can be edited or deleted");
+  }
+  return message;
+}
+
+export async function updateTicketMessage(messageId: string, actorId: string, body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw Errors.validation("Message body is required");
+  }
+
+  const message = await assertAdminCanManageStaffMessage(messageId, actorId);
+  await prisma.ticketMessage.update({
+    where: { id: messageId },
+    data: { body: trimmed },
+  });
+  await prisma.supportTicket.update({
+    where: { id: message.ticket.id },
+    data: { updatedAt: new Date() },
+  });
+  return loadTicketDetail(message.ticket.id);
+}
+
+export async function deleteTicketMessage(messageId: string, actorId: string) {
+  const message = await assertAdminCanManageStaffMessage(messageId, actorId);
+  const ticketId = message.ticket.id;
+  await prisma.ticketMessage.delete({ where: { id: messageId } });
+  await prisma.supportTicket.update({
+    where: { id: ticketId },
+    data: { updatedAt: new Date() },
+  });
+  return loadTicketDetail(ticketId);
 }
 
 export async function closeSupportTicket(ticketId: string) {

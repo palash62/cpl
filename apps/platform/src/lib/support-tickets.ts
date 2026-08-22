@@ -31,3 +31,7 @@ export function truncateTicketMessage(text: string, max = 80) {
   if (text.length <= max) return text;
   return `${text.slice(0, max)}…`;
 }
+
+export function isStaffSupportRole(role?: string | null) {
+  return role === "ADMIN" || role === "PLATFORM_MANAGER";
+}
