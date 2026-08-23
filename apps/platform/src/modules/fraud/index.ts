@@ -13,7 +13,24 @@ export { DEFAULT_FRAUD_CONFIG, FRAUD_SETTINGS_KEY } from "./config/defaults";
 
 export { collectSubmissionSignals, createSignalCollector, attachSignalListeners } from "./client/collect-signals";
 export type { FraudEvaluationResult, RuleOutcome, SubmissionMeta } from "./types/result";
-export type { FraudConfig, FraudDecisionType } from "./types/config";
+export type { FraudConfig, FraudDecisionType, FraudIntelligenceConfig } from "./types/config";
 
 export { recordDeviceSeen } from "./repositories/duplicate.repo";
 export { saveValidationResults } from "./repositories/validation.repo";
+
+export {
+  scheduleLeadIntelligence,
+  computeLeadIntelligence,
+  getLeadIntelligenceForAdmin,
+  getAdvertiserTrustForLead,
+  getCampaignTrustDistribution,
+  getPublisherContextualInsight,
+  getStoredIntelligence,
+} from "./intelligence";
+export type {
+  ContextualRiskResult,
+  AdvertiserTrustView,
+  LeadIntelligenceInvestigation,
+  TrustLevel,
+  ContextualRiskLevel,
+} from "./intelligence";

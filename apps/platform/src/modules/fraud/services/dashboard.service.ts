@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export async function getFraudDashboardMetrics() {
   const [
@@ -54,18 +55,73 @@ export async function getFraudDashboardMetrics() {
   };
 }
 
-export async function listHighRiskLeads(page = 1, limit = 20, minRisk = 21) {
+function leadHasSignal(
+  intelligence: { signals: unknown } | null | undefined,
+  signal: string,
+): boolean {
+  if (!intelligence?.signals || typeof intelligence.signals !== "object") return false;
+  const signals = intelligence.signals as {
+    flags?: string[];
+    clusters?: Array<{ type?: string }>;
+    velocity?: Array<{ entity?: string }>;
+  };
+  if (signals.flags?.includes(signal)) return true;
+  if (signals.clusters?.some((c) => c.type === signal)) return true;
+  if (signal === "HIGH_IP_VELOCITY" && signals.velocity?.some((v) => v.entity === "ip")) return true;
+  if (signal === "HIGH_DEVICE_VELOCITY" && signals.velocity?.some((v) => v.entity === "device")) {
+    return true;
+  }
+  return false;
+}
+
+const highRiskInclude = {
+  campaign: { select: { name: true } },
+  publisher: { select: { name: true, email: true } },
+  validationResults: { orderBy: { rule: "asc" as const } },
+  fraudIntelligence: true,
+} satisfies Prisma.LeadInclude;
+
+export async function listHighRiskLeads(
+  page = 1,
+  limit = 20,
+  minRisk = 21,
+  filters?: {
+    contextualRiskLevel?: string;
+    signal?: string;
+  },
+) {
   const skip = (page - 1) * limit;
-  const where = { riskScore: { gte: minRisk } as const };
+  const where: Prisma.LeadWhereInput = {
+    riskScore: { gte: minRisk },
+  };
+
+  if (filters?.contextualRiskLevel) {
+    where.fraudIntelligence = {
+      is: { contextualRiskLevel: filters.contextualRiskLevel },
+    };
+  } else if (filters?.signal) {
+    where.fraudIntelligence = { isNot: null };
+  }
+
+  if (filters?.signal) {
+    const candidates = await prisma.lead.findMany({
+      where,
+      include: highRiskInclude,
+      orderBy: { riskScore: "desc" },
+      take: 300,
+    });
+    const filtered = candidates.filter((lead) =>
+      leadHasSignal(lead.fraudIntelligence, filters.signal!),
+    );
+    const total = filtered.length;
+    const data = filtered.slice(skip, skip + limit);
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 } };
+  }
 
   const [data, total] = await Promise.all([
     prisma.lead.findMany({
       where,
-      include: {
-        campaign: { select: { name: true } },
-        publisher: { select: { name: true, email: true } },
-        validationResults: { orderBy: { rule: "asc" } },
-      },
+      include: highRiskInclude,
       orderBy: { riskScore: "desc" },
       skip,
       take: limit,

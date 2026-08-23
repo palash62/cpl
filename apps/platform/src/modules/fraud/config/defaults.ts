@@ -1,4 +1,5 @@
 import type { FraudConfig } from "../types/config";
+import { DEFAULT_INTELLIGENCE_CONFIG } from "../intelligence/config";
 
 export const FRAUD_SETTINGS_KEY = "fraud_config";
 
@@ -39,4 +40,5 @@ export const DEFAULT_FRAUD_CONFIG: FraudConfig = {
     residential_ip: -10,
     click_match: -15,
   },
+  intelligence: DEFAULT_INTELLIGENCE_CONFIG,
 };

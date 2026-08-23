@@ -12,6 +12,10 @@ import {
   getGeoLeadBreakdown,
   getLeadsStatusMix,
 } from "@/services/report.service";
+import { getCampaignTrustDistribution, getFraudConfig } from "@/modules/fraud";
+import { CampaignTrustInsights } from "@/components/advertiser/campaign-trust-insights";
+import { LeadQualityMetricsStrip } from "@/components/advertiser/lead-quality-metrics";
+import { getAdvertiserLeadQualityMetrics } from "@/modules/fraud/intelligence/advertiser-metrics.service";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/admin/page-section";
 import { formatCurrency } from "@/components/admin/admin-ui";
@@ -37,18 +41,31 @@ export default async function AdvertiserReportsPage({ searchParams }: PageProps)
   const from = startOfDay(parseISO(fromStr));
   const to = endOfDay(parseISO(toStr));
 
-  const [metrics, statusMix, activity, campaigns, publishers, geo] = await Promise.all([
-    getAdvertiserReportsMetrics(advertiserId, from, to),
-    getLeadsStatusMix({ advertiserId, from, to }),
-    getActivityTrendInRange({ advertiserId, from, to }),
-    getCampaignPerformanceReport({ advertiserId, from, to }),
-    listAdvertiserPublisherLeadReport({
-      advertiserId,
-      dateFrom: from,
-      dateTo: to,
-    }),
-    getGeoLeadBreakdown({ advertiserId, from, to }),
-  ]);
+  const [metrics, statusMix, activity, campaigns, publishers, geo, fraudConfig, qualityMetrics] =
+    await Promise.all([
+      getAdvertiserReportsMetrics(advertiserId, from, to),
+      getLeadsStatusMix({ advertiserId, from, to }),
+      getActivityTrendInRange({ advertiserId, from, to }),
+      getCampaignPerformanceReport({ advertiserId, from, to }),
+      listAdvertiserPublisherLeadReport({
+        advertiserId,
+        dateFrom: from,
+        dateTo: to,
+      }),
+      getGeoLeadBreakdown({ advertiserId, from, to }),
+      getFraudConfig(),
+      getAdvertiserLeadQualityMetrics(advertiserId, from, to),
+    ]);
+
+  const trustRows =
+    fraudConfig.intelligence.advertiserVisibility
+      ? await Promise.all(
+          campaigns.slice(0, 8).map(async (c) => {
+            const dist = await getCampaignTrustDistribution(c.campaignId, fraudConfig.intelligence);
+            return { ...dist, campaignName: c.campaignName };
+          }),
+        )
+      : [];
 
   const publisherRank = publishers.slice(0, 10).map((row) => ({
     name: row.publisherId.length > 10 ? `${row.publisherId.slice(0, 8)}…` : row.publisherId,
@@ -91,6 +108,21 @@ export default async function AdvertiserReportsPage({ searchParams }: PageProps)
           { label: "Conversion", value: `${metrics.conversionRate.toFixed(2)}%`, icon: "conversion" },
         ]}
       />
+
+      {fraudConfig.intelligence.advertiserVisibility && (
+        <LeadQualityMetricsStrip metrics={qualityMetrics} />
+      )}
+
+      {fraudConfig.intelligence.advertiserVisibility && (
+        <PageSection
+          title="Campaign lead trust"
+          description="Contextual trust distribution by campaign (observation metrics only)"
+          icon={BarChart3}
+          gradient="leads"
+        >
+          <CampaignTrustInsights rows={trustRows} />
+        </PageSection>
+      )}
 
       <ReportsAnalyticsBoard
         activity={activity}

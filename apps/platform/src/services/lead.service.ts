@@ -13,6 +13,7 @@ import {
   recordDeviceSeen,
   refreshPublisherQuality,
   checkCampaignQualityAlert,
+  scheduleLeadIntelligence,
 } from "@/modules/fraud";
 import type { SubmissionMeta } from "@/modules/fraud";
 import { dispatchAutoresponderEvent } from "@/modules/autoresponder";
@@ -367,6 +368,9 @@ async function createAndProcessLead(input: {
   });
 
   await finalizeLeadStatus(lead.id, nextStatus, reason);
+
+  // Observation-only contextual intelligence — never affects status/decision.
+  void scheduleLeadIntelligence(lead.id);
 
   if (nextStatus !== "REJECTED") {
     void dispatchAutoresponderEvent({ leadId: lead.id, event: "LEAD_CAPTURED" });
@@ -862,6 +866,14 @@ const LEAD_LIST_INCLUDE = {
   publisher: { select: { name: true, email: true } },
   validationResults: { orderBy: { rule: "asc" as const } },
   statusHistory: { orderBy: { createdAt: "desc" as const }, take: 3 },
+  fraudIntelligence: {
+    select: {
+      contextualRiskScore: true,
+      contextualRiskLevel: true,
+      explanation: true,
+      signals: true,
+    },
+  },
 };
 
 export const PUBLISHER_EXCLUDED_LEAD_STATUSES = ["REJECTED"] as const;

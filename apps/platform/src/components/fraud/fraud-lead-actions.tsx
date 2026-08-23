@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LeadStatusBadge } from "@/components/admin/admin-ui";
+import { ContextualRiskBadge } from "@/components/fraud/contextual-risk-badge";
+import { LeadInvestigationPanel } from "@/components/fraud/lead-investigation-panel";
 
 type ValidationResult = {
   rule: string;
@@ -20,6 +22,10 @@ type FraudLeadRow = {
   campaign: { name: string };
   publisher: { name: string; email: string };
   validationResults: ValidationResult[];
+  fraudIntelligence?: {
+    contextualRiskScore: number;
+    contextualRiskLevel: string;
+  } | null;
 };
 
 function riskBadge(score: number | null) {
@@ -35,6 +41,7 @@ function riskBadge(score: number | null) {
 
 export function FraudLeadActions({ lead }: { lead: FraudLeadRow }) {
   const [open, setOpen] = useState(false);
+  const [investigate, setInvestigate] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function decide(status: "APPROVED" | "REJECTED") {
@@ -58,9 +65,21 @@ export function FraudLeadActions({ lead }: { lead: FraudLeadRow }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {riskBadge(lead.riskScore)}
+        <ContextualRiskBadge
+          level={lead.fraudIntelligence?.contextualRiskLevel}
+          score={lead.fraudIntelligence?.contextualRiskScore}
+        />
         <LeadStatusBadge status={lead.status as never} />
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen(!open)}>
           {open ? "Hide" : "Details"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setInvestigate(!investigate)}
+        >
+          {investigate ? "Hide investigation" : "Investigate"}
         </Button>
         {lead.status === "PENDING" && (
           <>
@@ -102,6 +121,7 @@ export function FraudLeadActions({ lead }: { lead: FraudLeadRow }) {
           )}
         </div>
       )}
+      {investigate && <LeadInvestigationPanel leadId={lead.id} />}
     </div>
   );
 }

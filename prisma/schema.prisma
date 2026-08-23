@@ -569,6 +569,7 @@ model Lead {
   emailContacts           EmailContact[]
   cpaOfferClicks          CpaOfferClick[]
   postbackDeliveries      PublisherPostbackDelivery[]
+  fraudIntelligence       LeadFraudIntelligence?
 
   @@index([campaignId])
   @@index([publisherId])
@@ -576,8 +577,30 @@ model Lead {
   @@index([createdAt])
   @@index([riskScore])
   @@index([deviceFingerprint])
+  @@index([ip])
+  @@index([ip, createdAt])
   @@index([campaignId, isTest, createdAt])
   @@map("leads")
+}
+
+model LeadFraudIntelligence {
+  id                   String   @id @default(cuid())
+  leadId               String   @unique @map("lead_id")
+  contextualRiskScore  Int      @map("contextual_risk_score")
+  contextualRiskLevel  String   @map("contextual_risk_level")
+  signals              Json
+  explanation          Json
+  ipContext            Json?    @map("ip_context")
+  deviceContext        Json?    @map("device_context")
+  computedAt           DateTime @default(now()) @map("computed_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([contextualRiskScore])
+  @@index([contextualRiskLevel])
+  @@map("lead_fraud_intelligence")
 }
 
 model LeadDeviceSeen {

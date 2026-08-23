@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { ArrowLeft, Globe, Link2, Mail, MapPin, Share2, ShieldAlert, Wallet } from "lucide-react";
 import { getPublisherDetail, listActiveCampaignsForSmartLinkAllowlist } from "@/services/admin.service";
 import { getPublisherSpamScoresByIds } from "@/modules/fraud/repositories/quality.repo";
+import { getPublisherContextualInsight } from "@/modules/fraud";
 import { TIER_PAYOUT_ROWS } from "@/lib/platform-settings";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
@@ -29,9 +30,10 @@ export default async function AdminPublisherDetailPage({ params }: PageProps) {
   const { id } = await params;
   const session = await getSession();
   const tz = session?.user?.timezone;
-  const [publisher, activeCampaigns] = await Promise.all([
+  const [publisher, activeCampaigns, contextualInsight] = await Promise.all([
     getPublisherDetail(id),
     listActiveCampaignsForSmartLinkAllowlist(),
+    getPublisherContextualInsight(id),
   ]);
 
   if (!publisher) {
@@ -144,6 +146,25 @@ export default async function AdminPublisherDetailPage({ params }: PageProps) {
               <div className="mt-1">
                 <SpamScoreBadge score={spamScore} />
               </div>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 sm:col-span-2">
+            <ShieldAlert className="mt-0.5 h-4 w-4 text-slate-400" />
+            <div>
+              <p className="text-xs text-slate-500">Publisher quality insights (contextual)</p>
+              <p className="mt-1 text-sm text-slate-800">
+                Existing quality score:{" "}
+                <span className="font-semibold">
+                  {profile?.qualityScore != null ? `${profile.qualityScore}%` : "—"}
+                </span>
+                {" · "}
+                Contextual risk:{" "}
+                <span className="font-semibold capitalize">{contextualInsight.level}</span>
+                {contextualInsight.averageContextualRiskScore != null
+                  ? ` (${contextualInsight.averageContextualRiskScore}/100)`
+                  : ""}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">{contextualInsight.summary}</p>
             </div>
           </div>
           {profile?.website && (

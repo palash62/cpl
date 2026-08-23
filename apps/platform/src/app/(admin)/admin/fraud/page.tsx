@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { formatUserDateTime } from "@/lib/user-timezone";
 import { getSession } from "@/lib/session";
 import { ShieldAlert, Ban, Settings } from "lucide-react";
@@ -8,6 +9,7 @@ import { GradientStatCard, NeutralStatCard } from "@/components/admin/gradient-s
 import { FraudSettingsForm } from "@/components/fraud/fraud-settings-form";
 import { BlocklistManager } from "@/components/fraud/blocklist-manager";
 import { FraudLeadActions } from "@/components/fraud/fraud-lead-actions";
+import { FraudQueueFilters } from "@/components/fraud/fraud-queue-filters";
 import {
   Table,
   TableBody,
@@ -19,12 +21,20 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminFraudPage() {
+interface PageProps {
+  searchParams: Promise<{ contextualRiskLevel?: string; signal?: string }>;
+}
+
+export default async function AdminFraudPage({ searchParams }: PageProps) {
   const session = await getSession();
   const tz = session?.user?.timezone;
+  const params = await searchParams;
   const [metrics, leadsResult] = await Promise.all([
     getFraudDashboardMetrics(),
-    listHighRiskLeads(1, 25),
+    listHighRiskLeads(1, 25, 21, {
+      contextualRiskLevel: params.contextualRiskLevel,
+      signal: params.signal,
+    }),
   ]);
 
   const leads = leadsResult.data.map((lead) => ({
@@ -35,6 +45,12 @@ export default async function AdminFraudPage() {
       riskDelta: r.riskDelta ?? null,
       details: r.details ?? null,
     })),
+    fraudIntelligence: lead.fraudIntelligence
+      ? {
+          contextualRiskScore: lead.fraudIntelligence.contextualRiskScore,
+          contextualRiskLevel: lead.fraudIntelligence.contextualRiskLevel,
+        }
+      : null,
   }));
 
   return (
@@ -42,7 +58,7 @@ export default async function AdminFraudPage() {
       <PageHero
         eyebrow="Fraud Center"
         title="Lead Fraud Detection"
-        description="Monitor risk signals, manage blocklists, and tune fraud thresholds"
+        description="Monitor risk signals, contextual intelligence, manage blocklists, and tune thresholds"
         badge={`${metrics.blockedIps} blocked IPs`}
       />
 
@@ -61,10 +77,13 @@ export default async function AdminFraudPage() {
 
       <PageSection
         title="High-Risk Lead Queue"
-        description="Leads with risk score ≥ 21 — review validation breakdown and approve or reject"
+        description="Leads with risk score ≥ 21 — review validation, contextual intelligence, and approve or reject"
         icon={ShieldAlert}
         gradient="leads"
       >
+        <Suspense fallback={null}>
+          <FraudQueueFilters />
+        </Suspense>
         {leads.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">No high-risk leads in the queue.</p>
         ) : (
@@ -112,7 +131,7 @@ export default async function AdminFraudPage() {
 
       <PageSection
         title="Fraud Settings"
-        description="Thresholds, shadow mode, and provider status"
+        description="Thresholds, shadow mode, contextual intelligence, and provider status"
         icon={Settings}
         gradient="revenue"
       >

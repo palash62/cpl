@@ -45,6 +45,11 @@ export function FraudSettingsForm() {
         manualReviewMax: config.manualReviewMax,
         minFormDurationMs: config.minFormDurationMs,
         duplicateIpWindowHours: config.duplicateIpWindowHours,
+        intelligence: {
+          enabled: intelligence.enabled,
+          observationOnly: intelligence.observationOnly,
+          advertiserVisibility: intelligence.advertiserVisibility,
+        },
       }),
     });
 
@@ -62,6 +67,12 @@ export function FraudSettingsForm() {
   if (status === "loading" || !config) {
     return <p className="text-sm text-slate-500">Loading fraud settings…</p>;
   }
+
+  const intelligence = config.intelligence ?? {
+    enabled: true,
+    observationOnly: true,
+    advertiserVisibility: true,
+  };
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
@@ -134,6 +145,63 @@ export function FraudSettingsForm() {
             value={config.duplicateIpWindowHours}
             onChange={(e) =>
               setConfig({ ...config, duplicateIpWindowHours: parseInt(e.target.value, 10) || 24 })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+        <div>
+          <p className="font-medium text-slate-900">Contextual fraud intelligence</p>
+          <p className="text-sm text-slate-500">
+            Observation-only layer. Does not change lead status, riskScore, or fraud decisions while
+            observation mode is on.
+          </p>
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-700">Enabled</p>
+          <Checkbox
+            checked={intelligence.enabled}
+            onCheckedChange={(checked) =>
+              setConfig({
+                ...config,
+                intelligence: { ...intelligence, ...config.intelligence, enabled: checked === true },
+              })
+            }
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-700">Observation only</p>
+            <p className="text-xs text-slate-500">Recommended. Blocks contextual score from decisions.</p>
+          </div>
+          <Checkbox
+            checked={intelligence.observationOnly}
+            onCheckedChange={(checked) =>
+              setConfig({
+                ...config,
+                intelligence: {
+                  ...intelligence,
+                  ...config.intelligence,
+                  observationOnly: checked === true,
+                },
+              })
+            }
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-700">Show Lead Trust to advertisers</p>
+          <Checkbox
+            checked={intelligence.advertiserVisibility}
+            onCheckedChange={(checked) =>
+              setConfig({
+                ...config,
+                intelligence: {
+                  ...intelligence,
+                  ...config.intelligence,
+                  advertiserVisibility: checked === true,
+                },
+              })
             }
           />
         </div>

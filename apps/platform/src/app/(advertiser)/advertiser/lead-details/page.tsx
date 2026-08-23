@@ -42,6 +42,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LeadTrustBadge } from "@/components/advertiser/lead-trust-badge";
+import { LeadQualityMetricsStrip } from "@/components/advertiser/lead-quality-metrics";
+import {
+  getAdvertiserLeadQualityMetrics,
+  trustViewFromIntelligence,
+} from "@/modules/fraud/intelligence/advertiser-metrics.service";
+import { getFraudConfig } from "@/modules/fraud";
 import type { LeadStatus } from "@prisma/client";
 
 interface PageProps {
@@ -104,7 +111,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
       ? (params.status as LeadStatus)
       : undefined;
 
-  const [campaigns, { data: leads, meta }] = await Promise.all([
+  const [campaigns, { data: leads, meta }, qualityMetrics, fraudConfig] = await Promise.all([
     prisma.campaign.findMany({
       where: { advertiserId: session.user.id },
       select: { id: true, name: true },
@@ -122,7 +129,15 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
       limit,
       excludeStatuses: [...ADVERTISER_EXCLUDED_LEAD_STATUSES],
     }),
+    getAdvertiserLeadQualityMetrics(
+      session.user.id,
+      new Date(dateFrom),
+      new Date(dateTo),
+    ),
+    getFraudConfig(),
   ]);
+
+  const showTrust = fraudConfig.intelligence.advertiserVisibility;
 
   return (
     <div className="space-y-6">
@@ -152,6 +167,8 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
           .
         </p>
       </div>
+
+      {showTrust && <LeadQualityMetricsStrip metrics={qualityMetrics} />}
 
       <PageSection
         title="All Leads"
@@ -192,6 +209,9 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                 <TableHead className="h-11 whitespace-nowrap px-4 text-right text-slate-600">Revenue</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">CTA</TableHead>
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Risk</TableHead>
+                {showTrust && (
+                  <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">Lead Trust</TableHead>
+                )}
                 <TableHead className="h-11 whitespace-nowrap px-4 text-slate-600">
                   <Suspense fallback={<span>Status</span>}>
                     <AdvertiserLeadsSortHeader field="status" label="Status" />
@@ -205,7 +225,7 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
             <TableBody>
               {leads.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={16} className="h-48 px-6 py-16 text-center">
+                  <TableCell colSpan={showTrust ? 17 : 16} className="h-48 px-6 py-16 text-center">
                     <p className="text-base font-medium text-slate-500">No leads found</p>
                     <p className="mt-1 text-sm text-slate-400">
                       Try adjusting the campaign filter or date range.
@@ -293,6 +313,13 @@ export default async function AdvertiserLeadDetailsPage({ searchParams }: PagePr
                         )}
                       </TableCell>
                       <TableCell className="px-4 py-4">{riskBadge(lead.riskScore)}</TableCell>
+                      {showTrust && (
+                        <TableCell className="px-4 py-4 align-top">
+                          <LeadTrustBadge
+                            trust={trustViewFromIntelligence(lead.fraudIntelligence)}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="px-4 py-4">
                         <LeadStatusBadge status={lead.status} />
                       </TableCell>
