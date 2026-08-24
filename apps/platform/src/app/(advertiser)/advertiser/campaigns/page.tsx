@@ -13,7 +13,6 @@ import { CampaignStatusWithPauseReason } from "@/components/advertiser/campaign-
 import { UsersTablePagination } from "@/components/admin/users-table-pagination";
 import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserCampaignsFilters } from "@/components/advertiser/advertiser-campaigns-filters";
-import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
 import { AdvertiserCampaignsSortHeader } from "@/components/advertiser/advertiser-campaigns-sort-header";
 import { ButtonLink } from "@/components/ui/button-link";
 import { AdvertiserCampaignActions } from "@/components/advertiser/advertiser-campaign-actions";
@@ -62,20 +61,24 @@ export default async function AdvertiserCampaignsPage({ searchParams }: PageProp
   const [session, params] = await Promise.all([getSession(), searchParams]);
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const limit = 10;
-  const dateFrom = params.from ?? defaultCampaignDateFrom();
-  const dateTo = params.to ?? defaultCampaignDateTo();
 
   const { data: campaigns, meta } = await listAdvertiserCampaigns({
     advertiserId: session!.user.id,
     search: params.q,
-    dateFrom: new Date(dateFrom),
-    dateTo: new Date(dateTo),
+    dateFrom: params.from ? new Date(params.from) : undefined,
+    dateTo: params.to ? new Date(params.to) : undefined,
     sort: parseSort(params.sort),
     page,
     limit,
   });
 
-  const hasFilters = !!(params.q || params.sort || (params.page && params.page !== "1"));
+  const hasFilters = !!(
+    params.q ||
+    params.from ||
+    params.to ||
+    params.sort ||
+    (params.page && params.page !== "1")
+  );
 
   return (
     <div className="space-y-6">

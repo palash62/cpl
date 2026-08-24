@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 import { RotateCcw, Search } from "lucide-react";
-import { defaultCampaignDateFrom, defaultCampaignDateTo } from "@/lib/advertiser-campaigns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -14,8 +13,8 @@ export function AdvertiserCampaignsFilters() {
   const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
-  const [dateFrom, setDateFrom] = useState(searchParams.get("from") ?? defaultCampaignDateFrom());
-  const [dateTo, setDateTo] = useState(searchParams.get("to") ?? defaultCampaignDateTo());
+  const [dateFrom, setDateFrom] = useState(searchParams.get("from") ?? "");
+  const [dateTo, setDateTo] = useState(searchParams.get("to") ?? "");
 
   const applyFilters = useCallback(
     (overrides?: Partial<{ q: string; from: string; to: string }>) => {
@@ -46,18 +45,18 @@ export function AdvertiserCampaignsFilters() {
   );
 
   function resetFilters() {
-    const from = defaultCampaignDateFrom();
-    const to = defaultCampaignDateTo();
     setSearch("");
-    setDateFrom(from);
-    setDateTo(to);
+    setDateFrom("");
+    setDateTo("");
     startTransition(() => {
-      router.push(`${pathname}?from=${from}&to=${to}`);
+      router.push(pathname);
     });
   }
 
   const hasFilters =
     searchParams.has("q") ||
+    searchParams.has("from") ||
+    searchParams.has("to") ||
     searchParams.has("sort") ||
     (searchParams.has("page") && searchParams.get("page") !== "1");
 
