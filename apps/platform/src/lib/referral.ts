@@ -3,24 +3,19 @@ export const REFERRAL_LEVEL_2_RATE = 0.05;
 export const REFERRAL_MIN_PAYOUT = 30;
 
 /**
- * Referral credits share the advertiser wallet with deposits/ad spend.
- * Remain = still in wallet and unpaid; used = unpaid referral already spent on campaigns.
+ * One-time migration amount: move cash still in the main wallet that belongs
+ * to unpaid referral earnings into the ring-fenced referral balance.
+ * Includes pending payout amounts so holds can be re-homed onto the pot.
  */
-export function getReferralEarningBreakdown(input: {
-  referralEarned: number;
-  withdrawableReferral: number;
-  availableBalance: number;
+export function computeReferralMigrationMove(input: {
+  ledgerWithdrawable: number;
+  pendingReferralPayout: number;
+  availableMainBalance: number;
 }) {
-  const totalReferralEarning = Math.max(0, Number(input.referralEarned) || 0);
-  const withdrawable = Math.max(0, Number(input.withdrawableReferral) || 0);
-  const available = Math.max(0, Number(input.availableBalance) || 0);
-  const remainReferralEarning = Math.min(withdrawable, available);
-  const usedInCampaign = Math.max(0, withdrawable - remainReferralEarning);
-  return {
-    totalReferralEarning,
-    usedInCampaign,
-    remainReferralEarning,
-  };
+  const withdrawable = Math.max(0, Number(input.ledgerWithdrawable) || 0);
+  const pending = Math.max(0, Number(input.pendingReferralPayout) || 0);
+  const available = Math.max(0, Number(input.availableMainBalance) || 0);
+  return Math.min(withdrawable + pending, available);
 }
 
 export const REFERRAL_RATES_SUMMARY = "Earn 10% + 5% on 2 levels";

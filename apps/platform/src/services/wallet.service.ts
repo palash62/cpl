@@ -222,6 +222,171 @@ export async function debitWalletForPayout(
   return newBalance;
 }
 
+/** Credit ring-fenced referral balance (not usable for campaign spend). */
+export async function creditReferralBalance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+  referenceType: string,
+  referenceId: string,
+  description?: string,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const newReferralBalance = Number(wallet.referralBalance) + amount;
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: { referralBalance: newReferralBalance },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: wallet.id,
+      type: "CREDIT",
+      amount,
+      balanceAfter: newReferralBalance,
+      referenceType,
+      referenceId,
+      description,
+    },
+  });
+
+  return newReferralBalance;
+}
+
+export async function holdReferralFunds(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const available =
+    Number(wallet.referralBalance) - Number(wallet.referralHoldBalance);
+  if (available < amount) {
+    throw new Error("INSUFFICIENT_FUNDS");
+  }
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      referralHoldBalance: Number(wallet.referralHoldBalance) + amount,
+    },
+  });
+}
+
+export async function releaseReferralHold(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      referralHoldBalance: Math.max(
+        0,
+        Number(wallet.referralHoldBalance) - amount,
+      ),
+    },
+  });
+}
+
+/** Debit referral balance and release the matching referral hold (payout approval). */
+export async function debitReferralForPayout(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+  referenceId: string,
+  description?: string,
+) {
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const referralBalance = Number(wallet.referralBalance);
+  const referralHold = Number(wallet.referralHoldBalance);
+
+  if (referralBalance < amount || referralHold < amount) {
+    throw new Error("INSUFFICIENT_FUNDS");
+  }
+
+  const newReferralBalance = referralBalance - amount;
+  const newReferralHold = referralHold - amount;
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      referralBalance: newReferralBalance,
+      referralHoldBalance: newReferralHold,
+    },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: wallet.id,
+      type: "DEBIT",
+      amount,
+      balanceAfter: newReferralBalance,
+      referenceType: "referral_payout",
+      referenceId,
+      description,
+    },
+  });
+
+  return newReferralBalance;
+}
+
+/**
+ * Move funds from ring-fenced referral balance into the main wallet
+ * (usable for campaign spend after transfer).
+ */
+export async function transferReferralToWallet(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: number,
+  referenceId: string,
+) {
+  if (amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+  const available =
+    Number(wallet.referralBalance) - Number(wallet.referralHoldBalance);
+  if (available < amount) {
+    throw new Error("INSUFFICIENT_FUNDS");
+  }
+
+  const newReferralBalance = Number(wallet.referralBalance) - amount;
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: { referralBalance: newReferralBalance },
+  });
+
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: wallet.id,
+      type: "DEBIT",
+      amount,
+      balanceAfter: newReferralBalance,
+      referenceType: "referral_transfer",
+      referenceId,
+      description: "Transfer referral earning to main wallet",
+    },
+  });
+
+  await creditWallet(
+    tx,
+    userId,
+    amount,
+    "referral_transfer",
+    referenceId,
+    "Referral earning transferred to wallet",
+  );
+
+  return {
+    referralBalance: newReferralBalance,
+    availableReferral: newReferralBalance - Number(wallet.referralHoldBalance),
+  };
+}
+
 export async function ensurePublisherWallet(
   userId: string,
   tx?: Prisma.TransactionClient,

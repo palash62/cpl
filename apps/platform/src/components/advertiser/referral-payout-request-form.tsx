@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Banknote, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/components/admin/admin-ui";
 import { PageSection } from "@/components/admin/page-section";
 import {
@@ -25,35 +25,61 @@ import type { BankPayoutDetails } from "@/lib/payout-payment-details";
 type PayoutMethod = "WISE" | "BANK_TRANSFER" | "STRIPE_CONNECT";
 
 export function ReferralPayoutRequestForm({
-  totalReferralEarning,
-  usedInCampaign,
-  remainReferralEarning,
+  referralEarning,
+  walletBalance,
 }: {
-  totalReferralEarning: number;
-  usedInCampaign: number;
-  remainReferralEarning: number;
+  referralEarning: number;
+  walletBalance: number;
 }) {
   const router = useRouter();
   const [method, setMethod] = useState<PayoutMethod>("WISE");
-  const maxAmount = remainReferralEarning;
+  const [transferAmount, setTransferAmount] = useState(
+    referralEarning > 0 ? Number(referralEarning.toFixed(4)) : 0,
+  );
   const [amount, setAmount] = useState(
-    Math.max(REFERRAL_MIN_PAYOUT, Math.min(maxAmount, REFERRAL_MIN_PAYOUT)),
+    Math.max(REFERRAL_MIN_PAYOUT, Math.min(referralEarning, REFERRAL_MIN_PAYOUT)),
   );
   const [email, setEmail] = useState("");
   const [bankDetails, setBankDetails] = useState<BankPayoutDetails>(EMPTY_BANK_DETAILS);
+  const [transferLoading, setTransferLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [transferError, setTransferError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setAmount((prev) => Math.max(REFERRAL_MIN_PAYOUT, Math.min(maxAmount, prev)));
-  }, [maxAmount]);
+    setTransferAmount((prev) => Math.min(referralEarning, Math.max(0, prev)));
+    setAmount((prev) => Math.max(REFERRAL_MIN_PAYOUT, Math.min(referralEarning, prev)));
+  }, [referralEarning]);
 
   const paymentDetails = useMemo(() => {
     if (method === "BANK_TRANSFER") return bankDetails;
     return { email: email.trim() };
   }, [method, email, bankDetails]);
 
-  const canSubmit = maxAmount >= REFERRAL_MIN_PAYOUT && !loading;
+  const canTransfer = referralEarning > 0 && transferAmount > 0 && !transferLoading;
+  const canSubmit = referralEarning >= REFERRAL_MIN_PAYOUT && !loading;
+
+  async function submitTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    setTransferLoading(true);
+    setTransferError("");
+
+    const res = await fetch("/api/v1/referral/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: transferAmount }),
+    });
+
+    const data = await res.json();
+    setTransferLoading(false);
+
+    if (!res.ok) {
+      setTransferError(data.error?.message ?? "Transfer failed");
+      return;
+    }
+
+    router.refresh();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,117 +109,163 @@ export function ReferralPayoutRequestForm({
   }
 
   return (
-    <PageSection
-      title="Withdraw Referral Earnings"
-      description={`Request a payout from your remain referral earning when it is at least ${formatCurrency(REFERRAL_MIN_PAYOUT)}`}
-      icon={Banknote}
-      gradient="approved"
-      contentClassName="p-6"
-    >
-      <form onSubmit={submit} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Total referral earning
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-800">
-              {formatCurrency(totalReferralEarning)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-              Used in campaign
-            </p>
-            <p className="mt-1 text-2xl font-bold text-amber-800">
-              {formatCurrency(usedInCampaign)}
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageSection
+        title="Referral & Wallet"
+        description="Referral earning is separate from campaign spend. Transfer to your wallet to use it on campaigns, or withdraw once you reach the minimum."
+        icon={Banknote}
+        gradient="approved"
+        contentClassName="p-6"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-              Remain referral earning
+              Referral earning
             </p>
             <p className="mt-1 text-2xl font-bold text-emerald-800">
-              {formatCurrency(remainReferralEarning)}
+              {formatCurrency(referralEarning)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Wallet balance
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-800">
+              {formatCurrency(walletBalance)}
             </p>
           </div>
         </div>
+      </PageSection>
 
-        {maxAmount < REFERRAL_MIN_PAYOUT && (
-          <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              You need at least {formatCurrency(REFERRAL_MIN_PAYOUT)} in remain referral earning
-              before requesting a payout. Current remain: {formatCurrency(remainReferralEarning)}.
-              {usedInCampaign > 0
-                ? ` ${formatCurrency(usedInCampaign)} of your referral earnings was already used for campaign spend.`
-                : ""}
+      <PageSection
+        title="Transfer to Wallet"
+        description="Move referral earning into your main wallet to spend on campaigns."
+        icon={ArrowRightLeft}
+        gradient="revenue"
+        contentClassName="p-6"
+      >
+        <form onSubmit={submitTransfer} className="space-y-4">
+          {transferError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {transferError}
             </p>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        )}
-
-        <div className="space-y-2">
-          <Label>Method</Label>
-          <Select value={method} onValueChange={(value) => value && setMethod(value as PayoutMethod)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="WISE">Wise</SelectItem>
-              <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-              <SelectItem value="STRIPE_CONNECT">Stripe</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Amount ($)</Label>
-          <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            min={REFERRAL_MIN_PAYOUT}
-            max={maxAmount}
-            required
-            disabled={!canSubmit}
-          />
-          <p className="text-xs text-slate-500">
-            Minimum payout: {formatCurrency(REFERRAL_MIN_PAYOUT)}. Max from remain:{" "}
-            {formatCurrency(maxAmount)}.
-          </p>
-        </div>
-
-        {(method === "WISE" || method === "STRIPE_CONNECT") && (
           <div className="space-y-2">
-            <Label>{method === "WISE" ? "Wise email ID" : "Stripe account email"}</Label>
+            <Label>Amount ($)</Label>
             <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              type="number"
+              value={transferAmount}
+              onChange={(e) => setTransferAmount(Number(e.target.value))}
+              min={0}
+              max={referralEarning}
+              step="0.0001"
+              required
+              disabled={referralEarning <= 0 || transferLoading}
+            />
+            <p className="text-xs text-slate-500">
+              Available to transfer: {formatCurrency(referralEarning)}
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            className="h-10 w-full rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
+            disabled={!canTransfer}
+          >
+            {transferLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Transfer to Wallet"
+            )}
+          </Button>
+        </form>
+      </PageSection>
+
+      <PageSection
+        title="Withdraw Referral Earnings"
+        description={`Request a payout when referral earning is at least ${formatCurrency(REFERRAL_MIN_PAYOUT)}`}
+        icon={Banknote}
+        gradient="approved"
+        contentClassName="p-6"
+      >
+        <form onSubmit={submit} className="space-y-4">
+          {referralEarning < REFERRAL_MIN_PAYOUT && (
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                You need at least {formatCurrency(REFERRAL_MIN_PAYOUT)} in referral earning before
+                requesting a payout. Current: {formatCurrency(referralEarning)}.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="space-y-2">
+            <Label>Method</Label>
+            <Select
+              value={method}
+              onValueChange={(value) => value && setMethod(value as PayoutMethod)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WISE">Wise</SelectItem>
+                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                <SelectItem value="STRIPE_CONNECT">Stripe</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Amount ($)</Label>
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              min={REFERRAL_MIN_PAYOUT}
+              max={referralEarning}
               required
               disabled={!canSubmit}
             />
+            <p className="text-xs text-slate-500">
+              Minimum payout: {formatCurrency(REFERRAL_MIN_PAYOUT)}
+            </p>
           </div>
-        )}
 
-        {method === "BANK_TRANSFER" && (
-          <PublisherBankPayoutFields value={bankDetails} onChange={setBankDetails} />
-        )}
+          {(method === "WISE" || method === "STRIPE_CONNECT") && (
+            <div className="space-y-2">
+              <Label>{method === "WISE" ? "Wise email ID" : "Stripe account email"}</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                disabled={!canSubmit}
+              />
+            </div>
+          )}
 
-        <Button
-          type="submit"
-          className="h-10 w-full rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
-          disabled={!canSubmit}
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Request Referral Payout"}
-        </Button>
-      </form>
-    </PageSection>
+          {method === "BANK_TRANSFER" && (
+            <PublisherBankPayoutFields value={bankDetails} onChange={setBankDetails} />
+          )}
+
+          <Button
+            type="submit"
+            className="h-10 w-full rounded-xl bg-[var(--theme-primary)] hover:opacity-90"
+            disabled={!canSubmit}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Request Referral Payout"}
+          </Button>
+        </form>
+      </PageSection>
+    </div>
   );
 }

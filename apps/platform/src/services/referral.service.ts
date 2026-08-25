@@ -3,12 +3,18 @@ import type { Prisma } from "@prisma/client";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import {
   generateReferralCode,
-  getReferralEarningBreakdown,
+  computeReferralMigrationMove,
   REFERRAL_LEVEL_1_RATE,
   REFERRAL_LEVEL_2_RATE,
 } from "@/lib/referral";
 import { getLeadCpl } from "@/lib/lead-cpl";
-import { creditWallet } from "@/services/wallet.service";
+import {
+  creditReferralBalance,
+  releaseWalletHold,
+  transferReferralToWallet,
+} from "@/services/wallet.service";
+import { Errors } from "@/lib/errors";
+import { randomUUID } from "crypto";
 
 type ReferralUserRow = {
   id: string;
@@ -41,10 +47,11 @@ export type ReferralBalanceSummary = {
   referralEarned: number;
   referralPaidOut: number;
   pendingReferralPayout: number;
+  /** Available ring-fenced referral balance (referralBalance - referralHold). */
   withdrawableReferral: number;
+  /** Main wallet available (balance - holdBalance). */
   availableBalance: number;
   totalReferralEarning: number;
-  usedInCampaign: number;
   remainReferralEarning: number;
 };
 
@@ -130,7 +137,7 @@ async function creditReferralIfNotExists(
   if (existing || amount <= 0) return false;
 
   await ensureAdvertiserWallet(referrerId, tx);
-  await creditWallet(
+  await creditReferralBalance(
     tx,
     referrerId,
     amount,
@@ -278,7 +285,7 @@ export async function getReferralBalanceSummary(userId: string): Promise<Referra
     prisma.ledgerEntry.aggregate({
       where: {
         type: "DEBIT",
-        referenceType: "referral_payout",
+        referenceType: { in: ["referral_payout", "referral_transfer"] },
         wallet: { userId },
       },
       _sum: { amount: true },
@@ -297,18 +304,12 @@ export async function getReferralBalanceSummary(userId: string): Promise<Referra
   const referralEarned = Number(credits._sum.amount ?? 0);
   const referralPaidOut = Number(debits._sum.amount ?? 0);
   const pendingReferralPayout = Number(pendingPayouts._sum.amount ?? 0);
-  const withdrawableReferral = Math.max(
-    0,
-    referralEarned - referralPaidOut - pendingReferralPayout,
-  );
+  const withdrawableReferral = wallet
+    ? Math.max(0, Number(wallet.referralBalance) - Number(wallet.referralHoldBalance))
+    : 0;
   const availableBalance = wallet
     ? Number(wallet.balance) - Number(wallet.holdBalance)
     : 0;
-  const breakdown = getReferralEarningBreakdown({
-    referralEarned,
-    withdrawableReferral,
-    availableBalance,
-  });
 
   return {
     referralEarned,
@@ -316,8 +317,160 @@ export async function getReferralBalanceSummary(userId: string): Promise<Referra
     pendingReferralPayout,
     withdrawableReferral,
     availableBalance,
-    ...breakdown,
+    totalReferralEarning: referralEarned,
+    remainReferralEarning: withdrawableReferral,
   };
+}
+
+export async function transferReferralEarningsToWallet(userId: string, amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw Errors.validation("Enter a valid transfer amount.");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role !== "ADVERTISER") {
+    throw Errors.forbidden();
+  }
+
+  const referenceId = randomUUID();
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await ensureAdvertiserWallet(userId, tx);
+      return transferReferralToWallet(tx, userId, amount, referenceId);
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_FUNDS") {
+      throw Errors.insufficientFunds();
+    }
+    throw error;
+  }
+}
+
+/**
+ * One-time: move min(ledger withdrawable, main available) from main balance
+ * into referralBalance. Re-homes pending REFERRAL payout holds onto the pot.
+ */
+export async function migrateSharedReferralBalancesToPot() {
+  const wallets = await prisma.wallet.findMany({
+    select: {
+      id: true,
+      userId: true,
+      balance: true,
+      holdBalance: true,
+      referralBalance: true,
+      referralHoldBalance: true,
+    },
+  });
+
+  let migrated = 0;
+
+  for (const wallet of wallets) {
+    if (Number(wallet.referralBalance) > 0 || Number(wallet.referralHoldBalance) > 0) {
+      continue;
+    }
+
+    const pendingPayouts = await prisma.payout.findMany({
+      where: {
+        publisherId: wallet.userId,
+        kind: "REFERRAL",
+        status: { in: [...PENDING_PAYOUT_STATUSES] },
+      },
+      select: { id: true, amount: true },
+    });
+    const pendingTotal = pendingPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const [credits, payoutDebits, transferDebits] = await Promise.all([
+      prisma.ledgerEntry.aggregate({
+        where: {
+          type: "CREDIT",
+          referenceType: "referral",
+          walletId: wallet.id,
+        },
+        _sum: { amount: true },
+      }),
+      prisma.ledgerEntry.aggregate({
+        where: {
+          type: "DEBIT",
+          referenceType: "referral_payout",
+          walletId: wallet.id,
+        },
+        _sum: { amount: true },
+      }),
+      prisma.ledgerEntry.aggregate({
+        where: {
+          type: "DEBIT",
+          referenceType: "referral_transfer",
+          walletId: wallet.id,
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const earned = Number(credits._sum.amount ?? 0);
+    const paid = Number(payoutDebits._sum.amount ?? 0) + Number(transferDebits._sum.amount ?? 0);
+    const ledgerWithdrawable = Math.max(0, earned - paid - pendingTotal);
+    if (ledgerWithdrawable <= 0 && pendingTotal <= 0) continue;
+
+    await prisma.$transaction(async (tx) => {
+      for (const payout of pendingPayouts) {
+        await releaseWalletHold(tx, wallet.userId, Number(payout.amount));
+      }
+
+      const fresh = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
+      const available = Number(fresh.balance) - Number(fresh.holdBalance);
+      const move = computeReferralMigrationMove({
+        ledgerWithdrawable,
+        pendingReferralPayout: pendingTotal,
+        availableMainBalance: available,
+      });
+      if (move <= 0 && pendingTotal <= 0) return;
+
+      const newBalance = Number(fresh.balance) - move;
+      const newReferralBalance = Number(fresh.referralBalance) + move;
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          balance: newBalance,
+          referralBalance: newReferralBalance,
+          referralHoldBalance: pendingTotal,
+        },
+      });
+
+      if (move > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            type: "DEBIT",
+            amount: move,
+            balanceAfter: newBalance,
+            referenceType: "referral_balance_migration",
+            referenceId: wallet.userId,
+            description: "Move referral earning from main wallet into referral balance",
+          },
+        });
+        await tx.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            type: "CREDIT",
+            amount: move,
+            balanceAfter: newReferralBalance,
+            referenceType: "referral_balance_migration",
+            referenceId: wallet.userId,
+            description: "Seed referral balance from shared wallet",
+          },
+        });
+      }
+    });
+
+    migrated += 1;
+  }
+
+  return migrated;
 }
 
 async function getPaidLeadTotalsByAdvertiser(advertiserIds: string[]) {

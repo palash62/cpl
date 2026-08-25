@@ -4,10 +4,12 @@ import { REFERRAL_LEVEL_1_RATE, REFERRAL_LEVEL_2_RATE } from "@/lib/referral";
 const mockFindFirst = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockWalletUpsert = vi.fn();
-const mockCreditWallet = vi.fn();
+const mockCreditReferralBalance = vi.fn();
 
 vi.mock("@/services/wallet.service", () => ({
-  creditWallet: (...args: unknown[]) => mockCreditWallet(...args),
+  creditReferralBalance: (...args: unknown[]) => mockCreditReferralBalance(...args),
+  releaseWalletHold: vi.fn(),
+  transferReferralToWallet: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -37,7 +39,7 @@ describe("creditReferralCommissionsForLead", () => {
     vi.clearAllMocks();
     mockFindFirst.mockResolvedValue(null);
     mockWalletUpsert.mockResolvedValue({ id: "wallet-1" });
-    mockCreditWallet.mockResolvedValue(100);
+    mockCreditReferralBalance.mockResolvedValue(100);
   });
 
   it("credits level 1 commission for direct advertiser referrer", async () => {
@@ -57,7 +59,15 @@ describe("creditReferralCommissionsForLead", () => {
     );
 
     expect(result).toEqual([{ referrerId: "referrer-1", level: 1, amount: 100 * REFERRAL_LEVEL_1_RATE }]);
-    expect(mockCreditWallet).toHaveBeenCalledTimes(1);
+    expect(mockCreditReferralBalance).toHaveBeenCalledTimes(1);
+    expect(mockCreditReferralBalance).toHaveBeenCalledWith(
+      tx,
+      "referrer-1",
+      10,
+      "referral",
+      "lead-1",
+      expect.any(String),
+    );
   });
 
   it("credits level 1 and level 2 commissions when grandparent exists", async () => {
@@ -79,6 +89,7 @@ describe("creditReferralCommissionsForLead", () => {
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({ referrerId: "referrer-1", level: 1, amount: 20 });
     expect(result[1]).toEqual({ referrerId: "referrer-2", level: 2, amount: 10 });
+    expect(mockCreditReferralBalance).toHaveBeenCalledTimes(2);
   });
 
   it("skips non-advertiser referrers", async () => {
@@ -98,7 +109,7 @@ describe("creditReferralCommissionsForLead", () => {
     );
 
     expect(result).toEqual([{ referrerId: "referrer-2", level: 2, amount: 5 }]);
-    expect(mockCreditWallet).toHaveBeenCalledTimes(1);
+    expect(mockCreditReferralBalance).toHaveBeenCalledTimes(1);
   });
 
   it("is idempotent when commission already exists", async () => {
@@ -119,6 +130,6 @@ describe("creditReferralCommissionsForLead", () => {
     );
 
     expect(result).toEqual([]);
-    expect(mockCreditWallet).not.toHaveBeenCalled();
+    expect(mockCreditReferralBalance).not.toHaveBeenCalled();
   });
 });

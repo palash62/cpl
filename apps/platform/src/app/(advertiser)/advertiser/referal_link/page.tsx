@@ -52,9 +52,9 @@ export default async function AdvertiserReferralLinkPage() {
         <p>
           Earn commissions by referring others to the platform. Level 1 pays{" "}
           <strong>{REFERRAL_LEVELS[0].rate}</strong> of direct referral ad spend. Level 2 pays{" "}
-          <strong>{REFERRAL_LEVELS[1].rate}</strong> from users your referrals refer. You can
-          withdraw from remain referral earning once it reaches{" "}
-          {formatCurrency(REFERRAL_MIN_PAYOUT)}.
+          <strong>{REFERRAL_LEVELS[1].rate}</strong> from users your referrals refer. Referral
+          earning stays separate from campaign spend — transfer it to your wallet or withdraw
+          once it reaches {formatCurrency(REFERRAL_MIN_PAYOUT)}.
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default async function AdvertiserReferralLinkPage() {
           icon={Wallet}
         />
         <NeutralStatCard
-          label="Remain Referral Earning"
+          label="Referral Earning"
           value={formatCurrency(data.stats.remainReferralEarning)}
           icon={Wallet}
           accent="green"
@@ -182,9 +182,8 @@ export default async function AdvertiserReferralLinkPage() {
       </div>
 
       <ReferralPayoutRequestForm
-        totalReferralEarning={data.stats.totalReferralEarning}
-        usedInCampaign={data.stats.usedInCampaign}
-        remainReferralEarning={data.stats.remainReferralEarning}
+        referralEarning={data.stats.withdrawableReferral}
+        walletBalance={data.stats.availableBalance}
       />
 
       <PageSection

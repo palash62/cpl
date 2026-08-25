@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
+  debitReferralForPayout,
   debitWalletForPayout,
   getPlatformSettings,
+  holdReferralFunds,
   holdWalletFunds,
+  releaseReferralHold,
   releaseWalletHold,
 } from "@/services/wallet.service";
 import {
@@ -156,12 +159,8 @@ export async function requestReferralPayout(
     throw Errors.insufficientFunds();
   }
 
-  if (amount > balance.availableBalance) {
-    throw Errors.insufficientFunds();
-  }
-
   const payout = await prisma.$transaction(async (tx) => {
-    await holdWalletFunds(tx, advertiserId, amount);
+    await holdReferralFunds(tx, advertiserId, amount);
 
     return tx.payout.create({
       data: {
@@ -199,14 +198,22 @@ export async function approvePayout(payoutId: string, adminId: string) {
   await prisma.$transaction(async (tx) => {
     if (payout.kind === "CPA") {
       await debitCpaWalletForPayout(tx, payout.publisherId, Number(payout.amount));
+    } else if (payout.kind === "REFERRAL") {
+      await debitReferralForPayout(
+        tx,
+        payout.publisherId,
+        Number(payout.amount),
+        payoutId,
+        "Referral payout processed",
+      );
     } else {
       await debitWalletForPayout(
         tx,
         payout.publisherId,
         Number(payout.amount),
         payoutId,
-        payout.kind === "REFERRAL" ? "Referral payout processed" : "Payout processed",
-        payout.kind === "REFERRAL" ? "referral_payout" : "payout",
+        "Payout processed",
+        "payout",
       );
     }
 
@@ -257,6 +264,8 @@ export async function rejectPayout(payoutId: string, adminId: string, reason: st
   await prisma.$transaction(async (tx) => {
     if (payout.kind === "CPA") {
       await releaseCpaWalletHold(tx, payout.publisherId, Number(payout.amount));
+    } else if (payout.kind === "REFERRAL") {
+      await releaseReferralHold(tx, payout.publisherId, Number(payout.amount));
     } else {
       await releaseWalletHold(tx, payout.publisherId, Number(payout.amount));
     }

@@ -3,13 +3,19 @@ import { REFERRAL_MIN_PAYOUT } from "@/lib/referral";
 
 const mockPayoutFindUnique = vi.fn();
 const mockUserFindUnique = vi.fn();
-const mockHoldWalletFunds = vi.fn();
+const mockHoldReferralFunds = vi.fn();
 const mockPayoutCreate = vi.fn();
 const mockTransaction = vi.fn();
 const mockGetReferralBalanceSummary = vi.fn();
 
 vi.mock("@/services/wallet.service", () => ({
-  holdWalletFunds: (...args: unknown[]) => mockHoldWalletFunds(...args),
+  holdReferralFunds: (...args: unknown[]) => mockHoldReferralFunds(...args),
+  holdWalletFunds: vi.fn(),
+  debitWalletForPayout: vi.fn(),
+  debitReferralForPayout: vi.fn(),
+  releaseWalletHold: vi.fn(),
+  releaseReferralHold: vi.fn(),
+  getPlatformSettings: vi.fn(),
 }));
 
 vi.mock("@/services/referral.service", () => ({
@@ -44,7 +50,7 @@ describe("requestReferralPayout", () => {
     mockUserFindUnique.mockResolvedValue({ role: "ADVERTISER" });
     mockGetReferralBalanceSummary.mockResolvedValue({
       withdrawableReferral: 100,
-      availableBalance: 120,
+      availableBalance: 5,
     });
     mockTransaction.mockImplementation(async (fn: (tx: {
       payout: { create: typeof mockPayoutCreate };
@@ -76,10 +82,22 @@ describe("requestReferralPayout", () => {
     ).rejects.toMatchObject({ code: "WALLET_INSUFFICIENT_FUNDS" });
   });
 
-  it("creates a referral payout and holds wallet funds", async () => {
+  it("allows payout when referral pot is enough even if main wallet is low", async () => {
+    mockGetReferralBalanceSummary.mockResolvedValue({
+      withdrawableReferral: 81.752,
+      availableBalance: 9.291,
+    });
+
+    const payout = await requestReferralPayout("adv-1", 30, "WISE", { email: "a@b.com" });
+
+    expect(mockHoldReferralFunds).toHaveBeenCalledWith(expect.anything(), "adv-1", 30);
+    expect(payout.id).toBe("payout-1");
+  });
+
+  it("creates a referral payout and holds referral funds", async () => {
     const payout = await requestReferralPayout("adv-1", 50, "WISE", { email: "a@b.com" });
 
-    expect(mockHoldWalletFunds).toHaveBeenCalledWith(expect.anything(), "adv-1", 50);
+    expect(mockHoldReferralFunds).toHaveBeenCalledWith(expect.anything(), "adv-1", 50);
     expect(mockPayoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

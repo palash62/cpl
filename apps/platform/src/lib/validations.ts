@@ -241,6 +241,10 @@ export const payoutRequestSchema = z.discriminatedUnion("method", [
   }),
 ]);
 
+export const referralTransferSchema = z.object({
+  amount: z.number().positive(),
+});
+
 export const ticketSchema = z.object({
   subject: z.string().trim().min(3, "Subject must be at least 3 characters"),
   category: z.preprocess(

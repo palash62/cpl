@@ -649,6 +649,8 @@ model Wallet {
   userId                String  @unique @map("user_id")
   balance               Decimal @default(0) @db.Decimal(12, 4)
   holdBalance           Decimal @default(0) @db.Decimal(12, 4) @map("hold_balance")
+  referralBalance       Decimal @default(0) @db.Decimal(12, 4) @map("referral_balance")
+  referralHoldBalance   Decimal @default(0) @db.Decimal(12, 4) @map("referral_hold_balance")
   currency              String  @default("USD")
   lowBalanceAlertTiers  Json    @default("[]") @map("low_balance_alert_tiers")
 
