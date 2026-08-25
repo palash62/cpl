@@ -163,9 +163,6 @@ export function ReferralPayoutRequestForm({
               required
               disabled={referralEarning <= 0 || transferLoading}
             />
-            <p className="text-xs text-slate-500">
-              Available to transfer: {formatCurrency(referralEarning)}
-            </p>
           </div>
 
           <Button

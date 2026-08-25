@@ -4,6 +4,7 @@ import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import {
   generateReferralCode,
   computeReferralMigrationMove,
+  computeReferralPotRestoreGap,
   REFERRAL_LEVEL_1_RATE,
   REFERRAL_LEVEL_2_RATE,
 } from "@/lib/referral";
@@ -471,6 +472,109 @@ export async function migrateSharedReferralBalancesToPot() {
   }
 
   return migrated;
+}
+
+async function getWalletReferralLedgerTotals(walletId: string, userId: string) {
+  const pendingPayouts = await prisma.payout.findMany({
+    where: {
+      publisherId: userId,
+      kind: "REFERRAL",
+      status: { in: [...PENDING_PAYOUT_STATUSES] },
+    },
+    select: { amount: true },
+  });
+  const pendingTotal = pendingPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const [credits, payoutDebits, transferDebits] = await Promise.all([
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "CREDIT",
+        referenceType: "referral",
+        walletId,
+      },
+      _sum: { amount: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "DEBIT",
+        referenceType: "referral_payout",
+        walletId,
+      },
+      _sum: { amount: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: {
+        type: "DEBIT",
+        referenceType: "referral_transfer",
+        walletId,
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const referralEarned = Number(credits._sum.amount ?? 0);
+  const referralPaidOut =
+    Number(payoutDebits._sum.amount ?? 0) + Number(transferDebits._sum.amount ?? 0);
+
+  return { referralEarned, referralPaidOut, pendingTotal };
+}
+
+/**
+ * One-time: top up referralBalance to full ledger withdrawable (earned − paid − pending).
+ * Does not debit main wallet — restores referral spent on campaigns before ring-fencing.
+ */
+export async function restoreFullReferralPotBalances() {
+  const wallets = await prisma.wallet.findMany({
+    select: {
+      id: true,
+      userId: true,
+      referralBalance: true,
+      referralHoldBalance: true,
+    },
+  });
+
+  let restored = 0;
+
+  for (const wallet of wallets) {
+    const { referralEarned, referralPaidOut, pendingTotal } =
+      await getWalletReferralLedgerTotals(wallet.id, wallet.userId);
+
+    const gap = computeReferralPotRestoreGap({
+      referralEarned,
+      referralPaidOut,
+      pendingReferralPayout: pendingTotal,
+      referralBalance: Number(wallet.referralBalance),
+      referralHoldBalance: Number(wallet.referralHoldBalance),
+    });
+
+    if (gap <= 0) continue;
+
+    await prisma.$transaction(async (tx) => {
+      const fresh = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
+      const newReferralBalance = Number(fresh.referralBalance) + gap;
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { referralBalance: newReferralBalance },
+      });
+
+      await tx.ledgerEntry.create({
+        data: {
+          walletId: wallet.id,
+          type: "CREDIT",
+          amount: gap,
+          balanceAfter: newReferralBalance,
+          referenceType: "referral_balance_restore",
+          referenceId: wallet.userId,
+          description: "Restore full referral balance to referral pot",
+        },
+      });
+    });
+
+    restored += 1;
+  }
+
+  return restored;
 }
 
 async function getPaidLeadTotalsByAdvertiser(advertiserIds: string[]) {

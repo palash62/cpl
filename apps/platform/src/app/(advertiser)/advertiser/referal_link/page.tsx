@@ -85,7 +85,7 @@ export default async function AdvertiserReferralLinkPage() {
         />
         <NeutralStatCard
           label="Referral Earning"
-          value={formatCurrency(data.stats.remainReferralEarning)}
+          value={formatCurrency(data.stats.withdrawableReferral)}
           icon={Wallet}
           accent="green"
         />
