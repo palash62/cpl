@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { PENDING_PAYOUT_STATUSES } from "@/lib/payout-status";
 import {
   generateReferralCode,
+  getReferralEarningBreakdown,
   REFERRAL_LEVEL_1_RATE,
   REFERRAL_LEVEL_2_RATE,
 } from "@/lib/referral";
@@ -42,6 +43,9 @@ export type ReferralBalanceSummary = {
   pendingReferralPayout: number;
   withdrawableReferral: number;
   availableBalance: number;
+  totalReferralEarning: number;
+  usedInCampaign: number;
+  remainReferralEarning: number;
 };
 
 async function createUniqueReferralCode() {
@@ -300,6 +304,11 @@ export async function getReferralBalanceSummary(userId: string): Promise<Referra
   const availableBalance = wallet
     ? Number(wallet.balance) - Number(wallet.holdBalance)
     : 0;
+  const breakdown = getReferralEarningBreakdown({
+    referralEarned,
+    withdrawableReferral,
+    availableBalance,
+  });
 
   return {
     referralEarned,
@@ -307,6 +316,7 @@ export async function getReferralBalanceSummary(userId: string): Promise<Referra
     pendingReferralPayout,
     withdrawableReferral,
     availableBalance,
+    ...breakdown,
   };
 }
 

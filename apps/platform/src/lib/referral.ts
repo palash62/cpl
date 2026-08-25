@@ -2,6 +2,27 @@ export const REFERRAL_LEVEL_1_RATE = 0.1;
 export const REFERRAL_LEVEL_2_RATE = 0.05;
 export const REFERRAL_MIN_PAYOUT = 30;
 
+/**
+ * Referral credits share the advertiser wallet with deposits/ad spend.
+ * Remain = still in wallet and unpaid; used = unpaid referral already spent on campaigns.
+ */
+export function getReferralEarningBreakdown(input: {
+  referralEarned: number;
+  withdrawableReferral: number;
+  availableBalance: number;
+}) {
+  const totalReferralEarning = Math.max(0, Number(input.referralEarned) || 0);
+  const withdrawable = Math.max(0, Number(input.withdrawableReferral) || 0);
+  const available = Math.max(0, Number(input.availableBalance) || 0);
+  const remainReferralEarning = Math.min(withdrawable, available);
+  const usedInCampaign = Math.max(0, withdrawable - remainReferralEarning);
+  return {
+    totalReferralEarning,
+    usedInCampaign,
+    remainReferralEarning,
+  };
+}
+
 export const REFERRAL_RATES_SUMMARY = "Earn 10% + 5% on 2 levels";
 
 export const REFERRAL_LEVELS = [

@@ -25,15 +25,17 @@ import type { BankPayoutDetails } from "@/lib/payout-payment-details";
 type PayoutMethod = "WISE" | "BANK_TRANSFER" | "STRIPE_CONNECT";
 
 export function ReferralPayoutRequestForm({
-  withdrawableReferral,
-  availableBalance,
+  totalReferralEarning,
+  usedInCampaign,
+  remainReferralEarning,
 }: {
-  withdrawableReferral: number;
-  availableBalance: number;
+  totalReferralEarning: number;
+  usedInCampaign: number;
+  remainReferralEarning: number;
 }) {
   const router = useRouter();
   const [method, setMethod] = useState<PayoutMethod>("WISE");
-  const maxAmount = Math.min(withdrawableReferral, availableBalance);
+  const maxAmount = remainReferralEarning;
   const [amount, setAmount] = useState(
     Math.max(REFERRAL_MIN_PAYOUT, Math.min(maxAmount, REFERRAL_MIN_PAYOUT)),
   );
@@ -83,27 +85,35 @@ export function ReferralPayoutRequestForm({
   return (
     <PageSection
       title="Withdraw Referral Earnings"
-      description={`Request a payout when your withdrawable referral balance is at least ${formatCurrency(REFERRAL_MIN_PAYOUT)}`}
+      description={`Request a payout from your remain referral earning when it is at least ${formatCurrency(REFERRAL_MIN_PAYOUT)}`}
       icon={Banknote}
       gradient="approved"
       contentClassName="p-6"
     >
       <form onSubmit={submit} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-              Withdrawable referral
-            </p>
-            <p className="mt-1 text-2xl font-bold text-emerald-800">
-              {formatCurrency(withdrawableReferral)}
-            </p>
-          </div>
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Wallet available
+              Total referral earning
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-800">
-              {formatCurrency(availableBalance)}
+              {formatCurrency(totalReferralEarning)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+              Used in campaign
+            </p>
+            <p className="mt-1 text-2xl font-bold text-amber-800">
+              {formatCurrency(usedInCampaign)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+              Remain referral earning
+            </p>
+            <p className="mt-1 text-2xl font-bold text-emerald-800">
+              {formatCurrency(remainReferralEarning)}
             </p>
           </div>
         </div>
@@ -112,8 +122,11 @@ export function ReferralPayoutRequestForm({
           <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              You need at least {formatCurrency(REFERRAL_MIN_PAYOUT)} in withdrawable referral
-              earnings before requesting a payout.
+              You need at least {formatCurrency(REFERRAL_MIN_PAYOUT)} in remain referral earning
+              before requesting a payout. Current remain: {formatCurrency(remainReferralEarning)}.
+              {usedInCampaign > 0
+                ? ` ${formatCurrency(usedInCampaign)} of your referral earnings was already used for campaign spend.`
+                : ""}
             </p>
           </div>
         )}
@@ -150,7 +163,8 @@ export function ReferralPayoutRequestForm({
             disabled={!canSubmit}
           />
           <p className="text-xs text-slate-500">
-            Minimum payout: {formatCurrency(REFERRAL_MIN_PAYOUT)}
+            Minimum payout: {formatCurrency(REFERRAL_MIN_PAYOUT)}. Max from remain:{" "}
+            {formatCurrency(maxAmount)}.
           </p>
         </div>
 
