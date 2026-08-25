@@ -216,6 +216,166 @@ export async function listAdvertiserSourceReport(filters: {
     .sort((a, b) => b.totalLeads - a.totalLeads);
 }
 
+export type AdminSourceReportRow = AdvertiserSourceReportRow & {
+  advertiserId: string;
+  advertiserName: string;
+  publisherId: string;
+  publisherName: string;
+  originalSource: string;
+};
+
+export async function listAdminSourceReport(filters: {
+  advertiserId?: string;
+  campaignId?: string;
+  sourceSearch?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+}): Promise<AdminSourceReportRow[]> {
+  const createdAt = buildDateRange(filters.dateFrom, filters.dateTo);
+  const advertiserId = filters.advertiserId?.trim() || undefined;
+  const campaignId = filters.campaignId?.trim() || undefined;
+
+  const leads = await prisma.lead.findMany({
+    where: {
+      campaign: {
+        ...(advertiserId && { advertiserId }),
+        ...(campaignId && { id: campaignId }),
+      },
+      isTest: false,
+      ...(Object.keys(createdAt).length > 0 && { createdAt }),
+    },
+    select: {
+      id: true,
+      publisherId: true,
+      source: true,
+      status: true,
+      createdAt: true,
+      cpl: true,
+      campaignId: true,
+      campaign: {
+        select: {
+          id: true,
+          name: true,
+          cpl: true,
+          advertiserId: true,
+          advertiser: { select: { id: true, name: true } },
+        },
+      },
+      publisher: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const advertiserIds = [
+    ...new Set(leads.map((l) => l.campaign.advertiserId)),
+  ];
+  const campaignIds = campaignId
+    ? [campaignId]
+    : [...new Set(leads.map((l) => l.campaignId))];
+
+  const [blockedByAdvertiser, bidsByCampaign, cpaMetricsByLeadId] =
+    await Promise.all([
+      getBlockedSourceTokensByAdvertiser(advertiserIds),
+      getSourceBidsByCampaignIds(campaignIds),
+      loadCpaMetricsByLeadIds(leads.map((l) => l.id)),
+    ]);
+
+  const search = filters.sourceSearch?.trim().toLowerCase() ?? "";
+  const grouped = new Map<string, AdminSourceReportRow>();
+
+  for (const lead of leads) {
+    const advId = lead.campaign.advertiserId;
+    const sourceToken = buildSourceToken(advId, lead.publisherId, lead.source);
+    const displayId = formatSourceDisplayId(sourceToken);
+    const originalSource = lead.source?.trim() || "—";
+
+    if (
+      search &&
+      !displayId.toLowerCase().includes(search) &&
+      !sourceToken.toLowerCase().includes(search) &&
+      !originalSource.toLowerCase().includes(search)
+    ) {
+      continue;
+    }
+
+    const groupKey = campaignId
+      ? `${advId}:${lead.campaignId}:${sourceToken}`
+      : `${advId}:${sourceToken}`;
+
+    const campaignCpl = Number(lead.campaign.cpl);
+    const sourceBid =
+      bidsByCampaign.get(lead.campaignId)?.get(sourceToken) ?? null;
+    const blocked = blockedByAdvertiser.get(advId)?.has(sourceToken) ?? false;
+
+    const existing = grouped.get(groupKey) ?? {
+      sourceToken,
+      sourceDisplayId: displayId,
+      advertiserId: advId,
+      advertiserName: lead.campaign.advertiser.name,
+      publisherId: lead.publisherId,
+      publisherName: lead.publisher.name,
+      originalSource,
+      campaignId: campaignId ? lead.campaignId : null,
+      campaignName: campaignId ? lead.campaign.name : null,
+      campaignCpl: campaignId ? campaignCpl : null,
+      sourceBid: campaignId ? sourceBid : null,
+      effectiveCpl: campaignId ? (sourceBid ?? campaignCpl) : null,
+      totalLeads: 0,
+      approvedLeads: 0,
+      pendingLeads: 0,
+      rejectedLeads: 0,
+      paidLeads: 0,
+      salesCount: 0,
+      revenue: 0,
+      estimatedSpend: 0,
+      approvalRate: 0,
+      blocked,
+      lastLeadAt: null as Date | null,
+    };
+
+    if (existing.originalSource === "—" && originalSource !== "—") {
+      existing.originalSource = originalSource;
+    }
+
+    const cpl = getLeadCpl(lead);
+    existing.totalLeads += 1;
+    const leadCpa = cpaMetricsByLeadId.get(lead.id);
+    if (leadCpa) {
+      existing.salesCount += leadCpa.salesCount;
+      existing.revenue += leadCpa.revenue;
+    }
+
+    if (lead.status === "APPROVED") {
+      existing.approvedLeads += 1;
+      existing.estimatedSpend += cpl;
+    } else if (lead.status === "PAID") {
+      existing.paidLeads += 1;
+      existing.estimatedSpend += cpl;
+    } else if (lead.status === "REJECTED") {
+      existing.rejectedLeads += 1;
+    } else {
+      existing.pendingLeads += 1;
+    }
+
+    if (!existing.lastLeadAt || lead.createdAt > existing.lastLeadAt) {
+      existing.lastLeadAt = lead.createdAt;
+    }
+
+    grouped.set(groupKey, existing);
+  }
+
+  return Array.from(grouped.values())
+    .map((row) => {
+      const decided = row.approvedLeads + row.paidLeads + row.rejectedLeads;
+      return {
+        ...row,
+        approvalRate:
+          decided > 0 ? (row.approvedLeads + row.paidLeads) / decided : 0,
+      };
+    })
+    .sort((a, b) => b.totalLeads - a.totalLeads);
+}
+
 export async function listBlockedSources(advertiserId: string) {
   const blocks = await prisma.advertiserSourceBlock.findMany({
     where: { advertiserId },

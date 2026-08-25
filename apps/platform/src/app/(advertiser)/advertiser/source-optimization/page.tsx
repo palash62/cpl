@@ -136,6 +136,8 @@ export default async function AdvertiserSourceOptimizationPage({ searchParams }:
                   <TableHead className="text-right">Leads</TableHead>
                   <TableHead className="text-right">Approved</TableHead>
                   <TableHead className="text-right">Rejected</TableHead>
+                  <TableHead className="text-right">Sales</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
                   <TableHead className="text-right">Approval</TableHead>
                   <TableHead className="text-right">Spend</TableHead>
                   <TableHead className="text-right">Bid</TableHead>
@@ -159,6 +161,12 @@ export default async function AdvertiserSourceOptimizationPage({ searchParams }:
                       {row.approvedLeads + row.paidLeads}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{row.rejectedLeads}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.salesCount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(row.revenue)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatPct(row.approvalRate)}
                     </TableCell>

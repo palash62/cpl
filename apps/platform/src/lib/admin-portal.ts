@@ -14,6 +14,7 @@ export const ASSIGNABLE_STAFF_MENU_HREFS = [
   "/admin/cpa-offers",
   "/admin/bulk-email",
   "/admin/leads",
+  "/admin/source-optimization",
   "/admin/fraud",
   "/admin/wallets",
   "/admin/deposits",

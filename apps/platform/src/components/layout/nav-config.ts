@@ -59,6 +59,7 @@ export const ADMIN_NAV: NavItem[] = [
   },
   { label: "Bulk Email", href: "/admin/bulk-email", icon: Mail },
   { label: "Leads", href: "/admin/leads", icon: FileText },
+  { label: "Source Optimization", href: "/admin/source-optimization", icon: SlidersHorizontal },
   { label: "Fraud Center", href: "/admin/fraud", icon: ShieldAlert },
   { label: "Wallets", href: "/admin/wallets", icon: Wallet },
   { label: "Deposits", href: "/admin/deposits", icon: ArrowDownToLine },
