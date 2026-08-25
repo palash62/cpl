@@ -91,8 +91,15 @@ export default async function AdvertiserLeadReportPage({ searchParams }: PagePro
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary)]" />
         <p>
           Publisher names are hidden for privacy. Use the publisher ID to identify traffic sources.
-          Blocked publishers are excluded from Smart Link rotation for your campaigns. For individual
-          lead records, see{" "}
+          Blocked publishers are excluded from Smart Link rotation for your campaigns. For encrypted
+          source-level blocks and bids, see{" "}
+          <Link
+            href="/advertiser/source-optimization"
+            className="font-medium text-[var(--theme-primary)] hover:underline"
+          >
+            Source Optimization
+          </Link>
+          . For individual lead records, see{" "}
           <Link
             href="/advertiser/lead-details"
             className="font-medium text-[var(--theme-primary)] hover:underline"

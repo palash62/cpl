@@ -1,5 +1,5 @@
 import { prisma } from "@cpl/database";
-import { resolveCampaignLandingUrl } from "@cpl/shared";
+import { buildSourceToken, resolveCampaignLandingUrl } from "@cpl/shared";
 import { parsePlatformSettings, calculatePublisherPayout } from "@/lib/platform-settings";
 import {
   campaignExcludesBlockedPublishers,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/redirect-helpers";
 import { applySmartLinkCampaignAllowlist } from "@/lib/smart-link-rotation";
 import { parseUserAgent } from "@/lib/parse-user-agent";
-import type { Campaign, PublisherSmartLink } from "@prisma/client";
+import type { PublisherSmartLink } from "@prisma/client";
 
 async function getPlatformSettings() {
   const rows = await prisma.platformSetting.findMany();
@@ -99,7 +99,10 @@ async function resolveGlobalLinkFallback(publisherId: string) {
   return settings.globalLinkUrl;
 }
 
-async function getEligibleCampaigns(publisherId: string, options?: { countryCode?: string }) {
+async function getEligibleCampaigns(
+  publisherId: string,
+  options?: { countryCode?: string; source?: string | null },
+) {
   const [blockedAdvertisers, publisherProfile, platformSettings] = await Promise.all([
     prisma.advertiserPublisherBlock.findMany({
       where: { publisherId },
@@ -136,9 +139,45 @@ async function getEligibleCampaigns(publisherId: string, options?: { countryCode
     orderBy: { createdAt: "asc" },
   });
 
+  const advertiserIds = [...new Set(campaigns.map((c) => c.advertiserId))];
+  const [sourceBlocks, sourceBids] = await Promise.all([
+    prisma.advertiserSourceBlock.findMany({
+      where: { advertiserId: { in: advertiserIds } },
+      select: { advertiserId: true, sourceToken: true },
+    }),
+    prisma.campaignSourceBid.findMany({
+      where: { campaignId: { in: campaigns.map((c) => c.id) } },
+      select: { campaignId: true, sourceToken: true, cpl: true },
+    }),
+  ]);
+
+  const blockedBySource = new Map<string, Set<string>>();
+  for (const block of sourceBlocks) {
+    const set = blockedBySource.get(block.advertiserId) ?? new Set();
+    set.add(block.sourceToken);
+    blockedBySource.set(block.advertiserId, set);
+  }
+  const bidsByCampaign = new Map<string, Map<string, number>>();
+  for (const bid of sourceBids) {
+    const inner = bidsByCampaign.get(bid.campaignId) ?? new Map();
+    inner.set(bid.sourceToken, Number(bid.cpl));
+    bidsByCampaign.set(bid.campaignId, inner);
+  }
+
   const eligible = campaigns.filter((campaign) => {
+    const sourceToken = buildSourceToken(
+      campaign.advertiserId,
+      publisherId,
+      options?.source,
+    );
+    if (blockedBySource.get(campaign.advertiserId)?.has(sourceToken)) {
+      return false;
+    }
+
+    const sourceBid = bidsByCampaign.get(campaign.id)?.get(sourceToken);
+    const requiredCpl = sourceBid ?? Number(campaign.cpl);
     const walletBalance = Number(campaign.advertiser.wallet?.balance ?? 0);
-    if (walletBalance < Number(campaign.cpl)) return false;
+    if (walletBalance < requiredCpl) return false;
     if (
       campaignExcludesBlockedPublishers(campaign.targeting) &&
       blockedAdvertiserIds.has(campaign.advertiserId)
@@ -146,7 +185,7 @@ async function getEligibleCampaigns(publisherId: string, options?: { countryCode
       return false;
     }
     if (specialPayouts.enabled) {
-      const cpl = Number(campaign.cpl);
+      const cpl = requiredCpl;
       const qualifies = campaignQualifiesForSpecialPayouts(
         (_tier, sampleCountry) =>
           calculatePublisherPayout(cpl, sampleCountry, platformSettings).publisherAmount,
@@ -174,7 +213,12 @@ async function getEligibleCampaigns(publisherId: string, options?: { countryCode
 
 export async function pickNextCampaign(
   publisherId: string,
-  options: { ip: string; countryCode?: string; userAgent?: string | null },
+  options: {
+    ip: string;
+    countryCode?: string;
+    userAgent?: string | null;
+    source?: string | null;
+  },
 ) {
   const smartLink = await prisma.publisherSmartLink.findUnique({ where: { publisherId } });
   if (!smartLink) {
@@ -186,7 +230,10 @@ export async function pickNextCampaign(
     };
   }
 
-  const eligible = await getEligibleCampaigns(publisherId, { countryCode: options.countryCode });
+  const eligible = await getEligibleCampaigns(publisherId, {
+    countryCode: options.countryCode,
+    source: options.source,
+  });
   const countryEligible = filterCampaignsByCountry(eligible, options.countryCode);
   const { device, os } = parseUserAgent(options.userAgent);
   const pool = filterCampaignsByDeviceOs(countryEligible, { device, os });

@@ -30,6 +30,10 @@ import { validateEmailDeliverability } from "@/lib/email-deliverability";
 import { parseCampaignTargeting } from "@/lib/campaign-targeting";
 import { campaignAcceptsDeviceOs } from "@/lib/smart-link-rotation";
 import { loadCpaMetricsByLeadIds } from "@/lib/cpa-lead-metrics";
+import {
+  isSourceBlocked,
+  resolveSourceCpl,
+} from "@/services/source-optimization.service";
 
 type LeadValidationField = {
   fieldName: string;
@@ -268,6 +272,27 @@ async function createAndProcessLead(input: {
     );
   }
 
+  if (
+    await isSourceBlocked(
+      input.campaign.advertiserId,
+      input.publisherId,
+      input.source,
+    )
+  ) {
+    throw Errors.validation(
+      "This traffic source is blocked for this advertiser.",
+      "source",
+    );
+  }
+
+  const resolvedCpl = await resolveSourceCpl({
+    advertiserId: input.campaign.advertiserId,
+    campaignId: input.campaignId,
+    publisherId: input.publisherId,
+    source: input.source,
+    campaignCpl: input.campaign.cpl,
+  });
+
   const validation = validateLead({
     data: leadData,
     campaignFields: validationFields,
@@ -317,7 +342,7 @@ async function createAndProcessLead(input: {
       trackingLinkId: input.trackingLinkId,
       status: "VALIDATING",
       data: leadData,
-      cpl: input.campaign.cpl,
+      cpl: resolvedCpl,
       score: validation.score,
       riskScore: fraud.riskScore,
       fraudDecision: fraud.fraudDecision,

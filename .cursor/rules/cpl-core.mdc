@@ -19,6 +19,8 @@ Run from repo root: `npm run dev:platform`, `npm run dev:tracking`, `npm run db:
 ## Local development
 
 - Use localhost URLs on port **3010** for platform (`http://localhost:3010`). Run `npm run env:local` to rewrite `.env` files under `apps/platform`, `apps/tracking`, and `packages/database`.
+- Local MySQL: `npm run db:docker` (`docker-compose.dev.yml`, host port **3310**). Production uses native MySQL on **3306** — never deploy `docker-compose.dev.yml`.
+- Advertiser source optimization: `/advertiser/source-optimization` — opaque `SRC-…` IDs, source blocks, per-source bids (50%–200% of campaign CPL).
 - Do **not** use `http://localhost:3000` for local dev — Cursor remote forwarding often proxies that port to production.
 - After `npm run build:production`, run `npm run env:local` before starting dev servers again.
 - Demo users (after seed): `admin@cpl.local`, `advertiser@cpl.local`, `publisher@cpl.local` / `password123`.

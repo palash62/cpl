@@ -1,0 +1,28 @@
+# LOCAL DEVELOPMENT ONLY — do not use on production servers.
+# Production MySQL runs natively on the VPS (localhost:3306); see deploy/env-production.sh.
+# Host port 3310 keeps localhost:3306 free for other local projects.
+#
+#   npm run db:docker
+#   npm run env:local && npm run db:push
+name: cpl-dev
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cpl-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: cpl
+    ports:
+      - "3310:3306"
+    volumes:
+      - cpl_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cpl_mysql_data:

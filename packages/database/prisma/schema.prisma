@@ -269,6 +269,8 @@ model User {
   smartLinkCampaigns PublisherSmartLinkCampaign[]
   advertiserPublisherBlocks AdvertiserPublisherBlock[] @relation("AdvertiserBlocks")
   blockedByAdvertisers    AdvertiserPublisherBlock[] @relation("PublisherBlocks")
+  advertiserSourceBlocks  AdvertiserSourceBlock[]    @relation("AdvertiserSourceBlocks")
+  campaignSourceBids      CampaignSourceBid[]        @relation("AdvertiserSourceBids")
   payouts           Payout[]
   deposits          Deposit[]
   partnerPayments   PartnerPayment[] @relation("PartnerPaymentCreatedBy")
@@ -397,6 +399,7 @@ model Campaign {
   landingPages       LandingPage[]
   funnelEvents       FunnelEvent[]
   emailListCampaigns EmailListCampaign[]
+  sourceBids         CampaignSourceBid[]
 
   @@index([advertiserId])
   @@index([status])
@@ -509,6 +512,40 @@ model AdvertiserPublisherBlock {
   @@unique([advertiserId, publisherId])
   @@index([publisherId])
   @@map("advertiser_publisher_blocks")
+}
+
+/// Opaque HMAC token block — advertiser never sees raw `Lead.source`.
+model AdvertiserSourceBlock {
+  id           String   @id @default(cuid())
+  advertiserId String   @map("advertiser_id")
+  /// Full HMAC hex of advertiserId + publisherId + normalized source.
+  sourceToken  String   @map("source_token") @db.VarChar(64)
+  reason       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  advertiser User @relation("AdvertiserSourceBlocks", fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@unique([advertiserId, sourceToken])
+  @@index([sourceToken])
+  @@map("advertiser_source_blocks")
+}
+
+/// Per-campaign CPL override for an opaque source token (50%–200% of campaign CPL).
+model CampaignSourceBid {
+  id           String   @id @default(cuid())
+  campaignId   String   @map("campaign_id")
+  advertiserId String   @map("advertiser_id")
+  sourceToken  String   @map("source_token") @db.VarChar(64)
+  cpl          Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  advertiser User     @relation("AdvertiserSourceBids", fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, sourceToken])
+  @@index([advertiserId, sourceToken])
+  @@map("campaign_source_bids")
 }
 
 model Click {

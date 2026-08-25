@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restore localhost .env files for local development.
+# Restore localhost .env files for local development (not production).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_PLATFORM_PORT="${LOCAL_PLATFORM_PORT:-3010}"
 LOCAL_PLATFORM_URL="http://localhost:${LOCAL_PLATFORM_PORT}"
 
-DATABASE_URL="${DATABASE_URL:-mysql://root:password@localhost:3306/cpl}"
+DATABASE_URL="${DATABASE_URL:-mysql://root:password@localhost:3310/cpl}"
 INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production-64chars-minimum!!}"
 AUTH_SECRET="${AUTH_SECRET:-dev-secret-change-in-production-min-32-chars}"
 

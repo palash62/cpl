@@ -15,7 +15,12 @@ import { prisma } from "@/lib/prisma";
 import { notifyGeneric, notifyUserById } from "@/services/notify.service";
 import { createTrackingLink } from "@/services/campaign.service";
 import { resolveCampaignLandingUrl } from "@cpl/shared";
+import { buildSourceToken } from "@cpl/shared";
 import type { Campaign, PublisherSmartLink, User } from "@prisma/client";
+import {
+  getBlockedSourceTokensByAdvertiser,
+  getSourceBidsByCampaignIds,
+} from "@/services/source-optimization.service";
 
 export type EligibleCampaign = Campaign & {
   advertiser: Pick<User, "id" | "name" | "email">;
@@ -35,7 +40,7 @@ export async function getOrCreatePublisherSmartLink(publisherId: string): Promis
 
 export async function getEligibleCampaigns(
   publisherId: string,
-  options?: { countryCode?: string },
+  options?: { countryCode?: string; source?: string | null },
 ): Promise<EligibleCampaign[]> {
   const [blockedAdvertisers, publisherProfile] = await Promise.all([
     prisma.advertiserPublisherBlock.findMany({
@@ -76,9 +81,26 @@ export async function getEligibleCampaigns(
   const { getPlatformSettings } = await import("@/services/wallet.service");
   const platformSettings = await getPlatformSettings();
 
+  const advertiserIds = [...new Set(campaigns.map((c) => c.advertiserId))];
+  const [blockedBySource, sourceBids] = await Promise.all([
+    getBlockedSourceTokensByAdvertiser(advertiserIds),
+    getSourceBidsByCampaignIds(campaigns.map((c) => c.id)),
+  ]);
+
   const eligible = campaigns.filter((campaign) => {
+    const sourceToken = buildSourceToken(
+      campaign.advertiserId,
+      publisherId,
+      options?.source,
+    );
+    if (blockedBySource.get(campaign.advertiserId)?.has(sourceToken)) {
+      return false;
+    }
+
+    const sourceBid = sourceBids.get(campaign.id)?.get(sourceToken);
+    const requiredCpl = sourceBid ?? Number(campaign.cpl);
     const walletBalance = Number(campaign.advertiser.wallet?.balance ?? 0);
-    if (walletBalance < Number(campaign.cpl)) return false;
+    if (walletBalance < requiredCpl) return false;
 
     if (
       campaignExcludesBlockedPublishers(campaign.targeting) &&
@@ -88,7 +110,7 @@ export async function getEligibleCampaigns(
     }
 
     if (specialPayouts.enabled) {
-      const cpl = Number(campaign.cpl);
+      const cpl = requiredCpl;
       const qualifies = campaignQualifiesForSpecialPayouts(
         (_tier, sampleCountry) =>
           calculatePublisherPayout(cpl, sampleCountry, platformSettings).publisherAmount,
@@ -189,11 +211,17 @@ async function resolveGlobalLinkFallback(publisherId: string) {
 
 export async function pickNextCampaign(
   publisherId: string,
-  options: { ip: string; countryCode?: string; userAgent?: string | null },
+  options: {
+    ip: string;
+    countryCode?: string;
+    userAgent?: string | null;
+    source?: string | null;
+  },
 ) {
   const smartLink = await getOrCreatePublisherSmartLink(publisherId);
   const eligible = await getEligibleCampaigns(publisherId, {
     countryCode: options.countryCode,
+    source: options.source,
   });
   const countryEligible = filterCampaignsByCountry(eligible, options.countryCode);
   const { device, os } = parseUserAgent(options.userAgent);

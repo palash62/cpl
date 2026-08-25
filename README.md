@@ -64,19 +64,18 @@ See [docs/SERVICE-ARCHITECTURE.md](docs/SERVICE-ARCHITECTURE.md) and [docs/DEPLO
 
 ```bash
 npm install
-cp .env.example apps/platform/.env
-cp .env.example apps/tracking/.env
-# Set DATABASE_URL, AUTH_SECRET, INTERNAL_SERVICE_TOKEN in both .env files
+npm run db:docker      # MySQL 8 on localhost:3310 (frees 3306 for other projects)
+npm run env:local      # writes apps/*/.env and packages/database/.env
 
 npm run db:push
 npm run db:seed
 
 # Development (both services)
-npm run dev:platform   # http://localhost:3000 — leadvix.io
+npm run dev:platform   # http://localhost:3010 — leadvix.io
 npm run dev:tracking   # http://localhost:3001 — leadgenlink.site
 ```
 
-Open [http://localhost:3000](http://localhost:3000) (platform)
+Open [http://localhost:3010](http://localhost:3010) (platform)
 
 **Demo lead form:** [http://localhost:3001/t/demo-link](http://localhost:3001/t/demo-link) (tracking)
 
@@ -92,11 +91,13 @@ CPA Offer Marketplace is available to all advertisers by default. To restrict it
 
 ## Environment Variables
 
+Local dev (after `npm run env:local`):
+
 ```env
-DATABASE_URL="mysql://root:password@localhost:3306/cpl"
-AUTH_SECRET="your-secret-key-min-32-characters"
-AUTH_URL="http://localhost:3000"
+DATABASE_URL="mysql://root:password@localhost:3310/cpl"
 ```
+
+Production uses native MySQL on `localhost:3306` — see `deploy/env-production.sh`. Do not run `docker-compose.dev.yml` on the server.
 
 ## Documentation
 

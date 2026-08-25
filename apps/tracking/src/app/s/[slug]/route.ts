@@ -61,6 +61,7 @@ export async function GET(
     ip,
     countryCode,
     userAgent: request.headers.get("user-agent"),
+    source: src,
   });
   if (!result.trackingSlug) {
     if (result.globalLinkUrl) {

@@ -27,6 +27,7 @@ import {
   Webhook,
   UserCog,
   Target,
+  SlidersHorizontal,
 } from "lucide-react";
 import { STAFF_USERS_PATH } from "@/lib/admin-portal";
 
@@ -92,6 +93,7 @@ export const ADVERTISER_NAV: NavItem[] = [
   },
   { label: "Integrations", href: "/advertiser/integrations", icon: Plug },
   { label: "Lead Report", href: "/advertiser/lead-report", icon: BarChart3 },
+  { label: "Source Optimization", href: "/advertiser/source-optimization", icon: SlidersHorizontal },
   { label: "Lead Details", href: "/advertiser/lead-details", icon: FileText },
   { label: "Wallet", href: "/advertiser/wallet", icon: Wallet },
   { label: "Referrals", href: "/advertiser/referal_link", icon: Gift },
