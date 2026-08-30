@@ -59,7 +59,7 @@ async function queueAutomationStepsForContact(input: {
       },
     });
 
-    await enqueueEmailSend(send.id, scheduledAt);
+    await enqueueEmailSend(send.id, scheduledAt, { isAutomation: true });
     queued += 1;
   }
 

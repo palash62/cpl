@@ -65,21 +65,27 @@ npm run worker:email
 
 Set `REDIS_URL=redis://localhost:6379` in `.env`.
 
-**Production (Docker platform/tracking + host worker):** after every `docker-run.sh` that pulls a new platform image / Prisma client, restart the worker so it loads the latest client:
+**Production (Docker platform/tracking + host worker):** after every `docker-run.sh` that pulls a new platform image / Prisma client, restart the worker via PM2 so it loads the latest client and auto-restarts on crash:
 
 ```bash
-pkill -f 'email.worker' || true
-cd /home/ubuntu/cpl
-set -a && source apps/platform/.env && set +a
-npm run worker:email >> /tmp/cpl-email-worker.log 2>&1 &
+bash deploy/start-email-worker.sh
+pm2 startup   # once per server — follow printed systemd command
 ```
 
-Or manage via PM2 (`cpl-email-worker` in `ecosystem.config.js`).
+The worker uses `ecosystem.config.production.cjs` (generated from `.js` — PM2 7 requires `.cjs` to parse config). Restart policy: `autorestart`, `max_restarts: 100`, `min_uptime: 10s`, loads `apps/platform/.env` via `env_file`.
 
 Stuck `QUEUED` rows (scheduled in the past, no active job):
 
 ```bash
-npx tsx apps/platform/scripts/reconcile-email-sends.ts
+bash deploy/reconcile-email-cron.sh
+# or loop until clear:
+while bash deploy/reconcile-email-cron.sh 2>&1 | grep -q 'found [1-9]'; do sleep 2; done
+```
+
+Optional safety-net cron (every 15 min):
+
+```cron
+*/15 * * * * /path/to/cpl/deploy/reconcile-email-cron.sh >> /var/log/cpl-reconcile.log 2>&1
 ```
 
 ## Advertiser workflow

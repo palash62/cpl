@@ -21,10 +21,53 @@ import {
   shouldDeferBroadcastSend,
 } from "./domain-warmup.service";
 import { debitForSend, hasEmailSendFunds } from "./email-wallet.service";
+import {
+  deferAutomationSendRetry,
+  resolveAutomationDayWindow,
+} from "./automation-send-retry.service";
+import {
+  AUTOMATION_DAY_WINDOW_EXPIRED_ERROR,
+  isWithinAutomationDayWindow,
+} from "../lib/automation-day-window";
 
 export type ProcessEmailSendResult =
   | { deferred: false }
   | { deferred: true; until: Date };
+
+function isAutomationSend(send: {
+  automationId: string | null;
+  step: { order: number; delayMinutes: number } | null;
+}): send is {
+  automationId: string;
+  step: { order: number; delayMinutes: number };
+} {
+  return Boolean(send.automationId && send.step);
+}
+
+async function deferOrFailAutomation(
+  send: {
+    id: string;
+    automationId: string;
+    scheduledAt: Date;
+    attemptCount: number;
+    broadcastId: string | null;
+    step: { order: number; delayMinutes: number };
+  },
+  error: string,
+): Promise<ProcessEmailSendResult> {
+  const result = await deferAutomationSendRetry({
+    sendId: send.id,
+    automationId: send.automationId,
+    stepOrder: send.step.order,
+    stepDelayMinutes: send.step.delayMinutes,
+    scheduledAt: send.scheduledAt,
+    attemptCount: send.attemptCount,
+    error,
+    broadcastId: send.broadcastId,
+  });
+  await maybeRefreshBroadcast(send.broadcastId);
+  return result;
+}
 
 async function maybeRefreshBroadcast(broadcastId: string | null | undefined) {
   if (!broadcastId) return;
@@ -85,6 +128,26 @@ export async function processEmailSend(
     return { deferred: false };
   }
 
+  if (isAutomationSend(send)) {
+    const window = await resolveAutomationDayWindow({
+      automationId: send.automationId,
+      stepOrder: send.step.order,
+      stepDelayMinutes: send.step.delayMinutes,
+      scheduledAt: send.scheduledAt,
+    });
+    if (!isWithinAutomationDayWindow(window)) {
+      await prisma.emailSend.update({
+        where: { id: sendId },
+        data: {
+          status: "FAILED",
+          error: AUTOMATION_DAY_WINDOW_EXPIRED_ERROR,
+        },
+      });
+      await maybeRefreshBroadcast(send.broadcastId);
+      return { deferred: false };
+    }
+  }
+
   const settings = await prisma.advertiserEmailSettings.findUnique({
     where: { advertiserId: send.advertiserId },
   });
@@ -111,13 +174,17 @@ export async function processEmailSend(
   );
 
   if (!verifiedMailbox) {
+    const mailboxError = candidateFromEmail
+      ? "From email must match a verified sending domain address."
+      : "No sending email configured. Set a default on Email Settings or on this broadcast.";
+    if (isAutomationSend(send)) {
+      return deferOrFailAutomation(send, mailboxError);
+    }
     await prisma.emailSend.update({
       where: { id: sendId },
       data: {
         status: "FAILED",
-        error: candidateFromEmail
-          ? "From email must match a verified sending domain address."
-          : "No sending email configured. Set a default on Email Settings or on this broadcast.",
+        error: mailboxError,
         attemptCount: send.attemptCount + 1,
       },
     });
@@ -204,11 +271,15 @@ export async function processEmailSend(
     },
   });
   if (sentToday >= platformConfig.maxSendsPerDay) {
+    const capError = `Daily send limit reached (${platformConfig.maxSendsPerDay})`;
+    if (isAutomationSend(send)) {
+      return deferOrFailAutomation(send, capError);
+    }
     await prisma.emailSend.update({
       where: { id: sendId },
       data: {
         status: "FAILED",
-        error: `Daily send limit reached (${platformConfig.maxSendsPerDay})`,
+        error: capError,
         attemptCount: send.attemptCount + 1,
       },
     });
@@ -218,11 +289,16 @@ export async function processEmailSend(
 
   const funds = await hasEmailSendFunds(send.advertiserId, platformConfig.emailsPerDollar);
   if (!funds.ok) {
+    const walletError =
+      "Insufficient Autoresponder wallet balance — top up to continue sending";
+    if (isAutomationSend(send)) {
+      return deferOrFailAutomation(send, walletError);
+    }
     await prisma.emailSend.update({
       where: { id: sendId },
       data: {
         status: "FAILED",
-        error: "Insufficient Autoresponder wallet balance — top up to continue sending",
+        error: walletError,
         attemptCount: send.attemptCount + 1,
       },
     });
@@ -268,6 +344,13 @@ export async function processEmailSend(
 
     await maybeRefreshBroadcast(send.broadcastId);
     return { deferred: false };
+  }
+
+  if (isAutomationSend(send)) {
+    return deferOrFailAutomation(
+      send,
+      result.error ?? "Mailgun send failed",
+    );
   }
 
   const failed = attemptCount >= MAX_SEND_ATTEMPTS;

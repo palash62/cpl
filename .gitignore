@@ -26,6 +26,7 @@ deploy/.build-ready
 # misc
 .DS_Store
 *.pem
+ecosystem.config.cjs
 
 # debug
 npm-debug.log*

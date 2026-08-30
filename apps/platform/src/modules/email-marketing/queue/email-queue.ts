@@ -26,9 +26,14 @@ export function getEmailQueue() {
   return queue;
 }
 
-export async function enqueueEmailSend(sendId: string, scheduledAt: Date) {
+export async function enqueueEmailSend(
+  sendId: string,
+  scheduledAt: Date,
+  opts?: { isAutomation?: boolean },
+) {
   const delay = Math.max(0, scheduledAt.getTime() - Date.now());
   const q = getEmailQueue();
+  const isAutomation = opts?.isAutomation ?? false;
 
   await q.add(
     "send",
@@ -36,7 +41,7 @@ export async function enqueueEmailSend(sendId: string, scheduledAt: Date) {
     {
       jobId: `send-${sendId}`,
       delay,
-      attempts: 3,
+      attempts: isAutomation ? 1 : 3,
       backoff: { type: "exponential", delay: 5000 },
       removeOnComplete: 1000,
       removeOnFail: 5000,
