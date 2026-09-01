@@ -122,6 +122,13 @@ if ! node -e "require(\"@prisma/client\"); console.log(\"  OK require(@prisma/cl
   fail "require(\"@prisma/client\") failed"
 fi
 
+if [ "$APP" = "platform" ]; then
+  echo "-- smoke test pdfkit (partner invoice PDF) --"
+  if ! node -e "const PDF=require(\"pdfkit\"); const d=new PDF(); d.text(\"ok\"); d.end(); console.log(\"  OK pdfkit\");"; then
+    fail "pdfkit smoke test failed"
+  fi
+fi
+
 if [ "$failed" -ne 0 ]; then
   echo "==> Image FAILED verification: $VERIFY_IMAGE_LABEL" >&2
   exit 1

@@ -49,8 +49,19 @@ function monthRange(periodMonth: string): { from: Date; to: Date } {
   return { from: start, to: endOfDay(endOfMonth(start)) };
 }
 
+function normalizeSnapshot(raw: PartnerInvoiceSnapshot): PartnerInvoiceSnapshot {
+  return {
+    advertiserPayment: Number(raw.advertiserPayment) || 0,
+    publisherPayout: Number(raw.publisherPayout) || 0,
+    referralPay: Number(raw.referralPay) || 0,
+    platformProfit: Number(raw.platformProfit) || 0,
+    adminProfit: Number(raw.adminProfit) || 0,
+    partnerProfit: Number(raw.partnerProfit) || 0,
+  };
+}
+
 function mapInvoice(row: PartnerInvoice): PartnerInvoiceRecord {
-  const snapshot = row.snapshot as PartnerInvoiceSnapshot;
+  const snapshot = normalizeSnapshot(row.snapshot as PartnerInvoiceSnapshot);
   const billFrom = row.billFrom as PartnerInvoiceParties["payer"];
   const billTo = row.billTo as PartnerInvoiceParties["payee"];
   return {
