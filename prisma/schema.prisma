@@ -754,6 +754,23 @@ model PartnerPayment {
   @@map("partner_payments")
 }
 
+/// Monthly partner profit settlement invoice (20% share).
+model PartnerInvoice {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique @map("invoice_number")
+  periodMonth   String    @unique @map("period_month") // YYYY-MM
+  amountDue     Decimal   @map("amount_due") @db.Decimal(12, 2)
+  snapshot      Json
+  billFrom      Json      @map("bill_from")
+  billTo        Json      @map("bill_to")
+  emailedAt     DateTime? @map("emailed_at")
+  emailError    String?   @map("email_error") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("partner_invoices")
+}
+
 model Payout {
   id              String       @id @default(cuid())
   publisherId     String       @map("publisher_id")

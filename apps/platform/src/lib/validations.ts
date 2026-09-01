@@ -485,6 +485,14 @@ export const adminPartnerPaymentListQuerySchema = z.object({
     .optional(),
 });
 
+export const adminPartnerInvoiceGenerateSchema = z.object({
+  periodMonth: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "periodMonth must be YYYY-MM")
+    .optional(),
+  force: z.boolean().optional(),
+});
+
 export const adminBulkEmailTestSchema = z.object({
   to: z.string().trim().email("Enter a valid email address"),
   subject: z.string().trim().min(3, "Subject must be at least 3 characters").max(200),

@@ -15,9 +15,11 @@ import {
   type PartnerSettlementRow,
   type PartnerSettlementSummary,
 } from "@/services/partner-payment.service";
+import { listPartnerInvoices, type PartnerInvoiceRecord } from "@/services/partner-invoice.service";
 import { PageHero } from "@/components/admin/page-hero";
 import { AdminProfitFilters } from "@/components/admin/admin-profit-filters";
 import { AdminPartnerPaymentForm } from "@/components/admin/admin-partner-payment-form";
+import { AdminPartnerInvoicesTable } from "@/components/admin/admin-partner-invoices-table";
 import {
   AdminPartnerPaymentHistory,
   AdminPartnerSettlementSummary,
@@ -60,10 +62,12 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
   const defaultMonthStart = startOfMonth(parseISO(`${defaultPeriodMonth}-01`));
   const defaultMonthEnd = endOfDay(endOfMonth(defaultMonthStart));
 
-  const [profitResult, settlementResult, defaultMonthResult] = await Promise.allSettled([
+  const [profitResult, settlementResult, defaultMonthResult, invoicesResult] =
+    await Promise.allSettled([
     getAdminProfitPageData(range.from, range.to, range.groupBy),
     getPartnerSettlementByMonth(range.from, range.to),
     getPartnerSettlementByMonth(defaultMonthStart, defaultMonthEnd),
+    listPartnerInvoices({ limit: 36 }),
   ]);
 
   if (profitResult.status === "rejected") {
@@ -89,6 +93,16 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
   }
   for (const row of partnerSettlement.rows) {
     owedByMonth[row.periodMonth] = row.owed;
+  }
+
+  let partnerInvoices: PartnerInvoiceRecord[] = [];
+  if (invoicesResult.status === "fulfilled") {
+    partnerInvoices = invoicesResult.value;
+  } else {
+    console.error(
+      "[admin/profit] partner invoices failed (run npm run db:push if partner_invoices is missing):",
+      invoicesResult.reason,
+    );
   }
 
   const total = data.rows.length;
@@ -121,6 +135,8 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
       <AdminProfitSummaryCards summary={data.summary} />
 
       <AdminPartnerSettlementSummary summary={partnerSettlement.summary} />
+
+      <AdminPartnerInvoicesTable invoices={partnerInvoices} />
 
       <AdminPartnerPaymentForm
         defaultPeriodMonth={defaultPeriodMonth}

@@ -73,6 +73,17 @@ async function sendViaSmtp(
       html: input.html,
       text: input.text,
       ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+      ...(input.attachment
+        ? {
+            attachments: [
+              {
+                filename: input.attachment.filename,
+                content: input.attachment.content,
+                contentType: input.attachment.contentType ?? "application/octet-stream",
+              },
+            ],
+          }
+        : {}),
       ...(input.listUnsubscribeUrl
         ? {
             headers: {
@@ -113,6 +124,7 @@ export async function sendEmail(
       text: input.text,
       replyTo: input.replyTo,
       listUnsubscribeUrl: input.listUnsubscribeUrl,
+      attachment: input.attachment,
     });
 
     if (result.ok) {

@@ -10,6 +10,12 @@ export type EmailTemplateId =
   | "credentials"
   | "receipt";
 
+export type EmailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+};
+
 export type SendEmailInput = {
   to: string;
   subject: string;
@@ -20,4 +26,5 @@ export type SendEmailInput = {
   from?: string;
   replyTo?: string;
   listUnsubscribeUrl?: string;
+  attachment?: EmailAttachment;
 };

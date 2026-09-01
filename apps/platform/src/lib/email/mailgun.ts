@@ -1,5 +1,11 @@
 import { PLATFORM_EMAILS } from "@/lib/email/addresses";
 
+export type MailgunAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+};
+
 export type MailgunSendInput = {
   to: string;
   from: string;
@@ -10,6 +16,7 @@ export type MailgunSendInput = {
   listUnsubscribeUrl?: string;
   /** Mailgun API domain path; defaults from From host or platform MAILGUN_DOMAIN */
   mailingDomain?: string;
+  attachment?: MailgunAttachment;
 };
 
 export type MailgunConfig = {
@@ -236,6 +243,59 @@ export async function sendViaMailgun(
   }
 
   const mailingDomain = resolveMailingDomain(input, config);
+
+  if (input.attachment) {
+    const form = new FormData();
+    form.set("from", input.from);
+    form.set("to", input.to);
+    form.set("subject", input.subject);
+    form.set("html", input.html);
+    form.set("text", input.text);
+    if (input.replyTo?.trim()) {
+      form.set("h:Reply-To", input.replyTo.trim());
+    }
+    if (input.listUnsubscribeUrl) {
+      form.set("h:List-Unsubscribe", `<${input.listUnsubscribeUrl}>`);
+      form.set("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+    }
+    const blob = new Blob([new Uint8Array(input.attachment.content)], {
+      type: input.attachment.contentType ?? "application/octet-stream",
+    });
+    form.append("attachment", blob, input.attachment.filename);
+
+    const url = `${config.apiBase}/v3/${encodeURIComponent(mailingDomain)}/messages`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: mailgunAuthHeader(config.apiKey),
+        },
+        body: form,
+      });
+
+      const raw = await res.text();
+      let parsed: { message?: string; id?: string } = {};
+      try {
+        parsed = raw ? (JSON.parse(raw) as { message?: string; id?: string }) : {};
+      } catch {
+        parsed = { message: raw };
+      }
+
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: parsed.message || `Mailgun HTTP ${res.status}`,
+        };
+      }
+
+      return { ok: true, id: normalizeMailgunMessageId(parsed.id) };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Mailgun request failed",
+      };
+    }
+  }
 
   const body = new URLSearchParams();
   body.set("from", input.from);

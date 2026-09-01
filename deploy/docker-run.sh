@@ -101,3 +101,7 @@ echo "       */15 * * * * $ROOT/deploy/reconcile-email-cron.sh >> /var/log/cpl-r
 echo ""
 echo "First run or recovery (env + seed + smoke test):"
 echo "  bash $ROOT/deploy/bootstrap-production.sh"
+echo ""
+echo "VPS crontab (partner invoice — 1st of month, 00:15 UTC, previous month):"
+echo "  15 0 1 * * curl -sS -X POST -H \"X-Service-Token: \$INTERNAL_SERVICE_TOKEN\" \\"
+echo "    https://leadvix.io/api/internal/cron/partner-invoices"
