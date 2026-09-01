@@ -40,6 +40,7 @@ vi.mock("@/lib/partner-invoice-pdf", () => ({
 import {
   buildPartnerInvoiceSnapshot,
   generatePartnerInvoice,
+  listPartnerInvoices,
 } from "@/services/partner-invoice.service";
 import { invoiceNumberForPeriod } from "@/lib/partner-invoice-parties";
 
@@ -82,6 +83,16 @@ describe("Partner invoice service", () => {
 
   it("uses invoice number format INV-YYYY-MM", () => {
     expect(invoiceNumberForPeriod("2026-07")).toBe("INV-2026-07");
+  });
+
+  it("lists all invoices without take when limit is omitted", async () => {
+    mockFindMany.mockResolvedValue([]);
+
+    await listPartnerInvoices();
+
+    expect(mockFindMany).toHaveBeenCalledWith({
+      orderBy: { periodMonth: "desc" },
+    });
   });
 
   it("skips second generate for the same month when not forced", async () => {

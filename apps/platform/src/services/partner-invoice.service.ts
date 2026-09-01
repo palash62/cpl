@@ -100,10 +100,9 @@ export async function buildPartnerInvoiceSnapshot(
 }
 
 export async function listPartnerInvoices(options?: { limit?: number }): Promise<PartnerInvoiceRecord[]> {
-  const limit = options?.limit ?? 24;
   const rows = await prisma.partnerInvoice.findMany({
     orderBy: { periodMonth: "desc" },
-    take: limit,
+    ...(options?.limit != null ? { take: options.limit } : {}),
   });
   return rows.map(mapInvoice);
 }

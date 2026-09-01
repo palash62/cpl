@@ -67,7 +67,7 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
     getAdminProfitPageData(range.from, range.to, range.groupBy),
     getPartnerSettlementByMonth(range.from, range.to),
     getPartnerSettlementByMonth(defaultMonthStart, defaultMonthEnd),
-    listPartnerInvoices({ limit: 36 }),
+    listPartnerInvoices(),
   ]);
 
   if (profitResult.status === "rejected") {

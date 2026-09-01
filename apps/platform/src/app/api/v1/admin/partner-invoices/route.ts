@@ -5,7 +5,7 @@ import { listPartnerInvoices } from "@/services/partner-invoice.service";
 export async function GET() {
   return withAuth(async () => {
     try {
-      const invoices = await listPartnerInvoices({ limit: 36 });
+      const invoices = await listPartnerInvoices();
       return Response.json({ data: { invoices } });
     } catch (error) {
       return errorResponse(error);
