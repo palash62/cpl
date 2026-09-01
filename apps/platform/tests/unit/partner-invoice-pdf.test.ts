@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderPartnerInvoicePdf } from "@/lib/partner-invoice-pdf";
+import { renderPartnerInvoicePdf, PARTNER_INVOICE_LINE_ITEM } from "@/lib/partner-invoice-pdf";
 import { getPartnerInvoiceParties } from "@/lib/partner-invoice-parties";
 
 describe("Partner invoice PDF", () => {
@@ -24,5 +24,6 @@ describe("Partner invoice PDF", () => {
     expect(Buffer.isBuffer(buffer)).toBe(true);
     expect(buffer.length).toBeGreaterThan(100);
     expect(buffer.subarray(0, 4).toString("ascii")).toBe("%PDF");
+    expect(PARTNER_INVOICE_LINE_ITEM).toBe("Software development and maintenance");
   });
 });

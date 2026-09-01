@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit";
 import type { PartnerInvoiceParties } from "@/lib/partner-invoice-parties";
 import { formatPartnerPeriodMonthLabel } from "@/services/partner-payment.service";
 
+export const PARTNER_INVOICE_LINE_ITEM = "Software development and maintenance";
+
 export type PartnerInvoiceSnapshot = {
   advertiserPayment: number;
   publisherPayout: number;
@@ -48,7 +50,7 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
     const { payer, payee } = input.parties;
     const periodLabel = formatPartnerPeriodMonthLabel(input.periodMonth);
 
-    doc.fontSize(20).fillColor("#0f172a").text("Partner Settlement Invoice", { align: "left" });
+    doc.fontSize(20).fillColor("#0f172a").text("Invoice", { align: "left" });
     doc.moveDown(0.5);
     doc.fontSize(10).fillColor("#64748b");
     doc.text(`Invoice #: ${input.invoiceNumber}`);
@@ -57,7 +59,7 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
     doc.moveDown(1);
 
     const colY = doc.y;
-    doc.fontSize(11).fillColor("#0f172a").text("Payer (Company)", 50, colY);
+    doc.fontSize(11).fillColor("#0f172a").text("Payer", 50, colY);
     doc.fontSize(10).fillColor("#334155");
     doc.text(payer.company, 50, colY + 16);
     doc.text(payer.name);
@@ -65,32 +67,23 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
     doc.text(payer.phone);
     doc.text(payer.domain);
 
-    doc.fontSize(11).fillColor("#0f172a").text("Pay to (Partner)", 300, colY);
+    doc.fontSize(11).fillColor("#0f172a").text("Pay to", 300, colY);
     doc.fontSize(10).fillColor("#334155");
     doc.text(payee.name, 300, colY + 16);
     doc.text(payee.email);
     doc.text(payee.phone);
 
     doc.moveDown(3);
-    doc.fontSize(12).fillColor("#0f172a").text("Profit breakdown");
-    doc.moveDown(0.5);
+    const lineItemY = doc.y;
+    doc.fontSize(10).fillColor("#64748b");
+    doc.text("Description", 50, lineItemY, { width: 320 });
+    doc.text("Amount", 400, lineItemY, { width: 145, align: "right" });
+    doc.moveDown(0.6);
 
-    const rows: [string, number][] = [
-      ["Advertiser payments", input.snapshot.advertiserPayment],
-      ["Less: Publisher payouts", -input.snapshot.publisherPayout],
-      ["Less: Referral commissions", -input.snapshot.referralPay],
-      ["Platform profit", input.snapshot.platformProfit],
-      ["Admin share (80%)", input.snapshot.adminProfit],
-      ["Partner share (20%)", input.snapshot.partnerProfit],
-    ];
-
+    const itemY = doc.y;
     doc.fontSize(10).fillColor("#334155");
-    for (const [label, amount] of rows) {
-      const y = doc.y;
-      doc.text(label, 50, y, { width: 320 });
-      doc.text(formatUsd(Math.abs(amount)), 400, y, { width: 145, align: "right" });
-      doc.moveDown(0.3);
-    }
+    doc.text(PARTNER_INVOICE_LINE_ITEM, 50, itemY, { width: 320 });
+    doc.text(formatUsd(input.amountDue), 400, itemY, { width: 145, align: "right" });
 
     doc.moveDown(1);
     doc
@@ -100,12 +93,12 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
       .stroke();
     doc.moveDown(0.8);
 
-    doc.fontSize(13).fillColor("#0f172a").text("Amount due (Partner 20%)", 50, doc.y, { continued: true });
+    doc.fontSize(13).fillColor("#0f172a").text("Amount due", 50, doc.y, { continued: true });
     doc.fontSize(13).fillColor("#059669").text(`  ${formatUsd(input.amountDue)}`, { align: "right" });
 
     doc.moveDown(2);
     doc.fontSize(9).fillColor("#94a3b8").text(
-      "This is a platform-generated settlement statement. Record manual partner payments in Admin → Profit → Partner payments.",
+      "This is a platform-generated invoice. Record manual partner payments in Admin → Profit → Partner payments.",
       { width: 495 },
     );
 
