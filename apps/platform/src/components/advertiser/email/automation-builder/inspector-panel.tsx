@@ -44,7 +44,6 @@ import type { AutomationBuilderState } from "./use-automation-builder-state";
 import type { StepStat } from "./types";
 import {
   DEFAULT_EMAIL_HTML,
-  daysToMinutes,
   flattenVerifiedMailboxes,
   minutesToDays,
 } from "./types";
@@ -807,28 +806,36 @@ function WaitContentForm({ state }: { state: AutomationBuilderState }) {
   const {
     steps,
     selection,
-    updateStep,
+    updateWaitDays,
     clearWait,
     saveStepAction,
     selectCanvas,
     readOnly,
   } = state;
 
-  const selectedStep =
+  const selectedIndex =
     selection.kind === "wait"
-      ? steps.find((s) => s.clientId === selection.clientId)
-      : undefined;
+      ? steps.findIndex((s) => s.clientId === selection.clientId)
+      : -1;
+  const selectedStep = selectedIndex >= 0 ? steps[selectedIndex] : undefined;
 
   const [savingAction, setSavingAction] = useState(false);
   const days = selectedStep
-    ? Math.max(0, Math.round(minutesToDays(selectedStep.delayMinutes)))
+    ? Math.max(
+        0,
+        Math.round(
+          minutesToDays(
+            selectedStep.delayMinutes -
+              (selectedIndex > 0 ? steps[selectedIndex - 1]!.delayMinutes : 0),
+          ),
+        ),
+      )
     : 0;
 
   if (!selectedStep) return null;
 
   function setDays(next: number) {
-    const clamped = Math.max(0, Math.min(365, Math.round(next)));
-    updateStep(selectedStep!.clientId, { delayMinutes: daysToMinutes(clamped) });
+    updateWaitDays(selectedStep!.clientId, next);
   }
 
   async function onSaveAction() {

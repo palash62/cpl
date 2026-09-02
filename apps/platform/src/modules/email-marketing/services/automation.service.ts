@@ -8,6 +8,7 @@ import { AppError } from "@/lib/errors";
 import { EMAIL_MARKETING_CONFIG_KEY } from "@/lib/email/email-marketing-settings";
 import { parseEmailMarketingConfig } from "../config/platform-config";
 import { backfillAutomationForExistingContacts } from "./dispatch.service";
+import { repairCumulativeStepDelays } from "../lib/automation-step-delays";
 
 export type AutomationStepInput = {
   id?: string;
@@ -87,6 +88,14 @@ function toStepCreateData(s: AutomationStepInput) {
     fromName: s.fromName?.trim() || null,
     fromEmail: s.fromEmail?.trim() || null,
   };
+}
+
+function normalizeAutomationSteps(steps: AutomationStepInput[]): AutomationStepInput[] {
+  const sorted = [...steps].sort((a, b) => a.order - b.order);
+  return repairCumulativeStepDelays(sorted).steps.map((step, i) => ({
+    ...step,
+    order: i,
+  }));
 }
 
 function normalizeTagId(value?: string | null) {
@@ -182,6 +191,7 @@ export async function createAutomation(
 
   await assertStepsValid(advertiserId, data.steps);
   await assertEngagementTagsValid(advertiserId, data.openTagId, data.clickTagId);
+  const normalizedSteps = normalizeAutomationSteps(data.steps);
 
   return prisma.emailAutomation.create({
     data: {
@@ -196,7 +206,7 @@ export async function createAutomation(
       clickTagId: normalizeTagId(data.clickTagId),
       status: "DRAFT",
       steps: {
-        create: data.steps.map((s) => toStepCreateData(s)),
+        create: normalizedSteps.map((s) => toStepCreateData(s)),
       },
     },
     include: {
@@ -242,6 +252,7 @@ export async function updateAutomation(
   }
 
   if (data.steps) {
+    data.steps = normalizeAutomationSteps(data.steps);
     await assertStepsValid(advertiserId, data.steps);
 
     await prisma.$transaction(async (tx) => {

@@ -6,7 +6,7 @@ import type {
   TagOption,
   Template,
 } from "./types";
-import { formatDelay } from "./types";
+import { formatIncrementalDelay } from "./types";
 
 export const NODE = {
   trigger: "trigger",
@@ -92,7 +92,9 @@ export function stepsToFlow(
   steps.forEach((step, i) => {
     const wId = waitNodeId(step.clientId);
     const eId = emailNodeId(step.clientId);
-    const showWait = step.delayMinutes > 0;
+    const previousDelay = i > 0 ? steps[i - 1]!.delayMinutes : 0;
+    const incrementalWait = step.delayMinutes - previousDelay;
+    const showWait = incrementalWait > 0;
 
     if (showWait) {
       nodes.push({
@@ -101,7 +103,7 @@ export function stepsToFlow(
         position: { x: X, y: ySlot * Y_GAP },
         data: {
           clientId: step.clientId,
-          waitLabel: formatDelay(step.delayMinutes),
+          waitLabel: formatIncrementalDelay(step.delayMinutes, previousDelay),
           selected: selection.kind === "wait" && selection.clientId === step.clientId,
         } satisfies WaitNodeData,
         draggable: false,

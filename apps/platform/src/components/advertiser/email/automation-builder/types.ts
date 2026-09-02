@@ -163,6 +163,41 @@ export function minutesToDays(minutes: number) {
   return minutes / MINUTES_PER_DAY;
 }
 
+export function getPreviousStepDelayMinutes(
+  steps: Pick<AutomationStep, "delayMinutes">[],
+  index: number,
+): number {
+  if (index <= 0) return 0;
+  return steps[index - 1]?.delayMinutes ?? 0;
+}
+
+export function getIncrementalWaitDays(
+  steps: Pick<AutomationStep, "delayMinutes">[],
+  index: number,
+): number {
+  const step = steps[index];
+  if (!step) return 0;
+  const previous = getPreviousStepDelayMinutes(steps, index);
+  return Math.max(0, Math.round(minutesToDays(step.delayMinutes - previous)));
+}
+
+export function computeCumulativeDelayForStep(
+  steps: Pick<AutomationStep, "delayMinutes">[],
+  index: number,
+  waitDays: number,
+): number {
+  const previous = getPreviousStepDelayMinutes(steps, index);
+  return computeCumulativeDelayMinutes(previous, waitDays);
+}
+
+export function computeCumulativeDelayMinutes(
+  previousStepDelayMinutes: number,
+  waitDays: number,
+): number {
+  const waitMinutes = Math.round(waitDays * MINUTES_PER_DAY);
+  return Math.max(0, previousStepDelayMinutes + waitMinutes);
+}
+
 export function newStepClientId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -215,6 +250,14 @@ export function normalizeServerStepsToEmailOnly<
   }
 
   return emails.map((s, i) => ({ ...s, order: i }));
+}
+
+export function formatIncrementalDelay(
+  stepDelayMinutes: number,
+  previousStepDelayMinutes: number,
+): string {
+  const incremental = Math.max(0, stepDelayMinutes - previousStepDelayMinutes);
+  return formatDelay(incremental);
 }
 
 export function formatDelay(minutes: number): string {

@@ -81,7 +81,6 @@ export async function deferAutomationSendRetry(input: {
     where: { id: input.sendId },
     data: {
       status: "QUEUED",
-      scheduledAt: retryAt,
       error: input.error,
       attemptCount: input.attemptCount + 1,
     },

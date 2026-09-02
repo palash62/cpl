@@ -18,11 +18,13 @@ import type {
 import {
   DEFAULT_EMAIL_HTML,
   MAX_STEPS,
-  MINUTES_PER_DAY,
+  computeCumulativeDelayForStep,
   createEmptyStep,
+  getPreviousStepDelayMinutes,
   newStepClientId,
   normalizeServerStepsToEmailOnly,
 } from "./types";
+import { shiftDownstreamDelays } from "@/modules/email-marketing/lib/automation-step-delays";
 import { canPersist, validateAutomation } from "./validation";
 
 type Snapshot = {
@@ -555,13 +557,23 @@ export function useAutomationBuilderState({
     [setSteps],
   );
 
-  /** Insert Wait: sets next email's delay, or creates an email with that wait if none follows. */
+  /** Insert Wait: sets next email's cumulative delay from trigger. */
   const addWaitAt = useCallback(
     async (index: number, delayDays = 1) => {
-      const delayMinutes = delayDays * MINUTES_PER_DAY;
+      const delayMinutes = computeCumulativeDelayForStep(steps, index, delayDays);
       const next = steps[index];
       if (next) {
-        updateStep(next.clientId, { delayMinutes });
+        const delta = delayMinutes - next.delayMinutes;
+        pushHistory();
+        setStepsState((prev) => {
+          const list = prev.map((s) =>
+            s.clientId === next.clientId ? { ...s, delayMinutes } : s,
+          );
+          const stepIndex = list.findIndex((s) => s.clientId === next.clientId);
+          return shiftDownstreamDelays(list, stepIndex, delta);
+        });
+        dirtyRef.current = true;
+        setSaveStatus("dirty");
         setSelection({ kind: "wait", clientId: next.clientId });
         setPickerOpen(false);
         return;
@@ -606,16 +618,54 @@ export function useAutomationBuilderState({
       pushHistory,
       refreshTemplateList,
       steps,
-      updateStep,
     ],
+  );
+
+  const updateWaitDays = useCallback(
+    (clientId: string, waitDays: number) => {
+      const index = steps.findIndex((s) => s.clientId === clientId);
+      if (index < 0) return;
+      const clamped = Math.max(0, Math.min(365, Math.round(waitDays)));
+      const delayMinutes = computeCumulativeDelayForStep(steps, index, clamped);
+      const current = steps[index]!;
+      const delta = delayMinutes - current.delayMinutes;
+      if (delta === 0) return;
+      pushHistory();
+      setStepsState((prev) => {
+        const list = prev.map((s) =>
+          s.clientId === clientId ? { ...s, delayMinutes } : s,
+        );
+        return shiftDownstreamDelays(list, index, delta);
+      });
+      dirtyRef.current = true;
+      setSaveStatus("dirty");
+    },
+    [pushHistory, steps],
   );
 
   const clearWait = useCallback(
     (clientId: string) => {
-      updateStep(clientId, { delayMinutes: 0 });
+      const index = steps.findIndex((s) => s.clientId === clientId);
+      if (index < 0) return;
+      const previousDelay = getPreviousStepDelayMinutes(steps, index);
+      const current = steps[index];
+      const delta = previousDelay - current.delayMinutes;
+      if (delta === 0) {
+        setSelection({ kind: "canvas" });
+        return;
+      }
+      pushHistory();
+      setStepsState((prev) => {
+        const list = prev.map((s) =>
+          s.clientId === clientId ? { ...s, delayMinutes: previousDelay } : s,
+        );
+        return shiftDownstreamDelays(list, index, delta);
+      });
+      dirtyRef.current = true;
+      setSaveStatus("dirty");
       setSelection({ kind: "canvas" });
     },
-    [updateStep],
+    [pushHistory, steps],
   );
 
   const ensureExclusiveTemplate = useCallback(
@@ -847,6 +897,7 @@ export function useAutomationBuilderState({
     openPicker,
     addEmailAt,
     addWaitAt,
+    updateWaitDays,
     clearWait,
     removeStep,
     updateStep,

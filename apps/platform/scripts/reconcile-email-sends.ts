@@ -120,7 +120,6 @@ async function main() {
         where: { id: send.id },
         data: {
           status: "QUEUED",
-          scheduledAt: retryAt,
         },
       });
       await enqueueEmailSend(send.id, retryAt, { isAutomation: true });
