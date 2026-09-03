@@ -124,7 +124,11 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
       />
 
       <Suspense fallback={<div className="h-12 animate-pulse rounded-[18px] bg-slate-100" />}>
-        <AdminProfitFilters period={range.period} />
+        <AdminProfitFilters
+          period={range.period}
+          fromStr={range.fromStr}
+          toStr={range.toStr}
+        />
       </Suspense>
 
       <AdminProfitSummaryCards summary={data.summary} />
