@@ -8,6 +8,7 @@ import {
   startOfDay,
   startOfMonth,
   startOfYear,
+  subDays,
 } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
@@ -20,7 +21,7 @@ export type AdminProfitSnapshot = {
 };
 
 export type ProfitGroupBy = "day" | "month" | "year";
-export type ProfitPeriod = "today" | "month" | "year" | "custom";
+export type ProfitPeriod = "today" | "yesterday" | "week" | "month" | "year" | "custom";
 
 export const ADMIN_PROFIT_SHARE = 0.8;
 export const PARTNER_PROFIT_SHARE = 0.2;
@@ -143,6 +144,8 @@ export function resolveProfitPageRange(params: {
   const now = new Date();
   let period: ProfitPeriod =
     params.period === "today" ||
+    params.period === "yesterday" ||
+    params.period === "week" ||
     params.period === "month" ||
     params.period === "year" ||
     params.period === "custom"
@@ -156,6 +159,13 @@ export function resolveProfitPageRange(params: {
 
   if (period === "today") {
     from = startOfDay(now);
+    to = endOfDay(now);
+  } else if (period === "yesterday") {
+    const yesterday = subDays(now, 1);
+    from = startOfDay(yesterday);
+    to = endOfDay(yesterday);
+  } else if (period === "week") {
+    from = startOfDay(subDays(now, 6));
     to = endOfDay(now);
   } else if (period === "year") {
     from = startOfYear(now);
@@ -183,7 +193,7 @@ export function resolveProfitPageRange(params: {
       ? params.group
       : period === "year"
         ? "month"
-        : "day";
+        : "day"; // today, yesterday, week, month all default to day
 
   return { period, from, to, fromStr, toStr, groupBy };
 }
