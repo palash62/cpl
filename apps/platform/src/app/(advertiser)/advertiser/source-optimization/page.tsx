@@ -16,6 +16,7 @@ import { RoleHero } from "@/components/layout/role-hero";
 import { AdvertiserSourceOptimizationFilters } from "@/components/advertiser/advertiser-source-optimization-filters";
 import { AdvertiserSourceActions } from "@/components/advertiser/advertiser-source-actions";
 import { AdvertiserBlockedSourcesTable } from "@/components/advertiser/advertiser-blocked-sources-table";
+import { AdvertiserSourceOptimizationSortHeader } from "@/components/advertiser/advertiser-source-optimization-sort-header";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ interface PageProps {
     source?: string;
     from?: string;
     to?: string;
+    sort?: string;
   }>;
 }
 
@@ -68,6 +70,7 @@ export default async function AdvertiserSourceOptimizationPage({ searchParams }:
       sourceSearch: params.source,
       dateFrom: new Date(dateFrom),
       dateTo: new Date(dateTo),
+      sort: params.sort,
     }),
     listBlockedSources(session!.user.id),
   ]);
@@ -132,16 +135,94 @@ export default async function AdvertiserSourceOptimizationPage({ searchParams }:
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Source ID</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Approved</TableHead>
-                  <TableHead className="text-right">Rejected</TableHead>
-                  <TableHead className="text-right">Sales</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Approval</TableHead>
-                  <TableHead className="text-right">Spend</TableHead>
-                  <TableHead className="text-right">Bid</TableHead>
-                  <TableHead>Last lead</TableHead>
+                  <TableHead>
+                    <Suspense fallback="Source ID">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="sourceId"
+                        label="Source ID"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Leads">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="leads"
+                        label="Leads"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Approved">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="approved"
+                        label="Approved"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Rejected">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="rejected"
+                        label="Rejected"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Sales">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="sales"
+                        label="Sales"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Revenue">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="revenue"
+                        label="Revenue"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Approval">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="approval"
+                        label="Approval"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Spend">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="spend"
+                        label="Spend"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Bid">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="bid"
+                        label="Bid"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead>
+                    <Suspense fallback="Last lead">
+                      <AdvertiserSourceOptimizationSortHeader
+                        field="lastLead"
+                        label="Last lead"
+                      />
+                    </Suspense>
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

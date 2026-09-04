@@ -31,6 +31,130 @@ export type AdvertiserSourceReportRow = {
   lastLeadAt: Date | null;
 };
 
+export type SourceReportSortField =
+  | "leads"
+  | "approved"
+  | "rejected"
+  | "sales"
+  | "revenue"
+  | "approval"
+  | "spend"
+  | "bid"
+  | "lastLead"
+  | "sourceId"
+  | "advertiser"
+  | "publisher"
+  | "originalSource";
+
+export type SourceReportSort = `${SourceReportSortField}_${"asc" | "desc"}`;
+
+const SOURCE_REPORT_SORT_FIELDS = new Set<string>([
+  "leads",
+  "approved",
+  "rejected",
+  "sales",
+  "revenue",
+  "approval",
+  "spend",
+  "bid",
+  "lastLead",
+  "sourceId",
+  "advertiser",
+  "publisher",
+  "originalSource",
+]);
+
+export const DEFAULT_SOURCE_REPORT_SORT: SourceReportSort = "leads_desc";
+
+export function parseSourceReportSort(value?: string | null): SourceReportSort {
+  if (!value) return DEFAULT_SOURCE_REPORT_SORT;
+  const match = /^([a-zA-Z]+)_((?:asc|desc))$/.exec(value);
+  if (!match) return DEFAULT_SOURCE_REPORT_SORT;
+  const [, field, dir] = match;
+  if (!SOURCE_REPORT_SORT_FIELDS.has(field)) return DEFAULT_SOURCE_REPORT_SORT;
+  return `${field}_${dir}` as SourceReportSort;
+}
+
+function compareNullableNumber(a: number | null | undefined, b: number | null | undefined) {
+  const av = a ?? Number.NEGATIVE_INFINITY;
+  const bv = b ?? Number.NEGATIVE_INFINITY;
+  return av - bv;
+}
+
+function compareNullableDate(a: Date | null | undefined, b: Date | null | undefined) {
+  const av = a?.getTime() ?? 0;
+  const bv = b?.getTime() ?? 0;
+  return av - bv;
+}
+
+function compareString(a: string, b: string) {
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+type SortableSourceRow = AdvertiserSourceReportRow & {
+  advertiserName?: string;
+  publisherName?: string;
+  originalSource?: string;
+};
+
+export function sortSourceReportRows<T extends SortableSourceRow>(
+  rows: T[],
+  sort: SourceReportSort = DEFAULT_SOURCE_REPORT_SORT,
+): T[] {
+  const [field, dir] = sort.split("_") as [SourceReportSortField, "asc" | "desc"];
+  const mul = dir === "asc" ? 1 : -1;
+
+  return [...rows].sort((a, b) => {
+    let cmp = 0;
+    switch (field) {
+      case "leads":
+        cmp = a.totalLeads - b.totalLeads;
+        break;
+      case "approved":
+        cmp =
+          a.approvedLeads + a.paidLeads - (b.approvedLeads + b.paidLeads);
+        break;
+      case "rejected":
+        cmp = a.rejectedLeads - b.rejectedLeads;
+        break;
+      case "sales":
+        cmp = a.salesCount - b.salesCount;
+        break;
+      case "revenue":
+        cmp = a.revenue - b.revenue;
+        break;
+      case "approval":
+        cmp = a.approvalRate - b.approvalRate;
+        break;
+      case "spend":
+        cmp = a.estimatedSpend - b.estimatedSpend;
+        break;
+      case "bid":
+        cmp = compareNullableNumber(a.effectiveCpl, b.effectiveCpl);
+        break;
+      case "lastLead":
+        cmp = compareNullableDate(a.lastLeadAt, b.lastLeadAt);
+        break;
+      case "sourceId":
+        cmp = compareString(a.sourceDisplayId, b.sourceDisplayId);
+        break;
+      case "advertiser":
+        cmp = compareString(a.advertiserName ?? "", b.advertiserName ?? "");
+        break;
+      case "publisher":
+        cmp = compareString(a.publisherName ?? "", b.publisherName ?? "");
+        break;
+      case "originalSource":
+        cmp = compareString(a.originalSource ?? "", b.originalSource ?? "");
+        break;
+      default:
+        cmp = a.totalLeads - b.totalLeads;
+    }
+    if (cmp !== 0) return cmp * mul;
+    return compareString(a.sourceDisplayId, b.sourceDisplayId);
+  });
+}
+
 function buildDateRange(dateFrom?: Date, dateTo?: Date) {
   const createdAt: { gte?: Date; lte?: Date } = {};
   if (dateFrom) createdAt.gte = startOfDay(dateFrom);
@@ -44,6 +168,7 @@ export async function listAdvertiserSourceReport(filters: {
   sourceSearch?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  sort?: SourceReportSort | string | null;
 }): Promise<AdvertiserSourceReportRow[]> {
   const createdAt = buildDateRange(filters.dateFrom, filters.dateTo);
 
@@ -204,16 +329,17 @@ export async function listAdvertiserSourceReport(filters: {
     }
   }
 
-  return Array.from(grouped.values())
-    .map((row) => {
+  return sortSourceReportRows(
+    Array.from(grouped.values()).map((row) => {
       const decided = row.approvedLeads + row.paidLeads + row.rejectedLeads;
       return {
         ...row,
         approvalRate:
           decided > 0 ? (row.approvedLeads + row.paidLeads) / decided : 0,
       };
-    })
-    .sort((a, b) => b.totalLeads - a.totalLeads);
+    }),
+    parseSourceReportSort(filters.sort),
+  );
 }
 
 export type AdminSourceReportRow = AdvertiserSourceReportRow & {
@@ -230,6 +356,7 @@ export async function listAdminSourceReport(filters: {
   sourceSearch?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  sort?: SourceReportSort | string | null;
 }): Promise<AdminSourceReportRow[]> {
   const createdAt = buildDateRange(filters.dateFrom, filters.dateTo);
   const advertiserId = filters.advertiserId?.trim() || undefined;
@@ -364,16 +491,17 @@ export async function listAdminSourceReport(filters: {
     grouped.set(groupKey, existing);
   }
 
-  return Array.from(grouped.values())
-    .map((row) => {
+  return sortSourceReportRows(
+    Array.from(grouped.values()).map((row) => {
       const decided = row.approvedLeads + row.paidLeads + row.rejectedLeads;
       return {
         ...row,
         approvalRate:
           decided > 0 ? (row.approvedLeads + row.paidLeads) / decided : 0,
       };
-    })
-    .sort((a, b) => b.totalLeads - a.totalLeads);
+    }),
+    parseSourceReportSort(filters.sort),
+  );
 }
 
 export async function listBlockedSources(advertiserId: string) {

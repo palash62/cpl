@@ -14,6 +14,8 @@ import { listAdminSourceReport } from "@/services/source-optimization.service";
 import { PageHero } from "@/components/admin/page-hero";
 import { PageSection } from "@/components/admin/page-section";
 import { AdminSourceOptimizationFilters } from "@/components/admin/admin-source-optimization-filters";
+import { AdminSourceActions } from "@/components/admin/admin-source-actions";
+import { AdminSourceOptimizationSortHeader } from "@/components/admin/admin-source-optimization-sort-header";
 import {
   Table,
   TableBody,
@@ -30,6 +32,7 @@ interface PageProps {
     q?: string;
     from?: string;
     to?: string;
+    sort?: string;
   }>;
 }
 
@@ -77,6 +80,7 @@ export default async function AdminSourceOptimizationPage({
       sourceSearch: params.q,
       dateFrom: new Date(dateFrom),
       dateTo: new Date(dateTo),
+      sort: params.sort,
     }),
   ]);
 
@@ -102,7 +106,7 @@ export default async function AdminSourceOptimizationPage({
         <p>
           Advertisers only see the encrypted <span className="font-mono">SRC-…</span>{" "}
           ID. Original traffic tags are visible here so you can map sources without
-          reversing the HMAC token.
+          reversing the HMAC token. Use Block to stop a source for that advertiser.
         </p>
       </div>
 
@@ -132,19 +136,119 @@ export default async function AdminSourceOptimizationPage({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Advertiser</TableHead>
-                  <TableHead>Publisher</TableHead>
-                  <TableHead>Source ID</TableHead>
-                  <TableHead>Original source</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Approved</TableHead>
-                  <TableHead className="text-right">Rejected</TableHead>
-                  <TableHead className="text-right">Sales</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Approval</TableHead>
-                  <TableHead className="text-right">Spend</TableHead>
-                  <TableHead className="text-right">Bid</TableHead>
-                  <TableHead>Last lead</TableHead>
+                  <TableHead>
+                    <Suspense fallback="Advertiser">
+                      <AdminSourceOptimizationSortHeader
+                        field="advertiser"
+                        label="Advertiser"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead>
+                    <Suspense fallback="Publisher">
+                      <AdminSourceOptimizationSortHeader
+                        field="publisher"
+                        label="Publisher"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead>
+                    <Suspense fallback="Source ID">
+                      <AdminSourceOptimizationSortHeader
+                        field="sourceId"
+                        label="Source ID"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead>
+                    <Suspense fallback="Original source">
+                      <AdminSourceOptimizationSortHeader
+                        field="originalSource"
+                        label="Original source"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Leads">
+                      <AdminSourceOptimizationSortHeader
+                        field="leads"
+                        label="Leads"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Approved">
+                      <AdminSourceOptimizationSortHeader
+                        field="approved"
+                        label="Approved"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Rejected">
+                      <AdminSourceOptimizationSortHeader
+                        field="rejected"
+                        label="Rejected"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Sales">
+                      <AdminSourceOptimizationSortHeader
+                        field="sales"
+                        label="Sales"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Revenue">
+                      <AdminSourceOptimizationSortHeader
+                        field="revenue"
+                        label="Revenue"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Approval">
+                      <AdminSourceOptimizationSortHeader
+                        field="approval"
+                        label="Approval"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Spend">
+                      <AdminSourceOptimizationSortHeader
+                        field="spend"
+                        label="Spend"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <Suspense fallback="Bid">
+                      <AdminSourceOptimizationSortHeader
+                        field="bid"
+                        label="Bid"
+                        align="right"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead>
+                    <Suspense fallback="Last lead">
+                      <AdminSourceOptimizationSortHeader
+                        field="lastLead"
+                        label="Last lead"
+                      />
+                    </Suspense>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -201,6 +305,13 @@ export default async function AdminSourceOptimizationPage({
                       {row.lastLeadAt
                         ? formatUserDateTime(row.lastLeadAt, tz)
                         : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AdminSourceActions
+                        advertiserId={row.advertiserId}
+                        sourceToken={row.sourceToken}
+                        blocked={row.blocked}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
