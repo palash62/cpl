@@ -5,6 +5,14 @@ import { useState } from "react";
 import { Ban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -30,18 +38,28 @@ export function AdvertiserBlockedSourcesTable({
   timezone: string;
 }) {
   const router = useRouter();
-  const [loadingToken, setLoadingToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState<BlockedSource | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function unblock(sourceToken: string) {
-    setLoadingToken(sourceToken);
+  async function confirmUnblock() {
+    if (!pending) return;
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch(
-        `/api/v1/advertiser/source-blocks?sourceToken=${encodeURIComponent(sourceToken)}`,
-        { method: "DELETE" },
+        `/api/v1/advertiser/source-blocks?sourceToken=${encodeURIComponent(pending.sourceToken)}`,
+        { method: "DELETE", credentials: "same-origin" },
       );
-      if (res.ok) router.refresh();
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error?.message ?? "Could not unblock source");
+        return;
+      }
+      setPending(null);
+      router.refresh();
     } finally {
-      setLoadingToken(null);
+      setLoading(false);
     }
   }
 
@@ -82,14 +100,13 @@ export function AdvertiserBlockedSourcesTable({
                   variant="outline"
                   size="sm"
                   className="h-8 gap-1.5 border-red-200 text-red-700 hover:bg-red-50"
-                  disabled={loadingToken === block.sourceToken}
-                  onClick={() => unblock(block.sourceToken)}
+                  disabled={loading}
+                  onClick={() => {
+                    setError(null);
+                    setPending(block);
+                  }}
                 >
-                  {loadingToken === block.sourceToken ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Ban className="h-3.5 w-3.5" />
-                  )}
+                  <Ban className="h-3.5 w-3.5" />
                   Unblock
                 </Button>
               </TableCell>
@@ -97,6 +114,44 @@ export function AdvertiserBlockedSourcesTable({
           ))}
         </TableBody>
       </Table>
+
+      <Dialog
+        open={pending != null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unblock source</DialogTitle>
+            <DialogDescription>
+              Unblock source{" "}
+              <span className="font-mono font-medium">
+                {pending?.sourceDisplayId}
+              </span>
+              ? Traffic from this source will be accepted again across your
+              campaigns.
+            </DialogDescription>
+          </DialogHeader>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPending(null)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmUnblock} disabled={loading}>
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Unblock source"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

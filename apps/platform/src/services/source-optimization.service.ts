@@ -608,7 +608,7 @@ export async function isSourceBlocked(
   publisherId: string,
   source: string | null | undefined,
 ): Promise<boolean> {
-  const sourceToken = buildSourceToken(advertiserId, publisherId, source);
+  const sourceToken = buildSourceToken(advertiserId, publisherId, source).toLowerCase();
   const block = await prisma.advertiserSourceBlock.findUnique({
     where: {
       advertiserId_sourceToken: { advertiserId, sourceToken },

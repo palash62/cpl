@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Ban, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,26 +33,33 @@ export function AdvertiserSourceActions({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [bidOpen, setBidOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(blocked);
   const [bidValue, setBidValue] = useState(
     String(currentBid ?? campaignCpl ?? ""),
   );
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setIsBlocked(blocked);
+  }, [blocked]);
+
   const limits =
     campaignCpl != null && campaignCpl > 0 ? sourceBidLimits(campaignCpl) : null;
 
-  async function handleBlockToggle() {
+  async function confirmBlockToggle() {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        blocked
+        isBlocked
           ? `/api/v1/advertiser/source-blocks?sourceToken=${encodeURIComponent(sourceToken)}`
           : "/api/v1/advertiser/source-blocks",
         {
-          method: blocked ? "DELETE" : "POST",
-          headers: blocked ? undefined : { "Content-Type": "application/json" },
-          body: blocked ? undefined : JSON.stringify({ sourceToken }),
+          method: isBlocked ? "DELETE" : "POST",
+          credentials: "same-origin",
+          headers: isBlocked ? undefined : { "Content-Type": "application/json" },
+          body: isBlocked ? undefined : JSON.stringify({ sourceToken }),
         },
       );
       if (!res.ok) {
@@ -60,6 +67,8 @@ export function AdvertiserSourceActions({
         setError(body?.error?.message ?? "Request failed");
         return;
       }
+      setIsBlocked(!isBlocked);
+      setConfirmOpen(false);
       router.refresh();
     } finally {
       setLoading(false);
@@ -74,6 +83,7 @@ export function AdvertiserSourceActions({
       const cpl = parseFloat(bidValue);
       const res = await fetch("/api/v1/advertiser/source-bids", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ campaignId, sourceToken, cpl }),
       });
@@ -96,7 +106,7 @@ export function AdvertiserSourceActions({
     try {
       const res = await fetch(
         `/api/v1/advertiser/source-bids?campaignId=${encodeURIComponent(campaignId)}&sourceToken=${encodeURIComponent(sourceToken)}`,
-        { method: "DELETE" },
+        { method: "DELETE", credentials: "same-origin" },
       );
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -111,21 +121,30 @@ export function AdvertiserSourceActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {error && <span className="w-full text-right text-xs text-red-600">{error}</span>}
+      {error && !confirmOpen && !bidOpen && (
+        <span className="w-full text-right text-xs text-red-600">{error}</span>
+      )}
       <Button
         type="button"
         variant="outline"
         size="sm"
         disabled={loading}
-        onClick={handleBlockToggle}
+        onClick={() => {
+          setError(null);
+          setConfirmOpen(true);
+        }}
         className={
-          blocked
+          isBlocked
             ? "h-8 gap-1 border-red-200 text-red-700 hover:bg-red-50"
             : "h-8 gap-1 border-slate-200 text-slate-600"
         }
       >
-        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
-        {blocked ? "Unblock" : "Block"}
+        {loading && !bidOpen ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Ban className="h-3.5 w-3.5" />
+        )}
+        {isBlocked ? "Unblock" : "Block"}
       </Button>
 
       {campaignId && campaignCpl != null && (
@@ -135,7 +154,7 @@ export function AdvertiserSourceActions({
             variant="outline"
             size="sm"
             className="h-8 gap-1"
-            disabled={loading || blocked}
+            disabled={loading || isBlocked}
             onClick={() => {
               setBidValue(String(currentBid ?? campaignCpl));
               setBidOpen(true);
@@ -151,7 +170,7 @@ export function AdvertiserSourceActions({
               variant="ghost"
               size="sm"
               className="h-8 gap-1 text-slate-500"
-              disabled={loading || blocked}
+              disabled={loading || isBlocked}
               onClick={handleResetBid}
               title="Reset to campaign CPL"
             >
@@ -160,6 +179,60 @@ export function AdvertiserSourceActions({
           )}
         </>
       )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isBlocked ? "Unblock source" : "Block source"}
+            </DialogTitle>
+            <DialogDescription>
+              {isBlocked ? (
+                <>
+                  Unblock source{" "}
+                  <span className="font-mono font-medium">{sourceDisplayId}</span>
+                  ? Traffic from this source will be accepted again across your
+                  campaigns.
+                </>
+              ) : (
+                <>
+                  Block source{" "}
+                  <span className="font-mono font-medium">{sourceDisplayId}</span>
+                  ? New leads from this source will be rejected on submit and
+                  excluded from Smart Link rotation.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmBlockToggle}
+              disabled={loading}
+              className={
+                isBlocked
+                  ? undefined
+                  : "bg-red-600 text-white hover:bg-red-700"
+              }
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isBlocked ? (
+                "Unblock source"
+              ) : (
+                "Block source"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={bidOpen} onOpenChange={setBidOpen}>
         <DialogContent>

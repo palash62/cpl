@@ -310,6 +310,7 @@ export default async function AdminSourceOptimizationPage({
                       <AdminSourceActions
                         advertiserId={row.advertiserId}
                         sourceToken={row.sourceToken}
+                        sourceDisplayId={row.sourceDisplayId}
                         blocked={row.blocked}
                       />
                     </TableCell>
