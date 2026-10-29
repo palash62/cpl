@@ -11,6 +11,7 @@ import {
   type ProfitGroupBy,
 } from "@/services/admin-profit.service";
 import {
+  currentCalendarMonth,
   formatPartnerPaidDate,
   formatPartnerPeriodMonthLabel,
   type PartnerPaymentRecord,
@@ -18,6 +19,8 @@ import {
   type PartnerSettlementStatus,
   type PartnerSettlementSummary,
 } from "@/services/partner-payment.service";
+import type { PartnerInvoiceRecord } from "@/services/partner-invoice.service";
+import { FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function moneyClass(value: number) {
@@ -96,15 +99,77 @@ export function AdminPartnerSettlementSummary({
   );
 }
 
-export function AdminPartnerSettlementTable({ rows }: { rows: PartnerSettlementRow[] }) {
-  const visibleRows = rows.filter((row) => row.owed > 0 || row.paid > 0);
+export function AdminPartnerOngoingMonth({
+  rows,
+  currentMonth = currentCalendarMonth(),
+}: {
+  rows: PartnerSettlementRow[];
+  currentMonth?: string;
+}) {
+  const row = rows.find((r) => r.periodMonth === currentMonth);
+  const owed = row?.owed ?? 0;
+  const paid = row?.paid ?? 0;
+  const stillToPay = Math.max(0, row?.remaining ?? owed - paid);
+
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-900">Ongoing</h2>
+        <p className="text-sm text-slate-500">
+          Accruing this month. Invoice is created on the 1st for the previous month.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-3 pl-5">Month</th>
+              <th className="px-4 py-3">Partner share</th>
+              <th className="px-4 py-3">Already paid</th>
+              <th className="px-4 py-3">Still to pay</th>
+              <th className="px-4 py-3 pr-5">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t border-slate-100">
+              <td className="px-4 py-3 pl-5 font-medium text-slate-800">
+                {formatPartnerPeriodMonthLabel(currentMonth)}
+              </td>
+              <td className={cn("px-4 py-3", moneyClass(owed))}>{formatCurrency(owed)}</td>
+              <td className="px-4 py-3 text-slate-700">{formatCurrency(paid)}</td>
+              <td className={cn("px-4 py-3 font-semibold", moneyClass(stillToPay))}>
+                {formatCurrency(stillToPay)}
+              </td>
+              <td className="px-4 py-3 pr-5">
+                <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+                  Ongoing
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function AdminPartnerSettlementTable({
+  rows,
+  currentMonth = currentCalendarMonth(),
+}: {
+  rows: PartnerSettlementRow[];
+  currentMonth?: string;
+}) {
+  const visibleRows = rows.filter(
+    (row) => row.periodMonth !== currentMonth && (row.owed > 0 || row.paid > 0),
+  );
 
   return (
     <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-base font-semibold text-slate-900">Partner settlement</h2>
         <p className="text-sm text-slate-500">
-          What the partner is owed, what you already paid, and what is left each month
+          Completed months in this range (current month is under Ongoing)
         </p>
       </div>
       {visibleRows.length === 0 ? (
@@ -165,17 +230,90 @@ function invoiceNumberFromPaymentNote(note: string | null): string | null {
   return match?.[0] ?? null;
 }
 
-export function AdminPartnerPaymentHistory({ payments }: { payments: PartnerPaymentRecord[] }) {
+type HistoryRow =
+  | {
+      kind: "invoice";
+      key: string;
+      periodMonth: string;
+      amount: number;
+      paidAt: string | null;
+      invoiceId: string;
+      invoiceNumber: string;
+    }
+  | {
+      kind: "payment";
+      key: string;
+      periodMonth: string;
+      amount: number;
+      paidAt: string;
+      invoiceNumber: null;
+      method: string | null;
+      note: string | null;
+      createdByName: string | null;
+    };
+
+export function AdminPartnerPaymentHistory({
+  invoices,
+  payments,
+}: {
+  invoices: PartnerInvoiceRecord[];
+  payments: PartnerPaymentRecord[];
+}) {
+  const paidInvoices = invoices
+    .filter((invoice) => invoice.status === "PAID")
+    .slice()
+    .sort((a, b) => b.periodMonth.localeCompare(a.periodMonth));
+
+  const coveredInvoiceNumbers = new Set(paidInvoices.map((invoice) => invoice.invoiceNumber));
+
+  const orphanPayments = payments.filter((payment) => {
+    const invoiceNumber = invoiceNumberFromPaymentNote(payment.note);
+    return !invoiceNumber || !coveredInvoiceNumbers.has(invoiceNumber);
+  });
+
+  const rows: HistoryRow[] = [
+    ...paidInvoices.map(
+      (invoice): HistoryRow => ({
+        kind: "invoice",
+        key: `invoice-${invoice.id}`,
+        periodMonth: invoice.periodMonth,
+        amount: invoice.amountDue,
+        paidAt: invoice.paidAt,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+      }),
+    ),
+    ...orphanPayments.map(
+      (payment): HistoryRow => ({
+        kind: "payment",
+        key: `payment-${payment.id}`,
+        periodMonth: payment.periodMonth,
+        amount: payment.amount,
+        paidAt: payment.paidAt,
+        invoiceNumber: null,
+        method: payment.method,
+        note: payment.note,
+        createdByName: payment.createdByName,
+      }),
+    ),
+  ].sort((a, b) => {
+    const byMonth = b.periodMonth.localeCompare(a.periodMonth);
+    if (byMonth !== 0) return byMonth;
+    return (b.paidAt ?? "").localeCompare(a.paidAt ?? "");
+  });
+
   return (
     <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Payment history</h2>
+        <h2 className="text-base font-semibold text-slate-900">History</h2>
         <p className="text-sm text-slate-500">
-          Payments for due months in this range (newest due month first)
+          Paid invoices and payments (newest due month first)
         </p>
       </div>
-      {payments.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-slate-500">No partner payments recorded yet.</p>
+      {rows.length === 0 ? (
+        <p className="px-5 py-12 text-center text-sm text-slate-500">
+          No paid invoices or partner payments yet.
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-sm">
@@ -183,40 +321,52 @@ export function AdminPartnerPaymentHistory({ payments }: { payments: PartnerPaym
               <tr>
                 <th className="px-4 py-3 pl-5">Due month</th>
                 <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Invoice #</th>
                 <th className="px-4 py-3">Paid date</th>
-                <th className="px-4 py-3">Invoice</th>
-                <th className="px-4 py-3">Method</th>
                 <th className="px-4 py-3">Note</th>
-                <th className="px-4 py-3 pr-5">Recorded by</th>
+                <th className="px-4 py-3 pr-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {payments.map((payment) => {
-                const invoiceNumber = invoiceNumberFromPaymentNote(payment.note);
-                return (
-                  <tr key={payment.id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                    <td className="px-4 py-3 pl-5 font-medium text-slate-800">
-                      {formatPartnerPeriodMonthLabel(payment.periodMonth)}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">
-                      {formatCurrency(payment.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {formatPartnerPaidDate(payment.paidAt)}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-700">
-                      {invoiceNumber || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{payment.method || "—"}</td>
-                    <td className="max-w-[220px] truncate px-4 py-3 text-slate-600" title={payment.note ?? ""}>
-                      {payment.note || "—"}
-                    </td>
-                    <td className="px-4 py-3 pr-5 text-slate-700">
-                      {payment.createdByName || "—"}
-                    </td>
-                  </tr>
-                );
-              })}
+              {rows.map((row) => (
+                <tr key={row.key} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <td className="px-4 py-3 pl-5 font-medium text-slate-800">
+                    {formatPartnerPeriodMonthLabel(row.periodMonth)}
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">
+                    {formatCurrency(row.amount)}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                    {row.invoiceNumber || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">
+                    {formatPartnerPaidDate(row.paidAt)}
+                  </td>
+                  <td className="max-w-[240px] truncate px-4 py-3 text-slate-600">
+                    {row.kind === "invoice"
+                      ? "Marked paid"
+                      : [row.method, row.note, row.createdByName]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                  </td>
+                  <td className="px-4 py-3 pr-5 text-right">
+                    {row.kind === "invoice" ? (
+                      <a
+                        href={`/api/v1/admin/partner-invoices/${row.invoiceId}/download`}
+                        className={cn(
+                          "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] px-2.5",
+                          "text-[0.8rem] font-medium text-slate-700 hover:bg-slate-100",
+                        )}
+                      >
+                        <FileDown className="h-4 w-4" />
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

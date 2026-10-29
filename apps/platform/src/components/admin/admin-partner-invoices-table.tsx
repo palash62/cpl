@@ -42,6 +42,7 @@ export function AdminPartnerInvoicesTable({
   const router = useRouter();
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const unpaid = invoices.filter((invoice) => invoice.status === "UNPAID");
 
   async function markPaid(invoice: PartnerInvoiceRecord) {
     const ok = window.confirm(
@@ -71,10 +72,10 @@ export function AdminPartnerInvoicesTable({
   return (
     <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Monthly invoices</h2>
+        <h2 className="text-base font-semibold text-slate-900">Unpaid invoices</h2>
         <p className="text-sm text-slate-500">
-          Auto-generated on the 1st for the previous month as Unpaid. Download the unpaid PDF,
-          pay the partner manually, then mark paid.
+          Auto-generated on the 1st for the previous month. Download the unpaid PDF, pay the
+          partner manually, then mark paid. Paid invoices move to History.
         </p>
       </div>
 
@@ -84,16 +85,16 @@ export function AdminPartnerInvoicesTable({
         </p>
       ) : null}
 
-      {invoices.length === 0 ? (
+      {unpaid.length === 0 ? (
         <p className="px-5 py-12 text-center text-sm text-slate-500">
-          No monthly invoices yet. Invoices are generated automatically on the 1st of each month.
+          No unpaid invoices. New invoices appear here on the 1st of each month.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3 pl-5">Month</th>
+                <th className="px-4 py-3 pl-5">Due month</th>
                 <th className="px-4 py-3 text-right">Bill (partner 20%)</th>
                 <th className="px-4 py-3">Invoice #</th>
                 <th className="px-4 py-3">Status</th>
@@ -102,7 +103,7 @@ export function AdminPartnerInvoicesTable({
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice) => (
+              {unpaid.map((invoice) => (
                 <tr
                   key={invoice.id}
                   className="border-t border-slate-100 hover:bg-slate-50/60"
@@ -142,25 +143,23 @@ export function AdminPartnerInvoicesTable({
                         <FileDown className="h-4 w-4" />
                         Download
                       </a>
-                      {invoice.status === "UNPAID" ? (
-                        <button
-                          type="button"
-                          disabled={markingId === invoice.id}
-                          onClick={() => void markPaid(invoice)}
-                          className={cn(
-                            "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] px-2.5",
-                            "text-[0.8rem] font-medium text-emerald-700 hover:bg-emerald-50",
-                            "disabled:opacity-60",
-                          )}
-                        >
-                          {markingId === invoice.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4" />
-                          )}
-                          Mark paid
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        disabled={markingId === invoice.id}
+                        onClick={() => void markPaid(invoice)}
+                        className={cn(
+                          "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] px-2.5",
+                          "text-[0.8rem] font-medium text-emerald-700 hover:bg-emerald-50",
+                          "disabled:opacity-60",
+                        )}
+                      >
+                        {markingId === invoice.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Mark paid
+                      </button>
                     </div>
                   </td>
                 </tr>

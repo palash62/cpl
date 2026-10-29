@@ -8,6 +8,7 @@ import {
   resolveProfitPageRange,
 } from "@/services/admin-profit.service";
 import {
+  currentCalendarMonth,
   getPartnerSettlementByMonth,
   type PartnerPaymentRecord,
   type PartnerSettlementRow,
@@ -18,6 +19,7 @@ import { PageHero } from "@/components/admin/page-hero";
 import { AdminProfitFilters } from "@/components/admin/admin-profit-filters";
 import { AdminPartnerInvoicesTable } from "@/components/admin/admin-partner-invoices-table";
 import {
+  AdminPartnerOngoingMonth,
   AdminPartnerPaymentHistory,
   AdminPartnerSettlementSummary,
   AdminPartnerSettlementTable,
@@ -96,6 +98,7 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
       : 1;
   const start = (page - 1) * PROFIT_TABLE_PAGE_SIZE;
   const pageRows = data.rows.slice(start, start + PROFIT_TABLE_PAGE_SIZE);
+  const ongoingMonth = currentCalendarMonth();
 
   return (
     <div className="space-y-6">
@@ -119,9 +122,14 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
 
       <AdminPartnerInvoicesTable invoices={partnerInvoices} />
 
-      <AdminPartnerPaymentHistory payments={partnerSettlement.payments} />
+      <AdminPartnerOngoingMonth rows={partnerSettlement.rows} currentMonth={ongoingMonth} />
 
-      <AdminPartnerSettlementTable rows={partnerSettlement.rows} />
+      <AdminPartnerPaymentHistory
+        invoices={partnerInvoices}
+        payments={partnerSettlement.payments}
+      />
+
+      <AdminPartnerSettlementTable rows={partnerSettlement.rows} currentMonth={ongoingMonth} />
 
       <AdminProfitReportTable
         allRows={data.rows}
