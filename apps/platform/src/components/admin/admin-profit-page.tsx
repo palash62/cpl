@@ -27,11 +27,10 @@ function moneyClass(value: number) {
 function settlementStatusLabel(status: PartnerSettlementStatus) {
   switch (status) {
     case "unpaid":
-      return "Unpaid";
     case "partial":
-      return "Partial";
+      return "Unpaid";
     case "settled":
-      return "Settled";
+      return "Paid";
     case "overpaid":
       return "Overpaid";
   }
@@ -40,9 +39,8 @@ function settlementStatusLabel(status: PartnerSettlementStatus) {
 function settlementStatusClass(status: PartnerSettlementStatus) {
   switch (status) {
     case "unpaid":
-      return "bg-amber-50 text-amber-800";
     case "partial":
-      return "bg-sky-50 text-sky-800";
+      return "bg-amber-50 text-amber-800";
     case "settled":
       return "bg-emerald-50 text-emerald-800";
     case "overpaid":
@@ -55,23 +53,24 @@ export function AdminPartnerSettlementSummary({
 }: {
   summary: PartnerSettlementSummary;
 }) {
+  const stillToPay = Math.max(0, summary.remaining);
   const cards = [
     {
-      title: "Partner owed",
+      title: "Partner share",
       value: summary.owed,
-      description: "20% partner profit for months in range",
+      description: "Total 20% partner profit for this range",
       accent: "border-t-violet-500",
     },
     {
-      title: "Partner paid",
+      title: "Already paid",
       value: summary.paid,
-      description: "Manual payments recorded",
+      description: "Marked paid on monthly invoices",
       accent: "border-t-sky-500",
     },
     {
-      title: "Partner remaining",
-      value: summary.remaining,
-      description: "Owed − paid (negative = overpaid)",
+      title: "Still to pay",
+      value: stillToPay,
+      description: "Partner share minus already paid",
       accent: "border-t-amber-500",
     },
   ];
@@ -98,51 +97,60 @@ export function AdminPartnerSettlementSummary({
 }
 
 export function AdminPartnerSettlementTable({ rows }: { rows: PartnerSettlementRow[] }) {
+  const visibleRows = rows.filter((row) => row.owed > 0 || row.paid > 0);
+
   return (
     <div className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-base font-semibold text-slate-900">Partner settlement</h2>
-        <p className="text-sm text-slate-500">Monthly owed vs paid for the selected range</p>
+        <p className="text-sm text-slate-500">
+          What the partner is owed, what you already paid, and what is left each month
+        </p>
       </div>
-      {rows.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-slate-500">No months in this range.</p>
+      {visibleRows.length === 0 ? (
+        <p className="px-5 py-12 text-center text-sm text-slate-500">
+          No partner share or payments in this range.
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 pl-5">Month</th>
-                <th className="px-4 py-3">Owed</th>
-                <th className="px-4 py-3">Paid</th>
-                <th className="px-4 py-3">Remaining</th>
+                <th className="px-4 py-3">Partner share</th>
+                <th className="px-4 py-3">Already paid</th>
+                <th className="px-4 py-3">Still to pay</th>
                 <th className="px-4 py-3 pr-5">Status</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.periodMonth} className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-3 pl-5 font-medium text-slate-800">
-                    {formatPartnerPeriodMonthLabel(row.periodMonth)}
-                  </td>
-                  <td className={cn("px-4 py-3", moneyClass(row.owed))}>
-                    {formatCurrency(row.owed)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{formatCurrency(row.paid)}</td>
-                  <td className={cn("px-4 py-3 font-semibold", moneyClass(row.remaining))}>
-                    {formatCurrency(row.remaining)}
-                  </td>
-                  <td className="px-4 py-3 pr-5">
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                        settlementStatusClass(row.status),
-                      )}
-                    >
-                      {settlementStatusLabel(row.status)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {visibleRows.map((row) => {
+                const stillToPay = Math.max(0, row.remaining);
+                return (
+                  <tr key={row.periodMonth} className="border-t border-slate-100 hover:bg-slate-50/60">
+                    <td className="px-4 py-3 pl-5 font-medium text-slate-800">
+                      {formatPartnerPeriodMonthLabel(row.periodMonth)}
+                    </td>
+                    <td className={cn("px-4 py-3", moneyClass(row.owed))}>
+                      {formatCurrency(row.owed)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{formatCurrency(row.paid)}</td>
+                    <td className={cn("px-4 py-3 font-semibold", moneyClass(stillToPay))}>
+                      {formatCurrency(stillToPay)}
+                    </td>
+                    <td className="px-4 py-3 pr-5">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                          settlementStatusClass(row.status),
+                        )}
+                      >
+                        {settlementStatusLabel(row.status)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

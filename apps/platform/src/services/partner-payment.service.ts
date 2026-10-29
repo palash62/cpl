@@ -45,8 +45,9 @@ export type PartnerSettlementSummary = {
   remaining: number;
 };
 
+/** Round to USD cents for partner settlement display and status. */
 function roundMoney(value: number) {
-  return Math.round(value * 10000) / 10000;
+  return Math.round(value * 100) / 100;
 }
 
 export function isValidPeriodMonth(value: string): boolean {
@@ -85,11 +86,14 @@ export function formatPartnerPaidDate(value: string | null | undefined): string 
 }
 
 export function partnerSettlementStatus(owed: number, paid: number): PartnerSettlementStatus {
-  const remaining = roundMoney(owed - paid);
-  if (paid <= 0 && owed > 0) return "unpaid";
-  if (paid <= 0 && owed <= 0) return "settled";
+  const centsOwed = roundMoney(owed);
+  const centsPaid = roundMoney(paid);
+  const remaining = roundMoney(centsOwed - centsPaid);
+  if (centsPaid <= 0 && centsOwed > 0) return "unpaid";
+  if (centsPaid <= 0 && centsOwed <= 0) return "settled";
+  // Treat sub-cent leftovers as settled to avoid Partial/Overpaid noise.
+  if (Math.abs(remaining) < 0.01) return "settled";
   if (remaining < 0) return "overpaid";
-  if (remaining === 0) return "settled";
   return "partial";
 }
 

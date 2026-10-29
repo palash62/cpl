@@ -1,6 +1,5 @@
 import { isAdminPortalRole } from "@/lib/admin-portal";
 import { Suspense } from "react";
-import { endOfDay, endOfMonth, parseISO, startOfMonth } from "date-fns";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import {
@@ -10,7 +9,6 @@ import {
 } from "@/services/admin-profit.service";
 import {
   getPartnerSettlementByMonth,
-  currentCalendarMonth,
   type PartnerPaymentRecord,
   type PartnerSettlementRow,
   type PartnerSettlementSummary,
@@ -18,7 +16,6 @@ import {
 import { listPartnerInvoices, type PartnerInvoiceRecord } from "@/services/partner-invoice.service";
 import { PageHero } from "@/components/admin/page-hero";
 import { AdminProfitFilters } from "@/components/admin/admin-profit-filters";
-import { AdminPartnerPaymentForm } from "@/components/admin/admin-partner-payment-form";
 import { AdminPartnerInvoicesTable } from "@/components/admin/admin-partner-invoices-table";
 import {
   AdminPartnerPaymentHistory,
@@ -58,15 +55,10 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const range = resolveProfitPageRange(params);
-  const defaultPeriodMonth = currentCalendarMonth();
-  const defaultMonthStart = startOfMonth(parseISO(`${defaultPeriodMonth}-01`));
-  const defaultMonthEnd = endOfDay(endOfMonth(defaultMonthStart));
 
-  const [profitResult, settlementResult, defaultMonthResult, invoicesResult] =
-    await Promise.allSettled([
+  const [profitResult, settlementResult, invoicesResult] = await Promise.allSettled([
     getAdminProfitPageData(range.from, range.to, range.groupBy),
     getPartnerSettlementByMonth(range.from, range.to),
-    getPartnerSettlementByMonth(defaultMonthStart, defaultMonthEnd),
     listPartnerInvoices(),
   ]);
 
@@ -83,16 +75,6 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
       "[admin/profit] partner settlement failed (run npm run db:push if partner_payments is missing):",
       settlementResult.reason,
     );
-  }
-
-  const owedByMonth: Record<string, number> = {};
-  if (defaultMonthResult.status === "fulfilled") {
-    for (const row of defaultMonthResult.value.rows) {
-      owedByMonth[row.periodMonth] = row.owed;
-    }
-  }
-  for (const row of partnerSettlement.rows) {
-    owedByMonth[row.periodMonth] = row.owed;
   }
 
   let partnerInvoices: PartnerInvoiceRecord[] = [];
@@ -136,11 +118,6 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
       <AdminPartnerSettlementSummary summary={partnerSettlement.summary} />
 
       <AdminPartnerInvoicesTable invoices={partnerInvoices} />
-
-      <AdminPartnerPaymentForm
-        defaultPeriodMonth={defaultPeriodMonth}
-        owedByMonth={owedByMonth}
-      />
 
       <AdminPartnerSettlementTable rows={partnerSettlement.rows} />
 

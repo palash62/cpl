@@ -137,6 +137,9 @@ describe("partner payment helpers", () => {
     expect(partnerSettlementStatus(10, 0)).toBe("unpaid");
     expect(partnerSettlementStatus(10, 10)).toBe("settled");
     expect(partnerSettlementStatus(10, 12)).toBe("overpaid");
+    // Sub-cent leftovers from 4dp profit vs 2dp payments count as settled.
+    expect(partnerSettlementStatus(258.2866, 258.29)).toBe("settled");
+    expect(partnerSettlementStatus(10.0044, 10)).toBe("settled");
   });
 });
 

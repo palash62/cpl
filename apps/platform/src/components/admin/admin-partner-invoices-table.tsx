@@ -43,11 +43,16 @@ export function AdminPartnerInvoicesTable({
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  async function markPaid(id: string) {
+  async function markPaid(invoice: PartnerInvoiceRecord) {
+    const ok = window.confirm(
+      `Mark ${invoice.invoiceNumber} as paid?\n\nAmount: ${formatCurrency(invoice.amountDue)}\nOnly continue after you have paid the partner.`,
+    );
+    if (!ok) return;
+
     setError("");
-    setMarkingId(id);
+    setMarkingId(invoice.id);
     try {
-      const res = await fetch(`/api/v1/admin/partner-invoices/${id}/mark-paid`, {
+      const res = await fetch(`/api/v1/admin/partner-invoices/${invoice.id}/mark-paid`, {
         method: "POST",
       });
       const data = await res.json().catch(() => null);
@@ -141,7 +146,7 @@ export function AdminPartnerInvoicesTable({
                         <button
                           type="button"
                           disabled={markingId === invoice.id}
-                          onClick={() => void markPaid(invoice.id)}
+                          onClick={() => void markPaid(invoice)}
                           className={cn(
                             "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] px-2.5",
                             "text-[0.8rem] font-medium text-emerald-700 hover:bg-emerald-50",
