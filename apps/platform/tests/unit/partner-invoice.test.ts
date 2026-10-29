@@ -5,6 +5,7 @@ const mockFindUnique = vi.fn();
 const mockFindMany = vi.fn();
 const mockUpsert = vi.fn();
 const mockUpdate = vi.fn();
+const mockTransaction = vi.fn();
 const mockGetAdminProfitPageData = vi.fn();
 const mockSendEmail = vi.fn();
 const mockGetAdminAlertEmail = vi.fn();
@@ -17,6 +18,10 @@ vi.mock("@/lib/prisma", () => ({
       upsert: (...args: unknown[]) => mockUpsert(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
     },
+    partnerPayment: {
+      create: vi.fn(),
+    },
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
 
@@ -41,6 +46,7 @@ import {
   buildPartnerInvoiceSnapshot,
   generatePartnerInvoice,
   listPartnerInvoices,
+  markPartnerInvoicePaid,
 } from "@/services/partner-invoice.service";
 import { invoiceNumberForPeriod } from "@/lib/partner-invoice-parties";
 
@@ -101,11 +107,14 @@ describe("Partner invoice service", () => {
       invoiceNumber: "INV-2026-07",
       periodMonth: "2026-07",
       amountDue: 100,
+      status: "UNPAID",
       snapshot: {},
       billFrom: {},
       billTo: {},
       emailedAt: new Date("2026-08-01T00:00:00.000Z"),
       emailError: null,
+      paidAt: null,
+      paidById: null,
       createdAt: new Date("2026-08-01T00:00:00.000Z"),
     };
     mockFindUnique.mockResolvedValue(existing);
@@ -113,16 +122,18 @@ describe("Partner invoice service", () => {
     const result = await generatePartnerInvoice("2026-07");
 
     expect(result.status).toBe("skipped");
+    expect(result.invoice.status).toBe("UNPAID");
     expect(mockUpsert).not.toHaveBeenCalled();
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
-  it("creates invoice with partner profit as amount due", async () => {
+  it("creates unpaid invoice without emailing by default", async () => {
     const createdRow = {
       id: "new-inv",
       invoiceNumber: "INV-2026-08",
       periodMonth: "2026-08",
       amountDue: 60,
+      status: "UNPAID",
       snapshot: {
         advertiserPayment: 500,
         publisherPayout: 200,
@@ -135,9 +146,11 @@ describe("Partner invoice service", () => {
       billTo: { name: "Palash Paul", email: "p@b.com", phone: "2" },
       emailedAt: null,
       emailError: null,
+      paidAt: null,
+      paidById: null,
       createdAt: new Date("2026-09-01T00:00:00.000Z"),
     };
-    mockFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(createdRow);
+    mockFindUnique.mockResolvedValueOnce(null);
     mockGetAdminProfitPageData.mockResolvedValue({
       summary: {
         advertiserPayment: 500,
@@ -160,14 +173,58 @@ describe("Partner invoice service", () => {
       ],
     });
     mockUpsert.mockResolvedValue(createdRow);
-    mockUpdate.mockResolvedValue({});
 
     const result = await generatePartnerInvoice("2026-08");
 
     expect(result.status).toBe("created");
     expect(result.invoice.invoiceNumber).toBe("INV-2026-08");
     expect(result.invoice.amountDue).toBe(60);
+    expect(result.invoice.status).toBe("UNPAID");
+    expect(result.emailed).toBe(false);
     expect(mockUpsert).toHaveBeenCalledOnce();
-    expect(mockSendEmail).toHaveBeenCalledOnce();
+    expect(mockUpsert.mock.calls[0][0].create.status).toBe("UNPAID");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("marks unpaid invoice as paid and records partner payment", async () => {
+    const unpaid = {
+      id: "inv-pay",
+      invoiceNumber: "INV-2026-08",
+      periodMonth: "2026-08",
+      amountDue: 60,
+      status: "UNPAID",
+      snapshot: {},
+      billFrom: {},
+      billTo: {},
+      emailedAt: null,
+      emailError: null,
+      paidAt: null,
+      paidById: null,
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+    };
+    const paid = {
+      ...unpaid,
+      status: "PAID",
+      paidAt: new Date("2026-09-10T12:00:00.000Z"),
+      paidById: "admin-1",
+    };
+    mockFindUnique.mockResolvedValue(unpaid);
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        partnerInvoice: {
+          update: vi.fn().mockResolvedValue(paid),
+        },
+        partnerPayment: {
+          create: vi.fn().mockResolvedValue({}),
+        },
+      };
+      return fn(tx);
+    });
+
+    const result = await markPartnerInvoicePaid("inv-pay", "admin-1");
+
+    expect(result.status).toBe("PAID");
+    expect(result.paidById).toBe("admin-1");
+    expect(mockTransaction).toHaveBeenCalledOnce();
   });
 });

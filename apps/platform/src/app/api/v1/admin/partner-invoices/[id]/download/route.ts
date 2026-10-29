@@ -19,11 +19,12 @@ export async function GET(_request: Request, context: RouteContext) {
       }
 
       const pdf = await getPartnerInvoicePdfBuffer(id);
+      const statusSuffix = invoice.status === "PAID" ? "paid" : "unpaid";
       return new Response(new Uint8Array(pdf), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+          "Content-Disposition": `attachment; filename="${invoice.invoiceNumber}-${statusSuffix}.pdf"`,
           "Cache-Control": "private, no-store",
         },
       });

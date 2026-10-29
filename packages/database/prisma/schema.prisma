@@ -274,6 +274,7 @@ model User {
   payouts           Payout[]
   deposits          Deposit[]
   partnerPayments   PartnerPayment[] @relation("PartnerPaymentCreatedBy")
+  partnerInvoicesPaid PartnerInvoice[] @relation("PartnerInvoicePaidBy")
   notifications     Notification[]
   supportTickets    SupportTicket[]      @relation("TicketOwner")
   assignedTickets   SupportTicket[]      @relation("TicketAssignee")
@@ -754,20 +755,31 @@ model PartnerPayment {
   @@map("partner_payments")
 }
 
+enum PartnerInvoiceStatus {
+  UNPAID
+  PAID
+}
+
 /// Monthly partner profit settlement invoice (20% share).
 model PartnerInvoice {
-  id            String    @id @default(cuid())
-  invoiceNumber String    @unique @map("invoice_number")
-  periodMonth   String    @unique @map("period_month") // YYYY-MM
-  amountDue     Decimal   @map("amount_due") @db.Decimal(12, 2)
+  id            String               @id @default(cuid())
+  invoiceNumber String               @unique @map("invoice_number")
+  periodMonth   String               @unique @map("period_month") // YYYY-MM
+  amountDue     Decimal              @map("amount_due") @db.Decimal(12, 2)
+  status        PartnerInvoiceStatus @default(UNPAID)
   snapshot      Json
-  billFrom      Json      @map("bill_from")
-  billTo        Json      @map("bill_to")
-  emailedAt     DateTime? @map("emailed_at")
-  emailError    String?   @map("email_error") @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at")
+  billFrom      Json                 @map("bill_from")
+  billTo        Json                 @map("bill_to")
+  emailedAt     DateTime?            @map("emailed_at")
+  emailError    String?              @map("email_error") @db.Text
+  paidAt        DateTime?            @map("paid_at")
+  paidById      String?              @map("paid_by_id")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  paidBy User? @relation("PartnerInvoicePaidBy", fields: [paidById], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
+  @@index([status])
   @@map("partner_invoices")
 }
 

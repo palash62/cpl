@@ -491,6 +491,7 @@ export const adminPartnerInvoiceGenerateSchema = z.object({
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "periodMonth must be YYYY-MM")
     .optional(),
   force: z.boolean().optional(),
+  sendEmail: z.boolean().optional(),
 });
 
 export const adminBulkEmailTestSchema = z.object({

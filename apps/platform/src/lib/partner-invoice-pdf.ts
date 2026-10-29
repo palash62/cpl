@@ -4,6 +4,8 @@ import { formatPartnerPeriodMonthLabel } from "@/services/partner-payment.servic
 
 export const PARTNER_INVOICE_LINE_ITEM = "Software development and maintenance";
 
+export type PartnerInvoicePaymentStatus = "UNPAID" | "PAID";
+
 export type PartnerInvoiceSnapshot = {
   advertiserPayment: number;
   publisherPayout: number;
@@ -18,6 +20,8 @@ export type PartnerInvoicePdfInput = {
   periodMonth: string;
   issueDate: Date;
   amountDue: number;
+  status: PartnerInvoicePaymentStatus;
+  paidAt?: Date | null;
   snapshot: PartnerInvoiceSnapshot;
   parties: PartnerInvoiceParties;
 };
@@ -49,6 +53,7 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
 
     const { payer, payee } = input.parties;
     const periodLabel = formatPartnerPeriodMonthLabel(input.periodMonth);
+    const statusLabel = input.status === "PAID" ? "Paid" : "Unpaid";
 
     doc.fontSize(20).fillColor("#0f172a").text("Invoice", { align: "left" });
     doc.moveDown(0.5);
@@ -56,6 +61,12 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
     doc.text(`Invoice #: ${input.invoiceNumber}`);
     doc.text(`Period: ${periodLabel}`);
     doc.text(`Issue date: ${formatIssueDate(input.issueDate)}`);
+    doc
+      .fillColor(input.status === "PAID" ? "#059669" : "#b45309")
+      .text(`Status: ${statusLabel}`);
+    if (input.status === "PAID" && input.paidAt) {
+      doc.fillColor("#64748b").text(`Paid date: ${formatIssueDate(input.paidAt)}`);
+    }
     doc.moveDown(1);
 
     const colY = doc.y;
@@ -93,12 +104,15 @@ export function renderPartnerInvoicePdf(input: PartnerInvoicePdfInput): Promise<
       .stroke();
     doc.moveDown(0.8);
 
-    doc.fontSize(13).fillColor("#0f172a").text("Amount due", 50, doc.y, { continued: true });
+    const amountLabel = input.status === "PAID" ? "Amount paid" : "Amount due";
+    doc.fontSize(13).fillColor("#0f172a").text(amountLabel, 50, doc.y, { continued: true });
     doc.fontSize(13).fillColor("#059669").text(`  ${formatUsd(input.amountDue)}`, { align: "right" });
 
     doc.moveDown(2);
     doc.fontSize(9).fillColor("#94a3b8").text(
-      "This is a platform-generated invoice. Record manual partner payments in Admin → Profit → Partner payments.",
+      input.status === "PAID"
+        ? "This invoice has been marked paid in Admin → Profit after manual partner payment."
+        : "This invoice is unpaid. Pay the partner manually, then mark the invoice as paid in Admin → Profit.",
       { width: 495 },
     );
 

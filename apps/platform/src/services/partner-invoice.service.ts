@@ -1,5 +1,5 @@
 import { endOfDay, endOfMonth, parseISO, startOfMonth } from "date-fns";
-import type { PartnerInvoice } from "@prisma/client";
+import type { PartnerInvoice, PartnerInvoiceStatus } from "@prisma/client";
 import { getPlatformUrl } from "@cpl/shared";
 import { prisma } from "@/lib/prisma";
 import { Errors } from "@/lib/errors";
@@ -25,11 +25,14 @@ export type PartnerInvoiceRecord = {
   invoiceNumber: string;
   periodMonth: string;
   amountDue: number;
+  status: PartnerInvoiceStatus;
   snapshot: PartnerInvoiceSnapshot;
   billFrom: PartnerInvoiceParties["payer"];
   billTo: PartnerInvoiceParties["payee"];
   emailedAt: string | null;
   emailError: string | null;
+  paidAt: string | null;
+  paidById: string | null;
   createdAt: string;
 };
 
@@ -69,11 +72,14 @@ function mapInvoice(row: PartnerInvoice): PartnerInvoiceRecord {
     invoiceNumber: row.invoiceNumber,
     periodMonth: row.periodMonth,
     amountDue: Number(row.amountDue),
+    status: row.status,
     snapshot,
     billFrom,
     billTo,
     emailedAt: row.emailedAt?.toISOString() ?? null,
     emailError: row.emailError,
+    paidAt: row.paidAt?.toISOString() ?? null,
+    paidById: row.paidById ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -134,6 +140,8 @@ export async function getPartnerInvoicePdfBuffer(id: string): Promise<Buffer> {
     periodMonth: invoice.periodMonth,
     issueDate: new Date(invoice.createdAt),
     amountDue: invoice.amountDue,
+    status: invoice.status,
+    paidAt: invoice.paidAt ? new Date(invoice.paidAt) : null,
     snapshot: invoice.snapshot,
     parties: { payer: invoice.billFrom, payee: invoice.billTo },
   });
@@ -175,6 +183,8 @@ export async function sendPartnerInvoiceEmail(invoiceId: string): Promise<{
     periodMonth: invoice.periodMonth,
     issueDate: new Date(invoice.createdAt),
     amountDue: invoice.amountDue,
+    status: invoice.status,
+    paidAt: invoice.paidAt ? new Date(invoice.paidAt) : null,
     snapshot: invoice.snapshot,
     parties: { payer: invoice.billFrom, payee: invoice.billTo },
   });
@@ -209,6 +219,46 @@ export async function sendPartnerInvoiceEmail(invoiceId: string): Promise<{
   return { sent: false, error };
 }
 
+export async function markPartnerInvoicePaid(
+  id: string,
+  adminUserId: string,
+): Promise<PartnerInvoiceRecord> {
+  const existing = await prisma.partnerInvoice.findUnique({ where: { id } });
+  if (!existing) {
+    throw Errors.notFound("Partner invoice not found");
+  }
+  if (existing.status === "PAID") {
+    return mapInvoice(existing);
+  }
+
+  const paidAt = new Date();
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.partnerInvoice.update({
+      where: { id },
+      data: {
+        status: "PAID",
+        paidAt,
+        paidById: adminUserId,
+      },
+    });
+
+    await tx.partnerPayment.create({
+      data: {
+        periodMonth: updated.periodMonth,
+        amount: updated.amountDue,
+        paidAt,
+        method: "manual",
+        note: `Marked paid via invoice ${updated.invoiceNumber}`,
+        createdById: adminUserId,
+      },
+    });
+
+    return updated;
+  });
+
+  return mapInvoice(row);
+}
+
 export async function generatePartnerInvoice(
   periodMonth: string,
   options?: { force?: boolean; sendEmail?: boolean },
@@ -238,6 +288,7 @@ export async function generatePartnerInvoice(
       invoiceNumber,
       periodMonth,
       amountDue,
+      status: "UNPAID",
       snapshot,
       billFrom: parties.payer,
       billTo: parties.payee,
@@ -248,12 +299,17 @@ export async function generatePartnerInvoice(
       snapshot,
       billFrom: parties.payer,
       billTo: parties.payee,
+      // Keep existing payment status when regenerating an already-paid invoice.
+      ...(existing?.status === "PAID"
+        ? {}
+        : { status: "UNPAID" as const, paidAt: null, paidById: null }),
     },
   });
 
   let emailed = false;
   let emailError: string | undefined;
-  if (options?.sendEmail !== false) {
+  // Default: do not email — admin downloads unpaid PDF and marks paid after manual payment.
+  if (options?.sendEmail === true) {
     const emailResult = await sendPartnerInvoiceEmail(row.id);
     emailed = emailResult.sent;
     emailError = emailResult.error;

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       const periodMonth = parsed.data.periodMonth ?? previousCalendarMonth();
       const result = await generatePartnerInvoice(periodMonth, {
         force: parsed.data.force ?? false,
-        sendEmail: true,
+        sendEmail: parsed.data.sendEmail ?? false,
       });
 
       return Response.json({ data: result });

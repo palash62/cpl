@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const periodMonth =
       monthParam && isValidPeriodMonth(monthParam) ? monthParam : previousCalendarMonth();
 
-    const result = await generatePartnerInvoice(periodMonth, { sendEmail: true });
+    const result = await generatePartnerInvoice(periodMonth, { sendEmail: false });
 
     return NextResponse.json({
       generated: result.status === "created" || result.status === "updated",
