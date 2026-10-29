@@ -14,7 +14,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
     const { id } = await context.params;
     try {
-      const invoice = await markPartnerInvoicePaid(id, session.userId);
+      const invoice = await markPartnerInvoicePaid(id, session.user.id);
       return Response.json({ data: invoice });
     } catch (error) {
       return errorResponse(error);
