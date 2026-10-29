@@ -26,6 +26,9 @@ describe("Partner invoice PDF", () => {
     expect(buffer.length).toBeGreaterThan(100);
     expect(buffer.subarray(0, 4).toString("ascii")).toBe("%PDF");
     expect(PARTNER_INVOICE_LINE_ITEM).toBe("Software development and maintenance");
+    const asText = buffer.toString("latin1");
+    expect(asText).toContain("INVOICE");
+    expect(asText).toContain("INV-2026-08");
   });
 
   it("renders paid status invoice PDF", async () => {
@@ -49,5 +52,8 @@ describe("Partner invoice PDF", () => {
     });
 
     expect(buffer.subarray(0, 4).toString("ascii")).toBe("%PDF");
+    const asText = buffer.toString("latin1");
+    expect(asText).toContain("PAID");
+    expect(asText).toContain("Amount paid");
   });
 });

@@ -238,7 +238,8 @@ export async function listPartnerPayments(options: {
         : {}),
     },
     include: { createdBy: { select: { name: true } } },
-    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+    // Newest due month first (matches settlement / invoices), then latest paid date.
+    orderBy: [{ periodMonth: "desc" }, { paidAt: "desc" }, { createdAt: "desc" }],
   });
 
   return rows.map(serializePayment);

@@ -119,9 +119,9 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
 
       <AdminPartnerInvoicesTable invoices={partnerInvoices} />
 
-      <AdminPartnerSettlementTable rows={partnerSettlement.rows} />
-
       <AdminPartnerPaymentHistory payments={partnerSettlement.payments} />
+
+      <AdminPartnerSettlementTable rows={partnerSettlement.rows} />
 
       <AdminProfitReportTable
         allRows={data.rows}
