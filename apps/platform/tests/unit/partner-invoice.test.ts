@@ -44,6 +44,7 @@ vi.mock("@/lib/partner-invoice-pdf", () => ({
 
 import {
   buildPartnerInvoiceSnapshot,
+  closedMonthsMissingAfterLatest,
   generatePartnerInvoice,
   listPartnerInvoices,
   markPartnerInvoicePaid,
@@ -226,5 +227,34 @@ describe("Partner invoice service", () => {
     expect(result.status).toBe("PAID");
     expect(result.paidById).toBe("admin-1");
     expect(mockTransaction).toHaveBeenCalledOnce();
+  });
+});
+
+describe("closedMonthsMissingAfterLatest", () => {
+  const now = new Date("2026-11-06T05:00:00.000Z");
+
+  it("fills the gap after the latest invoice through the previous month", () => {
+    expect(closedMonthsMissingAfterLatest("2026-09", now)).toEqual(["2026-10"]);
+  });
+
+  it("does not include the current month", () => {
+    expect(closedMonthsMissingAfterLatest("2026-10", now)).toEqual([]);
+  });
+
+  it("walks the last 12 closed months when none exist", () => {
+    expect(closedMonthsMissingAfterLatest(null, now)).toEqual([
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+    ]);
   });
 });

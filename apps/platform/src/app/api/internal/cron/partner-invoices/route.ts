@@ -3,7 +3,10 @@ import { timingSafeEqual } from "crypto";
 import { getInternalServiceToken } from "@cpl/shared";
 import { errorResponse } from "@/lib/errors";
 import { isValidPeriodMonth, previousCalendarMonth } from "@/services/partner-payment.service";
-import { generatePartnerInvoice } from "@/services/partner-invoice.service";
+import {
+  ensureClosedMonthPartnerInvoices,
+  generatePartnerInvoice,
+} from "@/services/partner-invoice.service";
 
 export const runtime = "nodejs";
 
@@ -32,9 +35,25 @@ export async function POST(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const monthParam = url.searchParams.get("month")?.trim();
-    const periodMonth =
-      monthParam && isValidPeriodMonth(monthParam) ? monthParam : previousCalendarMonth();
 
+    if (!monthParam) {
+      const results = await ensureClosedMonthPartnerInvoices();
+      return NextResponse.json({
+        generated: results.filter((row) => row.status === "created" || row.status === "updated").length,
+        skipped: results.filter((row) => row.status === "skipped").length,
+        emailed: false,
+        periodMonths: results.map((row) => row.invoice.periodMonth),
+        invoices: results.map((row) => ({
+          status: row.status,
+          periodMonth: row.invoice.periodMonth,
+          invoiceId: row.invoice.id,
+          invoiceNumber: row.invoice.invoiceNumber,
+        })),
+        errors: results.flatMap((row) => (row.emailError ? [row.emailError] : [])),
+      });
+    }
+
+    const periodMonth = isValidPeriodMonth(monthParam) ? monthParam : previousCalendarMonth();
     const result = await generatePartnerInvoice(periodMonth, { sendEmail: false });
 
     return NextResponse.json({

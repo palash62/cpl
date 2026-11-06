@@ -1,4 +1,4 @@
-import { endOfDay, endOfMonth, parseISO, startOfMonth } from "date-fns";
+import { addMonths, endOfDay, endOfMonth, format, parseISO, startOfMonth, subMonths } from "date-fns";
 import type { PartnerInvoice, PartnerInvoiceStatus } from "@prisma/client";
 import { getPlatformUrl } from "@cpl/shared";
 import { prisma } from "@/lib/prisma";
@@ -16,8 +16,10 @@ import { renderPartnerInvoiceEmail } from "@/lib/email/templates/partner-invoice
 import { getAdminProfitPageData, splitPlatformProfit } from "@/services/admin-profit.service";
 import { getAdminAlertEmail, sendEmail } from "@/services/email.service";
 import {
+  currentCalendarMonth,
   formatPartnerPeriodMonthLabel,
   isValidPeriodMonth,
+  previousCalendarMonth,
 } from "@/services/partner-payment.service";
 
 export type PartnerInvoiceRecord = {
@@ -257,6 +259,49 @@ export async function markPartnerInvoicePaid(
   });
 
   return mapInvoice(row);
+}
+
+/**
+ * Closed months that still need an invoice: the month after the latest invoice
+ * through the previous calendar month. With no invoices yet, the last 12 closed months.
+ * Never includes the current month.
+ */
+export function closedMonthsMissingAfterLatest(
+  latestPeriodMonth: string | null,
+  now: Date = new Date(),
+): string[] {
+  const through = previousCalendarMonth(now);
+  const end = startOfMonth(parseISO(`${through}-01`));
+  const start =
+    latestPeriodMonth && isValidPeriodMonth(latestPeriodMonth)
+      ? startOfMonth(addMonths(parseISO(`${latestPeriodMonth}-01`), 1))
+      : startOfMonth(subMonths(end, 11));
+
+  if (start.getTime() > end.getTime()) return [];
+
+  const current = currentCalendarMonth(now);
+  const months: string[] = [];
+  for (let cursor = start; cursor.getTime() <= end.getTime(); cursor = addMonths(cursor, 1)) {
+    const periodMonth = format(cursor, "yyyy-MM");
+    if (periodMonth >= current) break;
+    months.push(periodMonth);
+  }
+  return months;
+}
+
+export async function ensureClosedMonthPartnerInvoices(
+  now: Date = new Date(),
+): Promise<GeneratePartnerInvoiceResult[]> {
+  const latest = await prisma.partnerInvoice.findFirst({
+    orderBy: { periodMonth: "desc" },
+    select: { periodMonth: true },
+  });
+  const months = closedMonthsMissingAfterLatest(latest?.periodMonth ?? null, now);
+  const results: GeneratePartnerInvoiceResult[] = [];
+  for (const periodMonth of months) {
+    results.push(await generatePartnerInvoice(periodMonth, { sendEmail: false }));
+  }
+  return results;
 }
 
 export async function generatePartnerInvoice(

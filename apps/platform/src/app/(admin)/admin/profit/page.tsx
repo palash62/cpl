@@ -14,7 +14,11 @@ import {
   type PartnerSettlementRow,
   type PartnerSettlementSummary,
 } from "@/services/partner-payment.service";
-import { listPartnerInvoices, type PartnerInvoiceRecord } from "@/services/partner-invoice.service";
+import {
+  ensureClosedMonthPartnerInvoices,
+  listPartnerInvoices,
+  type PartnerInvoiceRecord,
+} from "@/services/partner-invoice.service";
 import { PageHero } from "@/components/admin/page-hero";
 import { AdminProfitFilters } from "@/components/admin/admin-profit-filters";
 import { AdminPartnerInvoicesTable } from "@/components/admin/admin-partner-invoices-table";
@@ -57,6 +61,12 @@ export default async function AdminProfitPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const range = resolveProfitPageRange(params);
+
+  try {
+    await ensureClosedMonthPartnerInvoices();
+  } catch (error) {
+    console.error("[admin/profit] ensure closed-month partner invoices failed:", error);
+  }
 
   const [profitResult, settlementResult, invoicesResult] = await Promise.allSettled([
     getAdminProfitPageData(range.from, range.to, range.groupBy),
